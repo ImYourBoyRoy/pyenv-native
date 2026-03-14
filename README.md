@@ -135,22 +135,14 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/unin
 
 ## Current status
 
-`pyenv-native` is **distribution-prepared and heavily built out**, with the current line positioned as an early public-quality release rather than a final 1.0 stability promise.
+`pyenv-native` is designed and validated as a release-quality, native-first implementation rather than a rough proof of concept.
 
-Current validated highlights:
+The current focus is careful distribution polish:
 
-- Rust workspace tests: **101 passed**
-- Python bootstrap tests: **15 passed**
-- validation completed on:
-  - Windows
-  - Ubuntu 24.04 under WSL2
-  - GitHub-hosted macOS runners
-  - a direct macOS 14.8.4 x86_64 VM
-- Windows, Linux, and macOS bundle generation validated
-- root install/uninstall flows validated for Windows and POSIX paths
-- web-installer network flows validated on Windows and macOS using hosted installer entrypoints plus bundle/checksum overrides
-
-That means the project is no longer waiting on a first real macOS host check; that part is now complete.
+- clean install and uninstall behavior,
+- native runtime management across Windows, Linux, and macOS,
+- clear public documentation,
+- publish-ready release and bootstrap channels.
 
 ---
 
@@ -293,48 +285,17 @@ For more examples and detailed explanations, see [`INSTRUCTIONS.md`](./INSTRUCTI
 
 ---
 
-## Verified outputs
+## Development verification commands
 
-### Rust test suite
+For maintainers and contributors, common local verification commands include:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
-```
-
-Observed result:
-
-```text
-test result: ok. 101 passed; 0 failed
-```
-
-### Python bootstrap tests
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
-```
-
-Observed result:
-
-```text
-Ran 15 tests in 0.34s
-OK
-```
-
-### Install dry-run example
-
-```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts	est-python-bootstrap.ps1 -PythonPath C:\path	o\python.exe
 pyenv install --dry-run 3.12
 ```
 
-Observed example:
-
-```text
-Requested: 3.12
-Resolved: 3.12.10
-Provider: windows-cpython-nuget
-Runtime: 3.12.10
-Package: python 3.12.10
-```
+Public-facing release usage is documented in [`INSTRUCTIONS.md`](./INSTRUCTIONS.md), while operator-oriented release steps live in the workspace-level release notes used during publishing.
 
 ---
 
