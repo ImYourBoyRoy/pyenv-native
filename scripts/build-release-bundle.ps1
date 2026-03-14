@@ -1,18 +1,23 @@
 # ./scripts/build-release-bundle.ps1
 <#
 Purpose: Builds a release binary and assembles a portable Windows distribution bundle for pyenv-native.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist]
-Inputs: Optional output root and bundle name override.
+How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
+Inputs: Optional output root, bundle name override, and Windows target triple.
 Outputs/side effects: Builds the release binary, writes a bundle directory under dist/, and creates a zip archive with installers and docs.
 Notes: Intended for native Windows packaging; bundle contents stay portable and registry-free.
 #>
 
 param(
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\dist'),
-    [string]$BundleName = 'pyenv-native-windows-x64'
+    [string]$BundleName = 'pyenv-native-windows-x64',
+    [string]$TargetTriple = $env:PYENV_WINDOWS_TARGET
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $TargetTriple -or [string]::IsNullOrWhiteSpace($TargetTriple)) {
+    $TargetTriple = 'x86_64-pc-windows-gnu'
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $resolvedOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
@@ -20,9 +25,9 @@ $bundleDir = Join-Path $resolvedOutputRoot $BundleName
 $archivePath = Join-Path $resolvedOutputRoot ($BundleName + '.zip')
 $checksumPath = $archivePath + '.sha256'
 $cargoTomlPath = Join-Path $repoRoot 'Cargo.toml'
-$releaseExe = Join-Path $repoRoot 'target\x86_64-pc-windows-gnu\release\pyenv.exe'
+$releaseExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv.exe")
 
-& (Join-Path $PSScriptRoot 'dev-cargo.ps1') build --release
+& (Join-Path $PSScriptRoot 'dev-cargo.ps1') -TargetTriple $TargetTriple build --release
 if ($LASTEXITCODE -ne 0) {
     throw "Release build failed with exit code $LASTEXITCODE"
 }
@@ -59,6 +64,7 @@ $bundleManifest = [ordered]@{
     bundle_version = $bundleVersion
     platform = 'windows'
     architecture = 'x64'
+    target_triple = $TargetTriple
     executable = 'pyenv.exe'
     install_script = 'install-pyenv-native.ps1'
     uninstall_script = 'uninstall-pyenv-native.ps1'
@@ -86,6 +92,7 @@ $summary = [ordered]@{
     archive_path = $archivePath
     checksum_path = $checksumPath
     release_exe = $releaseExe
+    target_triple = $TargetTriple
 }
 
 $summary.GetEnumerator() | ForEach-Object {
