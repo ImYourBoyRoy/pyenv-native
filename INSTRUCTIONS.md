@@ -1,0 +1,532 @@
+# INSTRUCTIONS
+
+## Purpose
+
+This document is the full, detailed usage guide for `pyenv-native`.
+
+If `README.md` is the fast public overview, this file is the clear step-by-step handbook for:
+
+- installation,
+- uninstallation,
+- shell setup,
+- runtime installation,
+- version selection,
+- configuration,
+- troubleshooting,
+- development workflows.
+
+---
+
+## How release selection works
+
+By default, the web installers and the Python bootstrap package target the **latest published GitHub release**.
+
+That is intentional.
+
+- `main` / `master` are source branches,
+- published releases are versioned artifacts,
+- installers should prefer checksum-verifiable release assets,
+- reproducible installs should use an explicit tag such as `vX.Y.Z`.
+
+So the rule is:
+
+- omit `--tag` for the latest published release,
+- use `--tag <vX.Y.Z>` only when you want to pin a specific published release.
+
+When you pin a release, it is best to fetch the installer script from that same tag as well.
+
+---
+
+## Installation options
+
+`pyenv-native` supports multiple entry paths depending on what kind of machine and workflow you have.
+
+### Option 1: latest published release with no clone
+
+#### Windows PowerShell latest-release install
+
+```powershell
+$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.ps1 -OutFile $installer; & $installer
+```
+
+#### Linux / macOS latest-release install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
+```
+
+This is the simplest path when you just want `pyenv-native` installed quickly from GitHub.
+
+### Option 2: pin a specific published release
+
+#### Windows PowerShell pinned install
+
+```powershell
+$tag = 'vX.Y.Z'; $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/$tag/install.ps1" -OutFile $installer; & $installer -Tag $tag -InstallRoot "$HOME\.pyenv" -Force
+```
+
+#### Linux / macOS pinned install
+
+```sh
+tag='vX.Y.Z'; curl -fsSL "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/${tag}/install.sh" | sh -s -- --tag "$tag" --install-root ~/.pyenv
+```
+
+### Option 3: use the PyPI / `pipx` bootstrap package
+
+This is useful when Python already exists on the machine and you want a Python-native entrypoint that still installs the native runtime.
+
+#### `pipx` latest-release bootstrap
+
+```powershell
+pipx install pyenv-native-bootstrap
+pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
+```
+
+#### `pip` latest-release bootstrap
+
+```sh
+python -m pip install pyenv-native-bootstrap
+pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
+```
+
+#### Pinned bootstrap install
+
+```powershell
+pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --install-root ~\.pyenv
+```
+
+### Option 4: install from a local bundle
+
+This is useful for offline or staged release validation.
+
+#### Windows local-bundle install
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -BundleUrl file:///C:/path/to/dist/pyenv-native-windows-x64.zip -ChecksumUrl file:///C:/path/to/dist/pyenv-native-windows-x64.zip.sha256 -InstallRoot $HOME\.pyenv -Force
+```
+
+#### Linux / macOS local-bundle install
+
+```sh
+sh ./install.sh --bundle-url file:///tmp/pyenv-native-linux-x64.tar.gz --checksum-url file:///tmp/pyenv-native-linux-x64.tar.gz.sha256 --install-root ~/.pyenv --force
+```
+
+---
+
+## What the installer does
+
+The installer flow is designed to be safe, explicit, and portable.
+
+It performs or supports:
+
+- platform and architecture detection,
+- release/tag selection,
+- existing-install detection,
+- checksum verification,
+- install-root selection,
+- shell/profile integration controls,
+- optional force/replace behavior,
+- uninstall helpers for reversing installer-owned shell/profile changes.
+
+### Default behavior highlights
+
+- installs under `PYENV_ROOT` or the platform default managed root,
+- avoids Windows registry registration by default,
+- keeps managed runtimes portable,
+- wires shell init in a reversible way,
+- leaves the native runtime as the source of truth.
+
+---
+
+## Uninstall options
+
+### Windows web uninstall
+
+```powershell
+$uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/uninstall.ps1 -OutFile $uninstaller; & $uninstaller -RemoveRoot
+```
+
+### Linux / macOS web uninstall
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/uninstall.sh | sh -s -- --remove-root
+```
+
+### Windows local uninstall helper
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\uninstall-pyenv-native.ps1 -InstallRoot .\portable-pyenv -RemoveRoot
+```
+
+### Linux / macOS local uninstall helper
+
+```sh
+sh ./scripts/uninstall-pyenv-native.sh --install-root ~/.pyenv --remove-root
+```
+
+### Uninstall behavior
+
+The uninstall helpers can remove:
+
+- installer-added PATH changes,
+- installer-added shell/profile blocks,
+- the portable install root itself.
+
+When the installer-created profile block was the only content in a profile file, the uninstall flow removes the empty file rather than leaving a blank stub behind.
+
+---
+
+## First-time shell setup
+
+After installation, initialize your shell so shim resolution and shell-scoped version changes work comfortably.
+
+### PowerShell shell init
+
+```powershell
+iex ((pyenv init - pwsh) -join "`n")
+```
+
+### CMD shell init
+
+```cmd
+FOR /F "delims=" %i IN ('pyenv init - cmd') DO @%i
+```
+
+### Bash shell init
+
+```sh
+eval "$(pyenv init - bash)"
+```
+
+### Zsh shell init
+
+```sh
+eval "$(pyenv init - zsh)"
+```
+
+### Fish shell init
+
+```fish
+pyenv init - fish | source
+```
+
+### POSIX sh shell init
+
+```sh
+eval "$(pyenv init - sh)"
+```
+
+---
+
+## Common workflows
+
+### List installable runtimes
+
+```powershell
+pyenv install --list
+pyenv install --list --family cpython 3.13
+pyenv install --list --family pypy --json
+pyenv install --list --known --family pypy pypy3.11
+```
+
+### Install a runtime
+
+```powershell
+pyenv install 3.13.12
+pyenv install 3.12
+pyenv install pypy3.11
+```
+
+### Preview an install plan before downloading or building
+
+```powershell
+pyenv install --dry-run 3.12
+pyenv install --dry-run --json 3.13
+```
+
+### Set versions
+
+```powershell
+pyenv global 3.13.12
+pyenv local 3.12.10
+pyenv shell 3.12.10
+```
+
+### Inspect selection and resolution
+
+```powershell
+pyenv version
+pyenv version --bare
+pyenv version-origin
+pyenv version-name
+pyenv which python
+pyenv whence python
+pyenv prefix
+pyenv versions
+```
+
+### Run commands through the selected runtime
+
+```powershell
+pyenv exec python -V
+pyenv exec pip --version
+```
+
+### Refresh shims
+
+```powershell
+pyenv rehash
+pyenv shims --short
+```
+
+### Remove runtimes
+
+```powershell
+pyenv uninstall -f 3.12.10
+```
+
+---
+
+## Version-selection behavior
+
+`pyenv-native` follows the expected selection precedence:
+
+1. shell override,
+2. local `.python-version`,
+3. parent directory `.python-version` traversal,
+4. global version,
+5. `system` fallback.
+
+This is shared across:
+
+- `version-name`,
+- `version`,
+- `which`,
+- `whence`,
+- `prefix`,
+- `exec`.
+
+This is a major part of the compatibility contract with the `pyenv` experience.
+
+---
+
+## Configuration reference
+
+### Show configuration
+
+```powershell
+pyenv config show
+```
+
+### Get a single config key
+
+```powershell
+pyenv config get storage.versions_dir
+```
+
+### Set a config value
+
+```powershell
+pyenv config set venv.auto_create_base_venv true
+pyenv config set storage.versions_dir D:\PythonRuntimes
+```
+
+### Config keys
+
+| Key | Default | Purpose |
+| --- | --- | --- |
+| `storage.versions_dir` | `<PYENV_ROOT>/versions` | Managed runtimes directory |
+| `storage.cache_dir` | `<PYENV_ROOT>/cache` | Download and metadata cache |
+| `windows.registry_mode` | `disabled` | Registry integration policy |
+| `install.arch` | `auto` | Requested install architecture |
+| `install.source_base_url` | provider default | Override provider source URL |
+| `install.python_build_path` | unset | Optional non-Windows fallback path |
+| `install.bootstrap_pip` | `true` | Bootstrap pip after install |
+| `venv.auto_create_base_venv` | `false` | Create a companion base venv after install |
+| `venv.auto_use_base_venv` | `false` | Prefer that base venv during command lookup |
+
+### Venv policy
+
+Companion base-venv support exists for users who want a more protected default runtime experience.
+
+It is:
+
+- supported,
+- optional,
+- off by default.
+
+Example:
+
+```powershell
+pyenv config set venv.auto_create_base_venv true
+pyenv install 3.12
+```
+
+---
+
+## Diagnostics and troubleshooting
+
+### Doctor output
+
+```powershell
+pyenv doctor
+pyenv doctor --json
+```
+
+`doctor` helps surface issues around:
+
+- root detection,
+- shim visibility,
+- system Python visibility,
+- Windows Store alias conflicts,
+- Linux/macOS source-build readiness.
+
+### Source-build readiness on Linux/macOS
+
+Current checks include:
+
+- shell availability,
+- `make` / `gmake`,
+- compiler availability,
+- `pkg-config` visibility.
+
+### Useful help surfaces
+
+```powershell
+pyenv help
+pyenv help install
+pyenv commands
+pyenv hooks rehash
+pyenv completions install --family
+```
+
+---
+
+## Development workflows
+
+### Build the native CLI
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 build
+```
+
+### Test the native workspace
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
+```
+
+### Build the Windows release bundle
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -OutputRoot .\dist
+```
+
+### Build the Linux/macOS release bundle
+
+```sh
+sh ./scripts/build-release-bundle.sh --output-root ./dist
+```
+
+### Build the Python bootstrap package
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
+```
+
+### Generate Winget packaging artifacts
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -Validate
+```
+
+### Generate Homebrew packaging artifacts
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-homebrew-formula.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -AssetRoots .\dist\linux, .\dist\macos
+```
+
+---
+
+## Public command surface
+
+### Version and environment selection
+
+```text
+pyenv root
+pyenv version-file [dir]
+pyenv version-file-read <file>
+pyenv version-file-write [-f|--force] <file> <version> [...]
+pyenv version-origin
+pyenv version-name [-f]
+pyenv version [--bare]
+pyenv global [--unset] [versions...]
+pyenv local [-f] [--unset] [versions...]
+pyenv shell [versions...]
+pyenv latest [-k|--known] [-b|--bare] [-f|--family <family>] <prefix>
+pyenv prefix [versions...]
+pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
+```
+
+### Discovery, install, and execution
+
+```text
+pyenv install --list [--known] [--family <family>] [--json] [pattern]
+pyenv install [--dry-run] [--force] [--json] <version>...
+pyenv uninstall [-f] <version>...
+pyenv which [--nosystem] [--skip-advice] <command>
+pyenv whence [--path] <command>
+pyenv exec <command> [args...]
+pyenv rehash
+pyenv shims [--short]
+pyenv init [-|--path] [--no-push-path] [--no-rehash] [pwsh|cmd|bash|zsh|fish|sh]
+```
+
+### Help, hooks, diagnostics, and configuration
+
+```text
+pyenv help [--usage] [command]
+pyenv commands [--sh|--no-sh]
+pyenv hooks [--complete] <hook>
+pyenv completions <command> [arg1 arg2...]
+pyenv doctor [--json]
+pyenv config path|show|get|set
+```
+
+### Python bootstrap commands
+
+```text
+pyenv-native-bootstrap verify <bundle-archive> [--checksum-path <bundle.sha256>]
+pyenv-native-bootstrap download [--bundle-url <url> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>]
+pyenv-native-bootstrap install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
+```
+
+Internal helper commands such as `sh-shell`, `sh-rehash`, and `sh-cmd` exist for shell integration, but they are intentionally not part of the normal end-user surface.
+
+---
+
+## Project structure
+
+```text
+README.md                       public overview
+INSTRUCTIONS.md                 detailed usage guide
+ARCHITECTURE.md                 technical design notes
+install.ps1 / install.sh        remote-friendly web installers
+uninstall.ps1 / uninstall.sh    remote-friendly uninstallers
+crates/                         Rust CLI and core runtime
+packaging/                      Winget and Homebrew generation assets
+python-package/                 PyPI / pipx bootstrap wrapper
+scripts/                        build, install, publish, validation, and sync helpers
+```
+
+---
+
+## Final notes
+
+`pyenv-native` is trying to be respectful to upstream `pyenv` while also being unafraid to improve the experience where native implementation details genuinely matter.
+
+That means the design bias is:
+
+- familiar where users expect familiarity,
+- better where users benefit from improvement,
+- and always clear enough that installation, usage, and cleanup are never mysterious.

@@ -1,0 +1,14 @@
+[package]
+name = "pyenv-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+pyenv-core = { path = "../pyenv-core" }
+
+[[bin]]
+name = "pyenv"
+path = "src/main.rs"
