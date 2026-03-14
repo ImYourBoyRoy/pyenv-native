@@ -1,6 +1,8 @@
 /target/
 /dist/
 /python-package/dist/
+/packaging/winget/manifests/
+/packaging/homebrew/Formula/
 /python-package/src/**/*.pyc
 /python-package/tests/**/*.pyc
 **/__pycache__/
