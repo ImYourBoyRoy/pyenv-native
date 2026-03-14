@@ -49,6 +49,8 @@ These commands fetch the installer from GitHub and install `pyenv-native` withou
 By default, the installer resolves to the **latest published GitHub release**.
 That is intentional: `main` / `master` are source branches, while installs should target published, checksum-verifiable release artifacts.
 
+The installers are intentionally explicit and operator-friendly. They print a preflight summary, show the install root and integration changes, prompt for confirmation by default, write an install log under the selected root, verify checksums, and run basic post-install sanity checks. For unattended automation, pass `-Yes` on Windows or `--yes` on Linux/macOS.
+
 ### Latest published release: Windows PowerShell
 
 ```powershell
@@ -142,10 +144,13 @@ Current validated highlights:
 - validation completed on:
   - Windows
   - Ubuntu 24.04 under WSL2
-- Windows and Linux bundle generation validated
+  - GitHub-hosted macOS runners
+  - a direct macOS 14.8.4 x86_64 VM
+- Windows, Linux, and macOS bundle generation validated
 - root install/uninstall flows validated for Windows and POSIX paths
+- web-installer network flows validated on Windows and macOS using hosted installer entrypoints plus bundle/checksum overrides
 
-A real macOS-host validation pass is still recommended before broad public promotion.
+That means the project is no longer waiting on a first real macOS host check; that part is now complete.
 
 ---
 
