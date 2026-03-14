@@ -29,7 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install MinGW
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@0cc85f8e4db4eaf4b3dd94db8769a85ed5abea2f
         with:
           msystem: MINGW64
           update: true
