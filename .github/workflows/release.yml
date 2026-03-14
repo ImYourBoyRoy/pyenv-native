@@ -1,0 +1,241 @@
+﻿name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  windows-bundle:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-gnu
+          targets: x86_64-pc-windows-gnu
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+
+      - name: Add toolchains to PATH
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Test Rust workspace
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
+
+      - name: Test Python bootstrap package
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath python
+
+      - name: Build Windows release bundle
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1
+
+      - name: Build Winget manifests
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+          powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 `
+            -GitHubRepo $repo `
+            -Tag $tag `
+            -OutputRoot .\packaging\winget
+
+      - name: Build Python bootstrap package
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
+
+      - name: Upload Windows bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyenv-native-windows-bundle
+          path: |
+            dist/pyenv-native-windows-x64.zip
+            dist/pyenv-native-windows-x64.zip.sha256
+
+      - name: Upload Winget manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyenv-native-winget-manifests
+          path: packaging/winget/manifests/**
+
+      - name: Upload Python bootstrap package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyenv-native-bootstrap-python
+          path: python-package/dist/*
+
+  linux-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test Rust workspace
+        shell: bash
+        run: cargo test --workspace
+
+      - name: Test Python bootstrap package
+        shell: bash
+        run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+
+      - name: Build Linux release bundle
+        shell: bash
+        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+
+      - name: Upload Linux bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyenv-native-linux-bundle
+          path: |
+            dist/pyenv-native-linux-*.tar.gz
+            dist/pyenv-native-linux-*.tar.gz.sha256
+
+  macos-bundle:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test Rust workspace
+        shell: bash
+        run: cargo test --workspace
+
+      - name: Test Python bootstrap package
+        shell: bash
+        run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+
+      - name: Build macOS release bundle
+        shell: bash
+        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+
+      - name: Upload macOS bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyenv-native-macos-bundle
+          path: |
+            dist/pyenv-native-macos-*.tar.gz
+            dist/pyenv-native-macos-*.tar.gz.sha256
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs:
+      - windows-bundle
+      - linux-bundle
+      - macos-bundle
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-windows-bundle
+          path: dist/windows
+
+      - name: Download Linux bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-linux-bundle
+          path: dist/linux
+
+      - name: Download macOS bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-macos-bundle
+          path: dist/macos
+
+      - name: Download Winget manifests artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-winget-manifests
+          path: dist/winget
+
+      - name: Download Python bootstrap package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-bootstrap-python
+          path: dist/python
+
+      - name: Generate Homebrew formula
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+          powershell -ExecutionPolicy Bypass -File .\scripts\build-homebrew-formula.ps1 `
+            -GitHubRepo $repo `
+            -Tag $tag `
+            -AssetRoots @('.\dist\linux', '.\dist\macos') `
+            -OutputPath .\dist\homebrew\pyenv-native.rb
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/windows/**
+            dist/linux/**
+            dist/macos/**
+            dist/winget/**
+            dist/homebrew/**
+            dist/python/*
+
+  publish-python:
+    runs-on: ubuntu-latest
+    needs:
+      - publish-release
+      - windows-bundle
+    if: ${{ secrets.PYPI_API_TOKEN != '' }}
+
+    steps:
+      - name: Download Python bootstrap package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pyenv-native-bootstrap-python
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

@@ -1,0 +1,115 @@
+﻿# ./uninstall.ps1
+<#
+Purpose: Removes a portable pyenv-native Windows installation without requiring a local repo checkout.
+How to run: powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 [-InstallRoot <dir>] [-RemoveRoot]
+Inputs: Optional install root plus booleans controlling PATH cleanup, profile cleanup, and full-root deletion.
+Outputs/side effects: Removes portable pyenv-native binaries/wrappers and optionally cleans user PATH, PowerShell profile integration, and the managed root.
+Notes: Intended to pair with the remote install.ps1 flow and keeps uninstall registry-free.
+#>
+
+param(
+    [string]$InstallRoot = (Join-Path $HOME '.pyenv'),
+    [string]$RemoveFromUserPath = 'true',
+    [string]$RemovePowerShellProfileBlock = 'true',
+    [switch]$RemoveRoot
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Convert-ToBoolean {
+    param(
+        [string]$Value,
+        [string]$ParameterName
+    )
+
+    switch ($Value.Trim().ToLowerInvariant()) {
+        '1' { return $true }
+        'true' { return $true }
+        'yes' { return $true }
+        'on' { return $true }
+        '0' { return $false }
+        'false' { return $false }
+        'no' { return $false }
+        'off' { return $false }
+        default { throw "Invalid boolean value '$Value' for -$ParameterName. Use true/false, yes/no, on/off, or 1/0." }
+    }
+}
+
+function Remove-LineFromUserPath {
+    param(
+        [string]$Entry
+    )
+
+    $existing = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (-not $existing) {
+        return
+    }
+
+    $segments = $existing -split ';' |
+        Where-Object { $_.Trim() } |
+        Where-Object { $_.TrimEnd('\') -ine $Entry.TrimEnd('\') }
+
+    [Environment]::SetEnvironmentVariable('Path', ($segments -join ';'), 'User')
+}
+
+function Remove-PowerShellProfileBlock {
+    param(
+        [string]$ProfilePath
+    )
+
+    if (-not (Test-Path $ProfilePath)) {
+        return
+    }
+
+    $beginMarker = '# >>> pyenv-native init >>>'
+    $endMarker = '# <<< pyenv-native init <<<'
+    $pattern = [regex]::Escape($beginMarker) + '.*?' + [regex]::Escape($endMarker)
+    $existing = Get-Content $ProfilePath -Raw
+    $updated = [regex]::Replace($existing, $pattern, '', 'Singleline').Trim()
+
+    if ([string]::IsNullOrWhiteSpace($updated)) {
+        Remove-Item -Force $ProfilePath
+    } else {
+        Set-Content -Path $ProfilePath -Value ($updated + [Environment]::NewLine) -Encoding utf8
+    }
+}
+
+$resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+$installBin = Join-Path $resolvedInstallRoot 'bin'
+$removeFromUserPathValue = Convert-ToBoolean -Value $RemoveFromUserPath -ParameterName 'RemoveFromUserPath'
+$removeProfileValue = Convert-ToBoolean -Value $RemovePowerShellProfileBlock -ParameterName 'RemovePowerShellProfileBlock'
+
+foreach ($path in @(
+    (Join-Path $installBin 'pyenv.exe'),
+    (Join-Path $installBin 'pyenv.cmd'),
+    (Join-Path $installBin 'pyenv.ps1'),
+    (Join-Path $installBin 'pyenv-init.cmd')
+)) {
+    if (Test-Path $path) {
+        Remove-Item -Force $path
+    }
+}
+
+if ($removeFromUserPathValue) {
+    Remove-LineFromUserPath -Entry $installBin
+}
+
+if ($removeProfileValue) {
+    Remove-PowerShellProfileBlock -ProfilePath $PROFILE.CurrentUserCurrentHost
+}
+
+if ($RemoveRoot -and (Test-Path $resolvedInstallRoot)) {
+    Remove-Item -Recurse -Force $resolvedInstallRoot
+}
+
+$summary = [ordered]@{
+    install_root = $resolvedInstallRoot
+    install_bin = $installBin
+    remove_from_user_path = $removeFromUserPathValue
+    remove_powershell_profile_block = $removeProfileValue
+    remove_root = [bool]$RemoveRoot
+}
+
+$summary.GetEnumerator() | ForEach-Object {
+    '{0}: {1}' -f $_.Key, $_.Value
+}
