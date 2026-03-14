@@ -19,6 +19,7 @@ jobs:
         with:
           toolchain: stable-x86_64-pc-windows-gnu
           targets: x86_64-pc-windows-gnu
+          components: rustfmt
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -225,17 +226,24 @@ jobs:
     needs:
       - publish-release
       - windows-bundle
-    if: ${{ secrets.PYPI_API_TOKEN != '' }}
+    env:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
     steps:
+      - name: Skip PyPI publish when no token is configured
+        if: ${{ env.PYPI_API_TOKEN == '' }}
+        run: echo "PYPI_API_TOKEN is not configured; skipping PyPI publish."
+
       - name: Download Python bootstrap package artifact
+        if: ${{ env.PYPI_API_TOKEN != '' }}
         uses: actions/download-artifact@v4
         with:
           name: pyenv-native-bootstrap-python
           path: dist
 
       - name: Publish to PyPI
+        if: ${{ env.PYPI_API_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          password: ${{ env.PYPI_API_TOKEN }}

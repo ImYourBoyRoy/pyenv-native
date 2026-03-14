@@ -2358,7 +2358,8 @@ mod tests {
 
     #[test]
     fn resolve_install_plan_uses_nuget_package_for_cpython() {
-        let (_temp, ctx) = test_context();
+        let (_temp, mut ctx) = test_context();
+        ctx.config.install.arch = RuntimeArch::X64;
         seed_package_index(&ctx, "python", &["3.13.10", "3.13.11", "3.13.12"]);
         let plan = resolve_install_plan_for_platform(&ctx, "3.13", "windows").expect("plan");
         assert_eq!(plan.resolved_version, "3.13.12");
@@ -2373,7 +2374,8 @@ mod tests {
 
     #[test]
     fn resolve_install_plan_uses_provider_versions_not_upstream_catalog_only() {
-        let (_temp, ctx) = test_context();
+        let (_temp, mut ctx) = test_context();
+        ctx.config.install.arch = RuntimeArch::X64;
         seed_package_index(&ctx, "python", &["3.12.8", "3.12.9", "3.12.10"]);
         let plan = resolve_install_plan_for_platform(&ctx, "3.12", "windows").expect("plan");
         assert_eq!(plan.resolved_version, "3.12.10");
@@ -2393,7 +2395,8 @@ mod tests {
 
     #[test]
     fn resolve_install_plan_supports_pypy_provider_versions() {
-        let (_temp, ctx) = test_context();
+        let (_temp, mut ctx) = test_context();
+        ctx.config.install.arch = RuntimeArch::X64;
         seed_pypy_index(
             &ctx,
             &[
@@ -2424,7 +2427,8 @@ mod tests {
 
     #[test]
     fn resolve_install_plan_supports_linux_pypy_provider_versions() {
-        let (_temp, ctx) = test_context();
+        let (_temp, mut ctx) = test_context();
+        ctx.config.install.arch = RuntimeArch::X64;
         seed_pypy_index(
             &ctx,
             &[pypy_release(
@@ -2549,7 +2553,8 @@ mod tests {
 
     #[test]
     fn install_list_defaults_to_provider_backed_catalog() {
-        let (_temp, ctx) = test_context();
+        let (_temp, mut ctx) = test_context();
+        ctx.config.install.arch = RuntimeArch::X64;
         seed_package_index(&ctx, "python", &["3.12.9", "3.12.10"]);
         seed_package_index(&ctx, "python-freethreaded", &["3.13.1"]);
         seed_pypy_index(
