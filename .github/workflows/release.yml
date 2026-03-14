@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -22,7 +22,7 @@ jobs:
           components: rustfmt
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -67,7 +67,7 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
       - name: Upload Windows bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyenv-native-windows-bundle
           path: |
@@ -75,13 +75,13 @@ jobs:
             dist/pyenv-native-windows-x64.zip.sha256
 
       - name: Upload Winget manifest artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyenv-native-winget-manifests
           path: packaging/winget/manifests/**
 
       - name: Upload Python bootstrap package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyenv-native-bootstrap-python
           path: python-package/dist/*
@@ -91,13 +91,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -114,7 +114,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload Linux bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyenv-native-linux-bundle
           path: |
@@ -126,13 +126,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -149,7 +149,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload macOS bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pyenv-native-macos-bundle
           path: |
@@ -167,34 +167,34 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Windows bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-windows-bundle
           path: dist/windows
 
       - name: Download Linux bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-linux-bundle
           path: dist/linux
 
       - name: Download macOS bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-macos-bundle
           path: dist/macos
 
       - name: Download Winget manifests artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-winget-manifests
           path: dist/winget
 
       - name: Download Python bootstrap package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-bootstrap-python
           path: dist/python
@@ -236,7 +236,7 @@ jobs:
 
       - name: Download Python bootstrap package artifact
         if: ${{ env.PYPI_API_TOKEN != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-bootstrap-python
           path: dist
