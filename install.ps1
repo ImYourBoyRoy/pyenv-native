@@ -1,10 +1,10 @@
-﻿# ./install.ps1
+# ./install.ps1
 <#
 Purpose: Downloads a published pyenv-native Windows bundle, verifies it, and runs the bundled portable installer without requiring a repo clone.
-How to run: powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-GitHubRepo <owner/repo>] [-Tag <vX.Y.Z>] [-InstallRoot <dir>]
-Inputs: Optional GitHub repo/tag or direct release URLs, install root, shell/profile toggles, temp cache location, and overwrite/cleanup flags.
+How to run: powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-GitHubRepo <owner/repo>] [-Tag <vX.Y.Z>] [-InstallRoot <dir>] [-Yes]
+Inputs: Optional GitHub repo/tag or direct release URLs, install root, shell/profile toggles, temp cache location, logging location, and overwrite/cleanup flags.
 Outputs/side effects: Downloads the Windows release bundle plus checksum, verifies SHA-256, extracts the bundle into a temp directory, and installs pyenv-native into the requested portable root.
-Notes: Designed for copy-paste web installs from a raw GitHub URL and keeps installs registry-free by default.
+Notes: Designed for copy-paste web installs from a raw GitHub URL, defaults to the latest published GitHub release, and keeps installs registry-free by default.
 #>
 
 param(
@@ -20,19 +20,13 @@ param(
     [string]$UpdatePowerShellProfile = 'true',
     [string]$RefreshShims = 'true',
     [string]$TempRoot = $(if ($env:TEMP) { Join-Path $env:TEMP 'pyenv-native-install' } else { Join-Path $HOME '.pyenv-native-install' }),
+    [string]$LogPath,
     [switch]$KeepDownloads,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Yes
 )
 
 $ErrorActionPreference = 'Stop'
-
-function Write-Step {
-    param(
-        [string]$Message
-    )
-
-    Write-Host "[pyenv-native] $Message"
-}
 
 function Convert-ToBoolean {
     param(
@@ -59,7 +53,6 @@ function Get-HostArchitecture {
     }
 
     $candidate = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
-
     $candidate = if ($candidate) { $candidate } else { '' }
 
     switch ($candidate.ToLowerInvariant()) {
@@ -110,19 +103,17 @@ function Resolve-ReleaseUrls {
             throw 'Unable to resolve a release source. Pass -GitHubRepo, -ReleaseBaseUrl, or -BundleUrl.'
         }
 
-        $ResolvedReleaseBaseUrl =
-            if ($ResolvedTag) {
-                "https://github.com/$ResolvedGitHubRepo/releases/download/$ResolvedTag"
-            } else {
-                "https://github.com/$ResolvedGitHubRepo/releases/latest/download"
-            }
+        $ResolvedReleaseBaseUrl = if ($ResolvedTag) {
+            "https://github.com/$ResolvedGitHubRepo/releases/download/$ResolvedTag"
+        } else {
+            "https://github.com/$ResolvedGitHubRepo/releases/latest/download"
+        }
 
-        $sourceLabel =
-            if ($ResolvedTag) {
-                "github release $ResolvedGitHubRepo@$ResolvedTag"
-            } else {
-                "latest github release for $ResolvedGitHubRepo"
-            }
+        $sourceLabel = if ($ResolvedTag) {
+            "github release $ResolvedGitHubRepo@$ResolvedTag"
+        } else {
+            "latest github release for $ResolvedGitHubRepo"
+        }
     } else {
         $sourceLabel = "release base url $ResolvedReleaseBaseUrl"
     }
@@ -177,26 +168,88 @@ function Read-ExpectedChecksum {
     return $match.Groups['sha'].Value.ToLowerInvariant()
 }
 
+function Get-NearestExistingDirectory {
+    param(
+        [string]$Path
+    )
+
+    $candidate = [System.IO.Path]::GetFullPath($Path)
+    while (-not (Test-Path $candidate)) {
+        $parent = Split-Path -Parent $candidate
+        if (-not $parent -or $parent -eq $candidate) {
+            break
+        }
+        $candidate = $parent
+    }
+
+    if (Test-Path $candidate -PathType Leaf) {
+        return Split-Path -Parent $candidate
+    }
+
+    return $candidate
+}
+
+function Test-DirectoryWritable {
+    param(
+        [string]$DirectoryPath
+    )
+
+    $probePath = Join-Path $DirectoryPath ('.pyenv-native-write-test-' + [guid]::NewGuid().ToString('N'))
+    try {
+        Set-Content -Path $probePath -Value '' -Encoding utf8 -ErrorAction Stop
+        Remove-Item $probePath -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-IsAdministrator {
+    try {
+        $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Assert-InstallRootAccess {
+    param(
+        [string]$ResolvedInstallRoot
+    )
+
+    $anchor = Get-NearestExistingDirectory -Path (Split-Path -Parent $ResolvedInstallRoot)
+    if (Test-DirectoryWritable -DirectoryPath $anchor) {
+        return
+    }
+
+    if (Test-IsAdministrator) {
+        throw "Install root '$ResolvedInstallRoot' is not writable even in the current elevated session. Choose a different -InstallRoot."
+    }
+
+    throw "Install root '$ResolvedInstallRoot' requires elevated permissions. Re-run from an elevated PowerShell session or choose a user-writable -InstallRoot."
+}
+
 function Assert-InstallRootState {
     param(
         [string]$ResolvedInstallRoot,
         [bool]$Overwrite
     )
 
-    $installBin = Join-Path $ResolvedInstallRoot 'bin'
-    $installedExe = Join-Path $installBin 'pyenv.exe'
-
+    $installedExe = Join-Path (Join-Path $ResolvedInstallRoot 'bin') 'pyenv.exe'
     if (Test-Path $installedExe) {
         if (-not $Overwrite) {
             throw "pyenv-native is already installed at $installedExe. Re-run with -Force to upgrade in place or run uninstall.ps1 first."
         }
-
-        Write-Step "Existing pyenv-native install detected at $installedExe; continuing because -Force was supplied."
         return
     }
 
-    if ((Test-Path $ResolvedInstallRoot) -and (Get-ChildItem -Force $ResolvedInstallRoot | Select-Object -First 1) -and -not $Overwrite) {
-        throw "Install root '$ResolvedInstallRoot' already exists and is not empty. Re-run with -Force or choose a different -InstallRoot."
+    if ((Test-Path $ResolvedInstallRoot) -and -not $Overwrite) {
+        $firstChild = Get-ChildItem -Force $ResolvedInstallRoot -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($firstChild) {
+            throw "Install root '$ResolvedInstallRoot' already exists and is not empty. Re-run with -Force or choose a different -InstallRoot."
+        }
     }
 }
 
@@ -206,18 +259,80 @@ function Test-ExistingPathCommand {
     )
 
     $existing = Get-Command pyenv -ErrorAction SilentlyContinue
-    if (-not $existing) {
+    if (-not $existing -or -not $existing.Source) {
         return
     }
 
-    $expectedBin = (Join-Path $ResolvedInstallRoot 'bin').TrimEnd('\')
-    $actualSource = if ($existing.Source) { $existing.Source.Trim() } else { '' }
-    if (-not $actualSource) {
+    $expectedPrefix = (Join-Path $ResolvedInstallRoot 'bin').TrimEnd('\')
+    if ($existing.Source.Trim() -notlike "$expectedPrefix*") {
+        Write-Warning "A different pyenv command is already discoverable at '$($existing.Source)'. Restart shells after install and verify PATH ordering."
+    }
+}
+
+function Initialize-InstallLog {
+    param(
+        [string]$ResolvedLogPath
+    )
+
+    $directory = Split-Path -Parent $ResolvedLogPath
+    if ($directory) {
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    }
+    Set-Content -Path $ResolvedLogPath -Value '' -Encoding utf8
+}
+
+function Write-InstallLog {
+    param(
+        [string]$Level,
+        [string]$Message,
+        [string]$ResolvedLogPath
+    )
+
+    $line = "[pyenv-native][$Level] $Message"
+    Write-Host $line
+    Add-Content -Path $ResolvedLogPath -Value $line -Encoding utf8
+}
+
+function Emit-Summary {
+    param(
+        [hashtable]$Summary
+    )
+
+    Write-Host ''
+    Write-Host 'pyenv-native network install summary'
+    Write-Host '===================================='
+    foreach ($entry in $Summary.GetEnumerator()) {
+        Write-Host ('{0,-16}: {1}' -f $entry.Key, $entry.Value)
+    }
+    Write-Host ''
+    Write-Host 'This will download a published pyenv-native bundle, verify its SHA-256 checksum, and install it into the selected portable root.'
+    if ($Summary.update_profile -eq $true) {
+        Write-Host 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.'
+    } else {
+        Write-Host 'No PowerShell profile changes will be made.'
+    }
+    Write-Host ''
+}
+
+function Confirm-Install {
+    if ($Yes) {
         return
     }
 
-    if ($actualSource -notlike "$expectedBin*") {
-        Write-Warning "A different pyenv command is already discoverable at '$actualSource'. Restart shells after install and verify PATH ordering."
+    try {
+        $answer = Read-Host 'Continue with install? [y/N]'
+    } catch {
+        throw 'Confirmation is required for interactive installs. Re-run with -Yes for non-interactive use.'
+    }
+
+    if ($null -eq $answer -or $answer.Trim().Length -eq 0) {
+        throw 'Install cancelled.'
+    }
+
+    switch ($answer.Trim().ToLowerInvariant()) {
+        'y' { return }
+        'yes' { return }
+        default { throw 'Install cancelled.' }
     }
 }
 
@@ -228,6 +343,7 @@ function Invoke-BundledInstaller {
         [bool]$AddToUserPathValue,
         [bool]$UpdateProfileValue,
         [bool]$RefreshShimsValue,
+        [string]$ResolvedLogPath,
         [switch]$Overwrite
     )
 
@@ -246,7 +362,6 @@ function Invoke-BundledInstaller {
         throw "Downloaded bundle platform '$($manifest.platform)' does not match this Windows installer."
     }
 
-    Write-Step "Running bundled installer from $installerPath"
     & $installerPath `
         -SourcePath $executablePath `
         -InstallRoot $ResolvedInstallRoot `
@@ -254,33 +369,52 @@ function Invoke-BundledInstaller {
         -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
         -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
         -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
+        -LogPath $ResolvedLogPath `
+        -Yes `
         @($(if ($Overwrite) { '-Force' }))
 }
 
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+$resolvedTempRoot = [System.IO.Path]::GetFullPath($TempRoot)
 $addToUserPathValue = Convert-ToBoolean -Value $AddToUserPath -ParameterName 'AddToUserPath'
 $updateProfileValue = Convert-ToBoolean -Value $UpdatePowerShellProfile -ParameterName 'UpdatePowerShellProfile'
 $refreshShimsValue = Convert-ToBoolean -Value $RefreshShims -ParameterName 'RefreshShims'
-$resolvedTempRoot = [System.IO.Path]::GetFullPath($TempRoot)
+$updateProfileEffective = ($Shell -eq 'pwsh' -and $updateProfileValue)
+if ([string]::IsNullOrWhiteSpace($LogPath)) {
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $LogPath = Join-Path (Join-Path $resolvedInstallRoot 'logs') "network-install-$timestamp.log"
+}
+$resolvedLogPath = [System.IO.Path]::GetFullPath($LogPath)
 
-Write-Step "Preparing install for $resolvedInstallRoot"
 Test-ExistingPathCommand -ResolvedInstallRoot $resolvedInstallRoot
+Assert-InstallRootAccess -ResolvedInstallRoot $resolvedInstallRoot
 Assert-InstallRootState -ResolvedInstallRoot $resolvedInstallRoot -Overwrite $Force.IsPresent
 
-$urls = Resolve-ReleaseUrls `
-    -ResolvedGitHubRepo $GitHubRepo `
-    -ResolvedTag $Tag `
-    -ResolvedReleaseBaseUrl $ReleaseBaseUrl `
-    -ResolvedBundleUrl $BundleUrl `
-    -ResolvedChecksumUrl $ChecksumUrl
+$urls = Resolve-ReleaseUrls -ResolvedGitHubRepo $GitHubRepo -ResolvedTag $Tag -ResolvedReleaseBaseUrl $ReleaseBaseUrl -ResolvedBundleUrl $BundleUrl -ResolvedChecksumUrl $ChecksumUrl
+$summary = [ordered]@{
+    release_source = $urls.source
+    bundle_url = $urls.bundle_url
+    checksum_url = $urls.checksum_url
+    install_root = $resolvedInstallRoot
+    shell = $Shell
+    add_to_path = $addToUserPathValue
+    update_profile = $updateProfileEffective
+    refresh_shims = $refreshShimsValue
+    temp_root = $resolvedTempRoot
+    force = $Force.IsPresent
+    log_path = $resolvedLogPath
+}
+Emit-Summary -Summary $summary
+Confirm-Install
+Initialize-InstallLog -ResolvedLogPath $resolvedLogPath
+Write-InstallLog -Level 'INFO' -Message "Downloading $($urls.source)" -ResolvedLogPath $resolvedLogPath
 
-$downloadRoot = Join-Path $resolvedTempRoot ("downloads-" + [guid]::NewGuid().ToString('N'))
-$extractRoot = Join-Path $resolvedTempRoot ("extract-" + [guid]::NewGuid().ToString('N'))
+$downloadRoot = Join-Path $resolvedTempRoot ('downloads-' + [guid]::NewGuid().ToString('N'))
+$extractRoot = Join-Path $resolvedTempRoot ('extract-' + [guid]::NewGuid().ToString('N'))
 $bundlePath = Join-Path $downloadRoot $urls.asset_name
 $checksumPath = $bundlePath + '.sha256'
 
 try {
-    Write-Step "Downloading $($urls.source)"
     Invoke-FileDownload -Url $urls.bundle_url -DestinationPath $bundlePath
     Invoke-FileDownload -Url $urls.checksum_url -DestinationPath $checksumPath
 
@@ -289,26 +423,18 @@ try {
     if ($actualHash -ne $expectedHash) {
         throw "SHA-256 verification failed for '$bundlePath'. Expected $expectedHash but found $actualHash."
     }
-    Write-Step "Verified SHA-256 for $($urls.asset_name)"
+    Write-InstallLog -Level 'INFO' -Message "Verified SHA-256 for $($urls.asset_name)" -ResolvedLogPath $resolvedLogPath
 
-    if (Test-Path $extractRoot) {
-        Remove-Item -Recurse -Force $extractRoot
-    }
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $bundlePath -DestinationPath $extractRoot -Force
 
-    Invoke-BundledInstaller `
-        -ExtractedDir $extractRoot `
-        -ResolvedInstallRoot $resolvedInstallRoot `
-        -AddToUserPathValue $addToUserPathValue `
-        -UpdateProfileValue $updateProfileValue `
-        -RefreshShimsValue $refreshShimsValue `
-        -Overwrite:$Force
+    Invoke-BundledInstaller -ExtractedDir $extractRoot -ResolvedInstallRoot $resolvedInstallRoot -AddToUserPathValue $addToUserPathValue -UpdateProfileValue $updateProfileValue -RefreshShimsValue $refreshShimsValue -ResolvedLogPath $resolvedLogPath -Overwrite:$Force
 
+    Write-InstallLog -Level 'INFO' -Message 'Network install completed successfully.' -ResolvedLogPath $resolvedLogPath
     Write-Host ''
     Write-Host "Installed pyenv-native to $resolvedInstallRoot"
-    Write-Host "Bundle source: $($urls.source)"
     Write-Host "Installed command: $(Join-Path $resolvedInstallRoot 'bin\pyenv.exe')"
+    Write-Host "Log file: $resolvedLogPath"
     if ($GitHubRepo) {
         Write-Host "Remote uninstall helper: https://raw.githubusercontent.com/$GitHubRepo/main/uninstall.ps1"
     }
@@ -321,8 +447,3 @@ try {
         }
     }
 }
-
-
-
-
-

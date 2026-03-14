@@ -57,6 +57,8 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/inst
 
 This is the simplest path when you just want `pyenv-native` installed quickly from GitHub.
 
+These entrypoints are interactive by default. They print a preflight summary, show the install root and integration changes, then ask for confirmation before they proceed. For automation, add `-Yes` on Windows or `--yes` on Linux/macOS.
+
 ### Option 2: pin a specific published release
 
 #### Windows PowerShell pinned install
@@ -99,6 +101,43 @@ pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.
 
 This is useful for offline or staged release validation.
 
+## Installer UX and safety model
+
+The install path is intentionally explicit rather than magical. Whether you start from the GitHub-hosted web installer or a local bundle, the workflow is:
+
+1. detect platform and architecture,
+2. resolve the target release bundle,
+3. print a preflight summary showing source, install root, shell integration, and log path,
+4. prompt for confirmation unless `-Yes` / `--yes` was supplied,
+5. verify the bundle checksum,
+6. install into a portable root,
+7. run basic sanity checks like `pyenv --version`, `pyenv root`, and `pyenv commands`.
+
+### Logs
+
+By default, the installers write logs beneath the selected install root:
+
+- Windows: `<InstallRoot>\logs\network-install-*.log`
+- Linux/macOS: `<install-root>/logs/network-install-*.log`
+
+The bundled local installers also accept an explicit log-path override when you need deterministic automation logs.
+
+### Confirmation and automation
+
+- interactive runs prompt for consent before install,
+- non-interactive automation should pass `-Yes` on Windows or `--yes` on Linux/macOS,
+- `-Force` / `--force` is reserved for replacing an existing portable install at the same root.
+
+### Elevation and permissions
+
+For the default user-scoped install roots, administrator rights are usually unnecessary.
+
+If you target a protected location instead, the installers stop early and explain that you should either:
+
+- rerun with elevated permissions, or
+- choose a user-writable install root.
+
+
 #### Windows local-bundle install
 
 ```powershell
@@ -125,15 +164,21 @@ It performs or supports:
 - checksum verification,
 - install-root selection,
 - shell/profile integration controls,
+- confirmation before install unless automation flags are used,
+- install log creation under `<install-root>/logs/`,
+- post-install sanity checks against the installed binary,
 - optional force/replace behavior,
 - uninstall helpers for reversing installer-owned shell/profile changes.
 
 ### Default behavior highlights
 
 - installs under `PYENV_ROOT` or the platform default managed root,
+- defaults to a user-writable install root so admin rights are typically unnecessary,
+- surfaces an explicit elevation warning when the selected root is not writable,
 - avoids Windows registry registration by default,
 - keeps managed runtimes portable,
 - wires shell init in a reversible way,
+- writes an install log beneath the chosen root,
 - leaves the native runtime as the source of truth.
 
 ---
