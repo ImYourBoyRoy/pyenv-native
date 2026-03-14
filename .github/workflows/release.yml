@@ -10,7 +10,7 @@ jobs:
   windows-bundle:
     runs-on: windows-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      PYENV_WINDOWS_TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout
@@ -19,28 +19,14 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable-x86_64-pc-windows-gnu
-          targets: x86_64-pc-windows-gnu
+          toolchain: stable-x86_64-pc-windows-msvc
+          targets: x86_64-pc-windows-msvc
           components: rustfmt
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-
-      - name: Install MinGW
-        uses: msys2/setup-msys2@0cc85f8e4db4eaf4b3dd94db8769a85ed5abea2f
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-
-      - name: Add toolchains to PATH
-        shell: pwsh
-        run: |
-          "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Test Rust workspace
         shell: pwsh

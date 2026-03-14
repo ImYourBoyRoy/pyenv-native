@@ -32,7 +32,9 @@ function Resolve-SourceBinary {
 
     $candidates += @(
         (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv.exe'),
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv.exe')
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv.exe')
     )
 
     foreach ($candidate in $candidates) {
@@ -194,3 +196,4 @@ if ($addToUserPathValue) {
     Write-Host ''
     Write-Host 'PATH note: restart your shell to pick up the updated user PATH.'
 }
+

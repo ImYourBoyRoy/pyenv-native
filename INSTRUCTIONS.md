@@ -416,6 +416,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 build
 powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
 ```
 
+On Windows, you can override the Rust ABI target when needed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 -TargetTriple x86_64-pc-windows-msvc test
+```
+
 ### Build the Windows release bundle
 
 ```powershell
