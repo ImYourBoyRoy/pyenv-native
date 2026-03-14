@@ -192,7 +192,7 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
-          powershell -ExecutionPolicy Bypass -File .\scripts\build-homebrew-formula.ps1 `
+          & .\scripts\build-homebrew-formula.ps1 `
             -GitHubRepo $repo `
             -Tag $tag `
             -AssetRoots @('.\dist\linux', '.\dist\macos') `
