@@ -33,7 +33,8 @@ pub use doctor::cmd_doctor;
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
 pub use install::{
-    InstallCommandOptions, InstallOutcome, InstallPlan, cmd_install, resolve_install_plan,
+    InstallCommandOptions, InstallOutcome, InstallPlan, cmd_install, install_runtime_plan,
+    resolve_install_plan,
 };
 pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
 pub use meta::{cmd_commands, cmd_completions, cmd_help, cmd_shims};

@@ -478,43 +478,45 @@ write_step "Verified SHA-256 for ${ASSET_NAME}"
 tar -xzf "$BUNDLE_PATH" -C "$EXTRACT_ROOT"
 INSTALLER_PATH="${EXTRACT_ROOT}/install-pyenv-native.sh"
 EXECUTABLE_PATH="${EXTRACT_ROOT}/pyenv"
+MCP_EXECUTABLE_PATH="${EXTRACT_ROOT}/pyenv-mcp"
 MANIFEST_PATH="${EXTRACT_ROOT}/bundle-manifest.json"
 
 for required_path in "$INSTALLER_PATH" "$EXECUTABLE_PATH" "$MANIFEST_PATH"; do
   if [ ! -f "$required_path" ]; then
-    printf 'Downloaded bundle was missing required file `%s`.\n' "$required_path" >&2
+    printf 'Downloaded bundle was missing required file `%s`.
+' "$required_path" >&2
     exit 1
   fi
 done
 
 chmod +x "$INSTALLER_PATH" "$EXECUTABLE_PATH"
 if ! grep -q '"platform"[[:space:]]*:[[:space:]]*"'$OPERATING_SYSTEM'"' "$MANIFEST_PATH"; then
-  printf 'Downloaded bundle manifest did not match host platform `%s`.\n' "$OPERATING_SYSTEM" >&2
+  printf 'Downloaded bundle manifest did not match host platform `%s`.
+' "$OPERATING_SYSTEM" >&2
   exit 1
+fi
+if grep -q '"mcp_executable"' "$MANIFEST_PATH"; then
+  if [ ! -f "$MCP_EXECUTABLE_PATH" ]; then
+    printf 'Downloaded bundle declared an MCP server binary but `%s` was missing.
+' "$MCP_EXECUTABLE_PATH" >&2
+    exit 1
+  fi
+  chmod +x "$MCP_EXECUTABLE_PATH"
 fi
 
 write_step "Running bundled installer from ${INSTALLER_PATH}"
 if [ "$FORCE" = true ]; then
-  "$INSTALLER_PATH" \
-    --source-path "$EXECUTABLE_PATH" \
-    --install-root "$INSTALL_ROOT" \
-    --shell "$SHELL_KIND" \
-    --add-to-user-path "$ADD_TO_USER_PATH" \
-    --update-shell-profile "$UPDATE_SHELL_PROFILE" \
-    --refresh-shims "$REFRESH_SHIMS" \
-    --log-path "$LOG_PATH" \
-    --yes \
-    --force
+  if [ -f "$MCP_EXECUTABLE_PATH" ]; then
+    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --source-mcp-path "$MCP_EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes       --force
+  else
+    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes       --force
+  fi
 else
-  "$INSTALLER_PATH" \
-    --source-path "$EXECUTABLE_PATH" \
-    --install-root "$INSTALL_ROOT" \
-    --shell "$SHELL_KIND" \
-    --add-to-user-path "$ADD_TO_USER_PATH" \
-    --update-shell-profile "$UPDATE_SHELL_PROFILE" \
-    --refresh-shims "$REFRESH_SHIMS" \
-    --log-path "$LOG_PATH" \
-    --yes
+  if [ -f "$MCP_EXECUTABLE_PATH" ]; then
+    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --source-mcp-path "$MCP_EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes
+  else
+    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes
+  fi
 fi
 
 write_step 'Network install completed successfully.'

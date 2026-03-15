@@ -1,10 +1,10 @@
-[build-system]
+﻿[build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "pyenv-native-bootstrap"
-version = "0.1.0"
+version = "0.1.1"
 description = "Bootstrap installer for the native-first pyenv-native runtime bundles."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -50,3 +50,4 @@ include = [
   "README.md",
   "pyproject.toml",
 ]
+

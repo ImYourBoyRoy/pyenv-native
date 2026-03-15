@@ -24,7 +24,7 @@ The short version:
 - portable managed runtimes,
 - structured diagnostics,
 - cleaner install and uninstall flows,
-- easier distribution through bundles, shell installers, and a PyPI bootstrap package.
+- easier distribution through bundles, shell installers, a PyPI bootstrap package, and an MCP-friendly agent surface.
 
 ### 3. Stay honest about compatibility
 `pyenv-native` aims for behavioral compatibility where it makes sense, but it does not try to preserve upstream shell-script implementation details when a native approach is clearly better.
@@ -61,6 +61,8 @@ When UX changes, the design rule is simple:
 ```text
 CLI
   -> command parsing and dispatch
+Agent / MCP layer
+  -> structured tool schemas, JSON guide output, and MCP-safe runtime operations
 Core runtime
   -> version resolution, command logic, install planning, shell/shim generation
 Provider backends
@@ -79,6 +81,7 @@ Packaging and distribution
 crates/
   pyenv-cli/      CLI entrypoint and public command wiring
   pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
+  pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
 python-package/   Python bootstrap wrapper for native release bundles
 packaging/        package-manager metadata and generators
 scripts/          build, release, install, uninstall, sync, and validation helpers
@@ -164,6 +167,43 @@ This is why `install --list` defaults to provider-backed installable versions in
 - **Linux/macOS optional fallback**: upstream `python-build` via explicit config or discovered path
 
 This gives the project a native path for the most important cases while keeping a broader compatibility escape hatch on POSIX systems.
+
+---
+
+## Agent / MCP model
+
+`pyenv-native` now includes an explicit agent-facing layer through **`pyenv-mcp`**.
+
+### Why it exists
+The human CLI is great for operators, but agents need:
+
+- structured arguments,
+- structured responses,
+- explicit side effects,
+- predictable tool order,
+- a stable onboarding blob.
+
+### What `pyenv-mcp` does
+`pyenv-mcp` is a stdio MCP server built directly on `pyenv-core`.
+It exposes higher-level tools such as:
+
+- project environment resolution,
+- install-instruction emission,
+- installable-version listing,
+- idempotent runtime installation,
+- project-local venv creation.
+
+### Important design choice
+It is **not** implemented as a fragile wrapper that scrapes the human CLI output.
+Instead, it calls structured core functionality directly so that agent-facing behavior stays:
+
+- faster,
+- cleaner,
+- easier to validate,
+- easier to evolve.
+
+### Orientation model
+The companion `pyenv-mcp guide` command emits a structured JSON guide that is intended to be fed directly to a model or orchestration layer before deeper work begins.
 
 ---
 

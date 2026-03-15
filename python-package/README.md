@@ -6,6 +6,10 @@
 
 `pyenv-native-bootstrap` is the Python convenience package for installing the native `pyenv-native` release bundles.
 
+Those bundles install both:
+- `pyenv`
+- `pyenv-mcp`
+
 It exists for users who:
 - already have Python installed,
 - want a `pip` or `pipx` entrypoint,
@@ -28,6 +32,7 @@ Use `--tag <vX.Y.Z>` only when you want to pin a specific published release.
 - reads bundle metadata,
 - extracts the bundle,
 - runs the bundled installer,
+- installs the companion `pyenv-mcp` server when the bundle provides it,
 - supports GitHub Release-based installs,
 - works with Windows ZIP bundles and Linux/macOS `.tar.gz` bundles.
 

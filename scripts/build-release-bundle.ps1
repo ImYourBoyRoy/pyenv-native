@@ -1,9 +1,9 @@
-# ./scripts/build-release-bundle.ps1
+﻿# ./scripts/build-release-bundle.ps1
 <#
-Purpose: Builds a release binary and assembles a portable Windows distribution bundle for pyenv-native.
+Purpose: Builds release binaries and assembles a portable Windows distribution bundle for pyenv-native.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
 Inputs: Optional output root, bundle name override, and Windows target triple.
-Outputs/side effects: Builds the release binary, writes a bundle directory under dist/, and creates a zip archive with installers and docs.
+Outputs/side effects: Builds the release binaries, writes a bundle directory under dist/, and creates a zip archive with installers, MCP server, and user-facing docs.
 Notes: Intended for native Windows packaging; bundle contents stay portable and registry-free.
 #>
 
@@ -26,14 +26,17 @@ $archivePath = Join-Path $resolvedOutputRoot ($BundleName + '.zip')
 $checksumPath = $archivePath + '.sha256'
 $cargoTomlPath = Join-Path $repoRoot 'Cargo.toml'
 $releaseExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv.exe")
+$releaseMcpExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv-mcp.exe")
 
-& (Join-Path $PSScriptRoot 'dev-cargo.ps1') -TargetTriple $TargetTriple build --release
+& (Join-Path $PSScriptRoot 'dev-cargo.ps1') -TargetTriple $TargetTriple build --release --bin pyenv --bin pyenv-mcp
 if ($LASTEXITCODE -ne 0) {
     throw "Release build failed with exit code $LASTEXITCODE"
 }
 
-if (-not (Test-Path $releaseExe)) {
-    throw "Release binary was not found at $releaseExe"
+foreach ($requiredBinary in @($releaseExe, $releaseMcpExe)) {
+    if (-not (Test-Path $requiredBinary)) {
+        throw "Release binary was not found at $requiredBinary"
+    }
 }
 
 if (Test-Path $bundleDir) {
@@ -49,15 +52,24 @@ if (-not $versionMatch.Success) {
 $bundleVersion = $versionMatch.Groups[1].Value
 
 Copy-Item -Force $releaseExe (Join-Path $bundleDir 'pyenv.exe')
+Copy-Item -Force $releaseMcpExe (Join-Path $bundleDir 'pyenv-mcp.exe')
 Copy-Item -Force (Join-Path $repoRoot 'README.md') (Join-Path $bundleDir 'README.md')
+Copy-Item -Force (Join-Path $repoRoot 'INSTRUCTIONS.md') (Join-Path $bundleDir 'INSTRUCTIONS.md')
+if (Test-Path (Join-Path $repoRoot 'MCP.md')) {
+    Copy-Item -Force (Join-Path $repoRoot 'MCP.md') (Join-Path $bundleDir 'MCP.md')
+}
 Copy-Item -Force (Join-Path $repoRoot 'LICENSE') (Join-Path $bundleDir 'LICENSE')
 Copy-Item -Force (Join-Path $PSScriptRoot 'install-pyenv-native.ps1') (Join-Path $bundleDir 'install-pyenv-native.ps1')
 Copy-Item -Force (Join-Path $PSScriptRoot 'uninstall-pyenv-native.ps1') (Join-Path $bundleDir 'uninstall-pyenv-native.ps1')
 
 $cmdWrapper = "@echo off`r`n""%~dp0pyenv.exe"" %*`r`n"
-$ps1Wrapper = "& ""$PSScriptRoot\pyenv.exe"" @args`r`nexit `$LASTEXITCODE`r`n"
+$ps1Wrapper = '& "$PSScriptRoot\pyenv.exe" @args' + "`r`n" + 'exit $LASTEXITCODE' + "`r`n"
+$mcpCmdWrapper = "@echo off`r`n""%~dp0pyenv-mcp.exe"" %*`r`n"
+$mcpPs1Wrapper = '& "$PSScriptRoot\pyenv-mcp.exe" @args' + "`r`n" + 'exit $LASTEXITCODE' + "`r`n"
 Set-Content -Path (Join-Path $bundleDir 'pyenv.cmd') -Value $cmdWrapper -Encoding utf8
 Set-Content -Path (Join-Path $bundleDir 'pyenv.ps1') -Value $ps1Wrapper -Encoding utf8
+Set-Content -Path (Join-Path $bundleDir 'pyenv-mcp.cmd') -Value $mcpCmdWrapper -Encoding utf8
+Set-Content -Path (Join-Path $bundleDir 'pyenv-mcp.ps1') -Value $mcpPs1Wrapper -Encoding utf8
 
 $bundleManifest = [ordered]@{
     bundle_name = $BundleName
@@ -66,9 +78,10 @@ $bundleManifest = [ordered]@{
     architecture = 'x64'
     target_triple = $TargetTriple
     executable = 'pyenv.exe'
+    mcp_executable = 'pyenv-mcp.exe'
     install_script = 'install-pyenv-native.ps1'
     uninstall_script = 'uninstall-pyenv-native.ps1'
-    command_wrappers = @('pyenv.cmd', 'pyenv.ps1')
+    command_wrappers = @('pyenv.cmd', 'pyenv.ps1', 'pyenv-mcp.cmd', 'pyenv-mcp.ps1')
 }
 $bundleManifest |
     ConvertTo-Json -Depth 4 |
@@ -92,6 +105,7 @@ $summary = [ordered]@{
     archive_path = $archivePath
     checksum_path = $checksumPath
     release_exe = $releaseExe
+    release_mcp_exe = $releaseMcpExe
     target_triple = $TargetTriple
 }
 

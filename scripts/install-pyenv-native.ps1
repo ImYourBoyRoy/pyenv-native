@@ -1,14 +1,15 @@
-# ./scripts/install-pyenv-native.ps1
+﻿# ./scripts/install-pyenv-native.ps1
 <#
-Purpose: Installs the native pyenv executable into a portable Windows root and optionally updates PATH/profile integration.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-InstallRoot <dir>] [-Yes]
-Inputs: Optional source binary path, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
-Outputs/side effects: Copies pyenv.exe and wrappers into <InstallRoot>\bin, creates shims/versions/cache folders, optionally updates user PATH and PowerShell profile, and writes an install log.
+Purpose: Installs the native pyenv executables into a portable Windows root and optionally updates PATH/profile integration.
+How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-InstallRoot <dir>] [-Yes]
+Inputs: Optional source binary paths, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
+Outputs/side effects: Copies pyenv.exe plus pyenv-mcp.exe into <InstallRoot>\bin, creates shims/versions/cache folders, optionally updates user PATH and PowerShell profile, and writes an install log.
 Notes: Keeps the install portable under a pyenv-managed root, avoids registry-based installation flows, and performs post-install sanity checks.
 #>
 
 param(
     [string]$SourcePath,
+    [string]$SourceMcpPath,
     [string]$InstallRoot = (Join-Path $HOME '.pyenv'),
     [ValidateSet('pwsh', 'cmd', 'none')]
     [string]$Shell = 'pwsh',
@@ -43,20 +44,17 @@ function Convert-ToBoolean {
 
 function Resolve-SourceBinary {
     param(
-        [string]$ExplicitPath
+        [string]$ExplicitPath,
+        [string]$BinaryName,
+        [string[]]$FallbackCandidates,
+        [bool]$Required = $true
     )
 
     $candidates = @()
     if ($ExplicitPath) {
         $candidates += $ExplicitPath
     }
-
-    $candidates += @(
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv.exe'),
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv.exe'),
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv.exe'),
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv.exe')
-    )
+    $candidates += $FallbackCandidates
 
     foreach ($candidate in $candidates) {
         if (-not $candidate) {
@@ -69,7 +67,31 @@ function Resolve-SourceBinary {
         }
     }
 
-    throw 'pyenv-native source binary was not found. Pass -SourcePath <pyenv.exe> or build the project first.'
+    if ($Required) {
+        throw "pyenv-native source binary '$BinaryName' was not found. Pass an explicit path or build the project first."
+    }
+
+    return $null
+}
+
+function Resolve-OptionalMcpBinary {
+    param(
+        [string]$ExplicitPath,
+        [string]$ResolvedPyenvBinary
+    )
+
+    $fallbackCandidates = @()
+    if ($ResolvedPyenvBinary) {
+        $fallbackCandidates += Join-Path (Split-Path -Parent $ResolvedPyenvBinary) 'pyenv-mcp.exe'
+    }
+    $fallbackCandidates += @(
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv-mcp.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv-mcp.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv-mcp.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv-mcp.exe')
+    )
+
+    return Resolve-SourceBinary -ExplicitPath $ExplicitPath -BinaryName 'pyenv-mcp.exe' -FallbackCandidates $fallbackCandidates -Required:$false
 }
 
 function Get-NearestExistingDirectory {
@@ -270,10 +292,11 @@ function Emit-Summary {
     Write-Host 'pyenv-native install summary'
     Write-Host '============================'
     foreach ($entry in $Summary.GetEnumerator()) {
-        Write-Host ('{0,-16}: {1}' -f $entry.Key, $entry.Value)
+        Write-Host ('{0,-18}: {1}' -f $entry.Key, $entry.Value)
     }
     Write-Host ''
     Write-Host 'This will create or update a portable pyenv-native installation under the selected root.'
+    Write-Host 'It installs pyenv plus the agent-friendly pyenv-mcp server when available, writes an install log, and runs basic sanity checks.'
     if ($Summary.update_profile -eq $true) {
         Write-Host 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.'
     } else {
@@ -304,9 +327,9 @@ function Confirm-Install {
     }
 }
 
-function Invoke-PyenvSanityCheck {
+function Invoke-BinarySanityCheck {
     param(
-        [string]$InstalledExe,
+        [string]$CommandPath,
         [string]$ResolvedInstallRoot,
         [string]$Name,
         [string[]]$Arguments,
@@ -319,7 +342,7 @@ function Invoke-PyenvSanityCheck {
 
     try {
         $env:PYENV_ROOT = $ResolvedInstallRoot
-        $output = & $InstalledExe @Arguments 2>&1
+        $output = & $CommandPath @Arguments 2>&1
         $exitCode = $LASTEXITCODE
     } finally {
         if ($null -eq $previousRoot) {
@@ -347,10 +370,17 @@ function Invoke-PyenvSanityCheck {
     }
 }
 
-$resolvedSource = Resolve-SourceBinary -ExplicitPath $SourcePath
+$resolvedSource = Resolve-SourceBinary -ExplicitPath $SourcePath -BinaryName 'pyenv.exe' -FallbackCandidates @(
+    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv.exe'),
+    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv.exe'),
+    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv.exe'),
+    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv.exe')
+)
+$resolvedMcpSource = Resolve-OptionalMcpBinary -ExplicitPath $SourceMcpPath -ResolvedPyenvBinary $resolvedSource
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $installBin = Join-Path $resolvedInstallRoot 'bin'
 $installedExe = Join-Path $installBin 'pyenv.exe'
+$installedMcpExe = Join-Path $installBin 'pyenv-mcp.exe'
 $addToUserPathValue = Convert-ToBoolean -Value $AddToUserPath -ParameterName 'AddToUserPath'
 $updatePowerShellProfileValue = Convert-ToBoolean -Value $UpdatePowerShellProfile -ParameterName 'UpdatePowerShellProfile'
 $refreshShimsValue = Convert-ToBoolean -Value $RefreshShims -ParameterName 'RefreshShims'
@@ -368,8 +398,10 @@ Assert-InstallRootState -ResolvedInstallRoot $resolvedInstallRoot -InstalledExe 
 
 $summary = [ordered]@{
     source_binary = $resolvedSource
+    source_mcp = $(if ($resolvedMcpSource) { $resolvedMcpSource } else { '<not found>' })
     install_root = $resolvedInstallRoot
     installed_exe = $installedExe
+    installed_mcp = $installedMcpExe
     shell = $Shell
     add_to_path = $addToUserPathValue
     update_profile = $updateProfileEffective
@@ -389,14 +421,26 @@ New-Item -ItemType Directory -Force -Path (Join-Path $resolvedInstallRoot 'cache
 New-Item -ItemType Directory -Force -Path (Join-Path $resolvedInstallRoot 'logs') | Out-Null
 
 Copy-Item -Force -Path $resolvedSource -Destination $installedExe
+if ($resolvedMcpSource) {
+    Copy-Item -Force -Path $resolvedMcpSource -Destination $installedMcpExe
+    Write-InstallLog -Level 'INFO' -Message "Installed MCP server binary into $installedMcpExe" -ResolvedLogPath $resolvedLogPath
+} else {
+    Write-InstallLog -Level 'WARN' -Message 'pyenv-mcp source binary was not found; installing pyenv CLI only.' -ResolvedLogPath $resolvedLogPath
+}
 
 $cmdWrapper = '@echo off' + "`r`n" + '"%~dp0pyenv.exe" %*' + "`r`n"
-$ps1Wrapper = '& "' + $PSScriptRoot + '\pyenv.exe" @args' + "`r`n" + 'exit $LASTEXITCODE' + "`r`n"
+$ps1Wrapper = '& "$PSScriptRoot\pyenv.exe" @args' + "`r`n" + 'exit $LASTEXITCODE' + "`r`n"
 $cmdInitHelper = '@echo off' + "`r`n" + 'for /f "delims=" %%i in (''"%~dp0pyenv.exe" init - cmd'') do %%i' + "`r`n"
+$mcpCmdWrapper = '@echo off' + "`r`n" + '"%~dp0pyenv-mcp.exe" %*' + "`r`n"
+$mcpPs1Wrapper = '& "$PSScriptRoot\pyenv-mcp.exe" @args' + "`r`n" + 'exit $LASTEXITCODE' + "`r`n"
 
 Write-TextFile -Path (Join-Path $installBin 'pyenv.cmd') -Contents $cmdWrapper
 Write-TextFile -Path (Join-Path $installBin 'pyenv.ps1') -Contents $ps1Wrapper
 Write-TextFile -Path (Join-Path $installBin 'pyenv-init.cmd') -Contents $cmdInitHelper
+if ($resolvedMcpSource) {
+    Write-TextFile -Path (Join-Path $installBin 'pyenv-mcp.cmd') -Contents $mcpCmdWrapper
+    Write-TextFile -Path (Join-Path $installBin 'pyenv-mcp.ps1') -Contents $mcpPs1Wrapper
+}
 Write-InstallLog -Level 'INFO' -Message "Installed core binaries into $installBin" -ResolvedLogPath $resolvedLogPath
 
 if ($addToUserPathValue) {
@@ -414,14 +458,21 @@ if ($refreshShimsValue) {
     Write-InstallLog -Level 'INFO' -Message 'Refreshed shims.' -ResolvedLogPath $resolvedLogPath
 }
 
-Invoke-PyenvSanityCheck -InstalledExe $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv --version' -Arguments @('--version') -ResolvedLogPath $resolvedLogPath
-Invoke-PyenvSanityCheck -InstalledExe $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv root' -Arguments @('root') -ResolvedLogPath $resolvedLogPath
-Invoke-PyenvSanityCheck -InstalledExe $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv commands' -Arguments @('commands') -ResolvedLogPath $resolvedLogPath
+Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv --version' -Arguments @('--version') -ResolvedLogPath $resolvedLogPath
+Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv root' -Arguments @('root') -ResolvedLogPath $resolvedLogPath
+Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv commands' -Arguments @('commands') -ResolvedLogPath $resolvedLogPath
+if ($resolvedMcpSource) {
+    Invoke-BinarySanityCheck -CommandPath $installedMcpExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv-mcp guide' -Arguments @('guide') -ResolvedLogPath $resolvedLogPath
+}
 
 Write-InstallLog -Level 'INFO' -Message 'Install completed successfully.' -ResolvedLogPath $resolvedLogPath
 Write-Host ''
 Write-Host "Installed pyenv-native to $resolvedInstallRoot"
 Write-Host "Installed command: $installedExe"
+if ($resolvedMcpSource) {
+    Write-Host "Installed MCP server: $installedMcpExe"
+    Write-Host "MCP config helper: & '$installedMcpExe' print-config"
+}
 Write-Host "Log file: $resolvedLogPath"
 if ($Shell -eq 'cmd') {
     Write-Host "CMD note: run '$installBin\pyenv-init.cmd' in each interactive CMD session, or wire it into your preferred startup flow."

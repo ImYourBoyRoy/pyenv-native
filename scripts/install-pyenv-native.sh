@@ -1,14 +1,15 @@
 #!/usr/bin/env sh
 # ./scripts/install-pyenv-native.sh
-# Purpose: Installs the native pyenv executable into a portable POSIX root and optionally updates shell profile integration.
-# How to run: sh ./scripts/install-pyenv-native.sh [--source-path <pyenv>] [--install-root <dir>] [--shell <bash|zsh|fish|sh|none>] [--yes]
-# Inputs: Optional source binary path, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
-# Outputs/side effects: Copies the pyenv binary into <install-root>/bin, creates shims/versions/cache folders, optionally appends shell init to the chosen profile, and writes an install log.
+# Purpose: Installs the native pyenv executables into a portable POSIX root and optionally updates shell profile integration.
+# How to run: sh ./scripts/install-pyenv-native.sh [--source-path <pyenv>] [--source-mcp-path <pyenv-mcp>] [--install-root <dir>] [--shell <bash|zsh|fish|sh|none>] [--yes]
+# Inputs: Optional source binary paths, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
+# Outputs/side effects: Copies pyenv plus pyenv-mcp into <install-root>/bin, creates shims/versions/cache folders, optionally appends shell init to the chosen profile, and writes an install log.
 # Notes: Keeps the install portable and registry-free; profile updates are the POSIX equivalent of PATH integration.
 
 set -eu
 
 SOURCE_PATH=""
+SOURCE_MCP_PATH=""
 INSTALL_ROOT="${HOME}/.pyenv"
 SHELL_KIND=""
 ADD_TO_USER_PATH="true"
@@ -49,25 +50,46 @@ resolve_script_dir() {
   CDPATH= cd -- "$(dirname -- "$0")" && pwd
 }
 
-resolve_source_binary() {
-  if [ -n "$SOURCE_PATH" ] && [ -f "$SOURCE_PATH" ]; then
-    print_line "$SOURCE_PATH"
-    return
+resolve_binary_path() {
+  explicit_path="$1"
+  binary_label="$2"
+  required="$3"
+  shift 3
+
+  if [ -n "$explicit_path" ] && [ -f "$explicit_path" ]; then
+    print_line "$explicit_path"
+    return 0
   fi
 
-  script_dir="$(resolve_script_dir)"
-  for candidate in \
-    "$script_dir/../target/release/pyenv" \
-    "$script_dir/../target/debug/pyenv"
-  do
-    if [ -f "$candidate" ]; then
+  for candidate in "$@"; do
+    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
       print_line "$candidate"
-      return
+      return 0
     fi
   done
 
-  print_line 'pyenv-native source binary was not found. Pass --source-path <pyenv> or build the project first.' >&2
-  exit 1
+  if [ "$required" = "true" ]; then
+    printf 'pyenv-native source binary `%s` was not found. Pass an explicit path or build the project first.\n' "$binary_label" >&2
+    exit 1
+  fi
+
+  return 1
+}
+
+resolve_source_binary() {
+  script_dir="$(resolve_script_dir)"
+  resolve_binary_path "$SOURCE_PATH" 'pyenv' true \
+    "$script_dir/../target/release/pyenv" \
+    "$script_dir/../target/debug/pyenv"
+}
+
+resolve_source_mcp_binary() {
+  script_dir="$(resolve_script_dir)"
+  sibling_dir="$(dirname -- "$RESOLVED_SOURCE")"
+  resolve_binary_path "$SOURCE_MCP_PATH" 'pyenv-mcp' false \
+    "$sibling_dir/pyenv-mcp" \
+    "$script_dir/../target/release/pyenv-mcp" \
+    "$script_dir/../target/debug/pyenv-mcp" || true
 }
 
 profile_path_for_shell() {
@@ -288,8 +310,10 @@ emit_summary() {
   print_line "pyenv-native install summary"
   print_line "============================"
   print_line "source binary : $RESOLVED_SOURCE"
+  print_line "source mcp    : ${RESOLVED_MCP_SOURCE:-<not found>}"
   print_line "install root  : $INSTALL_ROOT"
   print_line "installed exe : $INSTALLED_EXE"
+  print_line "installed mcp : $INSTALLED_MCP_EXE"
   print_line "shell         : $SHELL_KIND"
   print_line "profile update: $UPDATE_PROFILE_EFFECTIVE"
   print_line "path hint     : $ADD_TO_USER_PATH"
@@ -298,6 +322,7 @@ emit_summary() {
   print_line "log path      : $LOG_PATH"
   print_line ""
   print_line "This will create or update a portable pyenv-native installation under the selected root."
+  print_line "It installs pyenv plus the agent-friendly pyenv-mcp server when available, writes an install log, and runs basic sanity checks."
   if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ]; then
     print_line "Your shell profile will be updated so future sessions can find pyenv-native automatically."
   else
@@ -332,10 +357,11 @@ confirm_action() {
 }
 
 run_sanity_check() {
-  name="$1"
-  shift
+  command_path="$1"
+  name="$2"
+  shift 2
 
-  if output="$(PYENV_ROOT="$INSTALL_ROOT" "$INSTALLED_EXE" "$@" 2>&1)"; then
+  if output="$(PYENV_ROOT="$INSTALL_ROOT" "$command_path" "$@" 2>&1)"; then
     first_line="$(printf '%s' "$output" | awk 'NR == 1 { print; exit }')"
     if [ -n "$first_line" ]; then
       log_line INFO "Sanity check passed: $name -> $first_line"
@@ -357,6 +383,10 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --source-path)
       SOURCE_PATH="${2:-}"
+      shift 2
+      ;;
+    --source-mcp-path)
+      SOURCE_MCP_PATH="${2:-}"
       shift 2
       ;;
     --install-root)
@@ -406,7 +436,9 @@ mkdir -p "$(dirname -- "$INSTALL_ROOT")"
 INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename -- "$INSTALL_ROOT")"
 INSTALL_BIN="${INSTALL_ROOT}/bin"
 INSTALLED_EXE="${INSTALL_BIN}/pyenv"
+INSTALLED_MCP_EXE="${INSTALL_BIN}/pyenv-mcp"
 RESOLVED_SOURCE="$(resolve_source_binary)"
+RESOLVED_MCP_SOURCE="$(resolve_source_mcp_binary)"
 UPDATE_PROFILE_EFFECTIVE="false"
 if [ "$SHELL_KIND" != "none" ] && [ "$UPDATE_SHELL_PROFILE" = "true" ]; then
   UPDATE_PROFILE_EFFECTIVE="true"
@@ -414,6 +446,7 @@ fi
 
 assert_install_root_access
 assert_install_root_state
+warn_existing_path_command
 ensure_log_ready
 emit_summary
 confirm_action
@@ -422,6 +455,14 @@ write_step "Creating portable pyenv-native layout"
 mkdir -p "$INSTALL_BIN" "${INSTALL_ROOT}/shims" "${INSTALL_ROOT}/versions" "${INSTALL_ROOT}/cache" "${INSTALL_ROOT}/logs"
 cp -f "$RESOLVED_SOURCE" "$INSTALLED_EXE"
 chmod +x "$INSTALLED_EXE"
+
+if [ -n "$RESOLVED_MCP_SOURCE" ] && [ -f "$RESOLVED_MCP_SOURCE" ]; then
+  cp -f "$RESOLVED_MCP_SOURCE" "$INSTALLED_MCP_EXE"
+  chmod +x "$INSTALLED_MCP_EXE"
+  write_step "Installed MCP server binary into ${INSTALLED_MCP_EXE}"
+else
+  write_warn 'pyenv-mcp source binary was not found; installing pyenv CLI only.'
+fi
 
 PROFILE_PATH=""
 if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ]; then
@@ -436,9 +477,12 @@ if [ "$REFRESH_SHIMS" = "true" ]; then
   write_step 'Refreshed shims'
 fi
 
-run_sanity_check 'pyenv --version' --version
-run_sanity_check 'pyenv root' root
-run_sanity_check 'pyenv commands' commands
+run_sanity_check "$INSTALLED_EXE" 'pyenv --version' --version
+run_sanity_check "$INSTALLED_EXE" 'pyenv root' root
+run_sanity_check "$INSTALLED_EXE" 'pyenv commands' commands
+if [ -f "$INSTALLED_MCP_EXE" ]; then
+  run_sanity_check "$INSTALLED_MCP_EXE" 'pyenv-mcp guide' guide
+fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then
   write_warn 'Persistent PATH integration on POSIX systems usually happens through your shell profile. Add your install bin manually if needed.'
@@ -448,7 +492,18 @@ write_step 'Install completed successfully.'
 log_line INFO "Final artifacts:"
 log_line INFO "  install_root: $INSTALL_ROOT"
 log_line INFO "  installed_exe: $INSTALLED_EXE"
+if [ -f "$INSTALLED_MCP_EXE" ]; then
+  log_line INFO "  installed_mcp: $INSTALLED_MCP_EXE"
+fi
 log_line INFO "  log_path: $LOG_PATH"
 if [ -n "$PROFILE_PATH" ]; then
   log_line INFO "  profile_path: $PROFILE_PATH"
 fi
+print_line ""
+print_line "Installed pyenv-native to $INSTALL_ROOT"
+print_line "Installed command: ${INSTALL_ROOT}/bin/pyenv"
+if [ -f "$INSTALLED_MCP_EXE" ]; then
+  print_line "Installed MCP server: ${INSTALLED_MCP_EXE}"
+  print_line "MCP config helper: ${INSTALLED_MCP_EXE} print-config"
+fi
+print_line "Log file: $LOG_PATH"

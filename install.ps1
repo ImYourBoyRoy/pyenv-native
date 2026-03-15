@@ -350,6 +350,7 @@ function Invoke-BundledInstaller {
     $installerPath = Join-Path $ExtractedDir 'install-pyenv-native.ps1'
     $executablePath = Join-Path $ExtractedDir 'pyenv.exe'
     $manifestPath = Join-Path $ExtractedDir 'bundle-manifest.json'
+    $mcpExecutablePath = Join-Path $ExtractedDir 'pyenv-mcp.exe'
 
     foreach ($requiredPath in @($installerPath, $executablePath, $manifestPath)) {
         if (-not (Test-Path $requiredPath)) {
@@ -362,16 +363,59 @@ function Invoke-BundledInstaller {
         throw "Downloaded bundle platform '$($manifest.platform)' does not match this Windows installer."
     }
 
-    & $installerPath `
-        -SourcePath $executablePath `
-        -InstallRoot $ResolvedInstallRoot `
-        -Shell $Shell `
-        -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
-        -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
-        -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
-        -LogPath $ResolvedLogPath `
-        -Yes `
-        @($(if ($Overwrite) { '-Force' }))
+    if ($manifest.mcp_executable -and -not (Test-Path $mcpExecutablePath)) {
+        throw "Downloaded bundle declared an MCP server binary but '$mcpExecutablePath' was missing."
+    }
+
+    if (Test-Path $mcpExecutablePath) {
+        if ($Overwrite) {
+            & $installerPath `
+                -SourcePath $executablePath `
+                -SourceMcpPath $mcpExecutablePath `
+                -InstallRoot $ResolvedInstallRoot `
+                -Shell $Shell `
+                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
+                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
+                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
+                -LogPath $ResolvedLogPath `
+                -Yes `
+                -Force
+        } else {
+            & $installerPath `
+                -SourcePath $executablePath `
+                -SourceMcpPath $mcpExecutablePath `
+                -InstallRoot $ResolvedInstallRoot `
+                -Shell $Shell `
+                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
+                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
+                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
+                -LogPath $ResolvedLogPath `
+                -Yes
+        }
+    } else {
+        if ($Overwrite) {
+            & $installerPath `
+                -SourcePath $executablePath `
+                -InstallRoot $ResolvedInstallRoot `
+                -Shell $Shell `
+                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
+                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
+                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
+                -LogPath $ResolvedLogPath `
+                -Yes `
+                -Force
+        } else {
+            & $installerPath `
+                -SourcePath $executablePath `
+                -InstallRoot $ResolvedInstallRoot `
+                -Shell $Shell `
+                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
+                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
+                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
+                -LogPath $ResolvedLogPath `
+                -Yes
+        }
+    }
 }
 
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)

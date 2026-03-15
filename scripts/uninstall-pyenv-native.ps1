@@ -11,7 +11,8 @@ param(
     [string]$InstallRoot = (Join-Path $HOME '.pyenv'),
     [string]$RemoveFromUserPath = 'true',
     [string]$RemovePowerShellProfileBlock = 'true',
-    [switch]$RemoveRoot
+    [switch]$RemoveRoot,
+    [switch]$Yes
 )
 
 $ErrorActionPreference = 'Stop'
@@ -79,11 +80,27 @@ $installBin = Join-Path $resolvedInstallRoot 'bin'
 $removeFromUserPathValue = Convert-ToBoolean -Value $RemoveFromUserPath -ParameterName 'RemoveFromUserPath'
 $removeProfileValue = Convert-ToBoolean -Value $RemovePowerShellProfileBlock -ParameterName 'RemovePowerShellProfileBlock'
 
+$shouldRemoveRoot = $RemoveRoot.IsPresent
+
+if (-not $shouldRemoveRoot -and -not $Yes -and (Test-Path $resolvedInstallRoot)) {
+    try {
+        $answer = Read-Host "Do you want to completely wipe the pyenv root directory ('$resolvedInstallRoot') including all installed Python versions? [y/N]"
+        if ($answer -and $answer.Trim() -match '^(y|yes)$') {
+            $shouldRemoveRoot = $true
+        }
+    } catch {
+        # Non-interactive or cancelled, default to false
+    }
+}
+
 foreach ($path in @(
     (Join-Path $installBin 'pyenv.exe'),
     (Join-Path $installBin 'pyenv.cmd'),
     (Join-Path $installBin 'pyenv.ps1'),
-    (Join-Path $installBin 'pyenv-init.cmd')
+    (Join-Path $installBin 'pyenv-init.cmd'),
+    (Join-Path $installBin 'pyenv-mcp.exe'),
+    (Join-Path $installBin 'pyenv-mcp.cmd'),
+    (Join-Path $installBin 'pyenv-mcp.ps1')
 )) {
     if (Test-Path $path) {
         Remove-Item -Force $path
@@ -98,7 +115,7 @@ if ($removeProfileValue) {
     Remove-PowerShellProfileBlock -ProfilePath $PROFILE.CurrentUserCurrentHost
 }
 
-if ($RemoveRoot -and (Test-Path $resolvedInstallRoot)) {
+if ($shouldRemoveRoot -and (Test-Path $resolvedInstallRoot)) {
     Remove-Item -Recurse -Force $resolvedInstallRoot
 }
 
@@ -107,7 +124,7 @@ $summary = [ordered]@{
     install_bin = $installBin
     remove_from_user_path = $removeFromUserPathValue
     remove_powershell_profile_block = $removeProfileValue
-    remove_root = [bool]$RemoveRoot
+    remove_root = $shouldRemoveRoot
 }
 
 $summary.GetEnumerator() | ForEach-Object {
