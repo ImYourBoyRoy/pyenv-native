@@ -38,6 +38,7 @@ So `pyenv-native` is built with gratitude and respect for upstream `pyenv`. It e
 
 - **Full usage guide:** [`INSTRUCTIONS.md`](./INSTRUCTIONS.md)
 - **Technical design:** [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+- **MCP / agent guide:** [`MCP.md`](./MCP.md)
 - **Python bootstrap package:** [`python-package/README.md`](./python-package/README.md)
 
 ---
@@ -104,6 +105,32 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/unin
 
 ---
 
+## Agentic / MCP integration
+
+Every first-class install path also installs **`pyenv-mcp`**, the companion MCP server for `pyenv-native`.
+
+That gives agents and MCP-capable IDEs a structured way to:
+
+- inspect project Python selection,
+- list installable runtimes,
+- ensure a runtime exists,
+- create a predictable project-local `.venv`,
+- emit install instructions and MCP config as JSON.
+
+Useful commands:
+
+```text
+pyenv-mcp guide
+pyenv-mcp print-config
+```
+
+- `pyenv-mcp guide` emits a structured JSON onboarding blob for models.
+- `pyenv-mcp print-config` emits a ready-to-paste MCP client config block.
+
+For the full agent-facing workflow, see [`MCP.md`](./MCP.md).
+
+---
+
 ## What makes it useful
 
 ### Familiar `pyenv` behavior
@@ -129,6 +156,7 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/unin
 - structured `doctor` diagnostics
 - release bundles with checksums and manifests
 - zero-clone web installers
+- `pyenv-mcp` for structured, agent-friendly JSON workflows
 - `pip` / `pipx` bootstrap path for users who already have Python
 
 ---
@@ -281,6 +309,14 @@ pyenv doctor [--json]
 pyenv config path|show|get|set
 ```
 
+### MCP companion
+
+```text
+pyenv-mcp
+pyenv-mcp guide
+pyenv-mcp print-config
+```
+
 For more examples and detailed explanations, see [`INSTRUCTIONS.md`](./INSTRUCTIONS.md).
 
 ---
@@ -291,7 +327,8 @@ For maintainers and contributors, common local verification commands include:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
-powershell -ExecutionPolicy Bypass -File .\scripts	est-python-bootstrap.ps1 -PythonPath C:\path	o\python.exe
+powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
+cargo run -q -p pyenv-mcp -- guide
 pyenv install --dry-run 3.12
 ```
 
@@ -306,13 +343,15 @@ Public-facing release usage is documented in [`INSTRUCTIONS.md`](./INSTRUCTIONS.
 |- README.md                       # public-facing overview
 |- INSTRUCTIONS.md                 # detailed usage, install, uninstall, and workflow guide
 |- ARCHITECTURE.md                 # technical design and compatibility model
+|- MCP.md                          # MCP / agent integration guide
 |- install.ps1                     # remote-friendly Windows web installer entrypoint
 |- install.sh                      # remote-friendly Linux/macOS web installer entrypoint
 |- uninstall.ps1                   # remote-friendly Windows uninstall entrypoint
 |- uninstall.sh                    # remote-friendly Linux/macOS uninstall entrypoint
 |- crates/
 |  |- pyenv-cli/                   # CLI entrypoint and command parsing
-|  `- pyenv-core/                  # version resolution, install backends, shims, shell init, diagnostics
+|  |- pyenv-core/                  # version resolution, install backends, shims, shell init, diagnostics
+|  `- pyenv-mcp/                   # stdio MCP server and agent-facing toolkit guide
 |- packaging/
 |  |- winget/                      # Winget manifest generation and metadata
 |  `- homebrew/                    # Homebrew formula generation and notes

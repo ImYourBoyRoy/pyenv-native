@@ -516,6 +516,14 @@ fn resolve_pypy_install_plan(
     })
 }
 
+pub fn install_runtime_plan(
+    ctx: &AppContext,
+    plan: &InstallPlan,
+    force: bool,
+) -> Result<InstallOutcome, PyenvError> {
+    install_runtime(ctx, plan, force)
+}
+
 fn install_runtime(
     ctx: &AppContext,
     plan: &InstallPlan,

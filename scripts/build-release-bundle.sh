@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 # ./scripts/build-release-bundle.sh
-# Purpose: Builds a release binary and assembles a portable POSIX distribution bundle for pyenv-native.
+# Purpose: Builds release binaries and assembles a portable POSIX distribution bundle for pyenv-native.
 # How to run: sh ./scripts/build-release-bundle.sh [--output-root ./dist] [--bundle-name pyenv-native-linux-x64]
 # Inputs: Optional output root and bundle name override; otherwise infers the host OS/architecture for asset naming.
-# Outputs/side effects: Builds the release binary, writes a bundle directory under dist/, and creates a .tar.gz archive with installers and docs.
-# Notes: Intended for Linux/macOS packaging; uses tar.gz to preserve executable permissions for the bundled binary and shell scripts.
+# Outputs/side effects: Builds the release binaries, writes a bundle directory under dist/, and creates a .tar.gz archive with installers, the MCP server, and user-facing docs.
+# Notes: Intended for Linux/macOS packaging; uses tar.gz to preserve executable permissions for the bundled binaries and shell scripts.
 
 set -eu
 
@@ -96,14 +96,17 @@ BUNDLE_DIR="${OUTPUT_ROOT}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${OUTPUT_ROOT}/${BUNDLE_NAME}.tar.gz"
 CHECKSUM_PATH="${ARCHIVE_PATH}.sha256"
 RELEASE_BIN="${REPO_ROOT}/target/release/pyenv"
+RELEASE_MCP_BIN="${REPO_ROOT}/target/release/pyenv-mcp"
 CARGO_TOML_PATH="${REPO_ROOT}/Cargo.toml"
 
-cargo build --release --bin pyenv
+cargo build --release --bin pyenv --bin pyenv-mcp
 
-if [ ! -f "$RELEASE_BIN" ]; then
-  printf 'Release binary was not found at %s\n' "$RELEASE_BIN" >&2
-  exit 1
-fi
+for required_binary in "$RELEASE_BIN" "$RELEASE_MCP_BIN"; do
+  if [ ! -f "$required_binary" ]; then
+    printf 'Release binary was not found at %s\n' "$required_binary" >&2
+    exit 1
+  fi
+done
 
 if [ -d "$BUNDLE_DIR" ]; then
   rm -rf "$BUNDLE_DIR"
@@ -117,11 +120,16 @@ if [ -z "$BUNDLE_VERSION" ]; then
 fi
 
 cp "$RELEASE_BIN" "${BUNDLE_DIR}/pyenv"
+cp "$RELEASE_MCP_BIN" "${BUNDLE_DIR}/pyenv-mcp"
 cp "${REPO_ROOT}/README.md" "${BUNDLE_DIR}/README.md"
+cp "${REPO_ROOT}/INSTRUCTIONS.md" "${BUNDLE_DIR}/INSTRUCTIONS.md"
+if [ -f "${REPO_ROOT}/MCP.md" ]; then
+  cp "${REPO_ROOT}/MCP.md" "${BUNDLE_DIR}/MCP.md"
+fi
 cp "${REPO_ROOT}/LICENSE" "${BUNDLE_DIR}/LICENSE"
 cp "${SCRIPT_DIR}/install-pyenv-native.sh" "${BUNDLE_DIR}/install-pyenv-native.sh"
 cp "${SCRIPT_DIR}/uninstall-pyenv-native.sh" "${BUNDLE_DIR}/uninstall-pyenv-native.sh"
-chmod +x "${BUNDLE_DIR}/pyenv" "${BUNDLE_DIR}/install-pyenv-native.sh" "${BUNDLE_DIR}/uninstall-pyenv-native.sh"
+chmod +x "${BUNDLE_DIR}/pyenv" "${BUNDLE_DIR}/pyenv-mcp" "${BUNDLE_DIR}/install-pyenv-native.sh" "${BUNDLE_DIR}/uninstall-pyenv-native.sh"
 
 cat > "${BUNDLE_DIR}/bundle-manifest.json" <<EOF
 {
@@ -130,6 +138,7 @@ cat > "${BUNDLE_DIR}/bundle-manifest.json" <<EOF
   "platform": "${OPERATING_SYSTEM}",
   "architecture": "${ARCHITECTURE}",
   "executable": "pyenv",
+  "mcp_executable": "pyenv-mcp",
   "install_script": "install-pyenv-native.sh",
   "uninstall_script": "uninstall-pyenv-native.sh"
 }
@@ -151,3 +160,4 @@ printf 'bundle_dir: %s\n' "$BUNDLE_DIR"
 printf 'archive_path: %s\n' "$ARCHIVE_PATH"
 printf 'checksum_path: %s\n' "$CHECKSUM_PATH"
 printf 'release_bin: %s\n' "$RELEASE_BIN"
+printf 'release_mcp_bin: %s\n' "$RELEASE_MCP_BIN"

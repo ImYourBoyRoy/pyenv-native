@@ -101,6 +101,15 @@ pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.
 
 This is useful for offline or staged release validation.
 
+### Important install note
+
+All first-class install paths now install both:
+
+- `pyenv`
+- `pyenv-mcp`
+
+That means the normal GitHub web installers, release bundles, and Python bootstrap package all give you the human CLI and the agent-friendly MCP server together.
+
 ## Installer UX and safety model
 
 The install path is intentionally explicit rather than magical. Whether you start from the GitHub-hosted web installer or a local bundle, the workflow is:
@@ -260,6 +269,56 @@ pyenv init - fish | source
 ```sh
 eval "$(pyenv init - sh)"
 ```
+
+---
+
+## MCP / AI agent integration
+
+`pyenv-native` includes **`pyenv-mcp`**, a stdio MCP server built directly on `pyenv-core`.
+
+This exists so agents and MCP-capable IDEs can use structured tools instead of scraping the human CLI.
+
+### Quick commands
+
+```text
+pyenv-mcp
+pyenv-mcp guide
+pyenv-mcp print-config
+```
+
+### What these do
+
+- `pyenv-mcp` starts the stdio MCP server.
+- `pyenv-mcp guide` emits a structured JSON onboarding blob with install instructions, workflow guidance, tool summaries, and example inputs.
+- `pyenv-mcp print-config` emits a ready-to-paste MCP client config block.
+
+### Why the guide matters
+
+If you are working with a smaller or less-capable model, the best first move is usually to give it the JSON from:
+
+```text
+pyenv-mcp guide
+```
+
+That single blob is designed to teach the model:
+
+- how to install `pyenv-native`,
+- how to register the MCP server,
+- what tools exist,
+- what order to use them in,
+- how to install CPython or PyPy runtimes,
+- how to prepare a project-local `.venv`.
+
+### Recommended tool order for agents
+
+1. `get_toolkit_guide`
+2. `resolve_project_environment`
+3. `list_available_versions` when choosing a runtime
+4. `ensure_runtime`
+5. `ensure_project_venv`
+6. `doctor` when something looks wrong
+
+For the full MCP-specific guide, see [`MCP.md`](./MCP.md).
 
 ---
 
@@ -485,6 +544,13 @@ sh ./scripts/build-release-bundle.sh --output-root ./dist
 powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
 ```
 
+### Preview the MCP guide and client config
+
+```powershell
+cargo run -q -p pyenv-mcp -- guide
+cargo run -q -p pyenv-mcp -- print-config
+```
+
 ### Generate Winget packaging artifacts
 
 ```powershell
@@ -552,6 +618,14 @@ pyenv-native-bootstrap download [--bundle-url <url> | --release-base-url <url> |
 pyenv-native-bootstrap install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
 ```
 
+### MCP companion commands
+
+```text
+pyenv-mcp
+pyenv-mcp guide
+pyenv-mcp print-config
+```
+
 Internal helper commands such as `sh-shell`, `sh-rehash`, and `sh-cmd` exist for shell integration, but they are intentionally not part of the normal end-user surface.
 
 ---
@@ -562,6 +636,7 @@ Internal helper commands such as `sh-shell`, `sh-rehash`, and `sh-cmd` exist for
 README.md                       public overview
 INSTRUCTIONS.md                 detailed usage guide
 ARCHITECTURE.md                 technical design notes
+MCP.md                          agent-facing MCP guide
 install.ps1 / install.sh        remote-friendly web installers
 uninstall.ps1 / uninstall.sh    remote-friendly uninstallers
 crates/                         Rust CLI and core runtime
