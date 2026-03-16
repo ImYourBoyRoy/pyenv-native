@@ -1,4 +1,4 @@
-﻿name: release
+name: release
 
 on:
   push:
@@ -55,7 +55,7 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
       - name: Upload Windows bundle artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-windows-bundle
           path: |
@@ -63,13 +63,13 @@ jobs:
             dist/pyenv-native-windows-x64.zip.sha256
 
       - name: Upload Winget manifest artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-winget-manifests
           path: packaging/winget/manifests/**
 
       - name: Upload Python bootstrap package artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-bootstrap-python
           path: python-package/dist/*
@@ -102,7 +102,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload Linux bundle artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-linux-bundle
           path: |
@@ -137,7 +137,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload macOS arm64 bundle artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-macos-arm64-bundle
           path: |
@@ -172,7 +172,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload macOS x64 bundle artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pyenv-native-macos-x64-bundle
           path: |
@@ -194,37 +194,37 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download Windows bundle artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-windows-bundle
           path: dist/windows
 
       - name: Download Linux bundle artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-linux-bundle
           path: dist/linux
 
       - name: Download macOS arm64 bundle artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-macos-arm64-bundle
           path: dist/macos
 
       - name: Download macOS x64 bundle artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-macos-x64-bundle
           path: dist/macos
 
       - name: Download Winget manifests artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-winget-manifests
           path: dist/winget
 
       - name: Download Python bootstrap package artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-bootstrap-python
           path: dist/python
@@ -266,7 +266,7 @@ jobs:
 
       - name: Download Python bootstrap package artifact
         if: ${{ env.PYPI_API_TOKEN != '' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: pyenv-native-bootstrap-python
           path: dist

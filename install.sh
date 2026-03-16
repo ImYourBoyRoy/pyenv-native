@@ -115,16 +115,14 @@ assert_install_root_access() {
 assert_install_root_state() {
   installed_executable="${INSTALL_ROOT}/bin/pyenv"
   if [ -e "$installed_executable" ] && [ "$FORCE" != "true" ]; then
-    printf 'pyenv-native is already installed at %s. Re-run with --force to overwrite or uninstall first.\n' "$installed_executable" >&2
-    exit 1
+    printf 'Warning: pyenv-native is already installed at %s. Proceeding will upgrade or overwrite the installation in-place.\n' "$installed_executable" >&2
   fi
 
   if [ -d "$INSTALL_ROOT" ] \
     && [ -n "$(find "$INSTALL_ROOT" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ] \
     && [ ! -e "$installed_executable" ] \
     && [ "$FORCE" != "true" ]; then
-    printf 'Install root `%s` already exists and is not empty. Re-run with --force or choose a different --install-root.\n' "$INSTALL_ROOT" >&2
-    exit 1
+    printf 'Warning: Install root `%s` already exists and is not empty. Proceeding will install into this existing directory.\n' "$INSTALL_ROOT" >&2
   fi
 }
 
@@ -315,7 +313,7 @@ emit_summary() {
 }
 
 confirm_action() {
-  if [ "$YES" = "true" ]; then
+  if [ "$YES" = "true" ] || [ "$FORCE" = "true" ]; then
     return 0
   fi
 
