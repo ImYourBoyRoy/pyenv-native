@@ -143,10 +143,11 @@ function Invoke-FileDownload {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     }
 
-    if ($PSVersionTable.PSVersion.Major -lt 6) {
-        Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $DestinationPath
-    } else {
-        Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
+    $webClient = New-Object -TypeName System.Net.WebClient
+    try {
+        $webClient.DownloadFile($Url, $DestinationPath)
+    } finally {
+        $webClient.Dispose()
     }
 }
 
@@ -240,7 +241,7 @@ function Assert-InstallRootState {
     $installedExe = Join-Path (Join-Path $ResolvedInstallRoot 'bin') 'pyenv.exe'
     if (Test-Path $installedExe) {
         if (-not $Overwrite) {
-            throw "pyenv-native is already installed at $installedExe. Re-run with -Force to upgrade in place or run uninstall.ps1 first."
+            Write-Warning "pyenv-native is already installed at $installedExe. Proceeding will upgrade or overwrite the installation in-place."
         }
         return
     }
@@ -248,7 +249,7 @@ function Assert-InstallRootState {
     if ((Test-Path $ResolvedInstallRoot) -and -not $Overwrite) {
         $firstChild = Get-ChildItem -Force $ResolvedInstallRoot -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($firstChild) {
-            throw "Install root '$ResolvedInstallRoot' already exists and is not empty. Re-run with -Force or choose a different -InstallRoot."
+            Write-Warning "Install root '$ResolvedInstallRoot' already exists and is not empty. Proceeding will install into this existing directory."
         }
     }
 }
@@ -315,7 +316,7 @@ function Emit-Summary {
 }
 
 function Confirm-Install {
-    if ($Yes) {
+    if ($Yes -or $Force.IsPresent) {
         return
     }
 
@@ -472,7 +473,7 @@ try {
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $bundlePath -DestinationPath $extractRoot -Force
 
-    Invoke-BundledInstaller -ExtractedDir $extractRoot -ResolvedInstallRoot $resolvedInstallRoot -AddToUserPathValue $addToUserPathValue -UpdateProfileValue $updateProfileValue -RefreshShimsValue $refreshShimsValue -ResolvedLogPath $resolvedLogPath -Overwrite:$Force
+    Invoke-BundledInstaller -ExtractedDir $extractRoot -ResolvedInstallRoot $resolvedInstallRoot -AddToUserPathValue $addToUserPathValue -UpdateProfileValue $updateProfileValue -RefreshShimsValue $refreshShimsValue -ResolvedLogPath $resolvedLogPath -Overwrite:$Force.IsPresent
 
     Write-InstallLog -Level 'INFO' -Message 'Network install completed successfully.' -ResolvedLogPath $resolvedLogPath
     Write-Host ''

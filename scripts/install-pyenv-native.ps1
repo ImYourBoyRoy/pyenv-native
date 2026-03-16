@@ -1,4 +1,4 @@
-﻿# ./scripts/install-pyenv-native.ps1
+# ./scripts/install-pyenv-native.ps1
 <#
 Purpose: Installs the native pyenv executables into a portable Windows root and optionally updates PATH/profile integration.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-InstallRoot <dir>] [-Yes]
@@ -165,7 +165,7 @@ function Assert-InstallRootState {
     )
 
     if ((Test-Path $InstalledExe) -and -not $Overwrite) {
-        throw "pyenv-native is already installed at $InstalledExe. Re-run with -Force to overwrite or uninstall first."
+        Write-Warning "pyenv-native is already installed at $InstalledExe. Proceeding will upgrade or overwrite the installation in-place."
     }
 
     if ((Test-Path $ResolvedInstallRoot) -and -not (Test-Path $InstalledExe) -and -not $Overwrite) {
@@ -173,7 +173,7 @@ function Assert-InstallRootState {
         if ($children.Count -gt 0) {
             $nonLogChildren = @($children | Where-Object { $_.Name -ne 'logs' })
             if ($nonLogChildren.Count -gt 0) {
-                throw "Install root '$ResolvedInstallRoot' already exists and is not empty. Re-run with -Force or choose a different -InstallRoot."
+                Write-Warning "Install root '$ResolvedInstallRoot' already exists and is not empty. Proceeding will install into this existing directory."
             }
         }
     }
@@ -306,7 +306,7 @@ function Emit-Summary {
 }
 
 function Confirm-Install {
-    if ($Yes) {
+    if ($Yes -or $Force.IsPresent) {
         return
     }
 
