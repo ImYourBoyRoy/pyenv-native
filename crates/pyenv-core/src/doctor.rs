@@ -176,18 +176,19 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
 
     // Check if PYENV_ROOT env var still points to pyenv-win
     if let Ok(env_root) = env::var("PYENV_ROOT")
-        && is_pyenv_win_root(Path::new(&env_root)) {
-            checks.push(DoctorCheck {
-                name: "pyenv-win-root-conflict".to_string(),
-                status: DoctorStatus::Warn,
-                detail: format!(
-                    "PYENV_ROOT is set to `{}` which looks like a pyenv-win path; \
+        && is_pyenv_win_root(Path::new(&env_root))
+    {
+        checks.push(DoctorCheck {
+            name: "pyenv-win-root-conflict".to_string(),
+            status: DoctorStatus::Warn,
+            detail: format!(
+                "PYENV_ROOT is set to `{}` which looks like a pyenv-win path; \
                      pyenv-native overrides this at runtime, but removing the env var \
                      is recommended: remove PYENV_ROOT from your User environment variables",
-                    env_root
-                ),
-            });
-        }
+                env_root
+            ),
+        });
+    }
 
     // Check if pyenv-win bin/shims appear on PATH before the native ones
     let exe_dir = ctx

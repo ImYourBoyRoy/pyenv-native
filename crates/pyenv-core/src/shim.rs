@@ -185,14 +185,13 @@ fn resolve_exec_target(ctx: &AppContext, command: &str) -> Result<ExecTarget, Co
         }
     }
 
-    if !searched_system
-        && let Some(path) = find_system_command(ctx, command) {
-            return Ok(ExecTarget {
-                executable: path,
-                prefix_dirs: Vec::new(),
-                version_name: Some("system".to_string()),
-            });
-        }
+    if !searched_system && let Some(path) = find_system_command(ctx, command) {
+        return Ok(ExecTarget {
+            executable: path,
+            prefix_dirs: Vec::new(),
+            version_name: Some("system".to_string()),
+        });
+    }
 
     let mut stderr = selected
         .missing

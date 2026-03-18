@@ -418,9 +418,9 @@ fn split_family_and_tail(name: &str) -> (String, String) {
         && family
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '.')
-        {
-            return (family.to_ascii_lowercase(), tail.to_ascii_lowercase());
-        }
+    {
+        return (family.to_ascii_lowercase(), tail.to_ascii_lowercase());
+    }
 
     (name.to_ascii_lowercase(), String::new())
 }

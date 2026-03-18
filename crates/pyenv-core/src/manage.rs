@@ -185,10 +185,9 @@ pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> Comm
         }
     }
 
-    if removed_any
-        && let Err(error) = rehash_shims(ctx) {
-            stderr.push(error.to_string());
-        }
+    if removed_any && let Err(error) = rehash_shims(ctx) {
+        stderr.push(error.to_string());
+    }
 
     let exit_code = if stderr.is_empty() { 0 } else { 1 };
 
