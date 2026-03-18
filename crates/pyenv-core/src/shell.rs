@@ -203,7 +203,7 @@ fn detect_shell(ctx: &AppContext) -> ShellKind {
     ctx.env_shell
         .as_deref()
         .and_then(ShellKind::parse)
-        .or_else(|| {
+        .or({
             if cfg!(windows) {
                 Some(ShellKind::Pwsh)
             } else {

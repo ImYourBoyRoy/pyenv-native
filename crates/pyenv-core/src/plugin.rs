@@ -255,8 +255,8 @@ pub fn parse_hook_actions(lines: &[String]) -> HookActions {
             continue;
         }
 
-        if let Some(value) = trimmed.strip_prefix("ENV:") {
-            if let Some((key, rest)) = value.split_once('=') {
+        if let Some(value) = trimmed.strip_prefix("ENV:")
+            && let Some((key, rest)) = value.split_once('=') {
                 let key = key.trim();
                 if !key.is_empty() {
                     actions
@@ -265,7 +265,6 @@ pub fn parse_hook_actions(lines: &[String]) -> HookActions {
                     continue;
                 }
             }
-        }
 
         if let Some((key, value)) = parse_shell_assignment(trimmed) {
             if key.eq_ignore_ascii_case("PYENV_COMMAND_PATH") {

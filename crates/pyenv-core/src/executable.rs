@@ -46,12 +46,11 @@ pub fn cmd_which(
         }
     }
 
-    if found_path.is_none() && !no_system && !searched_system {
-        if let Some(path) = find_system_command(ctx, command) {
+    if found_path.is_none() && !no_system && !searched_system
+        && let Some(path) = find_system_command(ctx, command) {
             resolved_version_name = Some("system".to_string());
             found_path = Some(path);
         }
-    }
 
     let hook_results = match run_hook_scripts(
         ctx,
