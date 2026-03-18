@@ -40,6 +40,7 @@ enum Commands {
         command: Option<String>,
     },
     #[command(about = "List all available pyenv commands")]
+    #[allow(clippy::enum_variant_names)]
     Commands {
         #[arg(long = "sh")]
         sh: bool,

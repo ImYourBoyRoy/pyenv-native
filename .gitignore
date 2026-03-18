@@ -30,3 +30,9 @@ Thumbs.db
 
 # Local publish script (operator-only, not for distribution)
 /scripts/publish.ps1
+
+# Reproduction and scratch scripts
+/repro_*.rs
+/temp_*.rs
+/clippy_errors.txt
+/walkthrough.md

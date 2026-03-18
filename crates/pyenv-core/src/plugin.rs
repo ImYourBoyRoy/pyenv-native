@@ -516,16 +516,13 @@ fn strip_assignment_quotes(value: &str) -> &str {
 }
 
 fn is_supported_hook_script(path: &Path) -> bool {
-    match path
-        .extension()
-        .and_then(|value| value.to_str())
-        .map(|value| value.to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("ps1" | "cmd" | "bat" | "exe" | "sh" | "bash") => true,
-        None => true,
-        _ => false,
-    }
+    matches!(
+        path.extension()
+            .and_then(|value| value.to_str())
+            .map(|value| value.to_ascii_lowercase())
+            .as_deref(),
+        Some("ps1" | "cmd" | "bat" | "exe" | "sh" | "bash") | None
+    )
 }
 
 fn run_process(

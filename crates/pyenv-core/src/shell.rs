@@ -652,6 +652,7 @@ fn cmd_quote(value: &str) -> String {
 
 fn validate_shell_versions(ctx: &AppContext, versions: &[String]) -> Result<(), PyenvError> {
     for version in versions {
+        #[allow(clippy::cloned_ref_to_slice_refs)]
         let report = cmd_prefix(ctx, &[version.clone()]);
         if report.exit_code != 0 {
             let message = report

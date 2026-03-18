@@ -663,4 +663,29 @@ mod tests {
                 .is_some_and(|value| !value.starts_with('\u{feff}'))
         );
     }
+
+    #[test]
+    fn latest_version_from_names_resolution() {
+        let names = vec!["3.13.12".to_string()];
+
+        // Exact match
+        assert_eq!(
+            latest_version_from_names("3.13.12", &names),
+            Some("3.13.12".to_string())
+        );
+
+        // Prefix matches
+        assert_eq!(
+            latest_version_from_names("3.13", &names),
+            Some("3.13.12".to_string())
+        );
+        assert_eq!(
+            latest_version_from_names("3", &names),
+            Some("3.13.12".to_string())
+        );
+
+        // Non-matches
+        assert_eq!(latest_version_from_names("3.12", &names), None);
+        assert_eq!(latest_version_from_names("4", &names), None);
+    }
 }

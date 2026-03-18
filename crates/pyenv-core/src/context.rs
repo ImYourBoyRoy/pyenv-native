@@ -140,6 +140,7 @@ pub fn resolve_dir(explicit_dir: Option<OsString>) -> Result<PathBuf, PyenvError
     Ok(dir)
 }
 
+#[allow(clippy::ptr_arg)]
 fn infer_root_from_exe(exe_path: &PathBuf) -> Option<PathBuf> {
     let bin_dir = exe_path.parent()?;
     let bin_name = bin_dir.file_name()?.to_string_lossy().to_ascii_lowercase();

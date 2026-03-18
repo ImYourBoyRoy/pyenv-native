@@ -222,7 +222,12 @@ fn ensure_versions_exist(
 ) -> Result<(), PyenvError> {
     for version in versions {
         let normalized = normalize_version_name(version);
-        if force || version_exists(ctx, version) || version_exists(ctx, &normalized) {
+        if force
+            || version_exists(ctx, version)
+            || version_exists(ctx, &normalized)
+            || latest_installed_version(ctx, version).is_some()
+            || latest_installed_version(ctx, &normalized).is_some()
+        {
             continue;
         }
 
