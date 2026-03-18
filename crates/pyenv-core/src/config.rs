@@ -10,8 +10,7 @@ use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub storage: StorageConfig,
@@ -22,7 +21,6 @@ pub struct AppConfig {
     #[serde(default)]
     pub venv: VenvConfig,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct StorageConfig {
@@ -137,15 +135,13 @@ impl Default for InstallConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VenvConfig {
     #[serde(default)]
     pub auto_create_base_venv: bool,
     #[serde(default)]
     pub auto_use_base_venv: bool,
 }
-
 
 fn default_true() -> bool {
     true

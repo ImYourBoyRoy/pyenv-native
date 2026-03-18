@@ -590,14 +590,15 @@ fn install_runtime(
 
         let mut base_venv_created = false;
         if plan.create_base_venv
-            && let Some(base_venv_path) = &plan.base_venv_path {
-                let base_venv_arg = base_venv_path.display().to_string();
-                run_python(
-                    &plan.python_executable,
-                    &["-m", "venv", base_venv_arg.as_str()],
-                )?;
-                base_venv_created = true;
-            }
+            && let Some(base_venv_path) = &plan.base_venv_path
+        {
+            let base_venv_arg = base_venv_path.display().to_string();
+            run_python(
+                &plan.python_executable,
+                &["-m", "venv", base_venv_arg.as_str()],
+            )?;
+            base_venv_created = true;
+        }
 
         let receipt_path = write_install_receipt(plan)?;
         rehash_shims(ctx)?;
@@ -697,14 +698,15 @@ fn install_runtime_via_cpython_source(
 
         let mut base_venv_created = false;
         if plan.create_base_venv
-            && let Some(base_venv_path) = &plan.base_venv_path {
-                let base_venv_arg = base_venv_path.display().to_string();
-                run_python(
-                    &plan.python_executable,
-                    &["-m", "venv", base_venv_arg.as_str()],
-                )?;
-                base_venv_created = true;
-            }
+            && let Some(base_venv_path) = &plan.base_venv_path
+        {
+            let base_venv_arg = base_venv_path.display().to_string();
+            run_python(
+                &plan.python_executable,
+                &["-m", "venv", base_venv_arg.as_str()],
+            )?;
+            base_venv_created = true;
+        }
 
         let receipt_path = write_install_receipt(plan)?;
         rehash_shims(ctx)?;
@@ -787,14 +789,15 @@ fn install_runtime_via_python_build(
 
         let mut base_venv_created = false;
         if plan.create_base_venv
-            && let Some(base_venv_path) = &plan.base_venv_path {
-                let base_venv_arg = base_venv_path.display().to_string();
-                run_python(
-                    &plan.python_executable,
-                    &["-m", "venv", base_venv_arg.as_str()],
-                )?;
-                base_venv_created = true;
-            }
+            && let Some(base_venv_path) = &plan.base_venv_path
+        {
+            let base_venv_arg = base_venv_path.display().to_string();
+            run_python(
+                &plan.python_executable,
+                &["-m", "venv", base_venv_arg.as_str()],
+            )?;
+            base_venv_created = true;
+        }
 
         let receipt_path = write_install_receipt(plan)?;
         rehash_shims(ctx)?;

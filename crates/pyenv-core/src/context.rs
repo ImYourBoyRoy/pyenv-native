@@ -78,9 +78,10 @@ pub fn resolve_root(
         // This lets pyenv-native coexist without manual env-var cleanup.
         if is_pyenv_win_root(&explicit)
             && let Some(inferred) = exe_path.and_then(infer_root_from_exe)
-                && !paths_equivalent(&inferred, &explicit) {
-                    return Ok(inferred);
-                }
+            && !paths_equivalent(&inferred, &explicit)
+        {
+            return Ok(inferred);
+        }
 
         return Ok(explicit);
     }
@@ -237,18 +238,15 @@ mod tests {
 
     #[test]
     fn is_pyenv_win_root_detects_pyenv_win_paths() {
-        assert!(is_pyenv_win_root(std::path::Path::new(
-            "C:\\Users\\Roy\\.pyenv\\pyenv-win\\"
-        )));
-        assert!(is_pyenv_win_root(std::path::Path::new(
-            "C:\\Users\\Roy\\.pyenv\\pyenv-win"
-        )));
-        assert!(is_pyenv_win_root(std::path::Path::new(
-            "C:\\Users\\Roy\\.pyenv\\PYENV-WIN\\"
-        )));
-        assert!(!is_pyenv_win_root(std::path::Path::new(
-            "C:\\Users\\Roy\\.pyenv"
-        )));
-        assert!(!is_pyenv_win_root(std::path::Path::new("D:\\custom-root")));
+        let base_path = std::path::PathBuf::from("myDir");
+        assert!(is_pyenv_win_root(&base_path.join("pyenv-win")));
+        assert!(is_pyenv_win_root(&base_path.join("PYENV-WIN")));
+
+        let mut with_sep = base_path.join("pyenv-win").to_string_lossy().to_string();
+        with_sep.push(std::path::MAIN_SEPARATOR);
+        assert!(is_pyenv_win_root(std::path::Path::new(&with_sep)));
+
+        assert!(!is_pyenv_win_root(&base_path));
+        assert!(!is_pyenv_win_root(std::path::Path::new("custom-root")));
     }
 }
