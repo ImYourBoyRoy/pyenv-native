@@ -11,6 +11,7 @@ use crate::context::AppContext;
 use crate::error::PyenvError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub storage: StorageConfig,
@@ -22,16 +23,6 @@ pub struct AppConfig {
     pub venv: VenvConfig,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            storage: StorageConfig::default(),
-            windows: WindowsConfig::default(),
-            install: InstallConfig::default(),
-            venv: VenvConfig::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct StorageConfig {
@@ -147,6 +138,7 @@ impl Default for InstallConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct VenvConfig {
     #[serde(default)]
     pub auto_create_base_venv: bool,
@@ -154,14 +146,6 @@ pub struct VenvConfig {
     pub auto_use_base_venv: bool,
 }
 
-impl Default for VenvConfig {
-    fn default() -> Self {
-        Self {
-            auto_create_base_venv: false,
-            auto_use_base_venv: false,
-        }
-    }
-}
 
 fn default_true() -> bool {
     true

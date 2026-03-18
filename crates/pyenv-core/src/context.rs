@@ -76,13 +76,11 @@ pub fn resolve_root(
         // When PYENV_ROOT was set by pyenv-win (typically ending in `pyenv-win`),
         // the native binary should prefer its own exe-inferred root if available.
         // This lets pyenv-native coexist without manual env-var cleanup.
-        if is_pyenv_win_root(&explicit) {
-            if let Some(inferred) = exe_path.and_then(infer_root_from_exe) {
-                if !paths_equivalent(&inferred, &explicit) {
+        if is_pyenv_win_root(&explicit)
+            && let Some(inferred) = exe_path.and_then(infer_root_from_exe)
+                && !paths_equivalent(&inferred, &explicit) {
                     return Ok(inferred);
                 }
-            }
-        }
 
         return Ok(explicit);
     }
@@ -110,7 +108,7 @@ pub fn is_pyenv_win_root(root: &std::path::Path) -> bool {
         .to_string();
     std::path::Path::new(&cleaned)
         .file_name()
-        .is_some_and(|name| name.to_ascii_lowercase() == "pyenv-win")
+        .is_some_and(|name| name.eq_ignore_ascii_case("pyenv-win"))
 }
 
 fn paths_equivalent(lhs: &std::path::Path, rhs: &std::path::Path) -> bool {
@@ -232,7 +230,8 @@ mod tests {
             PathBuf::from("/home/roy/.pyenv/bin/pyenv")
         };
 
-        let root = resolve_root(Some(custom_root.clone()), None, None, Some(&native_exe)).expect("root");
+        let root =
+            resolve_root(Some(custom_root.clone()), None, None, Some(&native_exe)).expect("root");
         assert_eq!(root, PathBuf::from("D:\\my-pyenv-root"));
     }
 
@@ -250,8 +249,6 @@ mod tests {
         assert!(!is_pyenv_win_root(std::path::Path::new(
             "C:\\Users\\Roy\\.pyenv"
         )));
-        assert!(!is_pyenv_win_root(std::path::Path::new(
-            "D:\\custom-root"
-        )));
+        assert!(!is_pyenv_win_root(std::path::Path::new("D:\\custom-root")));
     }
 }

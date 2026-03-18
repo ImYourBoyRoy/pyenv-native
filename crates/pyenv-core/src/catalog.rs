@@ -414,14 +414,13 @@ fn split_family_and_tail(name: &str) -> (String, String) {
         return (String::new(), name.to_ascii_lowercase());
     }
 
-    if let Some((family, tail)) = name.split_once('-') {
-        if family
+    if let Some((family, tail)) = name.split_once('-')
+        && family
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '.')
         {
             return (family.to_ascii_lowercase(), tail.to_ascii_lowercase());
         }
-    }
 
     (name.to_ascii_lowercase(), String::new())
 }

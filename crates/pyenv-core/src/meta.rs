@@ -487,8 +487,9 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
         stdout.push(String::new());
         stdout
             .push("See `pyenv help <command>` for information on a specific command.".to_string());
-        stdout
-            .push("For full documentation, see: https://github.com/imyourboyroy/pyenv-native".to_string());
+        stdout.push(
+            "For full documentation, see: https://github.com/imyourboyroy/pyenv-native".to_string(),
+        );
         return CommandReport::success(stdout);
     };
 
@@ -609,7 +610,7 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
             }
             values
         }
-        "latest" => known_version_names().iter().cloned().collect(),
+        "latest" => known_version_names().to_vec(),
         "hooks" => DEFAULT_HOOK_COMMANDS
             .iter()
             .map(|value| (*value).to_string())

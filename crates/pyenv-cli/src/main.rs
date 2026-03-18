@@ -87,7 +87,11 @@ enum Commands {
     },
     #[command(about = "Set or show the local directory Python version")]
     Local {
-        #[arg(short = 'f', long = "force", help = "Write even if version is not installed")]
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Write even if version is not installed"
+        )]
         force: bool,
         #[arg(long = "unset", help = "Remove the .python-version file")]
         unset: bool,
@@ -142,7 +146,11 @@ enum Commands {
     Install {
         #[arg(short = 'l', long = "list", help = "List all installable versions")]
         list: bool,
-        #[arg(short = 'f', long = "force", help = "Reinstall even if already installed")]
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even if already installed"
+        )]
         force: bool,
         #[arg(long = "dry-run", help = "Preview without downloading")]
         dry_run: bool,

@@ -175,8 +175,8 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
     let mut checks = Vec::new();
 
     // Check if PYENV_ROOT env var still points to pyenv-win
-    if let Ok(env_root) = env::var("PYENV_ROOT") {
-        if is_pyenv_win_root(Path::new(&env_root)) {
+    if let Ok(env_root) = env::var("PYENV_ROOT")
+        && is_pyenv_win_root(Path::new(&env_root)) {
             checks.push(DoctorCheck {
                 name: "pyenv-win-root-conflict".to_string(),
                 status: DoctorStatus::Warn,
@@ -188,7 +188,6 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
                 ),
             });
         }
-    }
 
     // Check if pyenv-win bin/shims appear on PATH before the native ones
     let exe_dir = ctx
@@ -210,8 +209,12 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
         let pyenv_win_pos = entries.iter().position(|entry| {
             let s = entry.to_string_lossy().to_ascii_lowercase();
             s.contains("pyenv-win")
-                && (s.ends_with("bin") || s.ends_with("bin\\") || s.ends_with("bin/")
-                    || s.ends_with("shims") || s.ends_with("shims\\") || s.ends_with("shims/"))
+                && (s.ends_with("bin")
+                    || s.ends_with("bin\\")
+                    || s.ends_with("bin/")
+                    || s.ends_with("shims")
+                    || s.ends_with("shims\\")
+                    || s.ends_with("shims/"))
         });
 
         if let Some(pw_pos) = pyenv_win_pos {
