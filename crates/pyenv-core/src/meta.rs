@@ -485,6 +485,24 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
                 .map(|doc| format!("   {:<12} {}", doc.name, doc.summary)),
         );
         stdout.push(String::new());
+        stdout.push("CORE CONCEPTS:".to_string());
+        stdout.push("  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands".to_string());
+        stdout.push("               and route them to the correct Python version based on your current environment.".to_string());
+        stdout.push(
+            "               Run `pyenv rehash` to refresh these after installing new pip packages."
+                .to_string(),
+        );
+        stdout.push("  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.".to_string());
+        stdout.push("  Selection:   Pyenv decides which Python version to use in this order (highest priority first):".to_string());
+        stdout.push(
+            "                 1. PYENV_VERSION environment variable (set via `pyenv shell`)"
+                .to_string(),
+        );
+        stdout.push("                 2. .python-version file in the current directory (set via `pyenv local`)".to_string());
+        stdout.push(
+            "                 3. The global version file (set via `pyenv global`)".to_string(),
+        );
+        stdout.push(String::new());
         stdout
             .push("See `pyenv help <command>` for information on a specific command.".to_string());
         stdout.push(

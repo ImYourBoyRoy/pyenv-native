@@ -23,7 +23,7 @@ use pyenv_core::{
     version,
     about = "Native-first, cross-platform Python version manager",
     long_about = "Native-first, cross-platform Python version manager.\n\nManage multiple Python versions with local, global, and shell-scoped selection.\nRun `pyenv help` for detailed command information and examples.",
-    after_help = "Run `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
+    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`)\n                 2. .python-version file in the current directory (set via `pyenv local`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
     disable_help_subcommand = true
 )]
 struct Cli {
@@ -49,9 +49,7 @@ enum Commands {
     #[command(about = "Display the root directory where versions and shims are kept")]
     Root,
     #[command(about = "List executable hooks for a given command")]
-    Hooks {
-        hook: String,
-    },
+    Hooks { hook: String },
     #[command(about = "Verify pyenv installation and environment health")]
     Doctor {
         #[arg(long = "json")]
@@ -63,13 +61,9 @@ enum Commands {
         command: Option<ConfigCommands>,
     },
     #[command(about = "Detect the file that sets the current pyenv version")]
-    VersionFile {
-        dir: Option<PathBuf>,
-    },
+    VersionFile { dir: Option<PathBuf> },
     #[command(about = "Read the contents of a .python-version file")]
-    VersionFileRead {
-        file: PathBuf,
-    },
+    VersionFileRead { file: PathBuf },
     #[command(hide = true, name = "version-file-write")]
     VersionFileWrite {
         #[arg(short = 'f', long = "force")]
@@ -120,15 +114,19 @@ enum Commands {
         prefix: String,
     },
     #[command(about = "Display paths where the given Python versions are installed")]
-    Prefix {
-        versions: Vec<String>,
-    },
-    #[command(about = "Configure the shell environment for pyenv", trailing_var_arg = true)]
+    Prefix { versions: Vec<String> },
+    #[command(
+        about = "Configure the shell environment for pyenv",
+        trailing_var_arg = true
+    )]
     Init {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(about = "Set or show the shell-specific Python version", trailing_var_arg = true)]
+    #[command(
+        about = "Set or show the shell-specific Python version",
+        trailing_var_arg = true
+    )]
     Shell {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
@@ -210,7 +208,10 @@ enum Commands {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(about = "Run an executable with the selected Python version", trailing_var_arg = true)]
+    #[command(
+        about = "Run an executable with the selected Python version",
+        trailing_var_arg = true
+    )]
     Exec {
         command: String,
         #[arg(allow_hyphen_values = true)]
@@ -222,9 +223,13 @@ enum Commands {
 
 #[derive(Debug, Subcommand)]
 enum ConfigCommands {
+    #[command(about = "Show the path to the config file")]
     Path,
+    #[command(about = "Print all current configuration")]
     Show,
+    #[command(about = "Print the value of a specific config key")]
     Get { key: String },
+    #[command(about = "Update a config key")]
     Set { key: String, value: String },
 }
 
