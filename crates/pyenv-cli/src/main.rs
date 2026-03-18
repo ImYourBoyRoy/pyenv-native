@@ -33,32 +33,40 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    #[command(about = "Display help for a command")]
     Help {
         #[arg(long = "usage")]
         usage: bool,
         command: Option<String>,
     },
+    #[command(about = "List all available pyenv commands")]
     Commands {
         #[arg(long = "sh")]
         sh: bool,
         #[arg(long = "no-sh")]
         no_sh: bool,
     },
+    #[command(about = "Display the root directory where versions and shims are kept")]
     Root,
+    #[command(about = "List executable hooks for a given command")]
     Hooks {
         hook: String,
     },
+    #[command(about = "Verify pyenv installation and environment health")]
     Doctor {
         #[arg(long = "json")]
         json: bool,
     },
+    #[command(about = "Display or modify pyenv-native configuration")]
     Config {
         #[command(subcommand)]
         command: Option<ConfigCommands>,
     },
+    #[command(about = "Detect the file that sets the current pyenv version")]
     VersionFile {
         dir: Option<PathBuf>,
     },
+    #[command(about = "Read the contents of a .python-version file")]
     VersionFileRead {
         file: PathBuf,
     },
@@ -69,11 +77,14 @@ enum Commands {
         file: PathBuf,
         versions: Vec<String>,
     },
+    #[command(about = "Explain how the current Python version is set")]
     VersionOrigin,
+    #[command(about = "Show the current Python version")]
     VersionName {
         #[arg(short = 'f', long = "force")]
         force: bool,
     },
+    #[command(about = "Show the current Python version and its origin")]
     Version {
         #[arg(long = "bare")]
         bare: bool,
@@ -98,6 +109,7 @@ enum Commands {
         #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
         versions: Vec<String>,
     },
+    #[command(about = "Print the latest installed or known version matching the prefix")]
     Latest {
         #[arg(short = 'k', long = "known")]
         known: bool,
@@ -107,19 +119,21 @@ enum Commands {
         force: bool,
         prefix: String,
     },
+    #[command(about = "Display paths where the given Python versions are installed")]
     Prefix {
         versions: Vec<String>,
     },
-    #[command(trailing_var_arg = true)]
+    #[command(about = "Configure the shell environment for pyenv", trailing_var_arg = true)]
     Init {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(trailing_var_arg = true)]
+    #[command(about = "Set or show the shell-specific Python version", trailing_var_arg = true)]
     Shell {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    #[command(about = "List all Python versions available to pyenv")]
     Versions {
         #[arg(long = "bare")]
         bare: bool,
@@ -130,6 +144,7 @@ enum Commands {
         #[arg(long = "executables")]
         executables: bool,
     },
+    #[command(about = "Display the full path to an executable")]
     Which {
         #[arg(long = "nosystem")]
         no_system: bool,
@@ -137,6 +152,7 @@ enum Commands {
         skip_advice: bool,
         command: String,
     },
+    #[command(about = "List all Python versions that contain the given executable")]
     Whence {
         #[arg(long = "path")]
         path: bool,
@@ -163,17 +179,20 @@ enum Commands {
         #[arg(help = "Version(s) to install (e.g. 3.13.12, 3.12, pypy3.11)")]
         versions: Vec<String>,
     },
+    #[command(about = "Uninstall a specific Python version")]
     Uninstall {
         #[arg(short = 'f', long = "force")]
         force: bool,
         versions: Vec<String>,
     },
+    #[command(about = "Rehash pyenv shims (installs executables across all versions)")]
     Rehash,
+    #[command(about = "List existing pyenv shims")]
     Shims {
         #[arg(long = "short")]
         short: bool,
     },
-    #[command(trailing_var_arg = true)]
+    #[command(about = "Print command completion script", trailing_var_arg = true)]
     Completions {
         command: String,
         #[arg(allow_hyphen_values = true)]
@@ -191,7 +210,7 @@ enum Commands {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(trailing_var_arg = true)]
+    #[command(about = "Run an executable with the selected Python version", trailing_var_arg = true)]
     Exec {
         command: String,
         #[arg(allow_hyphen_values = true)]
