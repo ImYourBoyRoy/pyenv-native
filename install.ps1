@@ -294,7 +294,7 @@ function Write-InstallLog {
     Add-Content -Path $ResolvedLogPath -Value $line -Encoding utf8
 }
 
-function Emit-Summary {
+function Write-InstallSummary {
     param(
         [hashtable]$Summary
     )
@@ -449,7 +449,7 @@ $summary = [ordered]@{
     force = $Force.IsPresent
     log_path = $resolvedLogPath
 }
-Emit-Summary -Summary $summary
+Write-InstallSummary -Summary $summary
 Confirm-Install
 Initialize-InstallLog -ResolvedLogPath $resolvedLogPath
 Write-InstallLog -Level 'INFO' -Message "Downloading $($urls.source)" -ResolvedLogPath $resolvedLogPath
