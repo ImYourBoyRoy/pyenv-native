@@ -71,7 +71,20 @@ pub fn resolve_root(
     exe_path: Option<&PathBuf>,
 ) -> Result<PathBuf, PyenvError> {
     if let Some(root) = explicit_root.filter(|value| !value.is_empty()) {
-        return Ok(PathBuf::from(root));
+        let explicit = PathBuf::from(&root);
+
+        // When PYENV_ROOT was set by pyenv-win (typically ending in `pyenv-win`),
+        // the native binary should prefer its own exe-inferred root if available.
+        // This lets pyenv-native coexist without manual env-var cleanup.
+        if is_pyenv_win_root(&explicit) {
+            if let Some(inferred) = exe_path.and_then(infer_root_from_exe) {
+                if !paths_equivalent(&inferred, &explicit) {
+                    return Ok(inferred);
+                }
+            }
+        }
+
+        return Ok(explicit);
     }
 
     if let Some(inferred) = exe_path.and_then(infer_root_from_exe) {
@@ -83,6 +96,36 @@ pub fn resolve_root(
     }
 
     Err(PyenvError::MissingHome)
+}
+
+/// Returns `true` when the env-supplied root looks like it was set by pyenv-win.
+///
+/// Checks whether the final path component is `pyenv-win` (case-insensitive)
+/// which is the layout pyenv-win uses: `~/.pyenv/pyenv-win/`.
+pub fn is_pyenv_win_root(root: &std::path::Path) -> bool {
+    // Trim any trailing separator so `file_name()` works on `…\pyenv-win\`.
+    let cleaned = root
+        .to_string_lossy()
+        .trim_end_matches(['/', '\\'])
+        .to_string();
+    std::path::Path::new(&cleaned)
+        .file_name()
+        .is_some_and(|name| name.to_ascii_lowercase() == "pyenv-win")
+}
+
+fn paths_equivalent(lhs: &std::path::Path, rhs: &std::path::Path) -> bool {
+    if cfg!(windows) {
+        lhs.to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .eq_ignore_ascii_case(
+                rhs.to_string_lossy()
+                    .replace('/', "\\")
+                    .trim_end_matches('\\'),
+            )
+    } else {
+        lhs == rhs
+    }
 }
 
 pub fn resolve_dir(explicit_dir: Option<OsString>) -> Result<PathBuf, PyenvError> {
@@ -113,7 +156,7 @@ mod tests {
     use std::ffi::OsString;
     use std::path::PathBuf;
 
-    use super::resolve_root;
+    use super::{is_pyenv_win_root, resolve_root};
 
     #[test]
     fn resolve_root_prefers_explicit_root() {
@@ -156,5 +199,59 @@ mod tests {
         };
         let root = resolve_root(None, Some(sample_home), None, Some(&sample_exe)).expect("root");
         assert_eq!(root, expected_root);
+    }
+
+    #[test]
+    fn resolve_root_overrides_pyenv_win_root_when_native_exe_available() {
+        let pyenv_win_root = if cfg!(windows) {
+            OsString::from("C:\\Users\\Roy\\.pyenv\\pyenv-win\\")
+        } else {
+            OsString::from("/home/roy/.pyenv/pyenv-win/")
+        };
+        let native_exe = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/home/roy/.pyenv/bin/pyenv")
+        };
+        let expected_root = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv")
+        } else {
+            PathBuf::from("/home/roy/.pyenv")
+        };
+
+        let root = resolve_root(Some(pyenv_win_root), None, None, Some(&native_exe)).expect("root");
+        assert_eq!(root, expected_root);
+    }
+
+    #[test]
+    fn resolve_root_keeps_explicit_root_when_not_pyenv_win() {
+        let custom_root = OsString::from("D:\\my-pyenv-root");
+        let native_exe = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/home/roy/.pyenv/bin/pyenv")
+        };
+
+        let root = resolve_root(Some(custom_root.clone()), None, None, Some(&native_exe)).expect("root");
+        assert_eq!(root, PathBuf::from("D:\\my-pyenv-root"));
+    }
+
+    #[test]
+    fn is_pyenv_win_root_detects_pyenv_win_paths() {
+        assert!(is_pyenv_win_root(std::path::Path::new(
+            "C:\\Users\\Roy\\.pyenv\\pyenv-win\\"
+        )));
+        assert!(is_pyenv_win_root(std::path::Path::new(
+            "C:\\Users\\Roy\\.pyenv\\pyenv-win"
+        )));
+        assert!(is_pyenv_win_root(std::path::Path::new(
+            "C:\\Users\\Roy\\.pyenv\\PYENV-WIN\\"
+        )));
+        assert!(!is_pyenv_win_root(std::path::Path::new(
+            "C:\\Users\\Roy\\.pyenv"
+        )));
+        assert!(!is_pyenv_win_root(std::path::Path::new(
+            "D:\\custom-root"
+        )));
     }
 }

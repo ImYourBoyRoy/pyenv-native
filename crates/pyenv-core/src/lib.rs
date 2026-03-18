@@ -28,7 +28,7 @@ pub use config::{
     cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, config_path,
     resolve_cache_dir,
 };
-pub use context::{AppContext, resolve_dir, resolve_root};
+pub use context::{AppContext, is_pyenv_win_root, resolve_dir, resolve_root};
 pub use doctor::cmd_doctor;
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
