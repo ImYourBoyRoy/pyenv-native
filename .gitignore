@@ -10,3 +10,15 @@
 
 # AI Memory
 MEMORY.md
+.gemini/
+
+# IDEs
+.vscode/
+.idea/
+
+# Rust
+Cargo.lock
+
+# OS Junk
+.DS_Store
+Thumbs.db
