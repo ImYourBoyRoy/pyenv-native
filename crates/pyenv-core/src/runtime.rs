@@ -82,6 +82,14 @@ pub fn search_path_entries(
             continue;
         }
 
+        #[cfg(windows)]
+        {
+            let lowered = directory.to_string_lossy().to_ascii_lowercase();
+            if lowered.contains("windowsapps\\python") || lowered.contains("windowsapps/python") {
+                continue;
+            }
+        }
+
         for candidate in candidate_file_names(command, path_ext) {
             let path = directory.join(&candidate);
             if path.is_file() {
@@ -330,5 +338,37 @@ mod tests {
             let names = collect_shim_names_from_prefix(&prefix, None).expect("inventory");
             assert_eq!(names, vec!["activate", "pip3.13", "python"]);
         }
+    }
+    #[test]
+    #[cfg(windows)]
+    fn search_path_entries_skips_windows_apps_trap() {
+        let temp = TempDir::new().expect("tempdir");
+        let trap_dir = temp
+            .path()
+            .join("Local")
+            .join("Microsoft")
+            .join("WindowsApps")
+            .join("PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0");
+        let valid_dir = temp.path().join("Python312");
+
+        fs::create_dir_all(&trap_dir).expect("trap dir");
+        fs::create_dir_all(&valid_dir).expect("valid dir");
+
+        let python_exe = "python.exe";
+        fs::write(trap_dir.join(python_exe), "").expect("trap python");
+        fs::write(valid_dir.join(python_exe), "").expect("valid python");
+
+        let path_ext = Some(std::ffi::OsStr::new(".exe"));
+
+        // Trap first, then valid
+        let directories = vec![trap_dir.clone(), valid_dir.clone()];
+        let found = super::search_path_entries(&directories, "python", path_ext);
+
+        // Should skip trap and find valid
+        assert_eq!(found, Some(valid_dir.join(python_exe)));
+
+        // Only trap
+        let found_trap_only = super::search_path_entries(&[trap_dir], "python", path_ext);
+        assert_eq!(found_trap_only, None);
     }
 }

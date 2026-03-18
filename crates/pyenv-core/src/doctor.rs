@@ -242,7 +242,9 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
 fn windows_store_alias_check(ctx: &AppContext) -> DoctorCheck {
     let detail = match find_system_python_command(ctx) {
         Some(path) if path.to_string_lossy().contains("WindowsApps") => format!(
-            "system python resolves to WindowsApps alias at {}",
+            "system python resolves to WindowsApps alias at {}; \
+             this 'trap' can intercept commands and should be disabled in \
+             'Settings > Apps > App Execution Aliases'",
             path.display()
         ),
         Some(path) => format!("system python resolves to {}", path.display()),
