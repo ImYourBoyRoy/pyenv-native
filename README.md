@@ -361,6 +361,16 @@ Public-facing release usage is documented in [`INSTRUCTIONS.md`](./INSTRUCTIONS.
 
 ---
 
+## Relationship to pyenv
+
+`pyenv-native` is an independent reimplementation inspired by the `pyenv` user experience and workflow model.
+
+It is not affiliated with, endorsed by, or maintained by the `pyenv` project or its maintainers.
+
+I appreciate the original `pyenv` project for shaping the Python version management experience and for demonstrating a clean, practical design philosophy.
+
+---
+
 ## Author, license, and links
 
 Created by: **Roy Dawson IV**  
