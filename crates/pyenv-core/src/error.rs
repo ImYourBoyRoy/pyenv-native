@@ -13,7 +13,7 @@ pub enum PyenvError {
     InvalidVersion(String, String),
     #[error("pyenv: no local version configured for this directory")]
     NoLocalVersion,
-    #[error("pyenv: version `{0}` is not installed (set by {1})")]
+    #[error("pyenv: version `{0}` is not installed (set by {1})\nhint: run `pyenv install {0}` to install it, or `pyenv versions` to see installed versions")]
     VersionNotInstalled(String, String),
     #[error("pyenv: unknown config key `{0}`")]
     UnknownConfigKey(String),

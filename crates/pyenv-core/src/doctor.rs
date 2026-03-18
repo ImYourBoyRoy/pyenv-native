@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::catalog::installed_version_names;
 use crate::command::CommandReport;
-use crate::context::AppContext;
+use crate::context::{AppContext, is_pyenv_win_root};
 use crate::executable::find_system_python_command;
 use crate::install::resolve_python_build_path;
 use crate::runtime::search_path_entries;
@@ -162,9 +162,74 @@ fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> Vec<DoctorCh
     });
 
     if platform == "windows" {
+        checks.extend(pyenv_win_conflict_checks(ctx));
         checks.push(windows_store_alias_check(ctx));
     } else {
         checks.extend(non_windows_source_build_checks(ctx, platform));
+    }
+
+    checks
+}
+
+fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
+    let mut checks = Vec::new();
+
+    // Check if PYENV_ROOT env var still points to pyenv-win
+    if let Ok(env_root) = env::var("PYENV_ROOT") {
+        if is_pyenv_win_root(Path::new(&env_root)) {
+            checks.push(DoctorCheck {
+                name: "pyenv-win-root-conflict".to_string(),
+                status: DoctorStatus::Warn,
+                detail: format!(
+                    "PYENV_ROOT is set to `{}` which looks like a pyenv-win path; \
+                     pyenv-native overrides this at runtime, but removing the env var \
+                     is recommended: remove PYENV_ROOT from your User environment variables",
+                    env_root
+                ),
+            });
+        }
+    }
+
+    // Check if pyenv-win bin/shims appear on PATH before the native ones
+    let exe_dir = ctx
+        .exe_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| ctx.root.join("bin"));
+    let shims_dir = ctx.shims_dir();
+
+    if let Some(path_env) = ctx.path_env.as_ref() {
+        let entries: Vec<PathBuf> = env::split_paths(path_env).collect();
+        let native_bin_pos = entries
+            .iter()
+            .position(|entry| paths_equal(entry, &exe_dir));
+        let native_shims_pos = entries
+            .iter()
+            .position(|entry| paths_equal(entry, &shims_dir));
+
+        let pyenv_win_pos = entries.iter().position(|entry| {
+            let s = entry.to_string_lossy().to_ascii_lowercase();
+            s.contains("pyenv-win")
+                && (s.ends_with("bin") || s.ends_with("bin\\") || s.ends_with("bin/")
+                    || s.ends_with("shims") || s.ends_with("shims\\") || s.ends_with("shims/"))
+        });
+
+        if let Some(pw_pos) = pyenv_win_pos {
+            let shadowed = native_bin_pos.is_none_or(|nb| pw_pos < nb)
+                || native_shims_pos.is_none_or(|ns| pw_pos < ns);
+            if shadowed {
+                checks.push(DoctorCheck {
+                    name: "pyenv-win-path-conflict".to_string(),
+                    status: DoctorStatus::Warn,
+                    detail: format!(
+                        "pyenv-win PATH entries appear before pyenv-native in PATH; \
+                         this can cause pyenv-win to intercept commands. \
+                         Remove pyenv-win entries from your User PATH: {}",
+                        entries[pw_pos].display()
+                    ),
+                });
+            }
+        }
     }
 
     checks

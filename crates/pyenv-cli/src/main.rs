@@ -21,7 +21,9 @@ use pyenv_core::{
 #[command(
     name = "pyenv",
     version,
-    about = "Native-first pyenv-compatible CLI",
+    about = "Native-first, cross-platform Python version manager",
+    long_about = "Native-first, cross-platform Python version manager.\n\nManage multiple Python versions with local, global, and shell-scoped selection.\nRun `pyenv help` for detailed command information and examples.",
+    after_help = "Run `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
     disable_help_subcommand = true
 )]
 struct Cli {
@@ -76,16 +78,20 @@ enum Commands {
         #[arg(long = "bare")]
         bare: bool,
     },
+    #[command(about = "Set or show the global Python version")]
     Global {
-        #[arg(long = "unset")]
+        #[arg(long = "unset", help = "Remove the global version file")]
         unset: bool,
+        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
         versions: Vec<String>,
     },
+    #[command(about = "Set or show the local directory Python version")]
     Local {
-        #[arg(short = 'f', long = "force")]
+        #[arg(short = 'f', long = "force", help = "Write even if version is not installed")]
         force: bool,
-        #[arg(long = "unset")]
+        #[arg(long = "unset", help = "Remove the .python-version file")]
         unset: bool,
+        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
         versions: Vec<String>,
     },
     Latest {
@@ -132,19 +138,21 @@ enum Commands {
         path: bool,
         command: String,
     },
+    #[command(about = "Install Python versions from native providers")]
     Install {
-        #[arg(short = 'l', long = "list")]
+        #[arg(short = 'l', long = "list", help = "List all installable versions")]
         list: bool,
-        #[arg(short = 'f', long = "force")]
+        #[arg(short = 'f', long = "force", help = "Reinstall even if already installed")]
         force: bool,
-        #[arg(long = "dry-run")]
+        #[arg(long = "dry-run", help = "Preview without downloading")]
         dry_run: bool,
-        #[arg(long = "json")]
+        #[arg(long = "json", help = "Output results as JSON")]
         json: bool,
-        #[arg(long = "known")]
+        #[arg(long = "known", help = "Use embedded catalog instead of providers")]
         known: bool,
-        #[arg(long = "family")]
+        #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
         family: Option<String>,
+        #[arg(help = "Version(s) to install (e.g. 3.13.12, 3.12, pypy3.11)")]
         versions: Vec<String>,
     },
     Uninstall {
