@@ -7,6 +7,11 @@
 /python-package/tests/**/*.pyc
 **/__pycache__/
 /.tmp*/
+/test-install/
+
+# Compiled binaries and debug symbols
+*.exe
+*.pdb
 
 # AI Memory
 MEMORY.md
@@ -22,3 +27,6 @@ Cargo.lock
 # OS Junk
 .DS_Store
 Thumbs.db
+
+# Local publish script (operator-only, not for distribution)
+/scripts/publish.ps1

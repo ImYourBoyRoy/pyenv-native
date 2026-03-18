@@ -279,7 +279,7 @@ pyenv version [--bare]
 pyenv global [--unset] [versions...]
 pyenv local [-f] [--unset] [versions...]
 pyenv shell [versions...]
-pyenv latest [-k|--known] [-b|--bare] [-f|--family <family>] <prefix>
+pyenv latest [-k|--known] [-b|--bypass] [-f|--force] <prefix>
 pyenv prefix [versions...]
 pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 ```

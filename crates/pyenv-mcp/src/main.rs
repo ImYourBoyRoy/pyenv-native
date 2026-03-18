@@ -21,7 +21,9 @@ use crate::service::PyenvNativeMcpServer;
 #[command(
     name = "pyenv-mcp",
     version,
-    about = "Agent-friendly MCP server for pyenv-native"
+    about = "Agent-friendly MCP server for pyenv-native",
+    long_about = "Agent-friendly MCP server for pyenv-native.\n\nMCP (Model Context Protocol) lets AI agents and MCP-capable IDEs interact with\npyenv-native through structured JSON tools instead of parsing shell output.\n\nRunning `pyenv-mcp` with no arguments starts the stdio MCP server.\nYour MCP client (VS Code, Cursor, Claude Desktop, etc.) launches this automatically.",
+    after_help = "QUICK START:\n  1. Run:  pyenv-mcp print-config\n  2. Paste the JSON into your MCP client configuration\n  3. The MCP client will launch `pyenv-mcp` automatically\n\nFor agents, run `pyenv-mcp guide` to get a structured JSON onboarding blob.\nFull documentation: https://github.com/imyourboyroy/pyenv-native/blob/main/MCP.md"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -30,7 +32,9 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    #[command(about = "Start the stdio MCP server (default when no subcommand is given)")]
     Serve,
+    #[command(about = "Print a ready-to-paste MCP client configuration JSON block")]
     PrintConfig {
         #[arg(long = "server-name", default_value = DEFAULT_SERVER_NAME)]
         server_name: String,
@@ -39,6 +43,7 @@ enum Commands {
         #[arg(long = "command")]
         command: Option<PathBuf>,
     },
+    #[command(about = "Print a structured JSON toolkit guide for AI model onboarding")]
     Guide {
         #[arg(long = "github-repo", default_value = DEFAULT_GITHUB_REPO)]
         github_repo: String,
