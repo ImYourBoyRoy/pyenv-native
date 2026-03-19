@@ -170,6 +170,7 @@ For the full agent-facing workflow, see [`MCP.md`](./MCP.md).
 ### Better operational ergonomics
 
 - provider-backed `install --list`
+- managed `pyenv venv` environments that can be written directly into `.python-version`
 - structured `doctor` diagnostics
 - release bundles with checksums and manifests
 - zero-clone web installers
@@ -205,6 +206,20 @@ The current focus is careful distribution polish:
 - Windows registry integration defaults to **disabled**.
 - Pip bootstrapping defaults to **enabled**.
 - Companion base-venv creation is supported, but defaults to **off**.
+
+## Compatibility matrix
+
+| Target | Primary artifact / backend | CI smoke | Release artifact | Notes |
+| --- | --- | --- | --- | --- |
+| Windows x64 | Native Windows bundle + NuGet CPython | Yes | Yes | Primary Windows path |
+| Windows ARM64 | Native Windows ARM64 bundle | Yes | Yes | Release bundle target is first-class |
+| macOS Intel | Native macOS x64 bundle + source CPython | Yes | Yes | Runs on `macos-15-intel` |
+| macOS Apple Silicon | Native macOS arm64 bundle + source CPython | Yes | Yes | Runs on `macos-latest` |
+| Linux x64 | Native Linux x64 bundle + source CPython | Yes | Yes | Main POSIX bundle |
+| Linux ARM64 | Native Linux ARM64 musl bundle | Yes | Yes | Best fit for ARM Linux distros and Android's Debian Terminal VM |
+| Android / Termux ARM64 | Native Android ARM64 bundle | Yes | Yes | Uses `aarch64-linux-android` |
+| Android built-in Terminal app | Linux ARM64 bundle | Indirectly via Linux ARM64 | Yes | Uses the Debian VM rather than Android userspace |
+| Windows x86 / Linux x86 / Android x86_64 | Not first-class today | No | No | Possible future expansion, not currently published |
 
 ---
 
@@ -270,6 +285,19 @@ pyenv local 3.12.10
 pyenv shell 3.12.10
 ```
 
+### Manage named virtual environments
+
+```powershell
+pyenv venv create 3.13 api
+pyenv venv list
+pyenv venv use api
+pyenv local 3.13.12/envs/api
+```
+
+Managed envs live under `PYENV_ROOT/versions/<runtime>/envs/<name>`.
+That means a project can point its `.python-version` file directly at a managed venv spec like
+`3.13.12/envs/api`, so `python` and `pip` resolve correctly without manual activation in every shell.
+
 ### Inspect what is active
 
 ```powershell
@@ -318,6 +346,7 @@ pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 pyenv install --list [--known] [--family <family>] [--json] [pattern]
 pyenv available [--known] [--family <family>] [--json] [pattern]
 pyenv install [--dry-run] [--force] [--json] <version>...
+pyenv venv <list|info|create|delete|rename|use> [options]
 pyenv uninstall [-f] <version>...
 pyenv which [--nosystem] [--skip-advice] <command>
 pyenv whence [--path] <command>

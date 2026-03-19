@@ -16,6 +16,7 @@ mod runtime;
 mod self_update;
 mod shell;
 mod shim;
+mod venv;
 mod version;
 
 pub use catalog::{
@@ -44,6 +45,10 @@ pub use runtime::BASE_VENV_DIR_NAME;
 pub use self_update::{SelfUpdateOptions, cmd_self_update};
 pub use shell::{InitCommandOptions, cmd_init, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell, cmd_shell};
 pub use shim::{cmd_exec, cmd_rehash};
+pub use venv::{
+    ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
+    cmd_venv_rename, cmd_venv_use, list_managed_venvs,
+};
 pub use version::{
     SelectedVersions, VersionOrigin, cmd_global, cmd_local, cmd_root, cmd_version,
     cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,

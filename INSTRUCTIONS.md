@@ -156,7 +156,6 @@ If you target a protected location instead, the installers stop early and explai
 - rerun with elevated permissions, or
 - choose a user-writable install root.
 
-
 #### Windows local-bundle install
 
 ```powershell
@@ -368,6 +367,20 @@ pyenv local 3.12.10
 pyenv shell 3.12.10
 ```
 
+### Manage named virtual environments
+
+```powershell
+pyenv venv create 3.13 api
+pyenv venv list
+pyenv venv info api
+pyenv venv use api
+pyenv local 3.13.12/envs/api
+```
+
+Managed envs live under `PYENV_ROOT/versions/<runtime>/envs/<name>`.
+That gives you predictable names, avoids hidden project-specific duplication, and lets
+`.python-version` point directly at a managed env spec such as `3.13.12/envs/api`.
+
 ### Inspect selection and resolution
 
 ```powershell
@@ -478,6 +491,29 @@ pyenv config set venv.auto_create_base_venv true
 pyenv install 3.12
 ```
 
+### Managed env policy
+
+Named managed envs are different from the optional companion base venv:
+
+- companion base venvs are runtime-scoped internals,
+- managed envs are user-facing named envs under `versions/<runtime>/envs/<name>`,
+- managed envs can be written directly into `.python-version`,
+- `pyenv venv create` refuses ambiguous name collisions so a short name like `api` stays predictable.
+
+## Formal compatibility matrix
+
+| Target | Primary artifact / backend | CI smoke | Release artifact | Notes |
+| --- | --- | --- | --- | --- |
+| Windows x64 | Native Windows bundle + NuGet CPython | Yes | Yes | Primary Windows path |
+| Windows ARM64 | Native Windows ARM64 bundle | Yes | Yes | First-class Windows ARM target |
+| macOS Intel | Native macOS x64 bundle + source CPython | Yes | Yes | Uses `macos-15-intel` |
+| macOS Apple Silicon | Native macOS arm64 bundle + source CPython | Yes | Yes | Uses `macos-latest` |
+| Linux x64 | Native Linux x64 bundle + source CPython | Yes | Yes | Main POSIX bundle |
+| Linux ARM64 | Native Linux ARM64 musl bundle | Yes | Yes | Good fit for ARM Linux distros and Android's Debian Terminal VM |
+| Android / Termux ARM64 | Native Android ARM64 bundle | Yes | Yes | Uses `aarch64-linux-android` |
+| Android built-in Terminal app | Linux ARM64 bundle | Indirectly via Linux ARM64 | Yes | Uses the Debian VM rather than Android userspace |
+| Windows x86 / Linux x86 / Android x86_64 | Not first-class today | No | No | Possible future expansion, not currently published |
+
 ---
 
 ## Diagnostics and troubleshooting
@@ -496,7 +532,9 @@ pyenv doctor --fix
 - shim visibility,
 - system Python visibility,
 - Windows Store alias conflicts,
-- Linux/macOS source-build readiness.
+- Linux/macOS/Android source-build readiness,
+- missing managed env selections,
+- shell init / PATH repair hints.
 
 ### Source-build readiness on Linux/macOS
 
@@ -604,6 +642,7 @@ pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 pyenv install --list [--known] [--family <family>] [--json] [pattern]
 pyenv available [--known] [--family <family>] [--json] [pattern]
 pyenv install [--dry-run] [--force] [--json] <version>...
+pyenv venv <list|info|create|delete|rename|use> [options]
 pyenv uninstall [-f] <version>...
 pyenv which [--nosystem] [--skip-advice] <command>
 pyenv whence [--path] <command>

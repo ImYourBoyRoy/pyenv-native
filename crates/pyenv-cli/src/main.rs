@@ -8,14 +8,15 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use pyenv_core::{
-    AppContext, CommandReport, DoctorFix, InstallCommandOptions, SelfUpdateOptions,
+    AppContext, CommandReport, DoctorFix, InstallCommandOptions, SelfUpdateOptions, VenvUseScope,
     VersionsCommandOptions, apply_doctor_fixes, cmd_available, cmd_commands, cmd_completions,
     cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, cmd_doctor, cmd_exec,
     cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local,
     cmd_prefix, cmd_rehash, cmd_root, cmd_self_update, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell,
-    cmd_shell, cmd_shims, cmd_uninstall, cmd_version, cmd_version_file, cmd_version_file_read,
-    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_whence,
-    cmd_which, doctor_fix_plan,
+    cmd_shell, cmd_shims, cmd_uninstall, cmd_venv_create, cmd_venv_delete, cmd_venv_info,
+    cmd_venv_list, cmd_venv_rename, cmd_venv_use, cmd_version, cmd_version_file,
+    cmd_version_file_read, cmd_version_file_write, cmd_version_name, cmd_version_origin,
+    cmd_versions, cmd_whence, cmd_which, doctor_fix_plan,
 };
 
 #[derive(Debug, Parser)]
@@ -24,7 +25,7 @@ use pyenv_core::{
     version,
     about = "Native-first, cross-platform Python version manager",
     long_about = "Native-first, cross-platform Python version manager.\n\nManage multiple Python versions with local, global, and shell-scoped selection.\nRun `pyenv help` for detailed command information and examples.",
-    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`)\n                 2. .python-version file in the current directory (set via `pyenv local`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
+    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Managed envs: Named virtual environments can live under `~/.pyenv/versions/<runtime>/envs`.\n               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.\n  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`)\n                 2. .python-version file in the current directory (set via `pyenv local`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
     disable_help_subcommand = true
 )]
 struct Cli {
@@ -230,6 +231,11 @@ enum Commands {
         force: bool,
         versions: Vec<String>,
     },
+    #[command(about = "Create, inspect, and assign managed virtual environments")]
+    Venv {
+        #[command(subcommand)]
+        command: VenvCommands,
+    },
     #[command(about = "Rehash pyenv shims (installs executables across all versions)")]
     Rehash,
     #[command(about = "List existing pyenv shims")]
@@ -278,6 +284,66 @@ enum ConfigCommands {
     Get { key: String },
     #[command(about = "Update a config key")]
     Set { key: String, value: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum VenvCommands {
+    #[command(about = "List managed virtual environments under PYENV_ROOT/versions/*/envs")]
+    List {
+        #[arg(long = "bare", help = "Print only env specs like 3.13.12/envs/demo")]
+        bare: bool,
+        #[arg(long = "json", help = "Output the env inventory as JSON")]
+        json: bool,
+    },
+    #[command(about = "Show details for a managed virtual environment")]
+    Info {
+        #[arg(long = "json", help = "Output the env details as JSON")]
+        json: bool,
+        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        spec: String,
+    },
+    #[command(about = "Create a managed virtual environment under a specific runtime")]
+    Create {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Recreate the env if the exact target already exists"
+        )]
+        force: bool,
+        #[arg(
+            long = "set-local",
+            help = "Write the new env spec into the current directory's .python-version file"
+        )]
+        set_local: bool,
+        #[arg(help = "Installed runtime version or prefix, such as 3.12 or 3.13.12")]
+        version: String,
+        #[arg(help = "Managed env name, such as app or tooling")]
+        name: String,
+    },
+    #[command(about = "Remove a managed virtual environment")]
+    Delete {
+        #[arg(short = 'f', long = "force", help = "Skip the confirmation prompt")]
+        force: bool,
+        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        spec: String,
+    },
+    #[command(about = "Rename a managed virtual environment")]
+    Rename {
+        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        spec: String,
+        #[arg(help = "New env name")]
+        new_name: String,
+    },
+    #[command(about = "Assign a managed virtual environment to the current directory or globally")]
+    Use {
+        #[arg(
+            long = "global",
+            help = "Write the env spec into the global version file"
+        )]
+        global: bool,
+        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        spec: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -422,6 +488,27 @@ fn main() -> ExitCode {
             pattern,
         } => cmd_available(&ctx, family, pattern, known, json),
         Commands::Uninstall { force, versions } => cmd_uninstall(&ctx, &versions, force),
+        Commands::Venv { command } => match command {
+            VenvCommands::List { bare, json } => cmd_venv_list(&ctx, bare, json),
+            VenvCommands::Info { json, spec } => cmd_venv_info(&ctx, &spec, json),
+            VenvCommands::Create {
+                force,
+                set_local,
+                version,
+                name,
+            } => cmd_venv_create(&ctx, &version, &name, force, set_local),
+            VenvCommands::Delete { force, spec } => cmd_venv_delete(&ctx, &spec, force),
+            VenvCommands::Rename { spec, new_name } => cmd_venv_rename(&ctx, &spec, &new_name),
+            VenvCommands::Use { global, spec } => cmd_venv_use(
+                &ctx,
+                &spec,
+                if global {
+                    VenvUseScope::Global
+                } else {
+                    VenvUseScope::Local
+                },
+            ),
+        },
         Commands::Rehash => cmd_rehash(&ctx),
         Commands::Shims { short } => cmd_shims(&ctx, short),
         Commands::Completions { command, args } => cmd_completions(&ctx, &command, &args),

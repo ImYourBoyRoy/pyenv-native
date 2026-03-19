@@ -55,7 +55,7 @@ jobs:
 
       - name: Smoke test bash shell integration
         shell: bash
-        run: sh ./scripts/smoke-shells.sh ./target/debug/pyenv
+        run: bash ./scripts/smoke-shells.sh ./target/debug/pyenv
 
       - name: Build Linux release bundle smoke test
         shell: bash

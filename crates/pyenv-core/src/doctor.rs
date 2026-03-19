@@ -137,16 +137,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
                 "Add {} to your shell PATH so python/pip resolve through pyenv shims",
                 ctx.shims_dir().display()
             ),
-            command_hint: match platform {
-                "windows" => Some(
-                    "Re-run the Windows installer or add the shims directory to User PATH"
-                        .to_string(),
-                ),
-                _ => Some(
-                    "Run your shell init again or append the shims directory to your profile"
-                        .to_string(),
-                ),
-            },
+            command_hint: Some(shell_init_hint(ctx, platform)),
         });
     }
 
@@ -161,11 +152,14 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
             key: "path-bin-manual".to_string(),
             automated: false,
             description: "Add the pyenv bin directory to your shell PATH".to_string(),
-            command_hint: Some(
-                "This lets the `pyenv` command itself resolve consistently".to_string(),
-            ),
+            command_hint: Some(match platform {
+                "windows" => "Re-run the Windows installer or prepend PYENV_ROOT\\bin to your User PATH".to_string(),
+                _ => "Install pyenv with the web installer or add $PYENV_ROOT/bin in your shell profile before evaluating `pyenv init`".to_string(),
+            }),
         });
     }
+
+    fixes.extend(selection_manual_fixes(ctx));
 
     if platform == "windows" {
         if let Ok(env_root) = env::var("PYENV_ROOT")
@@ -322,7 +316,24 @@ fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> Vec<DoctorCh
         checks.extend(non_windows_source_build_checks(ctx, platform));
     }
 
+    checks.extend(selected_env_checks(&selected));
+
     checks
+}
+
+fn selected_env_checks(selected: &crate::version::SelectedVersions) -> Vec<DoctorCheck> {
+    selected
+        .missing
+        .iter()
+        .filter(|value| value.contains("/envs/") || value.contains("\\envs\\"))
+        .map(|value| DoctorCheck {
+            name: "managed-venv-selection".to_string(),
+            status: DoctorStatus::Warn,
+            detail: format!(
+                "selected managed venv `{value}` is missing; run `pyenv venv list` to inspect available envs or `pyenv venv create <runtime> <name>` to recreate it"
+            ),
+        })
+        .collect()
 }
 
 fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
@@ -538,6 +549,42 @@ fn non_windows_manual_dependency_fixes(ctx: &AppContext, platform: &str) -> Vec<
         ),
         command_hint: Some(command_hint),
     }]
+}
+
+fn selection_manual_fixes(ctx: &AppContext) -> Vec<DoctorFix> {
+    let selected = resolve_selected_versions(ctx, false);
+    selected
+        .missing
+        .into_iter()
+        .filter(|value| value.contains("/envs/") || value.contains("\\envs\\"))
+        .map(|value| DoctorFix {
+            key: format!("missing-managed-venv-{value}"),
+            automated: false,
+            description: format!(
+                "Recreate or repoint the missing managed venv selection `{value}`"
+            ),
+            command_hint: Some(format!(
+                "Use `pyenv venv list`, `pyenv venv info {value}`, or update `.python-version` with `pyenv venv use <name>`"
+            )),
+        })
+        .collect()
+}
+
+fn shell_init_hint(ctx: &AppContext, platform: &str) -> String {
+    match platform {
+        "windows" => match ctx.env_shell.as_deref() {
+            Some("cmd") => {
+                "Add `for /f \"delims=\" %i in ('pyenv init - cmd') do %i` to your shell startup or rerun the Windows installer".to_string()
+            }
+            _ => "Add `iex ((pyenv init - pwsh) -join \"`n\")` to your PowerShell profile or rerun the Windows installer".to_string(),
+        },
+        _ => match ctx.env_shell.as_deref() {
+            Some("zsh") => "Add `eval \"$(pyenv init - zsh)\"` to ~/.zshrc".to_string(),
+            Some("fish") => "Add `pyenv init - fish | source` to your Fish config".to_string(),
+            Some("sh") => "Add `eval \"$(pyenv init - sh)\"` to your shell profile".to_string(),
+            _ => "Add `eval \"$(pyenv init - bash)\"` to ~/.bashrc (or the equivalent profile for your shell)".to_string(),
+        },
+    }
 }
 
 fn is_termux_environment() -> bool {

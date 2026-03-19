@@ -606,32 +606,41 @@ fn install_runtime(
         unique_suffix()
     ));
     let mut progress_steps = vec![
-        format!(
-            "Plan resolved: {} -> {} via {} [{}]",
-            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        progress_step(
+            "plan",
+            format!(
+                "resolved {} -> {} via {} [{}]",
+                plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+            ),
         ),
-        format!("Downloading package from {}", plan.download_url),
+        progress_step(
+            "download",
+            format!("fetching package from {}", plan.download_url),
+        ),
     ];
 
     let outcome = (|| {
         extract_archive(plan, &staging_dir)?;
-        progress_steps.push(format!(
-            "Extracted package into staging directory {}",
-            staging_dir.display()
+        progress_steps.push(progress_step(
+            "extract",
+            format!("unpacked archive into {}", staging_dir.display()),
         ));
         move_directory(&staging_dir, &plan.install_dir)?;
-        progress_steps.push(format!(
-            "Installed runtime files into {}",
-            plan.install_dir.display()
+        progress_steps.push(progress_step(
+            "install",
+            format!("moved runtime files into {}", plan.install_dir.display()),
         ));
         validate_python(&plan.python_executable)?;
-        progress_steps.push(format!(
-            "Validated interpreter at {}",
-            plan.python_executable.display()
+        progress_steps.push(progress_step(
+            "verify",
+            format!(
+                "validated interpreter at {}",
+                plan.python_executable.display()
+            ),
         ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
-            progress_steps.push("Ensuring pip is available".to_string());
+            progress_steps.push(progress_step("pip", "ensuring pip is available"));
             let pip_available = ensure_pip_available(&plan.python_executable)?;
             if plan.provider.starts_with("windows-") {
                 ensure_pip_wrappers(plan)?;
@@ -645,9 +654,12 @@ fn install_runtime(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
-            progress_steps.push(format!(
-                "Creating base virtual environment at {}",
-                base_venv_path.display()
+            progress_steps.push(progress_step(
+                "venv",
+                format!(
+                    "creating base virtual environment at {}",
+                    base_venv_path.display()
+                ),
             ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
@@ -658,14 +670,14 @@ fn install_runtime(
         }
 
         let receipt_path = write_install_receipt(plan)?;
-        progress_steps.push(format!(
-            "Wrote install receipt to {}",
-            receipt_path.display()
+        progress_steps.push(progress_step(
+            "receipt",
+            format!("wrote install receipt to {}", receipt_path.display()),
         ));
         rehash_shims(ctx)?;
-        progress_steps.push(format!(
-            "Refreshed shims under {}",
-            ctx.shims_dir().display()
+        progress_steps.push(progress_step(
+            "shims",
+            format!("refreshed shims under {}", ctx.shims_dir().display()),
         ));
         run_hook_scripts(
             ctx,
@@ -749,44 +761,61 @@ fn install_runtime_via_cpython_source(
         unique_suffix()
     ));
     let mut progress_steps = vec![
-        format!(
-            "Plan resolved: {} -> {} via {} [{}]",
-            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        progress_step(
+            "plan",
+            format!(
+                "resolved {} -> {} via {} [{}]",
+                plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+            ),
         ),
-        format!("Downloading source archive from {}", plan.download_url),
+        progress_step(
+            "download",
+            format!("fetching source archive from {}", plan.download_url),
+        ),
     ];
 
     let outcome = (|| {
         extract_archive(plan, &source_dir)?;
-        progress_steps.push(format!(
-            "Extracted source archive into {}",
-            source_dir.display()
+        progress_steps.push(progress_step(
+            "extract",
+            format!("unpacked source archive into {}", source_dir.display()),
         ));
         fs::create_dir_all(&build_dir).map_err(io_error)?;
-        progress_steps.push(format!(
-            "Created build workspace at {}",
-            build_dir.display()
+        progress_steps.push(progress_step(
+            "workspace",
+            format!("created build workspace at {}", build_dir.display()),
         ));
-        progress_steps.push(format!(
-            "Configuring and compiling source for {}",
-            plan.resolved_version
+        progress_steps.push(progress_step(
+            "build",
+            format!(
+                "configuring and compiling source for {}",
+                plan.resolved_version
+            ),
         ));
         build_cpython_source_install(plan, &source_dir, &build_dir)?;
-        progress_steps.push(format!(
-            "Installed compiled runtime into {}",
-            plan.install_dir.display()
+        progress_steps.push(progress_step(
+            "install",
+            format!(
+                "installed compiled runtime into {}",
+                plan.install_dir.display()
+            ),
         ));
         ensure_unix_runtime_aliases(&plan.install_dir, &plan.runtime_version)?;
-        progress_steps
-            .push("Ensured python/pip aliases exist in the runtime bin directory".to_string());
+        progress_steps.push(progress_step(
+            "aliases",
+            "ensured python/pip aliases exist in the runtime bin directory",
+        ));
         validate_python(&plan.python_executable)?;
-        progress_steps.push(format!(
-            "Validated interpreter at {}",
-            plan.python_executable.display()
+        progress_steps.push(progress_step(
+            "verify",
+            format!(
+                "validated interpreter at {}",
+                plan.python_executable.display()
+            ),
         ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
-            progress_steps.push("Ensuring pip is available".to_string());
+            progress_steps.push(progress_step("pip", "ensuring pip is available"));
             ensure_pip_available(&plan.python_executable)?
         } else {
             false
@@ -796,9 +825,12 @@ fn install_runtime_via_cpython_source(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
-            progress_steps.push(format!(
-                "Creating base virtual environment at {}",
-                base_venv_path.display()
+            progress_steps.push(progress_step(
+                "venv",
+                format!(
+                    "creating base virtual environment at {}",
+                    base_venv_path.display()
+                ),
             ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
@@ -809,14 +841,14 @@ fn install_runtime_via_cpython_source(
         }
 
         let receipt_path = write_install_receipt(plan)?;
-        progress_steps.push(format!(
-            "Wrote install receipt to {}",
-            receipt_path.display()
+        progress_steps.push(progress_step(
+            "receipt",
+            format!("wrote install receipt to {}", receipt_path.display()),
         ));
         rehash_shims(ctx)?;
-        progress_steps.push(format!(
-            "Refreshed shims under {}",
-            ctx.shims_dir().display()
+        progress_steps.push(progress_step(
+            "shims",
+            format!("refreshed shims under {}", ctx.shims_dir().display()),
         ));
         run_hook_scripts(
             ctx,
@@ -877,26 +909,32 @@ fn install_runtime_via_python_build(
     )?;
 
     let mut progress_steps = vec![
-        format!(
-            "Plan resolved: {} -> {} via {} [{}]",
-            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        progress_step(
+            "plan",
+            format!(
+                "resolved {} -> {} via {} [{}]",
+                plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+            ),
         ),
-        "Resolving python-build backend".to_string(),
+        progress_step("backend", "resolving python-build backend"),
     ];
     let outcome = (|| {
         let python_build = resolve_python_build_path(ctx)?;
-        progress_steps.push(format!(
-            "Using python-build backend at {}",
-            python_build.display()
+        progress_steps.push(progress_step(
+            "backend",
+            format!("using python-build backend at {}", python_build.display()),
         ));
         if let Some(parent) = plan.install_dir.parent() {
             fs::create_dir_all(parent).map_err(io_error)?;
         }
 
-        progress_steps.push(format!(
-            "Building runtime {} into {}",
-            plan.resolved_version,
-            plan.install_dir.display()
+        progress_steps.push(progress_step(
+            "build",
+            format!(
+                "building runtime {} into {}",
+                plan.resolved_version,
+                plan.install_dir.display()
+            ),
         ));
         run_python_build_install(
             ctx,
@@ -905,13 +943,16 @@ fn install_runtime_via_python_build(
             &plan.install_dir,
         )?;
         validate_python(&plan.python_executable)?;
-        progress_steps.push(format!(
-            "Validated interpreter at {}",
-            plan.python_executable.display()
+        progress_steps.push(progress_step(
+            "verify",
+            format!(
+                "validated interpreter at {}",
+                plan.python_executable.display()
+            ),
         ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
-            progress_steps.push("Ensuring pip is available".to_string());
+            progress_steps.push(progress_step("pip", "ensuring pip is available"));
             ensure_pip_available(&plan.python_executable)?
         } else {
             false
@@ -921,9 +962,12 @@ fn install_runtime_via_python_build(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
-            progress_steps.push(format!(
-                "Creating base virtual environment at {}",
-                base_venv_path.display()
+            progress_steps.push(progress_step(
+                "venv",
+                format!(
+                    "creating base virtual environment at {}",
+                    base_venv_path.display()
+                ),
             ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
@@ -934,14 +978,14 @@ fn install_runtime_via_python_build(
         }
 
         let receipt_path = write_install_receipt(plan)?;
-        progress_steps.push(format!(
-            "Wrote install receipt to {}",
-            receipt_path.display()
+        progress_steps.push(progress_step(
+            "receipt",
+            format!("wrote install receipt to {}", receipt_path.display()),
         ));
         rehash_shims(ctx)?;
-        progress_steps.push(format!(
-            "Refreshed shims under {}",
-            ctx.shims_dir().display()
+        progress_steps.push(progress_step(
+            "shims",
+            format!("refreshed shims under {}", ctx.shims_dir().display()),
         ));
         run_hook_scripts(
             ctx,
@@ -2355,6 +2399,10 @@ fn render_plan_lines(plans: &[InstallPlan]) -> Vec<String> {
         lines.push(format!("Create base venv: {}", plan.create_base_venv));
     }
     lines
+}
+
+fn progress_step<S: Into<String>, T: Into<String>>(phase: S, detail: T) -> String {
+    format!("{}: {}", phase.into(), detail.into())
 }
 
 fn render_outcome_lines(outcomes: &[InstallOutcome]) -> Vec<String> {

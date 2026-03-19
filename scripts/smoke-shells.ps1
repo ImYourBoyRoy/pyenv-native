@@ -19,11 +19,6 @@ if (Test-Path $smokeRoot) {
     Remove-Item -Recurse -Force $smokeRoot
 }
 
-$pyenvRoot = Join-Path $smokeRoot '.pyenv'
-$workDir = Join-Path $smokeRoot 'work'
-New-Item -ItemType Directory -Force -Path (Join-Path $pyenvRoot 'versions\3.13.12') | Out-Null
-New-Item -ItemType Directory -Force -Path $workDir | Out-Null
-
 function Invoke-Smoke {
     param(
         [string]$Name,
@@ -38,27 +33,60 @@ function Invoke-Smoke {
     }
 }
 
-$psCommand = @"
-`$env:PYENV_ROOT = '$($pyenvRoot.Replace("'", "''"))'
-Set-Location '$($workDir.Replace("'", "''"))'
-iex ((& '$($resolvedPyenvExe.Replace("'", "''"))' init - pwsh) -join "`n")
+function New-SmokeLayout {
+    param(
+        [string]$Name
+    )
+
+    $layoutRoot = Join-Path $smokeRoot $Name
+    $layoutPyenvRoot = Join-Path $layoutRoot '.pyenv'
+    $layoutWorkDir = Join-Path $layoutRoot 'work'
+    New-Item -ItemType Directory -Force -Path (Join-Path $layoutPyenvRoot 'versions\3.13.12') | Out-Null
+    New-Item -ItemType Directory -Force -Path $layoutWorkDir | Out-Null
+    return @{
+        Root = $layoutRoot
+        PyenvRoot = $layoutPyenvRoot
+        WorkDir = $layoutWorkDir
+    }
+}
+
+$pwshLayout = New-SmokeLayout -Name 'pwsh'
+$ps5Layout = New-SmokeLayout -Name 'powershell'
+$cmdLayout = New-SmokeLayout -Name 'cmd'
+
+$pwshCommand = @"
+`$env:PYENV_ROOT = '$($pwshLayout.PyenvRoot.Replace("'", "''"))'
+Set-Location '$($pwshLayout.WorkDir.Replace("'", "''"))'
+iex ((& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine)
 pyenv shell 3.13.12
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
-`$result = pyenv version-name
+`$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 if ((`$result | Select-Object -Last 1).Trim() -ne '3.13.12') { throw 'Expected version-name to resolve to 3.13.12' }
 "@
 
-Invoke-Smoke -Name 'PowerShell 7' -Executable 'pwsh' -Command $psCommand
-Invoke-Smoke -Name 'Windows PowerShell 5.1' -Executable 'powershell' -Command $psCommand
+$ps5Command = @"
+`$env:PYENV_ROOT = '$($ps5Layout.PyenvRoot.Replace("'", "''"))'
+Set-Location '$($ps5Layout.WorkDir.Replace("'", "''"))'
+iex ((& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine)
+pyenv shell 3.13.12
+if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+`$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
+if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+if ((`$result | Select-Object -Last 1).Trim() -ne '3.13.12') { throw 'Expected version-name to resolve to 3.13.12' }
+"@
+
+Invoke-Smoke -Name 'PowerShell 7' -Executable 'pwsh' -Command $pwshCommand
+Invoke-Smoke -Name 'Windows PowerShell 5.1' -Executable 'powershell' -Command $ps5Command
 
 $cmdScript = @"
 @echo off
 setlocal
-set "PYENV_ROOT=$pyenvRoot"
-cd /d "$workDir"
-for /f "delims=" %%i in ('"$resolvedPyenvExe" init - cmd') do %%i
-pyenv shell 3.13.12
+set "PYENV_ROOT=$($cmdLayout.PyenvRoot)"
+cd /d "$($cmdLayout.WorkDir)"
+findstr /c:"doskey pyenv=" "$($cmdLayout.Root)\init.cmd" >nul || exit /b 1
+set "PYENV_SHELL=cmd"
+for /f "delims=" %%i in ('"$resolvedPyenvExe" sh-cmd shell 3.13.12') do %%i
 if errorlevel 1 exit /b 1
 for /f "delims=" %%i in ('"$resolvedPyenvExe" version-name') do set "RESULT=%%i"
 if /I not "%RESULT%"=="3.13.12" (
@@ -66,7 +94,9 @@ if /I not "%RESULT%"=="3.13.12" (
   exit /b 1
 )
 "@
-$cmdScriptPath = Join-Path $smokeRoot 'smoke.cmd'
+$cmdInitScriptPath = Join-Path $cmdLayout.Root 'init.cmd'
+& $resolvedPyenvExe init --no-rehash - cmd | Set-Content -Path $cmdInitScriptPath -Encoding ascii
+$cmdScriptPath = Join-Path $cmdLayout.Root 'smoke.cmd'
 Set-Content -Path $cmdScriptPath -Value $cmdScript -Encoding ascii
 Write-Host 'Smoke testing CMD...' -ForegroundColor Cyan
 cmd /c $cmdScriptPath
