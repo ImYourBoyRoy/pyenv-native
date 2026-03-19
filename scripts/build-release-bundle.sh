@@ -73,6 +73,14 @@ while [ "$#" -gt 0 ]; do
       BUNDLE_NAME="${2:-}"
       shift 2
       ;;
+    --target)
+      TARGET="${2:-}"
+      shift 2
+      ;;
+    --arch)
+      ARCHITECTURE_OVERRIDE="${2:-}"
+      shift 2
+      ;;
     *)
       printf 'Unknown option `%s`\n' "$1" >&2
       exit 1
@@ -80,8 +88,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+TARGET="${TARGET:-}"
+ARCHITECTURE_OVERRIDE="${ARCHITECTURE_OVERRIDE:-}"
+
 OPERATING_SYSTEM="$(normalize_os)"
-ARCHITECTURE="$(normalize_arch)"
+ARCHITECTURE="${ARCHITECTURE_OVERRIDE:-$ARCHITECTURE}"
 if [ "$OPERATING_SYSTEM" = "unsupported" ]; then
   printf 'Unsupported host operating system for POSIX bundle production.\n' >&2
   exit 1
@@ -95,11 +106,16 @@ OUTPUT_ROOT="$(mkdir -p "$OUTPUT_ROOT" && CDPATH= cd -- "$OUTPUT_ROOT" && pwd)"
 BUNDLE_DIR="${OUTPUT_ROOT}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${OUTPUT_ROOT}/${BUNDLE_NAME}.tar.gz"
 CHECKSUM_PATH="${ARCHIVE_PATH}.sha256"
-RELEASE_BIN="${REPO_ROOT}/target/release/pyenv"
-RELEASE_MCP_BIN="${REPO_ROOT}/target/release/pyenv-mcp"
+if [ -n "$TARGET" ]; then
+  cargo build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
+  RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
+else
+  cargo build --release --bin pyenv --bin pyenv-mcp
+  RELEASE_BIN="${REPO_ROOT}/target/release/pyenv"
+  RELEASE_MCP_BIN="${REPO_ROOT}/target/release/pyenv-mcp"
+fi
 CARGO_TOML_PATH="${REPO_ROOT}/Cargo.toml"
-
-cargo build --release --bin pyenv --bin pyenv-mcp
 
 for required_binary in "$RELEASE_BIN" "$RELEASE_MCP_BIN"; do
   if [ ! -f "$required_binary" ]; then

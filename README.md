@@ -1,6 +1,6 @@
 # pyenv-native
 
-![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-2563eb?style=for-the-badge)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-2563eb?style=for-the-badge)
 ![Runtime](https://img.shields.io/badge/runtime-Rust-D97706?style=for-the-badge&logo=rust&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/bootstrap-PyPI%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
@@ -61,6 +61,14 @@ $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest h
 ### Latest published release: Linux / macOS
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
+```
+
+### Latest published release: Android (Termux)
+
+```sh
+# Install build dependencies first
+pkg install clang make libffi zlib
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
@@ -176,11 +184,11 @@ The current focus is careful distribution polish:
 
 ## Supported runtimes and provider backends
 
-| Runtime | Windows | Linux | macOS |
-| --- | --- | --- | --- |
-| CPython | Official NuGet packages | Official CPython source releases | Official CPython source releases |
-| PyPy | Official PyPy archives | Official PyPy archives | Official PyPy archives |
-| Other definitions | Not yet | Optional fallback via upstream `python-build` | Optional fallback via upstream `python-build` |
+| Runtime | Windows | Linux | macOS | Android (Termux) |
+| --- | --- | --- | --- | --- |
+| CPython | Official NuGet packages | Official CPython source releases | Official CPython source releases | Official CPython source releases |
+| PyPy | Official PyPy archives | Official PyPy archives | Official PyPy archives | Official PyPy archives |
+| Other definitions | Not yet | Optional fallback via upstream `python-build` | Optional fallback via upstream `python-build` | Optional fallback via upstream `python-build` |
 
 ### Important defaults
 
