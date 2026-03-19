@@ -49,6 +49,14 @@ jobs:
         shell: bash
         run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
 
+      - name: Build CLI for bash shell smoke test
+        shell: bash
+        run: cargo build -p pyenv-cli
+
+      - name: Smoke test bash shell integration
+        shell: bash
+        run: sh ./scripts/smoke-shells.sh ./target/debug/pyenv
+
       - name: Build Linux release bundle smoke test
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
@@ -81,6 +89,14 @@ jobs:
       - name: Test Python install package
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath python
+
+      - name: Build CLI for Windows shell smoke tests
+        shell: pwsh
+        run: cargo build -p pyenv-cli
+
+      - name: Smoke test PowerShell and CMD integration
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\smoke-shells.ps1
 
       - name: Build Windows x64 release bundle smoke test
         shell: pwsh

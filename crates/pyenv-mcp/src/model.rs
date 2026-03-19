@@ -187,6 +187,7 @@ pub struct EnsureRuntimeResponse {
     pub receipt_path: Option<PathBuf>,
     pub pip_bootstrapped: bool,
     pub base_venv_created: bool,
+    pub progress_steps: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
