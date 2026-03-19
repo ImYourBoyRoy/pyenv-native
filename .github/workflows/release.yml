@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,7 +55,7 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
       - name: Upload Windows bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-windows-bundle
           path: |
@@ -63,13 +63,13 @@ jobs:
             dist/pyenv-native-windows-x64.zip.sha256
 
       - name: Upload Winget manifest artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-winget-manifests
           path: packaging/winget/manifests/**
 
       - name: Upload Python bootstrap package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-bootstrap-python
           path: python-package/dist/*
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -102,19 +102,59 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload Linux bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-linux-bundle
           path: |
             dist/pyenv-native-linux-*.tar.gz
             dist/pyenv-native-linux-*.tar.gz.sha256
 
+  linux-arm64-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-musl
+
+      - name: Build Linux ARM64 release bundle
+        uses: cross-rs/cross-action@v1
+        with:
+          command: build
+          target: aarch64-unknown-linux-musl
+          args: --release --bin pyenv --bin pyenv-mcp
+
+      - name: Assemble Linux ARM64 release bundle
+        shell: bash
+        run: |
+          sh ./scripts/build-release-bundle.sh \
+            --output-root ./dist \
+            --target aarch64-unknown-linux-musl \
+            --arch arm64
+        # We set CARGO=true because build-release-bundle.sh calls cargo, but we already built the binaries via cross-action
+        # However, build-release-bundle.sh expects the binaries to be in target/aarch64-unknown-linux-musl/release/
+        # which is where cross-action puts them.
+        env:
+          CARGO: "true" 
+
+      - name: Upload Linux ARM64 bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pyenv-native-linux-arm64-bundle
+          path: |
+            dist/pyenv-native-linux-arm64.tar.gz
+            dist/pyenv-native-linux-arm64.tar.gz.sha256
+
   macos-arm64-bundle:
     runs-on: macos-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -137,7 +177,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload macOS arm64 bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-macos-arm64-bundle
           path: |
@@ -149,7 +189,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -172,7 +212,7 @@ jobs:
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
       - name: Upload macOS x64 bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-macos-x64-bundle
           path: |
@@ -184,6 +224,7 @@ jobs:
     needs:
       - windows-bundle
       - linux-bundle
+      - linux-arm64-bundle
       - macos-arm64-bundle
       - macos-x64-bundle
     permissions:
@@ -191,40 +232,46 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download Windows bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-windows-bundle
           path: dist/windows
 
       - name: Download Linux bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-linux-bundle
           path: dist/linux
 
+      - name: Download Linux ARM64 bundle artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: pyenv-native-linux-arm64-bundle
+          path: dist/linux
+
       - name: Download macOS arm64 bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-macos-arm64-bundle
           path: dist/macos
 
       - name: Download macOS x64 bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-macos-x64-bundle
           path: dist/macos
 
       - name: Download Winget manifests artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-winget-manifests
           path: dist/winget
 
       - name: Download Python bootstrap package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-bootstrap-python
           path: dist/python
@@ -266,7 +313,7 @@ jobs:
 
       - name: Download Python bootstrap package artifact
         if: ${{ env.PYPI_API_TOKEN != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pyenv-native-bootstrap-python
           path: dist

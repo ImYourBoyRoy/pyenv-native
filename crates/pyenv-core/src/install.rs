@@ -10,13 +10,6 @@ use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bzip2::read::BzDecoder;
-use flate2::read::GzDecoder;
-use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
-use tar::Archive;
-use zip::ZipArchive;
-
 use crate::catalog::{
     InstallListOptions, VersionFamily, cmd_install_list, known_version_names,
     latest_version_from_names,
@@ -29,6 +22,12 @@ use crate::plugin::run_hook_scripts;
 use crate::runtime::{BASE_VENV_DIR_NAME, search_path_entries};
 use crate::shim::rehash_shims;
 use crate::version::installed_version_dir;
+use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
+use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
+use tar::Archive;
+use zip::ZipArchive;
 
 const DEFAULT_NUGET_BASE_URL: &str = "https://api.nuget.org/v3-flatcontainer";
 const DEFAULT_CPYTHON_SOURCE_BASE_URL: &str = "https://www.python.org/ftp/python";
@@ -1689,21 +1688,23 @@ fn fetch_pypy_releases() -> Result<Vec<PypyReleaseManifest>, PyenvError> {
         .build()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
-    let response_body = client
-        .get(PYPY_VERSIONS_URL)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to query {PYPY_VERSIONS_URL}: {error}"
-            ))
-        })?
-        .text()
-        .map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to read {PYPY_VERSIONS_URL}: {error}"
-            ))
-        })?;
+    let response = client.get(PYPY_VERSIONS_URL).send().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to query {PYPY_VERSIONS_URL}: {error}"
+        ))
+    })?;
+
+    let response = response.error_for_status().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to query {PYPY_VERSIONS_URL}: {error}"
+        ))
+    })?;
+
+    let response_body = response.text().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to read {PYPY_VERSIONS_URL}: {error}"
+        ))
+    })?;
 
     serde_json::from_str::<Vec<PypyReleaseManifest>>(&response_body).map_err(|error| {
         PyenvError::Io(format!(
@@ -1769,16 +1770,19 @@ fn download_package(plan: &InstallPlan) -> Result<(), PyenvError> {
         .build()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
-    let mut response = client
-        .get(&plan.download_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to download {}: {error}",
-                plan.download_url
-            ))
-        })?;
+    let response = client.get(&plan.download_url).send().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to download {}: {error}",
+            plan.download_url
+        ))
+    })?;
+
+    let mut response = response.error_for_status().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to download {}: {error}",
+            plan.download_url
+        ))
+    })?;
 
     let mut file = fs::File::create(&partial_path).map_err(io_error)?;
     response.copy_to(&mut file).map_err(|error| {
@@ -2471,7 +2475,7 @@ mod tests {
         let output_dir = temp.path().join("out");
         let file = fs::File::create(&archive_path).expect("archive");
         let mut writer = zip::ZipWriter::new(file);
-        let options = FileOptions::default();
+        let options = FileOptions::<()>::default();
         writer.add_directory("tools/Lib/", options).expect("dir");
         writer
             .start_file("tools/python.exe", options)
@@ -2497,7 +2501,7 @@ mod tests {
         let output_dir = temp.path().join("out");
         let file = fs::File::create(&archive_path).expect("archive");
         let mut writer = zip::ZipWriter::new(file);
-        let options = FileOptions::default();
+        let options = FileOptions::<()>::default();
         writer.add_directory("runtime/Lib/", options).expect("dir");
         writer
             .start_file("runtime/python.exe", options)
