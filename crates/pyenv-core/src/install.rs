@@ -998,7 +998,7 @@ fn ensure_path_alias(source: &Path, destination: &Path) -> Result<(), PyenvError
         };
 
         match symlink(&link_target, destination) {
-            Ok(_) => return Ok(()),
+            Ok(_) => Ok(()),
             Err(error) => {
                 fs::copy(source, destination).map_err(|copy_error| {
                     PyenvError::Io(format!(
@@ -1007,7 +1007,7 @@ fn ensure_path_alias(source: &Path, destination: &Path) -> Result<(), PyenvError
                         source.display()
                     ))
                 })?;
-                return Ok(());
+                Ok(())
             }
         }
     }
