@@ -30,12 +30,12 @@ pub use config::{
     resolve_cache_dir,
 };
 pub use context::{AppContext, is_pyenv_win_root, resolve_dir, resolve_root};
-pub use doctor::cmd_doctor;
+pub use doctor::{DoctorFix, DoctorFixOutcome, apply_doctor_fixes, cmd_doctor, doctor_fix_plan};
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
 pub use install::{
-    InstallCommandOptions, InstallOutcome, InstallPlan, cmd_install, install_runtime_plan,
-    resolve_install_plan,
+    InstallCommandOptions, InstallOutcome, InstallPlan, cmd_available, cmd_install,
+    install_runtime_plan, resolve_install_plan,
 };
 pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
 pub use meta::{cmd_commands, cmd_completions, cmd_help, cmd_shims};

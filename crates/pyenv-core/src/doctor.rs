@@ -13,6 +13,7 @@ use crate::context::{AppContext, is_pyenv_win_root};
 use crate::executable::find_system_python_command;
 use crate::install::resolve_python_build_path;
 use crate::runtime::search_path_entries;
+use crate::shim::rehash_shims;
 use crate::version::resolve_selected_versions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -46,6 +47,20 @@ struct DoctorReport {
     platform: String,
     installed_versions: usize,
     checks: Vec<DoctorCheck>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DoctorFix {
+    pub key: String,
+    pub automated: bool,
+    pub description: String,
+    pub command_hint: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DoctorFixOutcome {
+    pub applied: Vec<String>,
+    pub manual: Vec<DoctorFix>,
 }
 
 pub fn cmd_doctor(ctx: &AppContext, json: bool) -> CommandReport {
@@ -85,6 +100,145 @@ pub fn cmd_doctor(ctx: &AppContext, json: bool) -> CommandReport {
         )
     }));
     CommandReport::success(stdout)
+}
+
+pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
+    let mut fixes = Vec::new();
+    let platform = env::consts::OS;
+
+    if !ctx.root.exists()
+        || !ctx.versions_dir().is_dir()
+        || !ctx.shims_dir().is_dir()
+        || !ctx.cache_dir().is_dir()
+    {
+        fixes.push(DoctorFix {
+            key: "ensure-managed-layout".to_string(),
+            automated: true,
+            description: format!(
+                "Create missing managed directories under {}",
+                ctx.root.display()
+            ),
+            command_hint: None,
+        });
+    }
+
+    fixes.push(DoctorFix {
+        key: "rehash-shims".to_string(),
+        automated: true,
+        description: format!("Refresh shim launchers under {}", ctx.shims_dir().display()),
+        command_hint: Some("Equivalent to `pyenv rehash`".to_string()),
+    });
+
+    if !path_contains(ctx.path_env.as_ref(), &ctx.shims_dir()) {
+        fixes.push(DoctorFix {
+            key: "path-shims-manual".to_string(),
+            automated: false,
+            description: format!(
+                "Add {} to your shell PATH so python/pip resolve through pyenv shims",
+                ctx.shims_dir().display()
+            ),
+            command_hint: match platform {
+                "windows" => Some(
+                    "Re-run the Windows installer or add the shims directory to User PATH"
+                        .to_string(),
+                ),
+                _ => Some(
+                    "Run your shell init again or append the shims directory to your profile"
+                        .to_string(),
+                ),
+            },
+        });
+    }
+
+    if !path_contains(
+        ctx.path_env.as_ref(),
+        &ctx.exe_path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| ctx.root.join("bin")),
+    ) {
+        fixes.push(DoctorFix {
+            key: "path-bin-manual".to_string(),
+            automated: false,
+            description: "Add the pyenv bin directory to your shell PATH".to_string(),
+            command_hint: Some(
+                "This lets the `pyenv` command itself resolve consistently".to_string(),
+            ),
+        });
+    }
+
+    if platform == "windows" {
+        if let Ok(env_root) = env::var("PYENV_ROOT")
+            && is_pyenv_win_root(Path::new(&env_root))
+        {
+            fixes.push(DoctorFix {
+                key: "pyenv-win-root-manual".to_string(),
+                automated: false,
+                description: "Remove the stale pyenv-win PYENV_ROOT environment variable"
+                    .to_string(),
+                command_hint: Some(
+                    "Delete PYENV_ROOT from your User environment variables".to_string(),
+                ),
+            });
+        }
+
+        if let Some(path) = find_system_python_command(ctx)
+            && path.to_string_lossy().contains("WindowsApps")
+        {
+            fixes.push(DoctorFix {
+                key: "windows-store-alias-manual".to_string(),
+                automated: false,
+                description:
+                    "Disable the Microsoft Store Python App Execution Alias to avoid PATH interception"
+                        .to_string(),
+                command_hint: Some(
+                    "Settings > Apps > Advanced app settings > App execution aliases"
+                        .to_string(),
+                ),
+            });
+        }
+    } else {
+        fixes.extend(non_windows_manual_dependency_fixes(ctx, platform));
+    }
+
+    fixes
+}
+
+pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, crate::error::PyenvError> {
+    let manual = doctor_fix_plan(ctx)
+        .into_iter()
+        .filter(|item| !item.automated)
+        .collect::<Vec<_>>();
+    let mut applied = Vec::new();
+
+    for path in [
+        ctx.root.clone(),
+        ctx.root.join("bin"),
+        ctx.shims_dir(),
+        ctx.versions_dir(),
+        ctx.cache_dir(),
+    ] {
+        if !path.exists() {
+            std::fs::create_dir_all(&path).map_err(|error| {
+                crate::error::PyenvError::Io(format!(
+                    "pyenv: failed to create {}: {error}",
+                    path.display()
+                ))
+            })?;
+        }
+    }
+    applied.push(format!(
+        "Ensured the managed directory layout exists under {}",
+        ctx.root.display()
+    ));
+
+    let count = rehash_shims(ctx)?;
+    applied.push(format!(
+        "Refreshed {count} shim command(s) under {}",
+        ctx.shims_dir().display()
+    ));
+
+    Ok(DoctorFixOutcome { applied, manual })
 }
 
 fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
@@ -338,6 +492,59 @@ fn non_windows_source_build_checks(ctx: &AppContext, platform: &str) -> Vec<Doct
 
     checks.push(non_windows_python_build_check(ctx));
     checks
+}
+
+fn non_windows_manual_dependency_fixes(ctx: &AppContext, platform: &str) -> Vec<DoctorFix> {
+    let directories = ctx
+        .path_env
+        .as_ref()
+        .map(env::split_paths)
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    let missing_shell =
+        search_path_entries(&directories, "sh", path_ext_for_platform(ctx, platform)).is_none()
+            && search_path_entries(&directories, "bash", path_ext_for_platform(ctx, platform))
+                .is_none();
+    let missing_make =
+        search_path_entries(&directories, "make", path_ext_for_platform(ctx, platform)).is_none()
+            && search_path_entries(&directories, "gmake", path_ext_for_platform(ctx, platform))
+                .is_none();
+    let missing_compiler =
+        search_path_entries(&directories, "cc", path_ext_for_platform(ctx, platform)).is_none()
+            && search_path_entries(&directories, "clang", path_ext_for_platform(ctx, platform))
+                .is_none()
+            && search_path_entries(&directories, "gcc", path_ext_for_platform(ctx, platform))
+                .is_none();
+
+    if !(missing_shell || missing_make || missing_compiler) {
+        return Vec::new();
+    }
+
+    let command_hint = if is_termux_environment() {
+        "pkg install clang make pkg-config libffi openssl readline sqlite zlib bzip2 xz".to_string()
+    } else if platform == "macos" {
+        "xcode-select --install && brew install pkg-config openssl readline sqlite3 xz zlib"
+            .to_string()
+    } else {
+        "Install a POSIX shell, make, compiler toolchain, and development headers for OpenSSL/readline/sqlite/zlib".to_string()
+    };
+
+    vec![DoctorFix {
+        key: format!("{platform}-source-build-deps-manual"),
+        automated: false,
+        description: format!(
+            "Install the native source-build prerequisites required on {platform}"
+        ),
+        command_hint: Some(command_hint),
+    }]
+}
+
+fn is_termux_environment() -> bool {
+    env::var_os("TERMUX_VERSION").is_some()
+        || env::var_os("PREFIX")
+            .map(|value| value.to_string_lossy().contains("/data/data/com.termux"))
+            .unwrap_or(false)
 }
 
 fn command_presence_check(

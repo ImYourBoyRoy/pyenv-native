@@ -73,6 +73,7 @@ pub struct InstallOutcome {
     pub receipt_path: PathBuf,
     pub pip_bootstrapped: bool,
     pub base_venv_created: bool,
+    pub progress_steps: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -150,6 +151,7 @@ fn cpython_source_provider_name(platform: &str) -> Option<&'static str> {
     match platform {
         "linux" => Some("linux-cpython-source"),
         "macos" => Some("macos-cpython-source"),
+        "android" => Some("android-cpython-source"),
         _ => None,
     }
 }
@@ -238,11 +240,11 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
                 } else {
                     match install_runtime(ctx, &plan, options.force) {
                         Ok(outcome) => outcomes.push(outcome),
-                        Err(error) => stderr.push(error.to_string()),
+                        Err(error) => stderr.extend(render_install_error_lines(&error, requested)),
                     }
                 }
             }
-            Err(error) => stderr.push(error.to_string()),
+            Err(error) => stderr.extend(render_install_error_lines(&error, requested)),
         }
     }
 
@@ -264,6 +266,27 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
         stderr,
         exit_code,
     }
+}
+
+pub fn cmd_available(
+    ctx: &AppContext,
+    family: Option<String>,
+    pattern: Option<String>,
+    known: bool,
+    json: bool,
+) -> CommandReport {
+    cmd_install(
+        ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json,
+            known,
+            family,
+            versions: pattern.into_iter().collect(),
+        },
+    )
 }
 
 pub fn resolve_install_plan(ctx: &AppContext, requested: &str) -> Result<InstallPlan, PyenvError> {
@@ -582,13 +605,33 @@ fn install_runtime(
         sanitize_for_fs(&plan.resolved_version),
         unique_suffix()
     ));
+    let mut progress_steps = vec![
+        format!(
+            "Plan resolved: {} -> {} via {} [{}]",
+            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        ),
+        format!("Downloading package from {}", plan.download_url),
+    ];
 
     let outcome = (|| {
         extract_archive(plan, &staging_dir)?;
+        progress_steps.push(format!(
+            "Extracted package into staging directory {}",
+            staging_dir.display()
+        ));
         move_directory(&staging_dir, &plan.install_dir)?;
+        progress_steps.push(format!(
+            "Installed runtime files into {}",
+            plan.install_dir.display()
+        ));
         validate_python(&plan.python_executable)?;
+        progress_steps.push(format!(
+            "Validated interpreter at {}",
+            plan.python_executable.display()
+        ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
+            progress_steps.push("Ensuring pip is available".to_string());
             let pip_available = ensure_pip_available(&plan.python_executable)?;
             if plan.provider.starts_with("windows-") {
                 ensure_pip_wrappers(plan)?;
@@ -602,6 +645,10 @@ fn install_runtime(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
+            progress_steps.push(format!(
+                "Creating base virtual environment at {}",
+                base_venv_path.display()
+            ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
                 &plan.python_executable,
@@ -611,7 +658,15 @@ fn install_runtime(
         }
 
         let receipt_path = write_install_receipt(plan)?;
+        progress_steps.push(format!(
+            "Wrote install receipt to {}",
+            receipt_path.display()
+        ));
         rehash_shims(ctx)?;
+        progress_steps.push(format!(
+            "Refreshed shims under {}",
+            ctx.shims_dir().display()
+        ));
         run_hook_scripts(
             ctx,
             "install",
@@ -628,6 +683,7 @@ fn install_runtime(
             receipt_path,
             pip_bootstrapped,
             base_venv_created,
+            progress_steps: progress_steps.clone(),
         })
     })();
 
@@ -692,15 +748,45 @@ fn install_runtime_via_cpython_source(
         sanitize_for_fs(&plan.resolved_version),
         unique_suffix()
     ));
+    let mut progress_steps = vec![
+        format!(
+            "Plan resolved: {} -> {} via {} [{}]",
+            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        ),
+        format!("Downloading source archive from {}", plan.download_url),
+    ];
 
     let outcome = (|| {
         extract_archive(plan, &source_dir)?;
+        progress_steps.push(format!(
+            "Extracted source archive into {}",
+            source_dir.display()
+        ));
         fs::create_dir_all(&build_dir).map_err(io_error)?;
+        progress_steps.push(format!(
+            "Created build workspace at {}",
+            build_dir.display()
+        ));
+        progress_steps.push(format!(
+            "Configuring and compiling source for {}",
+            plan.resolved_version
+        ));
         build_cpython_source_install(plan, &source_dir, &build_dir)?;
+        progress_steps.push(format!(
+            "Installed compiled runtime into {}",
+            plan.install_dir.display()
+        ));
         ensure_unix_runtime_aliases(&plan.install_dir, &plan.runtime_version)?;
+        progress_steps
+            .push("Ensured python/pip aliases exist in the runtime bin directory".to_string());
         validate_python(&plan.python_executable)?;
+        progress_steps.push(format!(
+            "Validated interpreter at {}",
+            plan.python_executable.display()
+        ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
+            progress_steps.push("Ensuring pip is available".to_string());
             ensure_pip_available(&plan.python_executable)?
         } else {
             false
@@ -710,6 +796,10 @@ fn install_runtime_via_cpython_source(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
+            progress_steps.push(format!(
+                "Creating base virtual environment at {}",
+                base_venv_path.display()
+            ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
                 &plan.python_executable,
@@ -719,7 +809,15 @@ fn install_runtime_via_cpython_source(
         }
 
         let receipt_path = write_install_receipt(plan)?;
+        progress_steps.push(format!(
+            "Wrote install receipt to {}",
+            receipt_path.display()
+        ));
         rehash_shims(ctx)?;
+        progress_steps.push(format!(
+            "Refreshed shims under {}",
+            ctx.shims_dir().display()
+        ));
         run_hook_scripts(
             ctx,
             "install",
@@ -737,6 +835,7 @@ fn install_runtime_via_cpython_source(
             receipt_path,
             pip_bootstrapped,
             base_venv_created,
+            progress_steps: progress_steps.clone(),
         })
     })();
 
@@ -777,12 +876,28 @@ fn install_runtime_via_python_build(
         ],
     )?;
 
+    let mut progress_steps = vec![
+        format!(
+            "Plan resolved: {} -> {} via {} [{}]",
+            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
+        ),
+        "Resolving python-build backend".to_string(),
+    ];
     let outcome = (|| {
         let python_build = resolve_python_build_path(ctx)?;
+        progress_steps.push(format!(
+            "Using python-build backend at {}",
+            python_build.display()
+        ));
         if let Some(parent) = plan.install_dir.parent() {
             fs::create_dir_all(parent).map_err(io_error)?;
         }
 
+        progress_steps.push(format!(
+            "Building runtime {} into {}",
+            plan.resolved_version,
+            plan.install_dir.display()
+        ));
         run_python_build_install(
             ctx,
             &python_build,
@@ -790,8 +905,13 @@ fn install_runtime_via_python_build(
             &plan.install_dir,
         )?;
         validate_python(&plan.python_executable)?;
+        progress_steps.push(format!(
+            "Validated interpreter at {}",
+            plan.python_executable.display()
+        ));
 
         let pip_bootstrapped = if plan.bootstrap_pip {
+            progress_steps.push("Ensuring pip is available".to_string());
             ensure_pip_available(&plan.python_executable)?
         } else {
             false
@@ -801,6 +921,10 @@ fn install_runtime_via_python_build(
         if plan.create_base_venv
             && let Some(base_venv_path) = &plan.base_venv_path
         {
+            progress_steps.push(format!(
+                "Creating base virtual environment at {}",
+                base_venv_path.display()
+            ));
             let base_venv_arg = base_venv_path.display().to_string();
             run_python(
                 &plan.python_executable,
@@ -810,7 +934,15 @@ fn install_runtime_via_python_build(
         }
 
         let receipt_path = write_install_receipt(plan)?;
+        progress_steps.push(format!(
+            "Wrote install receipt to {}",
+            receipt_path.display()
+        ));
         rehash_shims(ctx)?;
+        progress_steps.push(format!(
+            "Refreshed shims under {}",
+            ctx.shims_dir().display()
+        ));
         run_hook_scripts(
             ctx,
             "install",
@@ -828,6 +960,7 @@ fn install_runtime_via_python_build(
             receipt_path,
             pip_bootstrapped,
             base_venv_created,
+            progress_steps: progress_steps.clone(),
         })
     })();
 
@@ -1127,10 +1260,14 @@ fn cmd_provider_install_list(
     };
 
     if entries.is_empty() {
-        return CommandReport::failure(
-            vec!["pyenv: no installable versions match the requested filters".to_string()],
-            1,
-        );
+        let mut stderr =
+            vec!["pyenv: no installable versions match the requested filters".to_string()];
+        if let Some(pattern) = pattern.as_deref() {
+            stderr.push(format!(
+                "hint: try `pyenv install --list --known {pattern}` to inspect the broader embedded catalog"
+            ));
+        }
+        return CommandReport::failure(stderr, 1);
     }
 
     let groups = group_provider_entries(entries);
@@ -2226,6 +2363,13 @@ fn render_outcome_lines(outcomes: &[InstallOutcome]) -> Vec<String> {
         if index > 0 {
             lines.push(String::new());
         }
+        lines.push("Progress:".to_string());
+        lines.extend(
+            outcome
+                .progress_steps
+                .iter()
+                .map(|step| format!("  - {step}")),
+        );
         lines.push(format!(
             "Installed {} -> {}",
             outcome.plan.requested_version, outcome.plan.resolved_version
@@ -2241,6 +2385,23 @@ fn render_outcome_lines(outcomes: &[InstallOutcome]) -> Vec<String> {
         lines.push(format!("Receipt: {}", outcome.receipt_path.display()));
     }
     lines
+}
+
+fn render_install_error_lines(error: &PyenvError, requested: &str) -> Vec<String> {
+    match error {
+        PyenvError::UnsupportedInstallTarget(_) => vec![
+            "pyenv: no native install provider is configured for this platform/version."
+                .to_string(),
+            format!("hint: run `pyenv install --list {requested}`"),
+            "hint: run `pyenv doctor` to inspect platform prerequisites and shell/path health"
+                .to_string(),
+        ],
+        PyenvError::UnknownVersion(_) => vec![
+            error.to_string(),
+            format!("hint: run `pyenv install --list {requested}`"),
+        ],
+        _ => vec![error.to_string()],
+    }
 }
 
 fn render_json_lines<T: Serialize>(value: &T) -> Vec<String> {
@@ -2726,6 +2887,24 @@ mod tests {
     }
 
     #[test]
+    fn resolve_install_plan_prefers_native_cpython_source_on_android() {
+        let (_temp, ctx) = test_context();
+        let plan = resolve_install_plan_for_platform(&ctx, "3.12", "android").expect("plan");
+
+        assert_eq!(plan.provider, "android-cpython-source");
+        assert!(plan.family == "CPython");
+        assert!(plan.download_url.contains("python.org/ftp/python/"));
+        assert!(plan.download_url.ends_with(".tgz"));
+        assert!(
+            plan.python_executable
+                .display()
+                .to_string()
+                .replace('\\', "/")
+                .ends_with("/bin/python")
+        );
+    }
+
+    #[test]
     fn provider_catalog_entries_prefer_native_pypy_on_macos() {
         let (_temp, ctx) = test_context();
         seed_pypy_index(
@@ -2764,6 +2943,23 @@ mod tests {
             entries
                 .iter()
                 .all(|entry| entry.provider == "macos-cpython-source")
+        );
+        assert!(entries.iter().all(|entry| entry.family_slug == "cpython"));
+    }
+
+    #[test]
+    fn provider_catalog_entries_include_native_cpython_on_android_without_python_build() {
+        let (_temp, ctx) = test_context();
+
+        let entries =
+            provider_catalog_entries_for_platform(&ctx, Some("cpython"), Some("3.12"), "android")
+                .expect("entries");
+
+        assert!(!entries.is_empty());
+        assert!(
+            entries
+                .iter()
+                .all(|entry| entry.provider == "android-cpython-source")
         );
         assert!(entries.iter().all(|entry| entry.family_slug == "cpython"));
     }

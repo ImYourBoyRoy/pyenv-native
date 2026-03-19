@@ -8,13 +8,14 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use pyenv_core::{
-    AppContext, CommandReport, InstallCommandOptions, SelfUpdateOptions, VersionsCommandOptions,
-    cmd_commands, cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set,
-    cmd_config_show, cmd_doctor, cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init,
-    cmd_install, cmd_latest, cmd_local, cmd_prefix, cmd_rehash, cmd_root, cmd_self_update,
-    cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_uninstall, cmd_version,
-    cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
-    cmd_version_origin, cmd_versions, cmd_whence, cmd_which,
+    AppContext, CommandReport, DoctorFix, InstallCommandOptions, SelfUpdateOptions,
+    VersionsCommandOptions, apply_doctor_fixes, cmd_available, cmd_commands, cmd_completions,
+    cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, cmd_doctor, cmd_exec,
+    cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local,
+    cmd_prefix, cmd_rehash, cmd_root, cmd_self_update, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell,
+    cmd_shell, cmd_shims, cmd_uninstall, cmd_version, cmd_version_file, cmd_version_file_read,
+    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_whence,
+    cmd_which, doctor_fix_plan,
 };
 
 #[derive(Debug, Parser)]
@@ -23,7 +24,7 @@ use pyenv_core::{
     version,
     about = "Native-first, cross-platform Python version manager",
     long_about = "Native-first, cross-platform Python version manager.\n\nManage multiple Python versions with local, global, and shell-scoped selection.\nRun `pyenv help` for detailed command information and examples.",
-    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`)\n                 2. .python-version file in the current directory (set via `pyenv local`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
+    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`)\n                 2. .python-version file in the current directory (set via `pyenv local`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
     disable_help_subcommand = true
 )]
 struct Cli {
@@ -55,6 +56,17 @@ enum Commands {
     Doctor {
         #[arg(long = "json")]
         json: bool,
+        #[arg(
+            long = "fix",
+            help = "Apply safe automated fixes after showing diagnostics"
+        )]
+        fix: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip the confirmation prompt when used with --fix"
+        )]
+        force: bool,
     },
     #[command(about = "Check for or install the latest published pyenv-native release")]
     SelfUpdate {
@@ -198,6 +210,20 @@ enum Commands {
         #[arg(help = "Version(s) to install (e.g. 3.13.12, 3.12, pypy3.11)")]
         versions: Vec<String>,
     },
+    #[command(about = "List installable Python versions from native providers")]
+    Available {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(
+            long = "known",
+            help = "Use the embedded known catalog instead of providers"
+        )]
+        known: bool,
+        #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
+        family: Option<String>,
+        #[arg(help = "Optional pattern such as 3, 3.12, 3.13, or pypy3.11")]
+        pattern: Option<String>,
+    },
     #[command(about = "Uninstall a specific Python version")]
     Uninstall {
         #[arg(short = 'f', long = "force")]
@@ -288,7 +314,20 @@ fn main() -> ExitCode {
         Commands::Commands { sh, no_sh } => cmd_commands(&ctx, sh, no_sh),
         Commands::Root => cmd_root(&ctx),
         Commands::Hooks { hook } => cmd_hooks(&ctx, &hook),
-        Commands::Doctor { json } => cmd_doctor(&ctx, json),
+        Commands::Doctor { json, fix, force } => {
+            if fix {
+                if json {
+                    CommandReport::failure(
+                        vec!["pyenv: `doctor --json` cannot be combined with `--fix`".to_string()],
+                        1,
+                    )
+                } else {
+                    run_doctor_fix_flow(&ctx, force)
+                }
+            } else {
+                cmd_doctor(&ctx, json)
+            }
+        }
         Commands::SelfUpdate {
             check,
             yes,
@@ -376,6 +415,12 @@ fn main() -> ExitCode {
                 versions,
             },
         ),
+        Commands::Available {
+            json,
+            known,
+            family,
+            pattern,
+        } => cmd_available(&ctx, family, pattern, known, json),
         Commands::Uninstall { force, versions } => cmd_uninstall(&ctx, &versions, force),
         Commands::Rehash => cmd_rehash(&ctx),
         Commands::Shims { short } => cmd_shims(&ctx, short),
@@ -388,6 +433,87 @@ fn main() -> ExitCode {
     };
 
     emit_report(report)
+}
+
+fn run_doctor_fix_flow(ctx: &AppContext, force: bool) -> CommandReport {
+    let plan = doctor_fix_plan(ctx);
+    let automated = plan
+        .iter()
+        .filter(|item| item.automated)
+        .cloned()
+        .collect::<Vec<_>>();
+    let manual = plan
+        .iter()
+        .filter(|item| !item.automated)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if automated.is_empty() {
+        let mut stdout = vec!["No automated doctor fixes are currently available.".to_string()];
+        if !manual.is_empty() {
+            stdout.push(String::new());
+            stdout.push("Manual follow-up suggested:".to_string());
+            stdout.extend(render_doctor_fixes(&manual));
+        }
+        stdout.push(String::new());
+        stdout.extend(cmd_doctor(ctx, false).stdout);
+        return CommandReport::success(stdout);
+    }
+
+    if !force && !confirm_doctor_fixes(&automated) {
+        return CommandReport::failure(vec!["pyenv: doctor fixes cancelled".to_string()], 1);
+    }
+
+    match apply_doctor_fixes(ctx) {
+        Ok(outcome) => {
+            let mut stdout = vec!["Applied automated doctor fixes:".to_string()];
+            stdout.extend(
+                outcome
+                    .applied
+                    .into_iter()
+                    .map(|item| format!("  - {item}")),
+            );
+            if !manual.is_empty() {
+                stdout.push(String::new());
+                stdout.push("Manual follow-up still recommended:".to_string());
+                stdout.extend(render_doctor_fixes(&manual));
+            }
+            stdout.push(String::new());
+            stdout.push("Updated doctor report:".to_string());
+            stdout.push(String::new());
+            stdout.extend(cmd_doctor(ctx, false).stdout);
+            CommandReport::success(stdout)
+        }
+        Err(error) => CommandReport::failure(vec![error.to_string()], 1),
+    }
+}
+
+fn render_doctor_fixes(fixes: &[DoctorFix]) -> Vec<String> {
+    fixes
+        .iter()
+        .map(|item| {
+            if let Some(command_hint) = &item.command_hint {
+                format!("  - {} ({command_hint})", item.description)
+            } else {
+                format!("  - {}", item.description)
+            }
+        })
+        .collect()
+}
+
+fn confirm_doctor_fixes(fixes: &[DoctorFix]) -> bool {
+    let _ = writeln!(io::stdout(), "Automated doctor fixes available:");
+    for line in render_doctor_fixes(fixes) {
+        let _ = writeln!(io::stdout(), "{line}");
+    }
+    let _ = write!(io::stdout(), "\nApply these fixes now? [y/N] ");
+    let _ = io::stdout().flush();
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => matches!(input.trim().to_ascii_lowercase().as_str(), "y" | "yes"),
+        Err(_) => false,
+    }
 }
 
 fn shim_invocation_name() -> Option<String> {

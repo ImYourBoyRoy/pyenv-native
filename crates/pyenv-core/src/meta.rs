@@ -125,7 +125,7 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
         usage: "Usage: pyenv install [-l|--list] [--known] [--family <family>] [--dry-run] [--json] [-f|--force] <version> ...",
         help: &[
             "Downloads and installs Python runtimes into the managed versions directory.",
-            "Uses native provider backends (NuGet on Windows, source builds on Linux/macOS)",
+            "Uses native provider backends (NuGet on Windows, source builds on Linux/macOS/Android)",
             "for maximum reliability and speed.",
             "",
             "Version prefixes like `3.12` resolve to the latest available provider-backed version.",
@@ -159,6 +159,24 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
             "-f",
             "--force",
         ],
+    },
+    CommandDoc {
+        name: "available",
+        summary: "List installable Python versions from native providers",
+        usage: "Usage: pyenv available [--known] [--family <family>] [--json] [pattern]",
+        help: &[
+            "Convenience alias for provider-backed runtime discovery without needing `install --list`.",
+            "This command always queries installable versions; it does not inspect already-installed runtimes.",
+            "",
+            "Examples:",
+            "  pyenv available            Show all installable versions",
+            "  pyenv available 3          Show all installable 3.x versions",
+            "  pyenv available 3.12       Show all installable 3.12.x versions",
+            "  pyenv available --family pypy pypy3.11",
+            "",
+            "See also: pyenv install --list, pyenv versions",
+        ],
+        completions: &["--known", "--family", "--json"],
     },
     CommandDoc {
         name: "uninstall",
@@ -387,22 +405,25 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
     CommandDoc {
         name: "doctor",
         summary: "Run diagnostics against the current pyenv environment",
-        usage: "Usage: pyenv doctor [--json]",
+        usage: "Usage: pyenv doctor [--json] [--fix] [-f|--force]",
         help: &[
             "Performs a series of health checks and reports potential problems:",
             "  - Verifies PYENV_ROOT exists and is accessible",
             "  - Checks that pyenv bin and shims directories are on PATH",
             "  - Detects pyenv-win conflicts (stale PYENV_ROOT, PATH shadowing)",
             "  - Warns about Windows Store Python aliases",
-            "  - On Linux/macOS, verifies source-build prerequisites (make, gcc, etc.)",
+            "  - On Linux/macOS/Android, verifies source-build prerequisites (make, gcc/clang, etc.)",
             "",
             "Use `--json` for structured output suitable for scripts and automation.",
+            "Use `--fix` to apply safe automated repairs like refreshing shims and creating",
+            "the managed directory layout. Use `-f|--force` with `--fix` to skip confirmation.",
             "",
             "Examples:",
             "  pyenv doctor          Human-readable diagnostic output",
             "  pyenv doctor --json   JSON-formatted diagnostic output",
+            "  pyenv doctor --fix    Prompt before applying automated fixes",
         ],
-        completions: &["--json"],
+        completions: &["--json", "--fix", "-f", "--force"],
     },
     CommandDoc {
         name: "self-update",
@@ -514,6 +535,7 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
                 .to_string(),
         );
         stdout.push("  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.".to_string());
+        stdout.push("  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.".to_string());
         stdout.push("  Selection:   Pyenv decides which Python version to use in this order (highest priority first):".to_string());
         stdout.push(
             "                 1. PYENV_VERSION environment variable (set via `pyenv shell`)"
@@ -654,7 +676,7 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
-        "install" => {
+        "install" | "available" => {
             if args
                 .iter()
                 .rev()

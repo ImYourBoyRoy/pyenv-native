@@ -341,6 +341,8 @@ pyenv install --list
 pyenv install --list --family cpython 3.13
 pyenv install --list --family pypy --json
 pyenv install --list --known --family pypy pypy3.11
+pyenv available 3
+pyenv available 3.12
 ```
 
 ### Install a runtime
@@ -485,6 +487,7 @@ pyenv install 3.12
 ```powershell
 pyenv doctor
 pyenv doctor --json
+pyenv doctor --fix
 ```
 
 `doctor` helps surface issues around:
@@ -599,6 +602,7 @@ pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 
 ```text
 pyenv install --list [--known] [--family <family>] [--json] [pattern]
+pyenv available [--known] [--family <family>] [--json] [pattern]
 pyenv install [--dry-run] [--force] [--json] <version>...
 pyenv uninstall [-f] <version>...
 pyenv which [--nosystem] [--skip-advice] <command>
@@ -616,7 +620,7 @@ pyenv help [--usage] [command]
 pyenv commands [--sh|--no-sh]
 pyenv hooks [--complete] <hook>
 pyenv completions <command> [arg1 arg2...]
-pyenv doctor [--json]
+pyenv doctor [--json] [--fix] [-f|--force]
 pyenv config path|show|get|set
 ```
 

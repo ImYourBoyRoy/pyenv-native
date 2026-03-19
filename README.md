@@ -252,6 +252,16 @@ pyenv install 3.12
 pyenv install pypy3.11
 ```
 
+### Search installable versions
+
+```powershell
+pyenv install --list
+pyenv install --list 3.13
+pyenv install --list --family cpython 3.13
+pyenv available 3
+pyenv available 3.12
+```
+
 ### Choose versions the `pyenv` way
 
 ```powershell
@@ -275,6 +285,7 @@ pyenv versions
 ```powershell
 pyenv doctor
 pyenv doctor --json
+pyenv doctor --fix
 ```
 
 For fuller installation, usage, shell, config, uninstall, and development guidance, read [`INSTRUCTIONS.md`](./INSTRUCTIONS.md).
@@ -305,6 +316,7 @@ pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 
 ```text
 pyenv install --list [--known] [--family <family>] [--json] [pattern]
+pyenv available [--known] [--family <family>] [--json] [pattern]
 pyenv install [--dry-run] [--force] [--json] <version>...
 pyenv uninstall [-f] <version>...
 pyenv which [--nosystem] [--skip-advice] <command>
@@ -322,7 +334,7 @@ pyenv help [--usage] [command]
 pyenv commands [--sh|--no-sh]
 pyenv hooks [--complete] <hook>
 pyenv completions <command> [arg1 arg2...]
-pyenv doctor [--json]
+pyenv doctor [--json] [--fix] [-f|--force]
 pyenv config path|show|get|set
 ```
 

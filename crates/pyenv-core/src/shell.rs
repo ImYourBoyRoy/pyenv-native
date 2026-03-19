@@ -392,6 +392,18 @@ fn render_fish_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
 fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
     match shell {
         ShellKind::Pwsh => vec![
+            "function Join-PyenvWindowsArguments {".to_string(),
+            "  param([string[]]$PyenvArgs)".to_string(),
+            "  $parts = foreach ($arg in $PyenvArgs) {".to_string(),
+            "    if ($null -eq $arg) { '\"\"'; continue }".to_string(),
+            "    if ($arg.Length -eq 0) { '\"\"'; continue }".to_string(),
+            "    if ($arg -notmatch '[\\s\"]') { $arg; continue }".to_string(),
+            "    $escaped = $arg -replace '(\\\\*)\"', '$1$1\\\"'".to_string(),
+            "    $escaped = $escaped -replace '(\\\\+)$', '$1$1'".to_string(),
+            "    '\"' + $escaped + '\"'".to_string(),
+            "  }".to_string(),
+            "  return ($parts -join ' ')".to_string(),
+            "}".to_string(),
             "function Invoke-PyenvCaptured {".to_string(),
             "  param([string]$PyenvExe, [string[]]$PyenvArgs)".to_string(),
             "  $psi = [System.Diagnostics.ProcessStartInfo]::new()".to_string(),
@@ -400,8 +412,13 @@ fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
             "  $psi.RedirectStandardOutput = $true".to_string(),
             "  $psi.RedirectStandardError = $true".to_string(),
             "  $psi.WorkingDirectory = (Get-Location).Path".to_string(),
-            "  foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+            "  if ($psi.PSObject.Properties.Name -contains 'ArgumentList' -and $null -ne $psi.ArgumentList) {"
                 .to_string(),
+            "    foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+                .to_string(),
+            "  } else {".to_string(),
+            "    $psi.Arguments = Join-PyenvWindowsArguments $PyenvArgs".to_string(),
+            "  }".to_string(),
             "  $process = [System.Diagnostics.Process]::Start($psi)".to_string(),
             "  $stdout = $process.StandardOutput.ReadToEnd()".to_string(),
             "  $stderr = $process.StandardError.ReadToEnd()".to_string(),
@@ -417,8 +434,15 @@ fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
             "  $psi.FileName = $PyenvExe".to_string(),
             "  $psi.UseShellExecute = $false".to_string(),
             "  $psi.WorkingDirectory = (Get-Location).Path".to_string(),
-            "  foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+            "  if ($psi.PSObject.Properties.Name -contains 'ArgumentList' -and $null -ne $psi.ArgumentList) {"
                 .to_string(),
+            "    foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+                .to_string(),
+            "  } else {".to_string(),
+            "    $psi.Arguments = Join-PyenvWindowsArguments $PyenvArgs".to_string(),
+            "  }".to_string(),
+            "  $psi.RedirectStandardOutput = $false".to_string(),
+            "  $psi.RedirectStandardError = $false".to_string(),
             "  $process = [System.Diagnostics.Process]::Start($psi)".to_string(),
             "  $process.WaitForExit()".to_string(),
             "  $global:LASTEXITCODE = $process.ExitCode".to_string(),
@@ -808,6 +832,18 @@ mod tests {
                 .stdout
                 .iter()
                 .any(|line| line.contains("ArgumentList.Add"))
+        );
+        assert!(
+            report
+                .stdout
+                .iter()
+                .any(|line| line.contains("Join-PyenvWindowsArguments"))
+        );
+        assert!(
+            report
+                .stdout
+                .iter()
+                .any(|line| line.contains("$psi.Arguments = Join-PyenvWindowsArguments"))
         );
         assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     }

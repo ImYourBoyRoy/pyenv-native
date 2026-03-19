@@ -251,7 +251,7 @@ pub fn build_toolkit_guide(
             ToolSummary {
                 tool_name: "ensure_runtime".to_string(),
                 use_when: "A managed Python runtime must exist before project work can continue.".to_string(),
-                returns: "Resolved version, provider, install directory, interpreter path, and whether the runtime already existed.".to_string(),
+                returns: "Resolved version, provider, install directory, interpreter path, whether the runtime already existed, and structured progress steps describing what happened.".to_string(),
                 side_effects: "Downloads and installs a runtime if it is not already present or if force=true is used.".to_string(),
                 arguments: vec![
                     ToolArgument {
@@ -567,6 +567,15 @@ fn build_ensure_runtime_response(
                 plan.base_venv_path
                     .as_ref()
                     .is_some_and(|path| path.exists())
+            }),
+        progress_steps: outcome
+            .map(|value| value.progress_steps.clone())
+            .unwrap_or_else(|| {
+                vec![format!(
+                    "Runtime {} is already installed at {}",
+                    plan.resolved_version,
+                    plan.install_dir.display()
+                )]
             }),
     }
 }
