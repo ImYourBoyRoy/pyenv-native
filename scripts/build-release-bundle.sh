@@ -29,6 +29,19 @@ normalize_arch() {
   esac
 }
 
+normalize_arch_token() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    x86_64|amd64|x64) printf '%s\n' "x64" ;;
+    arm64|aarch64) printf '%s\n' "arm64" ;;
+    x86|i386|i686) printf '%s\n' "x86" ;;
+    *) printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]' ;;
+  esac
+}
+
+normalize_arch_from_target() {
+  normalize_arch_token "$(printf '%s' "$1" | cut -d- -f1)"
+}
+
 sha256_for_file() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -62,6 +75,9 @@ SCRIPT_DIR="$(resolve_script_dir)"
 REPO_ROOT="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_ROOT="${REPO_ROOT}/dist"
 BUNDLE_NAME=""
+TARGET=""
+ARCHITECTURE_OVERRIDE=""
+CARGO_CMD="${CARGO:-cargo}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -92,7 +108,11 @@ TARGET="${TARGET:-}"
 ARCHITECTURE_OVERRIDE="${ARCHITECTURE_OVERRIDE:-}"
 
 OPERATING_SYSTEM="$(normalize_os)"
-ARCHITECTURE="${ARCHITECTURE_OVERRIDE:-$ARCHITECTURE}"
+TARGET_ARCHITECTURE=""
+if [ -n "$TARGET" ]; then
+  TARGET_ARCHITECTURE="$(normalize_arch_from_target "$TARGET")"
+fi
+ARCHITECTURE="${ARCHITECTURE_OVERRIDE:-${TARGET_ARCHITECTURE:-$(normalize_arch)}}"
 if [ "$OPERATING_SYSTEM" = "unsupported" ]; then
   printf 'Unsupported host operating system for POSIX bundle production.\n' >&2
   exit 1
@@ -107,11 +127,11 @@ BUNDLE_DIR="${OUTPUT_ROOT}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${OUTPUT_ROOT}/${BUNDLE_NAME}.tar.gz"
 CHECKSUM_PATH="${ARCHIVE_PATH}.sha256"
 if [ -n "$TARGET" ]; then
-  cargo build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  "$CARGO_CMD" build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
 else
-  cargo build --release --bin pyenv --bin pyenv-mcp
+  "$CARGO_CMD" build --release --bin pyenv --bin pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/release/pyenv-mcp"
 fi

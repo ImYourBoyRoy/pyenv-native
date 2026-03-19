@@ -163,6 +163,17 @@ fn pypy_provider_name(platform: &str) -> Option<&'static str> {
     }
 }
 
+fn family_filter_matches_provider(
+    filter: &str,
+    family_slug: &str,
+    family_label: &str,
+    provider: Option<&str>,
+) -> bool {
+    filter == family_slug
+        || filter == family_label.to_ascii_lowercase()
+        || provider.is_some_and(|provider_name| provider_name.eq_ignore_ascii_case(filter))
+}
+
 fn pypy_manifest_platform(platform: &str) -> Option<&'static str> {
     match platform {
         "windows" => Some("win64"),
@@ -1150,27 +1161,6 @@ fn provider_catalog_entries_for_platform(
     pattern_filter: Option<&str>,
     platform: &str,
 ) -> Result<Vec<ProviderCatalogEntry>, PyenvError> {
-    let entries = if is_windows_platform(platform) {
-        let mut entries = cpython_provider_entries(ctx)?;
-        entries.extend(pypy_provider_entries(ctx, platform)?);
-        entries
-    } else {
-        let mut entries = cpython_source_provider_entries(ctx, platform)?;
-        entries.extend(pypy_provider_entries(ctx, platform)?);
-        match python_build_provider_entries(ctx, platform) {
-            Ok(mut python_build_entries) => {
-                python_build_entries
-                    .retain(|entry| !matches!(entry.family_slug.as_str(), "cpython" | "pypy"));
-                entries.extend(python_build_entries);
-            }
-            Err(error) if entries.is_empty() => {
-                return Err(error);
-            }
-            Err(_) => {}
-        }
-        entries
-    };
-
     let family_filter = family_filter
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -1179,6 +1169,61 @@ fn provider_catalog_entries_for_platform(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(|value| value.to_ascii_lowercase());
+    let cpython_provider = if is_windows_platform(platform) {
+        Some("windows-cpython-nuget")
+    } else {
+        cpython_source_provider_name(platform)
+    };
+    let include_cpython = family_filter.as_ref().is_none_or(|filter| {
+        family_filter_matches_provider(filter, "cpython", "CPython", cpython_provider)
+    });
+    let include_pypy = family_filter.as_ref().is_none_or(|filter| {
+        family_filter_matches_provider(filter, "pypy", "PyPy", pypy_provider_name(platform))
+    });
+    let python_build_provider = python_build_provider_name(platform);
+    let include_python_build = family_filter.as_ref().is_none_or(|filter| {
+        filter == &python_build_provider
+            || (!family_filter_matches_provider(filter, "cpython", "CPython", cpython_provider)
+                && !family_filter_matches_provider(
+                    filter,
+                    "pypy",
+                    "PyPy",
+                    pypy_provider_name(platform),
+                ))
+    });
+
+    let entries = if is_windows_platform(platform) {
+        let mut entries = Vec::new();
+        if include_cpython {
+            entries.extend(cpython_provider_entries(ctx)?);
+        }
+        if include_pypy {
+            entries.extend(pypy_provider_entries(ctx, platform)?);
+        }
+        entries
+    } else {
+        let mut entries = Vec::new();
+        if include_cpython {
+            entries.extend(cpython_source_provider_entries(ctx, platform)?);
+        }
+        if include_pypy {
+            entries.extend(pypy_provider_entries(ctx, platform)?);
+        }
+        if include_python_build {
+            match python_build_provider_entries(ctx, platform) {
+                Ok(mut python_build_entries) => {
+                    python_build_entries
+                        .retain(|entry| !matches!(entry.family_slug.as_str(), "cpython" | "pypy"));
+                    entries.extend(python_build_entries);
+                }
+                Err(error) if entries.is_empty() => {
+                    return Err(error);
+                }
+                Err(_) => {}
+            }
+        }
+        entries
+    };
 
     Ok(entries
         .into_iter()
