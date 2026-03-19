@@ -14,6 +14,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Write-Utf8NoBomFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Content
+    )
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
 if ($Version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
     throw "Invalid version '$Version'. Expected a semver-like value such as 0.2.0 or 0.2.0-rc.1."
 }
@@ -30,7 +42,7 @@ function Update-FileText {
     if ($updated -eq $content) {
         throw "No version match was updated in $Path"
     }
-    Set-Content -Path $Path -Value $updated -Encoding utf8
+    Write-Utf8NoBomFile -Path $Path -Content $updated
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')

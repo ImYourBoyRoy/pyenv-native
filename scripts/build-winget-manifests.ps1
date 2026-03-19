@@ -31,6 +31,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -96,13 +97,13 @@ function Join-PackagePathSegments {
     $path
 }
 
-$effectiveBundlePaths = if ($BundlePaths -and $BundlePaths.Count -gt 0) { $BundlePaths } else { @($BundlePath) }
-$resolvedBundlePaths = @($effectiveBundlePaths | ForEach-Object { (Resolve-Path $_).Path })
+[string[]]$effectiveBundlePaths = if ($BundlePaths -and $BundlePaths.Count -gt 0) { $BundlePaths } else { @($BundlePath) }
+[string[]]$resolvedBundlePaths = @($effectiveBundlePaths | ForEach-Object { (Resolve-Path $_).Path })
 if ($resolvedBundlePaths.Count -eq 0) {
     throw 'At least one Windows bundle path is required.'
 }
 
-$resolvedChecksumPaths = if ($ChecksumPaths -and $ChecksumPaths.Count -gt 0) {
+[string[]]$resolvedChecksumPaths = if ($ChecksumPaths -and $ChecksumPaths.Count -gt 0) {
     if ($ChecksumPaths.Count -ne $resolvedBundlePaths.Count) {
         throw 'When -ChecksumPaths is provided, it must contain the same number of entries as -BundlePaths.'
     }
