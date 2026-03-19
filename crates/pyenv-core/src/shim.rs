@@ -315,15 +315,46 @@ fn create_windows_native_shim(source: &Path, destination: &Path) -> Result<(), P
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent).map_err(io_error)?;
     }
-    if destination.exists() {
-        let _ = fs::remove_file(destination);
+
+    if destination.exists() && files_match(source, destination)? {
+        return Ok(());
     }
 
-    match fs::hard_link(source, destination) {
-        Ok(_) => Ok(()),
-        Err(_) => {
-            fs::copy(source, destination).map_err(io_error)?;
-            Ok(())
+    if destination.exists() {
+        fs::remove_file(destination).map_err(io_error)?;
+    }
+
+    fs::copy(source, destination).map_err(io_error)?;
+    Ok(())
+}
+
+fn files_match(lhs: &Path, rhs: &Path) -> Result<bool, PyenvError> {
+    let lhs_meta = fs::metadata(lhs).map_err(io_error)?;
+    let rhs_meta = fs::metadata(rhs).map_err(io_error)?;
+    if lhs_meta.len() != rhs_meta.len() {
+        return Ok(false);
+    }
+
+    let lhs_file = fs::File::open(lhs).map_err(io_error)?;
+    let rhs_file = fs::File::open(rhs).map_err(io_error)?;
+    let mut lhs_reader = std::io::BufReader::new(lhs_file);
+    let mut rhs_reader = std::io::BufReader::new(rhs_file);
+    let mut lhs_buffer = [0u8; 8192];
+    let mut rhs_buffer = [0u8; 8192];
+
+    loop {
+        use std::io::Read as _;
+
+        let lhs_read = lhs_reader.read(&mut lhs_buffer).map_err(io_error)?;
+        let rhs_read = rhs_reader.read(&mut rhs_buffer).map_err(io_error)?;
+        if lhs_read != rhs_read {
+            return Ok(false);
+        }
+        if lhs_read == 0 {
+            return Ok(true);
+        }
+        if lhs_buffer[..lhs_read] != rhs_buffer[..rhs_read] {
+            return Ok(false);
         }
     }
 }

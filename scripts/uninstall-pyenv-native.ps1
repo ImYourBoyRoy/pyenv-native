@@ -77,6 +77,7 @@ function Remove-PowerShellProfileBlock {
 
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $installBin = Join-Path $resolvedInstallRoot 'bin'
+$installShims = Join-Path $resolvedInstallRoot 'shims'
 $removeFromUserPathValue = Convert-ToBoolean -Value $RemoveFromUserPath -ParameterName 'RemoveFromUserPath'
 $removeProfileValue = Convert-ToBoolean -Value $RemovePowerShellProfileBlock -ParameterName 'RemovePowerShellProfileBlock'
 
@@ -109,6 +110,7 @@ foreach ($path in @(
 
 if ($removeFromUserPathValue) {
     Remove-LineFromUserPath -Entry $installBin
+    Remove-LineFromUserPath -Entry $installShims
 }
 
 if ($removeProfileValue) {
@@ -122,6 +124,7 @@ if ($shouldRemoveRoot -and (Test-Path $resolvedInstallRoot)) {
 $summary = [ordered]@{
     install_root = $resolvedInstallRoot
     install_bin = $installBin
+    install_shims = $installShims
     remove_from_user_path = $removeFromUserPathValue
     remove_powershell_profile_block = $removeProfileValue
     remove_root = $shouldRemoveRoot

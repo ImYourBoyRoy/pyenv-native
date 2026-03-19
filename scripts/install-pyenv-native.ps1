@@ -221,9 +221,9 @@ function Write-InstallLog {
     Add-Content -Path $ResolvedLogPath -Value $line -Encoding utf8
 }
 
-function Ensure-LineInUserPath {
+function Ensure-EntriesInUserPath {
     param(
-        [string]$Entry
+        [string[]]$Entries
     )
 
     $existing = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -232,10 +232,19 @@ function Ensure-LineInUserPath {
         $segments = $existing -split ';' | Where-Object { $_.Trim() }
     }
 
-    if (-not ($segments | Where-Object { $_.TrimEnd('\') -ieq $Entry.TrimEnd('\') })) {
-        $newPath = @($segments + $Entry) -join ';'
-        [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+    $normalizedEntries = @($Entries | Where-Object { $_ -and $_.Trim() })
+    if ($normalizedEntries.Count -eq 0) {
+        return
     }
+
+    $remaining = @(
+        $segments | Where-Object {
+            $candidate = $_.TrimEnd('\')
+            -not ($normalizedEntries | Where-Object { $candidate -ieq $_.TrimEnd('\') })
+        }
+    )
+    $newPath = @($normalizedEntries + $remaining) -join ';'
+    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
 }
 
 function Write-TextFile {
@@ -285,7 +294,7 @@ function Update-PowerShellProfileBlock {
     return $profilePath
 }
 
-function Emit-Summary {
+function Write-InstallSummary {
     param(
         [hashtable]$Summary
     )
@@ -383,6 +392,7 @@ $resolvedSource = Resolve-SourceBinary -ExplicitPath $SourcePath -BinaryName 'py
 $resolvedMcpSource = Resolve-OptionalMcpBinary -ExplicitPath $SourceMcpPath -ResolvedPyenvBinary $resolvedSource
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $installBin = Join-Path $resolvedInstallRoot 'bin'
+$installShims = Join-Path $resolvedInstallRoot 'shims'
 $installedExe = Join-Path $installBin 'pyenv.exe'
 $installedMcpExe = Join-Path $installBin 'pyenv-mcp.exe'
 $addToUserPathValue = Convert-ToBoolean -Value $AddToUserPath -ParameterName 'AddToUserPath'
@@ -406,6 +416,7 @@ $summary = [ordered]@{
     install_root = $resolvedInstallRoot
     installed_exe = $installedExe
     installed_mcp = $installedMcpExe
+    shims_dir = $installShims
     shell = $Shell
     add_to_path = $addToUserPathValue
     update_profile = $updateProfileEffective
@@ -413,7 +424,7 @@ $summary = [ordered]@{
     force = $Force.IsPresent
     log_path = $resolvedLogPath
 }
-Emit-Summary -Summary $summary
+Write-InstallSummary -Summary $summary
 Confirm-Install
 Initialize-InstallLog -ResolvedLogPath $resolvedLogPath
 Write-InstallLog -Level 'INFO' -Message 'Starting portable pyenv-native install.' -ResolvedLogPath $resolvedLogPath
@@ -448,8 +459,8 @@ if ($resolvedMcpSource) {
 Write-InstallLog -Level 'INFO' -Message "Installed core binaries into $installBin" -ResolvedLogPath $resolvedLogPath
 
 if ($addToUserPathValue) {
-    Ensure-LineInUserPath -Entry $installBin
-    Write-InstallLog -Level 'INFO' -Message 'Updated user PATH to include the install bin directory.' -ResolvedLogPath $resolvedLogPath
+    Ensure-EntriesInUserPath -Entries @($installBin, $installShims)
+    Write-InstallLog -Level 'INFO' -Message 'Updated user PATH to include the install bin and shims directories.' -ResolvedLogPath $resolvedLogPath
 }
 
 if ($updateProfileEffective) {
