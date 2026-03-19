@@ -52,6 +52,8 @@ That is intentional: `main` / `master` are source branches, while installs shoul
 
 The installers are intentionally explicit and operator-friendly. They print a preflight summary, show the install root and integration changes, prompt for confirmation by default, write an install log under the selected root, verify checksums, and run basic post-install sanity checks. For unattended automation, pass `-Yes` on Windows or `--yes` on Linux/macOS.
 
+On Windows, the installer persists both `PYENV_ROOT\\bin` and `PYENV_ROOT\\shims` into your **User PATH** so `pyenv`, `python`, and `pip` resolve correctly from fresh PowerShell and CMD sessions.
+
 ### Latest published release: Windows PowerShell
 
 ```powershell

@@ -392,15 +392,16 @@ fn render_fish_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
 fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
     match shell {
         ShellKind::Pwsh => vec![
-            "function Invoke-PyenvInternal {".to_string(),
+            "function Invoke-PyenvCaptured {".to_string(),
             "  param([string]$PyenvExe, [string[]]$PyenvArgs)".to_string(),
             "  $psi = [System.Diagnostics.ProcessStartInfo]::new()".to_string(),
             "  $psi.FileName = $PyenvExe".to_string(),
             "  $psi.UseShellExecute = $false".to_string(),
             "  $psi.RedirectStandardOutput = $true".to_string(),
             "  $psi.RedirectStandardError = $true".to_string(),
-            "  $escapedArgs = foreach ($arg in $PyenvArgs) { if ($arg -match '[\\s\"]') { '\"' + ($arg -replace '\"', '\\\"') + '\"' } else { $arg } }".to_string(),
-            "  $psi.Arguments = ($escapedArgs -join ' ')".to_string(),
+            "  $psi.WorkingDirectory = (Get-Location).Path".to_string(),
+            "  foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+                .to_string(),
             "  $process = [System.Diagnostics.Process]::Start($psi)".to_string(),
             "  $stdout = $process.StandardOutput.ReadToEnd()".to_string(),
             "  $stderr = $process.StandardError.ReadToEnd()".to_string(),
@@ -410,25 +411,38 @@ fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
             "  if ($stdout.Length -eq 0) { return @() }".to_string(),
             "  return ($stdout.TrimEnd() -split \"`r?`n\")".to_string(),
             "}".to_string(),
+            "function Invoke-PyenvPassthrough {".to_string(),
+            "  param([string]$PyenvExe, [string[]]$PyenvArgs)".to_string(),
+            "  $psi = [System.Diagnostics.ProcessStartInfo]::new()".to_string(),
+            "  $psi.FileName = $PyenvExe".to_string(),
+            "  $psi.UseShellExecute = $false".to_string(),
+            "  $psi.WorkingDirectory = (Get-Location).Path".to_string(),
+            "  foreach ($arg in $PyenvArgs) { [void]$psi.ArgumentList.Add([string]$arg) }"
+                .to_string(),
+            "  $process = [System.Diagnostics.Process]::Start($psi)".to_string(),
+            "  $process.WaitForExit()".to_string(),
+            "  $global:LASTEXITCODE = $process.ExitCode".to_string(),
+            "  return $process.ExitCode".to_string(),
+            "}".to_string(),
             "function pyenv {".to_string(),
             format!("  $pyenvExe = '{}'", ps_single_quote(exe_path)),
             "  if ($args.Count -eq 0) {".to_string(),
-            "    & $pyenvExe".to_string(),
+            "    Invoke-PyenvPassthrough $pyenvExe @() | Out-Null".to_string(),
             "    return".to_string(),
             "  }".to_string(),
             "  $command = $args[0]".to_string(),
             "  $arguments = if ($args.Count -gt 1) { @($args[1..($args.Count - 1)]) } else { @() }".to_string(),
             "  switch ($command) {".to_string(),
             "    'shell' {".to_string(),
-            "      $shellCmds = Invoke-PyenvInternal $pyenvExe (@('sh-shell', '--') + $arguments)".to_string(),
+            "      $shellCmds = Invoke-PyenvCaptured $pyenvExe (@('sh-shell', '--') + $arguments)".to_string(),
             "      if ($LASTEXITCODE -eq 0 -and $shellCmds.Count -gt 0) { Invoke-Expression ($shellCmds -join \"`n\") }".to_string(),
             "    }".to_string(),
             "    'rehash' {".to_string(),
-            "      $shellCmds = Invoke-PyenvInternal $pyenvExe (@('sh-rehash') + $arguments)".to_string(),
+            "      $shellCmds = Invoke-PyenvCaptured $pyenvExe (@('sh-rehash') + $arguments)".to_string(),
             "      if ($LASTEXITCODE -eq 0 -and $shellCmds.Count -gt 0) { Invoke-Expression ($shellCmds -join \"`n\") }".to_string(),
             "    }".to_string(),
             "    default {".to_string(),
-            "      & $pyenvExe $command @arguments".to_string(),
+            "      Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + @([string[]]$arguments)) | Out-Null".to_string(),
             "    }".to_string(),
             "  }".to_string(),
             "}".to_string(),
@@ -782,6 +796,18 @@ mod tests {
                 .stdout
                 .iter()
                 .any(|line| line.contains("function pyenv"))
+        );
+        assert!(
+            report
+                .stdout
+                .iter()
+                .any(|line| line.contains("function Invoke-PyenvPassthrough"))
+        );
+        assert!(
+            report
+                .stdout
+                .iter()
+                .any(|line| line.contains("ArgumentList.Add"))
         );
         assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     }
