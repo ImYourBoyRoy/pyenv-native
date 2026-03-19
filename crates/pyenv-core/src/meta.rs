@@ -12,6 +12,7 @@ use crate::plugin::{
     DEFAULT_HOOK_COMMANDS, complete_plugin_command, discover_plugin_commands, find_plugin_command,
 };
 use crate::runtime::normalize_shim_name;
+use crate::venv::list_managed_venvs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct CommandDoc {
@@ -65,10 +66,11 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
             "Examples:",
             "  pyenv local 3.13.12     Set the local version to 3.13.12",
             "  pyenv local 3.12        Set local to the latest installed 3.12.x",
+            "  pyenv local 3.13.12/envs/app   Bind the directory to a managed venv",
             "  pyenv local --unset     Remove local version setting",
             "  pyenv local             Show the currently configured local version",
             "",
-            "See also: pyenv global, pyenv shell, pyenv versions",
+            "See also: pyenv global, pyenv shell, pyenv versions, pyenv venv",
         ],
         completions: &["-f", "--force", "--unset"],
     },
@@ -89,11 +91,12 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
             "Examples:",
             "  pyenv global 3.13.12       Set the global version to 3.13.12",
             "  pyenv global 3.12          Set global to the latest installed 3.12.x",
+            "  pyenv global 3.13.12/envs/tooling  Make a managed venv the global default",
             "  pyenv global 3.12 3.11     Set a fallback chain: prefer 3.12, then 3.11",
             "  pyenv global --unset       Remove global version setting",
             "  pyenv global               Show the currently configured global version",
             "",
-            "See also: pyenv local, pyenv shell, pyenv install",
+            "See also: pyenv local, pyenv shell, pyenv install, pyenv venv",
         ],
         completions: &["--unset"],
     },
@@ -177,6 +180,29 @@ const PUBLIC_COMMAND_DOCS: &[CommandDoc] = &[
             "See also: pyenv install --list, pyenv versions",
         ],
         completions: &["--known", "--family", "--json"],
+    },
+    CommandDoc {
+        name: "venv",
+        summary: "Manage named virtual environments under installed runtimes",
+        usage: "Usage: pyenv venv <list|info|create|delete|rename|use> [options]",
+        help: &[
+            "Creates and manages named virtual environments under `PYENV_ROOT/versions/<runtime>/envs`.",
+            "These env specs can be written into `.python-version` files so projects resolve",
+            "to the right managed venv without requiring manual activation every time.",
+            "",
+            "Examples:",
+            "  pyenv venv list                         Show all managed env specs",
+            "  pyenv venv create 3.13 api             Create 3.13.12/envs/api",
+            "  pyenv venv create 3.12 tooling --set-local",
+            "  pyenv venv info api                    Show env details when the name is unique",
+            "  pyenv venv use api                     Write the env spec into the current directory",
+            "  pyenv venv use api --global            Make the env the global default",
+            "  pyenv venv rename api api-old          Rename a managed env",
+            "  pyenv venv delete api                  Remove a managed env",
+            "",
+            "See also: pyenv local, pyenv global, pyenv versions",
+        ],
+        completions: &["list", "info", "create", "delete", "rename", "use"],
     },
     CommandDoc {
         name: "uninstall",
@@ -535,6 +561,8 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
                 .to_string(),
         );
         stdout.push("  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.".to_string());
+        stdout.push("  Managed envs: Named virtual environments can live under `~/.pyenv/versions/<runtime>/envs`.".to_string());
+        stdout.push("               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.".to_string());
         stdout.push("  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.".to_string());
         stdout.push("  Selection:   Pyenv decides which Python version to use in this order (highest priority first):".to_string());
         stdout.push(
@@ -666,6 +694,12 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
             .collect(),
         "global" | "local" | "shell" | "prefix" | "uninstall" => {
             let mut values = installed_version_names(ctx).unwrap_or_default();
+            values.extend(
+                list_managed_venvs(ctx)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|info| info.spec),
+            );
             if matches!(command, "global" | "shell" | "prefix") {
                 values.push("system".to_string());
             }
@@ -690,6 +724,19 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
             values.extend(known_version_names().iter().cloned());
             values
         }
+        "venv" => vec![
+            "list".to_string(),
+            "info".to_string(),
+            "create".to_string(),
+            "delete".to_string(),
+            "rename".to_string(),
+            "use".to_string(),
+            "--bare".to_string(),
+            "--json".to_string(),
+            "--force".to_string(),
+            "--set-local".to_string(),
+            "--global".to_string(),
+        ],
         "which" | "whence" | "exec" => cmd_shims(ctx, true).stdout,
         _ => Vec::new(),
     }

@@ -466,7 +466,7 @@ fn render_shell_function(shell: ShellKind, exe_path: &str) -> Vec<String> {
             "      if ($LASTEXITCODE -eq 0 -and $shellCmds.Count -gt 0) { Invoke-Expression ($shellCmds -join \"`n\") }".to_string(),
             "    }".to_string(),
             "    default {".to_string(),
-            "      Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + @([string[]]$arguments)) | Out-Null".to_string(),
+            "      Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + $arguments) | Out-Null".to_string(),
             "    }".to_string(),
             "  }".to_string(),
             "}".to_string(),
@@ -845,6 +845,9 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("$psi.Arguments = Join-PyenvWindowsArguments"))
         );
+        assert!(report.stdout.iter().any(|line| {
+            line.contains("Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + $arguments)")
+        }));
         assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     }
 
