@@ -164,7 +164,7 @@ if [ -n "$TARGET" ] && [ "$BUNDLE_PLATFORM" = "android" ]; then
     printf '%s\n' 'cargo-ndk is required for Android bundle production. Install it with `cargo install cargo-ndk --locked`.' >&2
     exit 1
   fi
-  cargo ndk -t "$ANDROID_ABI" -p "$ANDROID_API_LEVEL" build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  CARGO_NDK_PLATFORM="$ANDROID_API_LEVEL" cargo ndk -t "$ANDROID_ABI" -- build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
 elif [ -n "$TARGET" ]; then
