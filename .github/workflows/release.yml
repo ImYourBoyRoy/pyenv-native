@@ -6,8 +6,12 @@ on:
       - "v*"
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  windows-bundle:
+  windows-x64-bundle:
     runs-on: windows-latest
     env:
       PYENV_WINDOWS_TARGET: x86_64-pc-windows-msvc
@@ -32,47 +36,58 @@ jobs:
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
 
-      - name: Test Python bootstrap package
+      - name: Test Python install package
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath python
 
-      - name: Build Windows release bundle
+      - name: Build Windows x64 release bundle
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
 
-      - name: Build Winget manifests
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $repo = "${{ github.repository }}"
-          powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 `
-            -GitHubRepo $repo `
-            -Tag $tag `
-            -OutputRoot .\packaging\winget
-
-      - name: Build Python bootstrap package
+      - name: Build Python install package
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
-      - name: Upload Windows bundle artifact
+      - name: Upload Windows x64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-windows-bundle
+          name: pyenv-native-windows-x64-bundle
           path: |
             dist/pyenv-native-windows-x64.zip
             dist/pyenv-native-windows-x64.zip.sha256
 
-      - name: Upload Winget manifest artifact
+      - name: Upload Python install package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-winget-manifests
-          path: packaging/winget/manifests/**
-
-      - name: Upload Python bootstrap package artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: pyenv-native-bootstrap-python
+          name: pyenv-native-python-package
           path: python-package/dist/*
+
+  windows-arm64-bundle:
+    runs-on: windows-latest
+    env:
+      PYENV_WINDOWS_TARGET: aarch64-pc-windows-msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+          targets: aarch64-pc-windows-msvc
+
+      - name: Build Windows ARM64 release bundle
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+
+      - name: Upload Windows ARM64 bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pyenv-native-windows-arm64-bundle
+          path: |
+            dist/pyenv-native-windows-arm64.zip
+            dist/pyenv-native-windows-arm64.zip.sha256
 
   linux-bundle:
     runs-on: ubuntu-latest
@@ -93,7 +108,7 @@ jobs:
         shell: bash
         run: cargo test --workspace
 
-      - name: Test Python bootstrap package
+      - name: Test Python install package
         shell: bash
         run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
 
@@ -161,7 +176,7 @@ jobs:
         shell: bash
         run: cargo test --workspace
 
-      - name: Test Python bootstrap package
+      - name: Test Python install package
         shell: bash
         run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
 
@@ -196,7 +211,7 @@ jobs:
         shell: bash
         run: cargo test --workspace
 
-      - name: Test Python bootstrap package
+      - name: Test Python install package
         shell: bash
         run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
 
@@ -213,9 +228,11 @@ jobs:
             dist/pyenv-native-macos-x64.tar.gz.sha256
 
   publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs:
-      - windows-bundle
+      - windows-x64-bundle
+      - windows-arm64-bundle
       - linux-bundle
       - linux-arm64-bundle
       - macos-arm64-bundle
@@ -227,11 +244,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download Windows bundle artifact
+      - name: Download Windows x64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-windows-bundle
-          path: dist/windows
+          name: pyenv-native-windows-x64-bundle
+          path: dist/windows/x64
+
+      - name: Download Windows ARM64 bundle artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: pyenv-native-windows-arm64-bundle
+          path: dist/windows/arm64
 
       - name: Download Linux bundle artifact
         uses: actions/download-artifact@v8
@@ -257,28 +280,34 @@ jobs:
           name: pyenv-native-macos-x64-bundle
           path: dist/macos
 
-      - name: Download Winget manifests artifact
+      - name: Download Python install package artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-winget-manifests
-          path: dist/winget
-
-      - name: Download Python bootstrap package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: pyenv-native-bootstrap-python
+          name: pyenv-native-python-package
           path: dist/python
+
+      - name: Generate Winget manifests
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+          & ./scripts/build-winget-manifests.ps1 `
+            -GitHubRepo $repo `
+            -Tag $tag `
+            -BundlePaths @('./dist/windows/x64/pyenv-native-windows-x64.zip', './dist/windows/arm64/pyenv-native-windows-arm64.zip') `
+            -ChecksumPaths @('./dist/windows/x64/pyenv-native-windows-x64.zip.sha256', './dist/windows/arm64/pyenv-native-windows-arm64.zip.sha256') `
+            -OutputRoot ./dist/winget
 
       - name: Generate Homebrew formula
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
-          & .\scripts\build-homebrew-formula.ps1 `
+          & ./scripts/build-homebrew-formula.ps1 `
             -GitHubRepo $repo `
             -Tag $tag `
-            -AssetRoots @('.\dist\linux', '.\dist\macos') `
-            -OutputPath .\dist\homebrew\pyenv-native.rb
+            -AssetRoots @('./dist/linux', './dist/macos') `
+            -OutputPath ./dist/homebrew/pyenv-native.rb
 
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
@@ -292,28 +321,25 @@ jobs:
             dist/python/*
 
   publish-python:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs:
       - publish-release
-      - windows-bundle
-    env:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      - windows-x64-bundle
+    environment:
+      name: pyenv-native
+      url: https://pypi.org/p/pyenv-native
+    permissions:
+      id-token: write
 
     steps:
-      - name: Skip PyPI publish when no token is configured
-        if: ${{ env.PYPI_API_TOKEN == '' }}
-        run: echo "PYPI_API_TOKEN is not configured; skipping PyPI publish."
-
-      - name: Download Python bootstrap package artifact
-        if: ${{ env.PYPI_API_TOKEN != '' }}
+      - name: Download Python install package artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-bootstrap-python
+          name: pyenv-native-python-package
           path: dist
 
-      - name: Publish to PyPI
-        if: ${{ env.PYPI_API_TOKEN != '' }}
+      - name: Publish to PyPI with trusted publishing
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ env.PYPI_API_TOKEN }}
+          packages-dir: dist

@@ -1,10 +1,10 @@
-# pyenv-native-bootstrap
+# pyenv-native
 
 ![PyPI Channel](https://img.shields.io/badge/channel-PyPI%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
-![Runtime](https://img.shields.io/badge/runtime-bootstrap%20for%20native%20bundles-2563eb?style=for-the-badge)
+![Runtime](https://img.shields.io/badge/runtime-install%20package%20for%20native%20bundles-2563eb?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
-`pyenv-native-bootstrap` is the Python convenience package for installing the native `pyenv-native` release bundles.
+`pyenv-native` on PyPI is the Python convenience package for installing the native `pyenv-native` release bundles.
 
 Those bundles install both:
 - `pyenv`
@@ -17,13 +17,12 @@ It exists for users who:
 
 ## Important principle
 
-> This package bootstraps `pyenv-native`.
+> This package installs `pyenv-native`.
 > It does **not** replace `pyenv-native` with a Python implementation.
 
 ## Release selection behavior
 
-By default, the bootstrap package targets the **latest published GitHub release**.
-Use `--tag <vX.Y.Z>` only when you want to pin a specific published release.
+By default, the package targets the **latest published GitHub release**.
 
 ## What it does
 
@@ -41,36 +40,30 @@ Use `--tag <vX.Y.Z>` only when you want to pin a specific published release.
 ### `pipx` latest release
 
 ```powershell
-pipx install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
+pipx install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
 ```
 
 ### `pip` latest release
 
 ```powershell
-python -m pip install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
+python -m pip install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
 ```
 
 ### POSIX latest release
 
 ```sh
-python -m pip install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
-```
-
-### Pinned release
-
-```powershell
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --install-root ~\.pyenv
+python -m pip install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
 ```
 
 ## Commands
 
 ```text
-pyenv-native-bootstrap verify <bundle-archive> [--checksum-path <bundle.sha256>]
-pyenv-native-bootstrap download [--bundle-url <url> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>]
-pyenv-native-bootstrap install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
+pyenv-native verify <bundle-archive> [--checksum-path <bundle.sha256>]
+pyenv-native download [--bundle-url <url> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>]
+pyenv-native install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
 ```
 
 ## Examples
@@ -78,31 +71,25 @@ pyenv-native-bootstrap install [--bundle-path <bundle-archive> | --release-base-
 Verify a local bundle:
 
 ```powershell
-pyenv-native-bootstrap verify .\dist\pyenv-native-windows-x64.zip --checksum-path .\dist\pyenv-native-windows-x64.zip.sha256
+pyenv-native verify .\dist\pyenv-native-windows-x64.zip --checksum-path .\dist\pyenv-native-windows-x64.zip.sha256
 ```
 
 Install from a local bundle:
 
 ```powershell
-pyenv-native-bootstrap install --bundle-path .\dist\pyenv-native-windows-x64.zip --checksum-path .\dist\pyenv-native-windows-x64.zip.sha256 --install-root ~\.pyenv
+pyenv-native install --bundle-path .\dist\pyenv-native-windows-x64.zip --checksum-path .\dist\pyenv-native-windows-x64.zip.sha256 --install-root ~\.pyenv
 ```
 
 Install from the latest GitHub release:
 
 ```powershell
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
-```
-
-Install from a pinned GitHub release:
-
-```powershell
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --install-root ~\.pyenv
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
 ```
 
 Install a POSIX bundle:
 
 ```sh
-pyenv-native-bootstrap install --bundle-path ./dist/pyenv-native-linux-x64.tar.gz --checksum-path ./dist/pyenv-native-linux-x64.tar.gz.sha256 --install-root ~/.pyenv --shell bash
+pyenv-native install --bundle-path ./dist/pyenv-native-linux-x64.tar.gz --checksum-path ./dist/pyenv-native-linux-x64.tar.gz.sha256 --install-root ~/.pyenv --shell bash
 ```
 
 ## Relationship to the main project

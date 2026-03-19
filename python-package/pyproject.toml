@@ -1,11 +1,11 @@
-[build-system]
+﻿[build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pyenv-native-bootstrap"
-version = "0.1.2"
-description = "Bootstrap installer for the native-first pyenv-native runtime bundles."
+name = "pyenv-native"
+version = "0.1.9"
+description = "Python install package for the native-first pyenv-native runtime bundles."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
@@ -37,7 +37,7 @@ Repository = "https://github.com/imyourboyroy/pyenv-native"
 Issues = "https://github.com/imyourboyroy/pyenv-native/issues"
 
 [project.scripts]
-pyenv-native-bootstrap = "pyenv_native_bootstrap.cli:main"
+pyenv-native = "pyenv_native_bootstrap.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pyenv_native_bootstrap"]
@@ -50,4 +50,6 @@ include = [
   "README.md",
   "pyproject.toml",
 ]
+
+
 

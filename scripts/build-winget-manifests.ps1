@@ -1,15 +1,17 @@
 # ./scripts/build-winget-manifests.ps1
 <#
-Purpose: Generates Winget portable-package manifests for the built Windows pyenv-native bundle.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-winget-manifests.ps1 [-BundlePath ./dist/pyenv-native-windows-x64.zip] [-GitHubRepo imyourboyroy/pyenv-native] [-Validate]
-Inputs: Built Windows bundle zip/checksum, package metadata, and either a release base URL or GitHub repo/tag for installer URL generation.
+Purpose: Generates Winget portable-package manifests for one or more built Windows pyenv-native bundles.
+How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-winget-manifests.ps1 [-BundlePath ./dist/pyenv-native-windows-x64.zip] [-BundlePaths <paths...>] [-GitHubRepo imyourboyroy/pyenv-native] [-Validate]
+Inputs: One or more built Windows bundle zips/checksums, package metadata, and either a release base URL or GitHub repo/tag for installer URL generation.
 Outputs/side effects: Writes version/defaultLocale/installer YAML manifests under packaging/winget/manifests/... and can optionally run winget validate.
-Notes: This prepares publish-ready Winget metadata without submitting anything to winget-pkgs.
+Notes: This prepares publish-ready Winget metadata without submitting anything to winget-pkgs, and can emit multi-architecture installer entries.
 #>
 
 param(
     [string]$BundlePath = (Join-Path $PSScriptRoot '..\dist\pyenv-native-windows-x64.zip'),
+    [string[]]$BundlePaths = @(),
     [string]$ChecksumPath = '',
+    [string[]]$ChecksumPaths = @(),
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\packaging\winget'),
     [string]$PackageIdentifier = 'ImYourBoyRoy.pyenv-native',
     [string]$PackageLocale = 'en-US',
@@ -94,19 +96,53 @@ function Join-PackagePathSegments {
     $path
 }
 
-$resolvedBundlePath = (Resolve-Path $BundlePath).Path
-if ([string]::IsNullOrWhiteSpace($ChecksumPath)) {
-    $ChecksumPath = $resolvedBundlePath + '.sha256'
-}
-$resolvedChecksumPath = (Resolve-Path $ChecksumPath).Path
-
-$bundleManifest = Get-BundleManifest -ArchivePath $resolvedBundlePath
-if ($bundleManifest.platform -ne 'windows') {
-    throw "Winget manifests can only be generated from the Windows bundle. Found platform '$($bundleManifest.platform)'."
+$effectiveBundlePaths = if ($BundlePaths -and $BundlePaths.Count -gt 0) { $BundlePaths } else { @($BundlePath) }
+$resolvedBundlePaths = @($effectiveBundlePaths | ForEach-Object { (Resolve-Path $_).Path })
+if ($resolvedBundlePaths.Count -eq 0) {
+    throw 'At least one Windows bundle path is required.'
 }
 
-$bundleFileName = Split-Path -Leaf $resolvedBundlePath
-$bundleVersion = [string]$bundleManifest.bundle_version
+$resolvedChecksumPaths = if ($ChecksumPaths -and $ChecksumPaths.Count -gt 0) {
+    if ($ChecksumPaths.Count -ne $resolvedBundlePaths.Count) {
+        throw 'When -ChecksumPaths is provided, it must contain the same number of entries as -BundlePaths.'
+    }
+    @($ChecksumPaths | ForEach-Object { (Resolve-Path $_).Path })
+} else {
+    $singleChecksumProvided = -not [string]::IsNullOrWhiteSpace($ChecksumPath)
+    if ($singleChecksumProvided -and $resolvedBundlePaths.Count -ne 1) {
+        throw 'Use -ChecksumPaths when generating manifests from multiple bundle archives.'
+    }
+    @($resolvedBundlePaths | ForEach-Object {
+        $candidate = if ($singleChecksumProvided) { $ChecksumPath } else { $_ + '.sha256' }
+        (Resolve-Path $candidate).Path
+    })
+}
+
+$bundleRecords = @()
+for ($index = 0; $index -lt $resolvedBundlePaths.Count; $index++) {
+    $resolvedBundlePath = $resolvedBundlePaths[$index]
+    $resolvedChecksumPath = $resolvedChecksumPaths[$index]
+    $bundleManifest = Get-BundleManifest -ArchivePath $resolvedBundlePath
+    if ($bundleManifest.platform -ne 'windows') {
+        throw "Winget manifests can only be generated from Windows bundles. Found platform '$($bundleManifest.platform)' in '$resolvedBundlePath'."
+    }
+
+    $bundleRecords += [pscustomobject]@{
+        bundle_path = $resolvedBundlePath
+        checksum_path = $resolvedChecksumPath
+        file_name = (Split-Path -Leaf $resolvedBundlePath)
+        manifest = $bundleManifest
+        checksum = (Get-ChecksumValue -Path $resolvedChecksumPath)
+    }
+}
+
+$bundleVersion = [string]$bundleRecords[0].manifest.bundle_version
+foreach ($record in $bundleRecords) {
+    if ([string]$record.manifest.bundle_version -ne $bundleVersion) {
+        throw 'All Windows bundles used for Winget manifest generation must have the same bundle_version.'
+    }
+}
+
 $effectiveTag = if ([string]::IsNullOrWhiteSpace($Tag)) { "v$bundleVersion" } else { $Tag }
 $effectiveReleaseBaseUrl = if (-not [string]::IsNullOrWhiteSpace($ReleaseBaseUrl)) {
     $ReleaseBaseUrl.TrimEnd('/')
@@ -114,8 +150,6 @@ $effectiveReleaseBaseUrl = if (-not [string]::IsNullOrWhiteSpace($ReleaseBaseUrl
 else {
     "https://github.com/$GitHubRepo/releases/download/$effectiveTag"
 }
-$installerUrl = "$effectiveReleaseBaseUrl/$bundleFileName"
-$installerSha256 = Get-ChecksumValue -Path $resolvedChecksumPath
 
 $packagePath = Join-PackagePathSegments -Identifier $PackageIdentifier
 $manifestDirectory = Join-Path $packagePath $bundleVersion
@@ -127,6 +161,17 @@ $installerManifestPath = Join-Path $manifestDirectory "$PackageIdentifier.instal
 
 $licenseUrl = "$PackageUrl/blob/$effectiveTag/LICENSE"
 $releaseNotesUrl = "$PackageUrl/releases/tag/$effectiveTag"
+$primaryBundleManifest = $bundleRecords[0].manifest
+
+$installerEntries = $bundleRecords |
+    Sort-Object { $_.manifest.architecture } |
+    ForEach-Object {
+        @"
+  - Architecture: $($_.manifest.architecture)
+    InstallerUrl: $effectiveReleaseBaseUrl/$($_.file_name)
+    InstallerSha256: $($_.checksum)
+"@
+    }
 
 $versionManifest = @"
 # yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.$ManifestVersion.schema.json
@@ -170,13 +215,11 @@ PackageVersion: $bundleVersion
 InstallerType: zip
 NestedInstallerType: portable
 NestedInstallerFiles:
-  - RelativeFilePath: $($bundleManifest.executable)
+  - RelativeFilePath: $($primaryBundleManifest.executable)
     PortableCommandAlias: pyenv
 ArchiveBinariesDependOnPath: true
 Installers:
-  - Architecture: $($bundleManifest.architecture)
-    InstallerUrl: $installerUrl
-    InstallerSha256: $installerSha256
+$($installerEntries -join "`n")
 ManifestType: installer
 ManifestVersion: $ManifestVersion
 "@
@@ -197,12 +240,12 @@ if ($Validate) {
 }
 
 [ordered]@{
-    bundle_path = $resolvedBundlePath
-    checksum_path = $resolvedChecksumPath
+    bundle_paths = $resolvedBundlePaths
+    checksum_paths = $resolvedChecksumPaths
     manifest_directory = $manifestDirectory
     version_manifest = $versionManifestPath
     locale_manifest = $localeManifestPath
     installer_manifest = $installerManifestPath
-    installer_url = $installerUrl
+    installer_urls = @($bundleRecords | ForEach-Object { "$effectiveReleaseBaseUrl/$($_.file_name)" })
     package_identifier = $PackageIdentifier
 } | ConvertTo-Json -Depth 4

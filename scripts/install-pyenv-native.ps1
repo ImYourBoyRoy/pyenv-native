@@ -88,7 +88,9 @@ function Resolve-OptionalMcpBinary {
         (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv-mcp.exe'),
         (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv-mcp.exe'),
         (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv-mcp.exe'),
-        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv-mcp.exe')
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv-mcp.exe'),
+        (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\release\pyenv-mcp.exe'),
+        (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\debug\pyenv-mcp.exe')
     )
 
     return Resolve-SourceBinary -ExplicitPath $ExplicitPath -BinaryName 'pyenv-mcp.exe' -FallbackCandidates $fallbackCandidates -Required:$false
@@ -374,7 +376,9 @@ $resolvedSource = Resolve-SourceBinary -ExplicitPath $SourcePath -BinaryName 'py
     (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv.exe'),
     (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv.exe'),
     (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv.exe'),
-    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv.exe')
+    (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv.exe'),
+    (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\release\pyenv.exe'),
+    (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\debug\pyenv.exe')
 )
 $resolvedMcpSource = Resolve-OptionalMcpBinary -ExplicitPath $SourceMcpPath -ResolvedPyenvBinary $resolvedSource
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)

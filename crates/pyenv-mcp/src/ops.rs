@@ -106,10 +106,10 @@ pub fn build_install_instructions(
         },
         pip_bootstrap: BootstrapInstallCommands {
             pipx: format!(
-                "pipx install pyenv-native-bootstrap && pyenv-native-bootstrap install --github-repo {github_repo} --install-root {install_root_posix}"
+                "pipx install pyenv-native && pyenv-native install --github-repo {github_repo} --install-root {install_root_posix}"
             ),
             pip: format!(
-                "python -m pip install pyenv-native-bootstrap && pyenv-native-bootstrap install --github-repo {github_repo} --install-root {install_root_posix}"
+                "python -m pip install pyenv-native && pyenv-native install --github-repo {github_repo} --install-root {install_root_posix}"
             ),
         },
         uninstall: PlatformInstallCommands {
@@ -863,7 +863,7 @@ mod tests {
             instructions
                 .pip_bootstrap
                 .pipx
-                .contains("pyenv-native-bootstrap")
+                .contains("pipx install pyenv-native")
         );
     }
 

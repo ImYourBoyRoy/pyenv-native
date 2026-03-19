@@ -1,5 +1,5 @@
 # ./python-package/src/pyenv_native_bootstrap/cli.py
-"""Command-line entrypoint for the pyenv-native Python bootstrap wrapper."""
+"""Command-line entrypoint for the pyenv-native Python install package."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def str_to_bool(value: str) -> bool:
 def build_parser() -> argparse.ArgumentParser:
     """Create the top-level argument parser."""
 
-    parser = argparse.ArgumentParser(prog="pyenv-native-bootstrap")
+    parser = argparse.ArgumentParser(prog="pyenv-native")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     install = subparsers.add_parser("install", help="install a native pyenv-native release bundle")

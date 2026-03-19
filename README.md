@@ -2,7 +2,7 @@
 
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-2563eb?style=for-the-badge)
 ![Runtime](https://img.shields.io/badge/runtime-Rust-D97706?style=for-the-badge&logo=rust&logoColor=white)
-![Bootstrap](https://img.shields.io/badge/bootstrap-PyPI%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
+![PyPI](https://img.shields.io/badge/PyPI-pip%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
 **A native-first, cross-platform Python version manager inspired by `pyenv`, built to feel great on Windows without giving up Linux and macOS.**
@@ -39,7 +39,7 @@ So `pyenv-native` is built with gratitude and respect for upstream `pyenv`. It e
 - **Full usage guide:** [`INSTRUCTIONS.md`](./INSTRUCTIONS.md)
 - **Technical design:** [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - **MCP / agent guide:** [`MCP.md`](./MCP.md)
-- **Python bootstrap package:** [`python-package/README.md`](./python-package/README.md)
+- **Python install package:** [`python-package/README.md`](./python-package/README.md)
 
 ---
 
@@ -72,31 +72,25 @@ pkg install clang make libffi zlib
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
-### Pinned published release: Windows PowerShell
-
-```powershell
-$tag = 'vX.Y.Z'; $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/$tag/install.ps1" -OutFile $installer; & $installer -Tag $tag -InstallRoot "$HOME\.pyenv" -Force
-```
-
-### Pinned published release: Linux / macOS
+If `pyenv` is not recognized immediately in the current Termux session after install, open a new shell or run:
 
 ```sh
-tag='vX.Y.Z'; curl -fsSL "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/${tag}/install.sh" | sh -s -- --tag "$tag" --install-root ~/.pyenv
+. ~/.bashrc
 ```
 
 ### Existing Python users: `pip` / `pipx`
 
-If you already have Python installed, the bootstrap package can install the native release bundle for you.
-It also defaults to the latest published GitHub release unless you pass `--tag <vX.Y.Z>`.
+If you already have Python installed, the PyPI package can install the native release bundle for you.
+It also defaults to the latest published GitHub release.
 
 ```powershell
-pipx install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
+pipx install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
 ```
 
 ```sh
-python -m pip install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
+python -m pip install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
 ```
 
 ### Clean uninstall: Windows PowerShell
@@ -109,6 +103,13 @@ $uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebReque
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/uninstall.sh | sh -s -- --remove-root
+```
+
+### Update an existing portable install
+
+```text
+pyenv self-update
+pyenv self-update --check
 ```
 
 ---
@@ -165,7 +166,7 @@ For the full agent-facing workflow, see [`MCP.md`](./MCP.md).
 - release bundles with checksums and manifests
 - zero-clone web installers
 - `pyenv-mcp` for structured, agent-friendly JSON workflows
-- `pip` / `pipx` bootstrap path for users who already have Python
+- `pip` / `pipx` install path for users who already have Python
 
 ---
 
@@ -178,7 +179,7 @@ The current focus is careful distribution polish:
 - clean install and uninstall behavior,
 - native runtime management across Windows, Linux, and macOS,
 - clear public documentation,
-- publish-ready release and bootstrap channels.
+- publish-ready release and package distribution channels.
 
 ---
 

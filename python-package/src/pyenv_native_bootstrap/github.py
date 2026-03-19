@@ -46,7 +46,7 @@ def fetch_release_payload(url: str) -> dict[str, object]:
         url,
         headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": f"pyenv-native-bootstrap/{__version__}",
+            "User-Agent": f"pyenv-native/{__version__}",
         },
     )
     with urllib.request.urlopen(request) as response:  # noqa: S310

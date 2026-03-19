@@ -8,13 +8,13 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use pyenv_core::{
-    AppContext, CommandReport, InstallCommandOptions, VersionsCommandOptions, cmd_commands,
-    cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, cmd_doctor,
-    cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest,
-    cmd_local, cmd_prefix, cmd_rehash, cmd_root, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell,
-    cmd_shell, cmd_shims, cmd_uninstall, cmd_version, cmd_version_file, cmd_version_file_read,
-    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_whence,
-    cmd_which,
+    AppContext, CommandReport, InstallCommandOptions, SelfUpdateOptions, VersionsCommandOptions,
+    cmd_commands, cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set,
+    cmd_config_show, cmd_doctor, cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init,
+    cmd_install, cmd_latest, cmd_local, cmd_prefix, cmd_rehash, cmd_root, cmd_self_update,
+    cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_uninstall, cmd_version,
+    cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
+    cmd_version_origin, cmd_versions, cmd_whence, cmd_which,
 };
 
 #[derive(Debug, Parser)]
@@ -55,6 +55,26 @@ enum Commands {
     Doctor {
         #[arg(long = "json")]
         json: bool,
+    },
+    #[command(about = "Check for or install the latest published pyenv-native release")]
+    SelfUpdate {
+        #[arg(long = "check", help = "Check for updates without installing")]
+        check: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even when the current version already matches the target release"
+        )]
+        force: bool,
+        #[arg(
+            long = "github-repo",
+            help = "GitHub owner/repo that publishes pyenv-native release bundles"
+        )]
+        github_repo: Option<String>,
+        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
+        tag: Option<String>,
     },
     #[command(about = "Display or modify pyenv-native configuration")]
     Config {
@@ -269,6 +289,22 @@ fn main() -> ExitCode {
         Commands::Root => cmd_root(&ctx),
         Commands::Hooks { hook } => cmd_hooks(&ctx, &hook),
         Commands::Doctor { json } => cmd_doctor(&ctx, json),
+        Commands::SelfUpdate {
+            check,
+            yes,
+            force,
+            github_repo,
+            tag,
+        } => cmd_self_update(
+            &ctx,
+            &SelfUpdateOptions {
+                check,
+                yes,
+                force,
+                github_repo,
+                tag,
+            },
+        ),
         Commands::Config { command } => match command.unwrap_or(ConfigCommands::Show) {
             ConfigCommands::Path => cmd_config_path(&ctx),
             ConfigCommands::Show => cmd_config_show(&ctx),

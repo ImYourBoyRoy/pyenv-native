@@ -1,10 +1,10 @@
 # ./scripts/dev-cargo.ps1
 <#
-Purpose: Runs Cargo for a configurable Windows Rust target, defaulting to the GNU toolchain while allowing MSVC in CI.
+Purpose: Runs Cargo for a configurable Windows Rust target, defaulting to the native MSVC toolchain while allowing GNU builds when explicitly requested.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/dev-cargo.ps1 test [-TargetTriple x86_64-pc-windows-msvc]
 Inputs: Optional Windows target triple plus cargo arguments after the script name.
 Outputs/side effects: Executes cargo with the requested target toolchain and any required compiler PATH updates for this process.
-Notes: Prefers a Winget-installed WinLibs MinGW toolchain only when targeting the GNU Windows ABI; MSVC builds rely on the standard Visual Studio toolchain already present on the host.
+Notes: Prefers the native MSVC ABI for local and CI builds; GNU builds rely on WinLibs/MinGW only when that ABI is explicitly requested.
 #>
 
 param(
@@ -15,13 +15,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($TargetTriple -and $TargetTriple -notmatch '^x86_64-pc-windows-(gnu|msvc)$' -and (-not $CargoArgs -or $CargoArgs.Count -eq 0)) {
+if ($TargetTriple -and $TargetTriple -notmatch '^(x86_64-pc-windows-(gnu|msvc)|aarch64-pc-windows-msvc)$' -and (-not $CargoArgs -or $CargoArgs.Count -eq 0)) {
     $CargoArgs = @($TargetTriple)
     $TargetTriple = $env:PYENV_WINDOWS_TARGET
 }
 
 if (-not $TargetTriple -or [string]::IsNullOrWhiteSpace($TargetTriple)) {
-    $TargetTriple = 'x86_64-pc-windows-gnu'
+    $TargetTriple = 'x86_64-pc-windows-msvc'
 }
 
 if (-not $CargoArgs -or $CargoArgs.Count -eq 0) {
@@ -62,8 +62,11 @@ switch ($TargetTriple) {
     'x86_64-pc-windows-msvc' {
         $toolchain = 'stable-x86_64-pc-windows-msvc'
     }
+    'aarch64-pc-windows-msvc' {
+        $toolchain = 'stable-x86_64-pc-windows-msvc'
+    }
     default {
-        throw "Unsupported Windows target triple '$TargetTriple'. Supported values: x86_64-pc-windows-gnu, x86_64-pc-windows-msvc."
+        throw "Unsupported Windows target triple '$TargetTriple'. Supported values: x86_64-pc-windows-gnu, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc."
     }
 }
 

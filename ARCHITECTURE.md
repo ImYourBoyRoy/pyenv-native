@@ -24,7 +24,7 @@ The short version:
 - portable managed runtimes,
 - structured diagnostics,
 - cleaner install and uninstall flows,
-- easier distribution through bundles, shell installers, a PyPI bootstrap package, and an MCP-friendly agent surface.
+- easier distribution through bundles, shell installers, a PyPI install package, and an MCP-friendly agent surface.
 
 ### 3. Stay honest about compatibility
 `pyenv-native` aims for behavioral compatibility where it makes sense, but it does not try to preserve upstream shell-script implementation details when a native approach is clearly better.
@@ -82,7 +82,7 @@ crates/
   pyenv-cli/      CLI entrypoint and public command wiring
   pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
   pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
-python-package/   Python bootstrap wrapper for native release bundles
+python-package/   Python install package wrapper for native release bundles
 packaging/        package-manager metadata and generators
 scripts/          build, release, install, uninstall, sync, and validation helpers
 ```
@@ -323,8 +323,8 @@ The project is designed to distribute through native assets first.
 
 These provide zero-clone web installation paths for end users.
 
-### Python bootstrap package
-The `pyenv-native-bootstrap` package exists for users who already have Python installed and want a `pip` / `pipx`-friendly install path.
+### Python install package
+The `pyenv-native` package exists for users who already have Python installed and want a `pip` / `pipx`-friendly install path.
 
 Important principle:
 
@@ -381,7 +381,7 @@ The project is treated as infrastructure, so validation matters as much as featu
 
 Current validation emphasis:
 - Rust unit and integration tests,
-- Python bootstrap tests,
+- Python install-package tests,
 - Windows local validation,
 - Ubuntu WSL validation,
 - release bundle generation,
@@ -397,7 +397,7 @@ The architectural goal is to keep core behaviors deterministic, portable, and ea
 The repository includes helper scripts for:
 - version synchronization,
 - bundle generation,
-- bootstrap package builds,
+- Python install-package builds,
 - Winget manifest generation,
 - Homebrew formula generation,
 - GitHub release preparation,

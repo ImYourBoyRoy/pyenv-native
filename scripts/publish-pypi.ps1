@@ -1,6 +1,6 @@
 ﻿# ./scripts/publish-pypi.ps1
 <#
-Purpose: Validates and optionally uploads the pyenv-native-bootstrap wheel/sdist to PyPI or TestPyPI using a repeatable local release script.
+Purpose: Validates and optionally uploads the pyenv-native wheel/sdist to PyPI or TestPyPI using a repeatable local release script.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/publish-pypi.ps1 -PythonPath <python> [-Repository testpypi] [-DryRun]
 Inputs: Python interpreter path, target repository/repository URL, and switches controlling local tests/build/check-only behavior.
 Outputs/side effects: Optionally runs tests, rebuilds wheel/sdist artifacts, performs Twine checks, and uploads the artifacts with token-based authentication.
@@ -71,27 +71,27 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $packageDist = Join-Path $repoRoot 'python-package\dist'
 
 if (-not $SkipTests) {
-    Write-Step 'Running Python bootstrap tests'
+    Write-Step 'Running Python install-package tests'
     $testCommand = @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'test-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
     if ($DryRun) {
         Write-Host ('DRY-RUN: ' + (($testCommand | ForEach-Object { Format-CommandArgument -Value $_ }) -join ' '))
     } else {
         & $testCommand[0] @($testCommand | Select-Object -Skip 1)
         if ($LASTEXITCODE -ne 0) {
-            throw "Python bootstrap tests failed with exit code ${LASTEXITCODE}."
+            throw "Python install-package tests failed with exit code ${LASTEXITCODE}."
         }
     }
 }
 
 if (-not $SkipBuild) {
-    Write-Step 'Building Python bootstrap artifacts'
+    Write-Step 'Building Python install-package artifacts'
     $buildCommand = @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'build-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
     if ($DryRun) {
         Write-Host ('DRY-RUN: ' + (($buildCommand | ForEach-Object { Format-CommandArgument -Value $_ }) -join ' '))
     } else {
         & $buildCommand[0] @($buildCommand | Select-Object -Skip 1)
         if ($LASTEXITCODE -ne 0) {
-            throw "Python bootstrap build failed with exit code ${LASTEXITCODE}."
+            throw "Python install-package build failed with exit code ${LASTEXITCODE}."
         }
     }
 }
