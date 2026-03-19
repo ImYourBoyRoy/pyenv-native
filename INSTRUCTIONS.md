@@ -19,7 +19,7 @@ If `README.md` is the fast public overview, this file is the clear step-by-step 
 
 ## How release selection works
 
-By default, the web installers and the Python bootstrap package target the **latest published GitHub release**.
+By default, the web installers and the Python install package target the **latest published GitHub release**.
 
 That is intentional.
 
@@ -55,6 +55,8 @@ $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest h
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
+On Android / Termux, if `pyenv` is not available in the current shell immediately after install, open a new shell or run `. ~/.bashrc`.
+
 This is the simplest path when you just want `pyenv-native` installed quickly from GitHub.
 
 These entrypoints are interactive by default. They print a preflight summary, show the install root and integration changes, then ask for confirmation before they proceed. For automation, add `-Yes` on Windows or `--yes` on Linux/macOS.
@@ -73,33 +75,39 @@ $tag = 'vX.Y.Z'; $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; In
 tag='vX.Y.Z'; curl -fsSL "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/${tag}/install.sh" | sh -s -- --tag "$tag" --install-root ~/.pyenv
 ```
 
-### Option 3: use the PyPI / `pipx` bootstrap package
+### Option 3: use the PyPI / `pipx` install package
 
 This is useful when Python already exists on the machine and you want a Python-native entrypoint that still installs the native runtime.
 
-#### `pipx` latest-release bootstrap
+#### `pipx` latest-release install
 
 ```powershell
-pipx install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
+pipx install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~\.pyenv
 ```
 
-#### `pip` latest-release bootstrap
+#### `pip` latest-release install
 
 ```sh
-python -m pip install pyenv-native-bootstrap
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
-```
-
-#### Pinned bootstrap install
-
-```powershell
-pyenv-native-bootstrap install --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --install-root ~\.pyenv
+python -m pip install pyenv-native
+pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~/.pyenv
 ```
 
 ### Option 4: install from a local bundle
 
 This is useful for offline or staged release validation.
+
+## Updating pyenv-native in place
+
+Once `pyenv-native` is installed as a portable root-managed install, you can update it directly:
+
+```text
+pyenv self-update
+pyenv self-update --check
+pyenv self-update --tag vX.Y.Z
+```
+
+Use `--yes` for unattended automation.
 
 ### Important install note
 
@@ -108,7 +116,7 @@ All first-class install paths now install both:
 - `pyenv`
 - `pyenv-mcp`
 
-That means the normal GitHub web installers, release bundles, and Python bootstrap package all give you the human CLI and the agent-friendly MCP server together.
+That means the normal GitHub web installers, release bundles, and Python install package all give you the human CLI and the agent-friendly MCP server together.
 
 ## Installer UX and safety model
 
@@ -538,7 +546,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -Out
 sh ./scripts/build-release-bundle.sh --output-root ./dist
 ```
 
-### Build the Python bootstrap package
+### Build the Python install package
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
@@ -610,12 +618,12 @@ pyenv doctor [--json]
 pyenv config path|show|get|set
 ```
 
-### Python bootstrap commands
+### Python install package commands
 
 ```text
-pyenv-native-bootstrap verify <bundle-archive> [--checksum-path <bundle.sha256>]
-pyenv-native-bootstrap download [--bundle-url <url> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>]
-pyenv-native-bootstrap install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
+pyenv-native verify <bundle-archive> [--checksum-path <bundle.sha256>]
+pyenv-native download [--bundle-url <url> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>]
+pyenv-native install [--bundle-path <bundle-archive> | --release-base-url <url> | --github-repo <owner/repo>] [--tag <tag>] [--install-root <dir>]
 ```
 
 ### MCP companion commands

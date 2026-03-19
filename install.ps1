@@ -73,6 +73,7 @@ function Resolve-AssetName {
     $arch = Get-HostArchitecture
     switch ($arch) {
         'x64' { return 'pyenv-native-windows-x64.zip' }
+        'arm64' { return 'pyenv-native-windows-arm64.zip' }
         default { throw "Published Windows bundles are not available yet for architecture '$arch'." }
     }
 }

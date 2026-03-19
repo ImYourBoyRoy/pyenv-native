@@ -47,7 +47,7 @@ That includes:
 
 - GitHub web installers (`install.ps1`, `install.sh`)
 - release bundles
-- the `pyenv-native-bootstrap` PyPI package
+- the `pyenv-native` PyPI package
 
 You do **not** need a separate install step for the MCP server.
 

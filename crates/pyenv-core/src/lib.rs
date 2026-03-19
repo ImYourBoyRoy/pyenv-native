@@ -13,6 +13,7 @@ mod manage;
 mod meta;
 mod plugin;
 mod runtime;
+mod self_update;
 mod shell;
 mod shim;
 mod version;
@@ -40,6 +41,7 @@ pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions
 pub use meta::{cmd_commands, cmd_completions, cmd_help, cmd_shims};
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use runtime::BASE_VENV_DIR_NAME;
+pub use self_update::{SelfUpdateOptions, cmd_self_update};
 pub use shell::{InitCommandOptions, cmd_init, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell, cmd_shell};
 pub use shim::{cmd_exec, cmd_rehash};
 pub use version::{

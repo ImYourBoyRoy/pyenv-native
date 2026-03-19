@@ -40,11 +40,23 @@ parse_bool() {
 }
 
 detect_shell_kind() {
+  if [ -z "${SHELL:-}" ] && is_termux; then
+    print_line "bash"
+    return
+  fi
   shell_name="$(basename -- "${SHELL:-sh}" | tr '[:upper:]' '[:lower:]')"
   case "$shell_name" in
     bash|zsh|fish|sh) print_line "$shell_name" ;;
     *) print_line "sh" ;;
   esac
+}
+
+is_termux() {
+  [ -n "${TERMUX_VERSION:-}" ] && return 0
+  case "${PREFIX:-}" in
+    *com.termux*|*/data/data/com.termux/*) return 0 ;;
+  esac
+  return 1
 }
 
 normalize_os() {

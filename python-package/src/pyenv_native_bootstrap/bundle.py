@@ -111,7 +111,7 @@ def download_file(url: str, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": f"pyenv-native-bootstrap/{__version__}"},
+        headers={"User-Agent": f"pyenv-native/{__version__}"},
     )
     with urllib.request.urlopen(request) as response, destination.open("wb") as handle:  # noqa: S310
         handle.write(response.read())

@@ -35,11 +35,23 @@ parse_bool() {
 }
 
 detect_shell_kind() {
+  if [ -z "${SHELL:-}" ] && is_termux; then
+    print_line "bash"
+    return
+  fi
   shell_name="$(basename -- "${SHELL:-sh}" | tr '[:upper:]' '[:lower:]')"
   case "$shell_name" in
     bash|zsh|fish|sh) print_line "$shell_name" ;;
     *) print_line "sh" ;;
   esac
+}
+
+is_termux() {
+  [ -n "${TERMUX_VERSION:-}" ] && return 0
+  case "${PREFIX:-}" in
+    *com.termux*|*/data/data/com.termux/*) return 0 ;;
+  esac
+  return 1
 }
 
 is_interactive() {
@@ -97,12 +109,29 @@ profile_path_for_shell() {
     bash) print_line "${HOME}/.bashrc" ;;
     zsh) print_line "${HOME}/.zshrc" ;;
     fish) print_line "${HOME}/.config/fish/config.fish" ;;
-    sh) print_line "${HOME}/.profile" ;;
+    sh)
+      if is_termux; then
+        print_line "${HOME}/.bashrc"
+      else
+        print_line "${HOME}/.profile"
+      fi
+      ;;
     none) print_line "" ;;
     *)
       printf 'Unsupported shell `%s`.\n' "$1" >&2
       exit 1
       ;;
+  esac
+}
+
+render_reload_hint() {
+  profile_path="$1"
+  shell_kind="$2"
+  [ -n "$profile_path" ] || return 0
+
+  case "$shell_kind" in
+    fish) printf 'source %s\n' "$profile_path" ;;
+    *) printf '. %s\n' "$profile_path" ;;
   esac
 }
 
@@ -486,6 +515,13 @@ fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then
   write_warn 'Persistent PATH integration on POSIX systems usually happens through your shell profile. Add your install bin manually if needed.'
+fi
+
+if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ] && [ -n "$PROFILE_PATH" ]; then
+  RELOAD_HINT="$(render_reload_hint "$PROFILE_PATH" "$SHELL_KIND")"
+  if [ -n "$RELOAD_HINT" ]; then
+    write_step "Open a new shell or run: $RELOAD_HINT"
+  fi
 fi
 
 write_step 'Install completed successfully.'

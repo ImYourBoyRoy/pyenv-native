@@ -1,10 +1,10 @@
 # ./scripts/set-version.ps1
 <#
-Purpose: Synchronizes the project version across the Rust workspace and Python bootstrap package metadata files.
+Purpose: Synchronizes the project version across the Rust workspace and Python install package metadata files.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/set-version.ps1 -Version 0.2.0
 Inputs: Target semantic version string.
 Outputs/side effects: Rewrites version fields in Cargo.toml, python-package/pyproject.toml, and python-package/src/pyenv_native_bootstrap/__init__.py.
-Notes: Intended for release preparation so native and Python wrapper artifacts stay aligned.
+Notes: Intended for release preparation so native and Python install-package artifacts stay aligned.
 #>
 
 param(

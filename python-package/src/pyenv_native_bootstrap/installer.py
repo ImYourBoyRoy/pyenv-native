@@ -1,5 +1,5 @@
 # ./python-package/src/pyenv_native_bootstrap/installer.py
-"""Bundle resolution, extraction, and installer execution for pyenv-native bootstrap flows."""
+"""Bundle resolution, extraction, and installer execution for the pyenv-native Python install package."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from .platforms import PlatformTarget, current_target
 
 @dataclass(frozen=True)
 class InstallRequest:
-    """Parameters accepted by the bootstrap installer flow."""
+    """Parameters accepted by the Python install package flow."""
 
     bundle_path: Optional[Path] = None
     bundle_url: Optional[str] = None
@@ -74,13 +74,13 @@ class InstallPlan:
 
 
 def default_cache_dir() -> Path:
-    """Return the default bootstrap cache location."""
+    """Return the default pyenv-native package cache location."""
 
     if os.name == "nt":
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
-            return Path(local_app_data) / "pyenv-native-bootstrap" / "cache"
-    return Path.home() / ".cache" / "pyenv-native-bootstrap"
+            return Path(local_app_data) / "pyenv-native" / "cache"
+    return Path.home() / ".cache" / "pyenv-native"
 
 
 def resolve_release_urls(

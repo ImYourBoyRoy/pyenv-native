@@ -21,12 +21,26 @@ parse_bool() {
   esac
 }
 
+is_termux() {
+  [ -n "${TERMUX_VERSION:-}" ] && return 0
+  case "${PREFIX:-}" in
+    *com.termux*|*/data/data/com.termux/*) return 0 ;;
+  esac
+  return 1
+}
+
 profile_path_for_shell() {
   case "$1" in
     bash) printf '%s\n' "${HOME}/.bashrc" ;;
     zsh) printf '%s\n' "${HOME}/.zshrc" ;;
     fish) printf '%s\n' "${HOME}/.config/fish/config.fish" ;;
-    sh) printf '%s\n' "${HOME}/.profile" ;;
+    sh)
+      if is_termux; then
+        printf '%s\n' "${HOME}/.bashrc"
+      else
+        printf '%s\n' "${HOME}/.profile"
+      fi
+      ;;
     none) printf '%s\n' "" ;;
     *) printf '%s\n' "" ;;
   esac

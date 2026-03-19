@@ -4,19 +4,38 @@ Purpose: Builds release binaries and assembles a portable Windows distribution b
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
 Inputs: Optional output root, bundle name override, and Windows target triple.
 Outputs/side effects: Builds the release binaries, writes a bundle directory under dist/, and creates a zip archive with installers, MCP server, and user-facing docs.
-Notes: Intended for native Windows packaging; bundle contents stay portable and registry-free.
+Notes: Intended for native Windows packaging; defaults to the MSVC ABI and derives the bundle architecture from the requested target triple.
 #>
 
 param(
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\dist'),
-    [string]$BundleName = 'pyenv-native-windows-x64',
+    [string]$BundleName = '',
     [string]$TargetTriple = $env:PYENV_WINDOWS_TARGET
 )
 
 $ErrorActionPreference = 'Stop'
 
+function Get-TargetArchitecture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Target
+    )
+
+    switch ($Target) {
+        'x86_64-pc-windows-gnu' { return 'x64' }
+        'x86_64-pc-windows-msvc' { return 'x64' }
+        'aarch64-pc-windows-msvc' { return 'arm64' }
+        default { throw "Unsupported Windows target triple '$Target'." }
+    }
+}
+
 if (-not $TargetTriple -or [string]::IsNullOrWhiteSpace($TargetTriple)) {
-    $TargetTriple = 'x86_64-pc-windows-gnu'
+    $TargetTriple = 'x86_64-pc-windows-msvc'
+}
+
+$architecture = Get-TargetArchitecture -Target $TargetTriple
+if (-not $BundleName -or [string]::IsNullOrWhiteSpace($BundleName)) {
+    $BundleName = "pyenv-native-windows-$architecture"
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -75,7 +94,7 @@ $bundleManifest = [ordered]@{
     bundle_name = $BundleName
     bundle_version = $bundleVersion
     platform = 'windows'
-    architecture = 'x64'
+    architecture = $architecture
     target_triple = $TargetTriple
     executable = 'pyenv.exe'
     mcp_executable = 'pyenv-mcp.exe'
