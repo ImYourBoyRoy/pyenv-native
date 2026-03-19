@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
@@ -157,6 +160,40 @@ jobs:
             dist/pyenv-native-linux-arm64.tar.gz
             dist/pyenv-native-linux-arm64.tar.gz.sha256
 
+  android-arm64-bundle:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_API_LEVEL: "21"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build Android ARM64 release bundle
+        shell: bash
+        run: |
+          sh ./scripts/build-release-bundle.sh \
+            --output-root ./dist \
+            --target aarch64-linux-android \
+            --platform android \
+            --arch arm64
+
+      - name: Upload Android ARM64 bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pyenv-native-android-arm64-bundle
+          path: |
+            dist/pyenv-native-android-arm64.tar.gz
+            dist/pyenv-native-android-arm64.tar.gz.sha256
+
   macos-arm64-bundle:
     runs-on: macos-latest
 
@@ -235,6 +272,7 @@ jobs:
       - windows-arm64-bundle
       - linux-bundle
       - linux-arm64-bundle
+      - android-arm64-bundle
       - macos-arm64-bundle
       - macos-x64-bundle
     permissions:
@@ -267,6 +305,12 @@ jobs:
         with:
           name: pyenv-native-linux-arm64-bundle
           path: dist/linux
+
+      - name: Download Android ARM64 bundle artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: pyenv-native-android-arm64-bundle
+          path: dist/android
 
       - name: Download macOS arm64 bundle artifact
         uses: actions/download-artifact@v8
@@ -310,11 +354,12 @@ jobs:
             -OutputPath ./dist/homebrew/pyenv-native.rb
 
       - name: Publish release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
             dist/windows/**
             dist/linux/**
+            dist/android/**
             dist/macos/**
             dist/winget/**
             dist/homebrew/**

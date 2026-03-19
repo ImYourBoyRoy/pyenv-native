@@ -20,7 +20,7 @@ from pyenv_native_bootstrap.installer import (
     resolve_bundle_path,
     resolve_release_urls,
 )
-from pyenv_native_bootstrap.platforms import PlatformTarget
+from pyenv_native_bootstrap.platforms import PlatformTarget, normalize_operating_system
 
 
 class InstallerTests(unittest.TestCase):
@@ -35,6 +35,18 @@ class InstallerTests(unittest.TestCase):
             PlatformTarget("linux", "x64").bundle_file_name,
             "pyenv-native-linux-x64.tar.gz",
         )
+        self.assertEqual(
+            PlatformTarget("android", "arm64").bundle_file_name,
+            "pyenv-native-android-arm64.tar.gz",
+        )
+
+    def test_normalize_operating_system_detects_termux_as_android(self) -> None:
+        with mock.patch.dict(
+            "os.environ",
+            {"TERMUX_VERSION": "0.118.0", "PREFIX": "/data/data/com.termux/files/usr"},
+            clear=False,
+        ):
+            self.assertEqual(normalize_operating_system("linux"), "android")
 
     def test_resolve_release_urls_uses_inferred_bundle_name(self) -> None:
         bundle_url, checksum_url = resolve_release_urls(

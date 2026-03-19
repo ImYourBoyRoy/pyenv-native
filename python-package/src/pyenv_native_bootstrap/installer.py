@@ -262,7 +262,7 @@ def plan_install(request: InstallRequest) -> InstallPlan:
 
     if manifest.platform == "windows":
         install_command = build_windows_install_command(extracted_dir, request, manifest)
-    elif manifest.platform in {"linux", "macos"}:
+    elif manifest.platform in {"linux", "macos", "android"}:
         install_command = build_posix_install_command(extracted_dir, request, manifest)
     else:
         raise RuntimeError(f"unsupported bundle platform {manifest.platform!r}")

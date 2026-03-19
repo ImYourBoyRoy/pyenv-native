@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import platform
 import sys
+import os
 from dataclasses import dataclass
 
 
@@ -30,6 +31,12 @@ class PlatformTarget:
 
 def normalize_operating_system(value: str | None = None) -> str:
     """Return a stable operating-system label for release asset naming."""
+
+    if os.environ.get("TERMUX_VERSION"):
+        return "android"
+    prefix = os.environ.get("PREFIX", "").lower()
+    if "com.termux" in prefix:
+        return "android"
 
     candidate = (value or sys.platform).strip().lower()
     if candidate.startswith("win"):

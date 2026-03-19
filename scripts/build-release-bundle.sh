@@ -20,6 +20,15 @@ normalize_os() {
   esac
 }
 
+normalize_platform_from_target() {
+  case "$1" in
+    *-linux-android) printf '%s\n' "android" ;;
+    *-apple-darwin) printf '%s\n' "macos" ;;
+    *-unknown-linux-*|*-linux-musl|*-linux-gnu) printf '%s\n' "linux" ;;
+    *) printf '%s\n' "" ;;
+  esac
+}
+
 normalize_arch() {
   case "$(uname -m | tr '[:upper:]' '[:lower:]')" in
     x86_64|amd64|x64) printf '%s\n' "x64" ;;
@@ -40,6 +49,15 @@ normalize_arch_token() {
 
 normalize_arch_from_target() {
   normalize_arch_token "$(printf '%s' "$1" | cut -d- -f1)"
+}
+
+android_abi_from_arch() {
+  case "$1" in
+    arm64) printf '%s\n' "arm64-v8a" ;;
+    x64) printf '%s\n' "x86_64" ;;
+    x86) printf '%s\n' "x86" ;;
+    *) printf '%s\n' "" ;;
+  esac
 }
 
 sha256_for_file() {
@@ -76,8 +94,10 @@ REPO_ROOT="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_ROOT="${REPO_ROOT}/dist"
 BUNDLE_NAME=""
 TARGET=""
+BUNDLE_PLATFORM_OVERRIDE=""
 ARCHITECTURE_OVERRIDE=""
 CARGO_CMD="${CARGO:-cargo}"
+ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-21}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -93,6 +113,10 @@ while [ "$#" -gt 0 ]; do
       TARGET="${2:-}"
       shift 2
       ;;
+    --platform)
+      BUNDLE_PLATFORM_OVERRIDE="${2:-}"
+      shift 2
+      ;;
     --arch)
       ARCHITECTURE_OVERRIDE="${2:-}"
       shift 2
@@ -105,13 +129,17 @@ while [ "$#" -gt 0 ]; do
 done
 
 TARGET="${TARGET:-}"
+BUNDLE_PLATFORM_OVERRIDE="${BUNDLE_PLATFORM_OVERRIDE:-}"
 ARCHITECTURE_OVERRIDE="${ARCHITECTURE_OVERRIDE:-}"
 
 OPERATING_SYSTEM="$(normalize_os)"
+TARGET_PLATFORM=""
 TARGET_ARCHITECTURE=""
 if [ -n "$TARGET" ]; then
+  TARGET_PLATFORM="$(normalize_platform_from_target "$TARGET")"
   TARGET_ARCHITECTURE="$(normalize_arch_from_target "$TARGET")"
 fi
+BUNDLE_PLATFORM="${BUNDLE_PLATFORM_OVERRIDE:-${TARGET_PLATFORM:-$OPERATING_SYSTEM}}"
 ARCHITECTURE="${ARCHITECTURE_OVERRIDE:-${TARGET_ARCHITECTURE:-$(normalize_arch)}}"
 if [ "$OPERATING_SYSTEM" = "unsupported" ]; then
   printf 'Unsupported host operating system for POSIX bundle production.\n' >&2
@@ -119,14 +147,27 @@ if [ "$OPERATING_SYSTEM" = "unsupported" ]; then
 fi
 
 if [ -z "$BUNDLE_NAME" ]; then
-  BUNDLE_NAME="pyenv-native-${OPERATING_SYSTEM}-${ARCHITECTURE}"
+  BUNDLE_NAME="pyenv-native-${BUNDLE_PLATFORM}-${ARCHITECTURE}"
 fi
 
 OUTPUT_ROOT="$(mkdir -p "$OUTPUT_ROOT" && CDPATH= cd -- "$OUTPUT_ROOT" && pwd)"
 BUNDLE_DIR="${OUTPUT_ROOT}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${OUTPUT_ROOT}/${BUNDLE_NAME}.tar.gz"
 CHECKSUM_PATH="${ARCHIVE_PATH}.sha256"
-if [ -n "$TARGET" ]; then
+if [ -n "$TARGET" ] && [ "$BUNDLE_PLATFORM" = "android" ]; then
+  ANDROID_ABI="$(android_abi_from_arch "$ARCHITECTURE")"
+  if [ -z "$ANDROID_ABI" ]; then
+    printf 'Unsupported Android architecture `%s`.\n' "$ARCHITECTURE" >&2
+    exit 1
+  fi
+  if ! cargo ndk --help >/dev/null 2>&1; then
+    printf '%s\n' 'cargo-ndk is required for Android bundle production. Install it with `cargo install cargo-ndk --locked`.' >&2
+    exit 1
+  fi
+  cargo ndk -t "$ANDROID_ABI" -p "$ANDROID_API_LEVEL" build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
+  RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
+elif [ -n "$TARGET" ]; then
   "$CARGO_CMD" build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
@@ -171,8 +212,9 @@ cat > "${BUNDLE_DIR}/bundle-manifest.json" <<EOF
 {
   "bundle_name": "${BUNDLE_NAME}",
   "bundle_version": "${BUNDLE_VERSION}",
-  "platform": "${OPERATING_SYSTEM}",
+  "platform": "${BUNDLE_PLATFORM}",
   "architecture": "${ARCHITECTURE}",
+  "target_triple": "${TARGET}",
   "executable": "pyenv",
   "mcp_executable": "pyenv-mcp",
   "install_script": "install-pyenv-native.sh",

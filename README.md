@@ -72,6 +72,12 @@ pkg install clang make libffi zlib
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
+On Termux, the installer now targets the dedicated `pyenv-native-android-arm64.tar.gz` release artifact rather than the generic Linux ARM64 bundle.
+
+### Android built-in "Terminal" app
+
+Google's built-in Android Terminal app runs a Debian Linux virtual machine, so it should use the **Linux ARM64** bundle rather than the Termux-specific Android bundle.
+
 If `pyenv` is not recognized immediately in the current Termux session after install, open a new shell or run:
 
 ```sh

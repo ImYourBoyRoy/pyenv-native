@@ -60,6 +60,10 @@ is_termux() {
 }
 
 normalize_os() {
+  if is_termux; then
+    print_line android
+    return
+  fi
   case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
     linux*) print_line linux ;;
     darwin*) print_line macos ;;
