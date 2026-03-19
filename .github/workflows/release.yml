@@ -121,25 +121,18 @@ jobs:
         with:
           targets: aarch64-unknown-linux-musl
 
-      - name: Build Linux ARM64 release bundle
-        uses: cross-rs/cross-action@v1
-        with:
-          command: build
-          target: aarch64-unknown-linux-musl
-          args: --release --bin pyenv --bin pyenv-mcp
+      - name: Install Cross
+        run: cargo install cross --locked
 
-      - name: Assemble Linux ARM64 release bundle
+      - name: Build Linux ARM64 release bundle
         shell: bash
+        env:
+          CARGO: cross
         run: |
           sh ./scripts/build-release-bundle.sh \
             --output-root ./dist \
             --target aarch64-unknown-linux-musl \
             --arch arm64
-        # We set CARGO=true because build-release-bundle.sh calls cargo, but we already built the binaries via cross-action
-        # However, build-release-bundle.sh expects the binaries to be in target/aarch64-unknown-linux-musl/release/
-        # which is where cross-action puts them.
-        env:
-          CARGO: "true" 
 
       - name: Upload Linux ARM64 bundle artifact
         uses: actions/upload-artifact@v7
