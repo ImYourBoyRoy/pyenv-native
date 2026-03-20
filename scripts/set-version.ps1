@@ -38,10 +38,16 @@ function Update-FileText {
     )
 
     $content = Get-Content $Path -Raw
-    $updated = [regex]::Replace($content, $Pattern, $Replacement)
-    if ($updated -eq $content) {
-        throw "No version match was updated in $Path"
+    $match = [regex]::Match($content, $Pattern)
+    if (-not $match.Success) {
+        throw "No version field matching pattern '$Pattern' was found in $Path"
     }
+
+    if ($match.Value -eq $Replacement) {
+        return
+    }
+
+    $updated = [regex]::Replace($content, $Pattern, $Replacement)
     Write-Utf8NoBomFile -Path $Path -Content $updated
 }
 

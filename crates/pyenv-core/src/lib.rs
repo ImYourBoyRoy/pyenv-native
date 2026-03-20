@@ -17,6 +17,8 @@ mod self_update;
 mod shell;
 mod shim;
 mod venv;
+mod venv_compat;
+mod venv_paths;
 mod version;
 
 pub use catalog::{
@@ -43,11 +45,17 @@ pub use meta::{cmd_commands, cmd_completions, cmd_help, cmd_shims};
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use runtime::BASE_VENV_DIR_NAME;
 pub use self_update::{SelfUpdateOptions, cmd_self_update};
-pub use shell::{InitCommandOptions, cmd_init, cmd_sh_cmd, cmd_sh_rehash, cmd_sh_shell, cmd_shell};
+pub use shell::{
+    InitCommandOptions, cmd_activate, cmd_deactivate, cmd_init, cmd_sh_activate, cmd_sh_cmd,
+    cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_virtualenv_init,
+};
 pub use shim::{cmd_exec, cmd_rehash};
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
-    cmd_venv_rename, cmd_venv_use, list_managed_venvs,
+    cmd_venv_rename, cmd_venv_use, list_managed_venvs, resolve_managed_venv,
+};
+pub use venv_compat::{
+    cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,
 };
 pub use version::{
     SelectedVersions, VersionOrigin, cmd_global, cmd_local, cmd_root, cmd_version,

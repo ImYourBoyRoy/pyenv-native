@@ -36,3 +36,4 @@ Thumbs.db
 /temp_*.rs
 /clippy_errors.txt
 /walkthrough.md
+*.tmp

@@ -13,36 +13,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Resolve-Python {
-    param(
-        [string]$ExplicitPath
-    )
-
-    if ($ExplicitPath) {
-        $resolved = Resolve-Path $ExplicitPath -ErrorAction SilentlyContinue
-        if ($resolved) {
-            return $resolved.ProviderPath
-        }
-
-        $command = Get-Command $ExplicitPath -ErrorAction SilentlyContinue
-        if ($command) {
-            return $command.Source
-        }
-
-        throw "Python interpreter was not found at $ExplicitPath"
-    }
-
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($python) {
-        return $python.Source
-    }
-
-    throw 'No Python interpreter was found. Pass -PythonPath <python.exe>.'
-}
+. (Join-Path $PSScriptRoot 'python-common.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $packageRoot = Resolve-Path (Join-Path $repoRoot 'python-package')
-$resolvedPython = Resolve-Python -ExplicitPath $PythonPath
+$resolvedPython = Resolve-PythonCommandPath -ExplicitPath $PythonPath
 $previousPythonPath = $env:PYTHONPATH
 $env:PYTHONPATH = (Resolve-Path (Join-Path $packageRoot 'src')).ProviderPath
 
