@@ -55,19 +55,33 @@ pub(super) fn progress_step<S: Into<String>, T: Into<String>>(phase: S, detail: 
     format!("{}: {}", phase.into(), detail.into())
 }
 
+#[cfg(test)]
 pub(super) fn render_outcome_lines(outcomes: &[InstallOutcome]) -> Vec<String> {
+    render_outcome_lines_with_progress(outcomes, true)
+}
+
+pub(super) fn render_outcome_summary_lines(outcomes: &[InstallOutcome]) -> Vec<String> {
+    render_outcome_lines_with_progress(outcomes, false)
+}
+
+fn render_outcome_lines_with_progress(
+    outcomes: &[InstallOutcome],
+    include_progress: bool,
+) -> Vec<String> {
     let mut lines = Vec::new();
     for (index, outcome) in outcomes.iter().enumerate() {
         if index > 0 {
             lines.push(String::new());
         }
-        lines.push("Progress:".to_string());
-        lines.extend(
-            outcome
-                .progress_steps
-                .iter()
-                .map(|step| format!("  - {step}")),
-        );
+        if include_progress {
+            lines.push("Progress:".to_string());
+            lines.extend(
+                outcome
+                    .progress_steps
+                    .iter()
+                    .map(|step| format!("  - {step}")),
+            );
+        }
         lines.push(format!(
             "Installed {} -> {}",
             outcome.plan.requested_version, outcome.plan.resolved_version

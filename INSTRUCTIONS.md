@@ -55,7 +55,7 @@ $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest h
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
-On Android / Termux, the same installer now resolves to the dedicated Android ARM64 release artifact. If `pyenv` is not available in the current shell immediately after install, open a new shell or run `. ~/.bashrc`.
+On Android / Termux, the same installer now resolves to the dedicated Android ARM64 release artifact. If you want `pyenv` available in the current shell immediately after install, run `eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"` (or swap `bash` for `zsh` on macOS). Reloading your profile with `. ~/.bashrc` still works too.
 
 Google's built-in Android Terminal app is different from Termux: it runs a Debian Linux VM, so it should use the Linux ARM64 bundle instead of the Termux-specific Android artifact.
 

@@ -135,6 +135,23 @@ render_reload_hint() {
   esac
 }
 
+render_current_shell_hint() {
+  installed_exe="$1"
+  shell_kind="$2"
+
+  case "$shell_kind" in
+    fish)
+      printf "'%s' init - fish | source\n" "$installed_exe"
+      ;;
+    bash|zsh|sh)
+      printf "eval \"\$('%s' init - %s)\"\n" "$installed_exe" "$shell_kind"
+      ;;
+    *)
+      print_line ""
+      ;;
+  esac
+}
+
 render_profile_block() {
   installed_exe="$1"
   shell_kind="$2"
@@ -517,10 +534,19 @@ if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]
   write_warn 'Persistent PATH integration on POSIX systems usually happens through your shell profile. Add your install bin manually if needed.'
 fi
 
+CURRENT_SHELL_HINT=""
+if [ "$SHELL_KIND" != "none" ]; then
+  CURRENT_SHELL_HINT="$(render_current_shell_hint "$INSTALLED_EXE" "$SHELL_KIND")"
+fi
+
+if [ -n "$CURRENT_SHELL_HINT" ]; then
+  write_step "Use pyenv in this shell right now with: $CURRENT_SHELL_HINT"
+fi
+
 if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ] && [ -n "$PROFILE_PATH" ]; then
   RELOAD_HINT="$(render_reload_hint "$PROFILE_PATH" "$SHELL_KIND")"
   if [ -n "$RELOAD_HINT" ]; then
-    write_step "Open a new shell or run: $RELOAD_HINT"
+    write_step "If you prefer to reload your profile instead, run: $RELOAD_HINT"
   fi
 fi
 

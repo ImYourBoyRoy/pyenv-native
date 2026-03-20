@@ -1,6 +1,8 @@
 // ./crates/pyenv-core/src/install/plans.rs
 //! Install-plan resolution across native providers and platform-specific backends.
 
+use std::io::{self, Write};
+
 use crate::catalog::{
     InstallListOptions, VersionFamily, cmd_install_list, latest_version_from_names,
 };
@@ -25,7 +27,7 @@ use super::providers::{
     nuget_package_name, resolve_provider_version,
 };
 use super::report::{
-    render_install_error_lines, render_json_lines, render_outcome_lines, render_plan_lines,
+    render_install_error_lines, render_json_lines, render_outcome_summary_lines, render_plan_lines,
     sanitize_for_fs,
 };
 use super::runtime::install_runtime;
@@ -66,7 +68,18 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
                 if options.dry_run {
                     plans.push(plan);
                 } else {
-                    match install_runtime(ctx, &plan, options.force) {
+                    let mut progress_started = false;
+                    let mut live_progress = |step: &str| {
+                        if !progress_started {
+                            let _ = writeln!(io::stdout(), "Progress:");
+                            progress_started = true;
+                        }
+                        let _ = writeln!(io::stdout(), "  - {step}");
+                        let _ = io::stdout().flush();
+                    };
+                    let on_progress =
+                        (!options.json).then_some(&mut live_progress as &mut dyn FnMut(&str));
+                    match install_runtime(ctx, &plan, options.force, on_progress) {
                         Ok(outcome) => outcomes.push(outcome),
                         Err(error) => stderr.extend(render_install_error_lines(&error, requested)),
                     }
@@ -85,7 +98,7 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
     } else if options.dry_run {
         render_plan_lines(&plans)
     } else {
-        render_outcome_lines(&outcomes)
+        render_outcome_summary_lines(&outcomes)
     };
 
     let exit_code = if stderr.is_empty() { 0 } else { 1 };

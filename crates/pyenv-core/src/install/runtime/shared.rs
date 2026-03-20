@@ -13,6 +13,32 @@ use super::super::archive::{run_python, write_install_receipt};
 use super::super::report::{io_error, progress_step, sanitize_for_fs, unique_suffix};
 use super::super::types::{InstallOutcome, InstallPlan};
 
+pub(super) struct ProgressTracker<'a> {
+    steps: Vec<String>,
+    on_step: Option<&'a mut dyn FnMut(&str)>,
+}
+
+impl<'a> ProgressTracker<'a> {
+    pub(super) fn new(on_step: Option<&'a mut dyn FnMut(&str)>) -> Self {
+        Self {
+            steps: Vec::new(),
+            on_step,
+        }
+    }
+
+    pub(super) fn push<S: Into<String>, T: Into<String>>(&mut self, phase: S, detail: T) {
+        let step = progress_step(phase, detail);
+        if let Some(on_step) = self.on_step.as_mut() {
+            on_step(&step);
+        }
+        self.steps.push(step);
+    }
+
+    pub(super) fn finish(self) -> Vec<String> {
+        self.steps
+    }
+}
+
 pub(super) fn remove_existing_install_dir(
     plan: &InstallPlan,
     force: bool,
@@ -58,34 +84,36 @@ pub(super) fn staging_dir(versions_dir: &Path, plan: &InstallPlan, label: &str) 
     ))
 }
 
-pub(super) fn initial_progress_steps(plan: &InstallPlan, detail: String) -> Vec<String> {
-    vec![
-        progress_step(
-            "plan",
-            format!(
-                "resolved {} -> {} via {} [{}]",
-                plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
-            ),
+pub(super) fn seed_progress(
+    tracker: &mut ProgressTracker<'_>,
+    plan: &InstallPlan,
+    download_detail: String,
+) {
+    tracker.push(
+        "plan",
+        format!(
+            "resolved {} -> {} via {} [{}]",
+            plan.requested_version, plan.resolved_version, plan.provider, plan.architecture
         ),
-        progress_step("download", detail),
-    ]
+    );
+    tracker.push("download", download_detail);
 }
 
 pub(super) fn create_base_venv_if_requested(
     plan: &InstallPlan,
-    progress_steps: &mut Vec<String>,
+    progress: &mut ProgressTracker<'_>,
 ) -> Result<bool, PyenvError> {
     let mut base_venv_created = false;
     if plan.create_base_venv
         && let Some(base_venv_path) = &plan.base_venv_path
     {
-        progress_steps.push(progress_step(
+        progress.push(
             "venv",
             format!(
                 "creating base virtual environment at {}",
                 base_venv_path.display()
             ),
-        ));
+        );
         let base_venv_arg = base_venv_path.display().to_string();
         run_python(
             &plan.python_executable,
@@ -101,18 +129,18 @@ pub(super) fn finalize_install(
     plan: &InstallPlan,
     pip_bootstrapped: bool,
     base_venv_created: bool,
-    progress_steps: &mut Vec<String>,
+    mut progress: ProgressTracker<'_>,
 ) -> Result<InstallOutcome, PyenvError> {
     let receipt_path = write_install_receipt(plan)?;
-    progress_steps.push(progress_step(
+    progress.push(
         "receipt",
         format!("wrote install receipt to {}", receipt_path.display()),
-    ));
+    );
     rehash_shims(ctx)?;
-    progress_steps.push(progress_step(
+    progress.push(
         "shims",
         format!("refreshed shims under {}", ctx.shims_dir().display()),
-    ));
+    );
     run_after_install_hooks(ctx, plan)?;
 
     Ok(InstallOutcome {
@@ -120,7 +148,7 @@ pub(super) fn finalize_install(
         receipt_path,
         pip_bootstrapped,
         base_venv_created,
-        progress_steps: progress_steps.clone(),
+        progress_steps: progress.finish(),
     })
 }
 

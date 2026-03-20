@@ -4,4 +4,5 @@
 mod archive_tests;
 mod catalog_tests;
 mod plan_tests;
+mod report_tests;
 mod support;
