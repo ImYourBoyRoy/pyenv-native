@@ -24,7 +24,7 @@ pub fn install_runtime_plan(
     plan: &InstallPlan,
     force: bool,
 ) -> Result<InstallOutcome, PyenvError> {
-    install_runtime(ctx, plan, force)
+    install_runtime(ctx, plan, force, None)
 }
 
 pub(crate) use providers::resolve_python_build_path;

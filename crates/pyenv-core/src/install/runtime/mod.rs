@@ -15,14 +15,15 @@ pub(super) fn install_runtime(
     ctx: &AppContext,
     plan: &InstallPlan,
     force: bool,
+    on_progress: Option<&mut dyn FnMut(&str)>,
 ) -> Result<InstallOutcome, PyenvError> {
     if plan.provider.ends_with("-cpython-source") {
-        return source::install_runtime_via_cpython_source(ctx, plan, force);
+        return source::install_runtime_via_cpython_source(ctx, plan, force, on_progress);
     }
 
     if plan.provider.ends_with("-python-build") {
-        return python_build::install_runtime_via_python_build(ctx, plan, force);
+        return python_build::install_runtime_via_python_build(ctx, plan, force, on_progress);
     }
 
-    native::install_runtime_via_archive(ctx, plan, force)
+    native::install_runtime_via_archive(ctx, plan, force, on_progress)
 }

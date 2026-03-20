@@ -9,18 +9,20 @@ use crate::error::PyenvError;
 use super::super::archive::{
     download_package, ensure_pip_wrappers, extract_archive, move_directory, validate_python,
 };
-use super::super::report::{io_error, progress_step};
+use super::super::report::io_error;
 use super::super::runtime_support::ensure_pip_available;
 use super::super::types::{InstallOutcome, InstallPlan};
 use super::shared::{
-    cleanup_paths, create_base_venv_if_requested, finalize_install, initial_progress_steps,
-    remove_existing_install_dir, run_before_install_hooks, staging_dir, versions_dir,
+    ProgressTracker, cleanup_paths, create_base_venv_if_requested, finalize_install,
+    remove_existing_install_dir, run_before_install_hooks, seed_progress, staging_dir,
+    versions_dir,
 };
 
 pub(super) fn install_runtime_via_archive(
     ctx: &AppContext,
     plan: &InstallPlan,
     force: bool,
+    on_progress: Option<&mut dyn FnMut(&str)>,
 ) -> Result<InstallOutcome, PyenvError> {
     remove_existing_install_dir(plan, force)?;
     run_before_install_hooks(ctx, plan)?;
@@ -29,31 +31,35 @@ pub(super) fn install_runtime_via_archive(
     let versions_dir = versions_dir(plan)?;
     fs::create_dir_all(versions_dir).map_err(io_error)?;
     let staging_dir = staging_dir(versions_dir, plan, "installing");
-    let mut progress_steps =
-        initial_progress_steps(plan, format!("fetching package from {}", plan.download_url));
+    let mut progress = ProgressTracker::new(on_progress);
+    seed_progress(
+        &mut progress,
+        plan,
+        format!("fetching package from {}", plan.download_url),
+    );
 
     let outcome = (|| {
         extract_archive(plan, &staging_dir)?;
-        progress_steps.push(progress_step(
+        progress.push(
             "extract",
             format!("unpacked archive into {}", staging_dir.display()),
-        ));
+        );
         move_directory(&staging_dir, &plan.install_dir)?;
-        progress_steps.push(progress_step(
+        progress.push(
             "install",
             format!("moved runtime files into {}", plan.install_dir.display()),
-        ));
+        );
         validate_python(&plan.python_executable)?;
-        progress_steps.push(progress_step(
+        progress.push(
             "verify",
             format!(
                 "validated interpreter at {}",
                 plan.python_executable.display()
             ),
-        ));
+        );
 
         let pip_bootstrapped = if plan.bootstrap_pip {
-            progress_steps.push(progress_step("pip", "ensuring pip is available"));
+            progress.push("pip", "ensuring pip is available");
             let pip_available = ensure_pip_available(&plan.python_executable)?;
             if plan.provider.starts_with("windows-") {
                 ensure_pip_wrappers(plan)?;
@@ -63,14 +69,8 @@ pub(super) fn install_runtime_via_archive(
             false
         };
 
-        let base_venv_created = create_base_venv_if_requested(plan, &mut progress_steps)?;
-        finalize_install(
-            ctx,
-            plan,
-            pip_bootstrapped,
-            base_venv_created,
-            &mut progress_steps,
-        )
+        let base_venv_created = create_base_venv_if_requested(plan, &mut progress)?;
+        finalize_install(ctx, plan, pip_bootstrapped, base_venv_created, progress)
     })();
 
     if outcome.is_err() {

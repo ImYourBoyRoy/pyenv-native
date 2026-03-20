@@ -80,7 +80,25 @@ On Termux, the installer now targets the dedicated `pyenv-native-android-arm64.t
 
 Google's built-in Android Terminal app runs a Debian Linux virtual machine, so it should use the **Linux ARM64** bundle rather than the Termux-specific Android bundle.
 
-If `pyenv` is not recognized immediately in the current Termux session after install, open a new shell or run:
+If you want `pyenv` available in the current POSIX shell immediately after install, run the shell-specific init command:
+
+```sh
+eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
+```
+
+For zsh:
+
+```sh
+eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
+```
+
+For Fish:
+
+```fish
+"$HOME/.pyenv/bin/pyenv" init - fish | source
+```
+
+Reloading your profile also works:
 
 ```sh
 . ~/.bashrc
