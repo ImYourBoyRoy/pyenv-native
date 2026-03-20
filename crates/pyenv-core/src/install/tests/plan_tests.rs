@@ -133,6 +133,35 @@ fn install_command_requires_versions_without_list_mode() {
 }
 
 #[test]
+fn install_command_treats_split_help_tokens_as_help() {
+    let (_temp, ctx) = test_context();
+    let report = cmd_install(
+        &ctx,
+        &InstallCommandOptions {
+            list: false,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: None,
+            versions: vec![
+                "-".to_string(),
+                "h".to_string(),
+                "e".to_string(),
+                "l".to_string(),
+                "p".to_string(),
+            ],
+        },
+    );
+
+    assert_eq!(report.exit_code, 0);
+    assert_eq!(
+        report.stdout.first().expect("usage"),
+        "Usage: pyenv install [-l|--list] [--known] [--family <family>] [--dry-run] [--json] [-f|--force] <version> ..."
+    );
+}
+
+#[test]
 fn resolve_install_plan_delegates_to_python_build_on_linux() {
     let (temp, mut ctx) = test_context();
     let script = write_fake_python_build(&temp, &["stackless-3.7.5", "pypy3.10-7.3.15"]);
