@@ -110,6 +110,7 @@ pyenv self-update --tag vX.Y.Z
 ```
 
 Use `--yes` for unattended automation.
+Compatibility alias: `pyenv update` is also supported for upstream-style workflows.
 
 ### Important install note
 
@@ -377,9 +378,22 @@ pyenv venv use api
 pyenv local 3.13.12/envs/api
 ```
 
-Managed envs live under `PYENV_ROOT/versions/<runtime>/envs/<name>`.
+Managed envs live under `PYENV_ROOT/venvs/<runtime>/<name>`.
 That gives you predictable names, avoids hidden project-specific duplication, and lets
 `.python-version` point directly at a managed env spec such as `3.13.12/envs/api`.
+
+Compatibility aliases from upstream pyenv workflows are also supported:
+
+```powershell
+pyenv virtualenv 3.13 api
+pyenv virtualenvs
+pyenv virtualenv-prefix api
+pyenv activate api
+pyenv deactivate
+```
+
+Those aliases intentionally reuse the same managed-venv implementation, so the recommended
+long-term workflow is still `pyenv venv ...` plus `.python-version`.
 
 ### Inspect selection and resolution
 
@@ -496,7 +510,7 @@ pyenv install 3.12
 Named managed envs are different from the optional companion base venv:
 
 - companion base venvs are runtime-scoped internals,
-- managed envs are user-facing named envs under `versions/<runtime>/envs/<name>`,
+- managed envs are user-facing named envs under `venvs/<runtime>/<name>`,
 - managed envs can be written directly into `.python-version`,
 - `pyenv venv create` refuses ambiguous name collisions so a short name like `api` stays predictable.
 

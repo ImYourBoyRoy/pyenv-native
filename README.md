@@ -120,6 +120,8 @@ pyenv self-update
 pyenv self-update --check
 ```
 
+Compatibility alias: `pyenv update` routes to the same native updater.
+
 ---
 
 ## Agentic / MCP integration
@@ -294,9 +296,22 @@ pyenv venv use api
 pyenv local 3.13.12/envs/api
 ```
 
-Managed envs live under `PYENV_ROOT/versions/<runtime>/envs/<name>`.
+Managed envs live under `PYENV_ROOT/venvs/<runtime>/<name>`.
 That means a project can point its `.python-version` file directly at a managed venv spec like
 `3.13.12/envs/api`, so `python` and `pip` resolve correctly without manual activation in every shell.
+
+Compatibility aliases are also supported for smoother upstream migration:
+
+```powershell
+pyenv virtualenv 3.13 api
+pyenv virtualenvs
+pyenv virtualenv-prefix api
+pyenv activate api
+pyenv deactivate
+```
+
+`pyenv venv ...` remains the preferred interface; the compatibility terms route through the same
+managed-venv backend.
 
 ### Inspect what is active
 
