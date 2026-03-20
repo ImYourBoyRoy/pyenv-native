@@ -7,6 +7,7 @@ use crate::catalog::{
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::meta::cmd_help;
 use crate::runtime::BASE_VENV_DIR_NAME;
 use crate::version::installed_version_dir;
 
@@ -51,6 +52,10 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
         return CommandReport::failure(vec![PyenvError::MissingInstallVersion.to_string()], 1);
     }
 
+    if is_split_help_request(&options.versions) {
+        return cmd_help(ctx, Some("install"), false);
+    }
+
     let mut plans = Vec::new();
     let mut outcomes = Vec::new();
     let mut stderr = Vec::new();
@@ -89,6 +94,15 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
         stderr,
         exit_code,
     }
+}
+
+fn is_split_help_request(versions: &[String]) -> bool {
+    if versions.is_empty() {
+        return false;
+    }
+
+    let joined = versions.concat().to_ascii_lowercase();
+    matches!(joined.as_str(), "-help" | "--help" | "/?")
 }
 
 pub fn cmd_available(

@@ -2,6 +2,7 @@
 //! CLI dispatch and terminal interaction for the `pyenv` binary. This module parses the
 //! command context, routes clap subcommands into `pyenv-core`, and handles prompt/report I/O.
 
+use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -36,7 +37,7 @@ pub(crate) fn run() -> ExitCode {
         return emit_report(cmd_exec(&ctx, &command_name, &args));
     }
 
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(normalize_cli_args(std::env::args_os()));
     let Some(command) = cli.command else {
         let _ = Cli::command().print_help();
         let _ = writeln!(io::stdout());
@@ -52,6 +53,15 @@ pub(crate) fn run() -> ExitCode {
     };
 
     emit_report(dispatch_command(&mut ctx, command))
+}
+
+fn normalize_cli_args(args: impl IntoIterator<Item = OsString>) -> Vec<OsString> {
+    args.into_iter()
+        .map(|arg| match arg.to_str() {
+            Some("-help") | Some("/?") => OsString::from("--help"),
+            _ => arg,
+        })
+        .collect()
 }
 
 fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
@@ -361,4 +371,32 @@ fn emit_report(report: CommandReport) -> ExitCode {
     }
 
     ExitCode::from(report.exit_code as u8)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use super::normalize_cli_args;
+
+    #[test]
+    fn normalize_cli_args_maps_windows_help_spellings() {
+        let args = vec![
+            OsString::from("pyenv"),
+            OsString::from("install"),
+            OsString::from("-help"),
+            OsString::from("/?"),
+        ];
+
+        let normalized = normalize_cli_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("pyenv"),
+                OsString::from("install"),
+                OsString::from("--help"),
+                OsString::from("--help"),
+            ]
+        );
+    }
 }

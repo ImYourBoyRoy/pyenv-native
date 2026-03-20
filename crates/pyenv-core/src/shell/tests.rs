@@ -204,7 +204,10 @@ fn init_print_for_pwsh_sets_path_env_and_function() {
             .any(|line| line.contains("$psi.Arguments = Join-PyenvWindowsArguments"))
     );
     assert!(report.stdout.iter().any(|line| {
-        line.contains("Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + $arguments)")
+        line.contains("Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + @($arguments))")
+    }));
+    assert!(report.stdout.iter().any(|line| {
+        line.contains("Invoke-PyenvCaptured $pyenvExe (@('sh-shell', '--') + @($arguments))")
     }));
     assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     assert!(

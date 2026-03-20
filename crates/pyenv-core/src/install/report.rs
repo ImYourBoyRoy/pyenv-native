@@ -86,6 +86,16 @@ pub(super) fn render_outcome_lines(outcomes: &[InstallOutcome]) -> Vec<String> {
 }
 
 pub(super) fn render_install_error_lines(error: &PyenvError, requested: &str) -> Vec<String> {
+    if matches!(
+        requested.trim().to_ascii_lowercase().as_str(),
+        "-help" | "--help" | "/?"
+    ) {
+        return vec![
+            "pyenv: `install` help was requested.".to_string(),
+            "hint: run `pyenv install --help` or `pyenv help install`".to_string(),
+        ];
+    }
+
     match error {
         PyenvError::UnsupportedInstallTarget(_) => vec![
             "pyenv: no native install provider is configured for this platform/version."
