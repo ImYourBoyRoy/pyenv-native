@@ -56,12 +56,60 @@ pub(crate) fn run() -> ExitCode {
 }
 
 fn normalize_cli_args(args: impl IntoIterator<Item = OsString>) -> Vec<OsString> {
-    args.into_iter()
-        .map(|arg| match arg.to_str() {
-            Some("-help") | Some("/?") => OsString::from("--help"),
-            _ => arg,
-        })
-        .collect()
+    let mut normalized = args.into_iter().collect::<Vec<_>>();
+    map_windows_help_aliases(&mut normalized);
+
+    if normalized.len() >= 3 {
+        match normalized
+            .get(1)
+            .and_then(|value| value.to_str())
+            .map(|value| value.to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("help") => {
+                if let Some(joined) = join_single_char_tokens(&normalized[2..]) {
+                    normalized.truncate(2);
+                    normalized.push(OsString::from(joined));
+                }
+            }
+            Some("install") => {
+                if let Some(joined) = join_single_char_tokens(&normalized[2..])
+                    && matches!(joined.as_str(), "--list" | "-help" | "--help" | "/?")
+                {
+                    normalized.truncate(2);
+                    normalized.push(OsString::from(joined));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    map_windows_help_aliases(&mut normalized);
+    normalized
+}
+
+fn map_windows_help_aliases(args: &mut [OsString]) {
+    for arg in args {
+        if matches!(arg.to_str(), Some("-help") | Some("/?")) {
+            *arg = OsString::from("--help");
+        }
+    }
+}
+
+fn join_single_char_tokens(tokens: &[OsString]) -> Option<String> {
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let mut joined = String::new();
+    for token in tokens {
+        let text = token.to_str()?;
+        if text.chars().count() != 1 {
+            return None;
+        }
+        joined.push_str(text);
+    }
+    Some(joined)
 }
 
 fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
@@ -396,6 +444,55 @@ mod tests {
                 OsString::from("install"),
                 OsString::from("--help"),
                 OsString::from("--help"),
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_cli_args_repairs_split_help_command_name() {
+        let args = vec![
+            OsString::from("pyenv"),
+            OsString::from("help"),
+            OsString::from("i"),
+            OsString::from("n"),
+            OsString::from("s"),
+            OsString::from("t"),
+            OsString::from("a"),
+            OsString::from("l"),
+            OsString::from("l"),
+        ];
+
+        let normalized = normalize_cli_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("pyenv"),
+                OsString::from("help"),
+                OsString::from("install"),
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_cli_args_repairs_split_install_help_flags() {
+        let args = vec![
+            OsString::from("pyenv"),
+            OsString::from("install"),
+            OsString::from("-"),
+            OsString::from("-"),
+            OsString::from("l"),
+            OsString::from("i"),
+            OsString::from("s"),
+            OsString::from("t"),
+        ];
+
+        let normalized = normalize_cli_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("pyenv"),
+                OsString::from("install"),
+                OsString::from("--list"),
             ]
         );
     }

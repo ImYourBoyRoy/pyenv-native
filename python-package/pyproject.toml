@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyenv-native"
-version = "0.1.17"
+version = "0.1.18"
 description = "Python install package for the native-first pyenv-native runtime bundles."
 readme = "README.md"
 requires-python = ">=3.8"
