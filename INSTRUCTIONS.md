@@ -79,6 +79,17 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/inst
 
 On Android / Termux, the same installer now resolves to the dedicated Android ARM64 release artifact. Because `curl ... | sh` runs in a child shell, it cannot modify the already-open parent shell automatically. If you want `pyenv` available in the current shell immediately after install, run `export PATH="$HOME/.pyenv/bin:$PATH"` followed by `eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"` (or swap `bash` for `zsh` on macOS). Reloading your profile with `. ~/.bashrc` still works too.
 
+If you plan to build managed CPython versions inside Termux, install the recommended native prerequisites first:
+
+```sh
+pkg install clang make pkg-config \
+  gdbm libandroid-posix-semaphore libandroid-support libbz2 libcrypt \
+  libexpat libffi liblzma libsqlite ncurses ncurses-ui-libs \
+  openssl readline zlib
+```
+
+Those packages are only build prerequisites. `pyenv-native` still downloads, builds, and manages the Python versions itself.
+
 Google's built-in Android Terminal app is different from Termux: it runs a Debian Linux VM, so it should use the Linux ARM64 bundle instead of the Termux-specific Android artifact.
 
 This is the simplest path when you just want `pyenv-native` installed quickly from GitHub.

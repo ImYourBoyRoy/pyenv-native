@@ -5,6 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[cfg(any(target_os = "android", test))]
+use std::env;
+
 use crate::context::AppContext;
 use crate::error::PyenvError;
 
@@ -69,6 +72,7 @@ pub(super) fn build_cpython_source_install(
     if plan.free_threaded {
         configure.arg("--disable-gil");
     }
+    apply_android_source_build_env(&mut configure);
     run_checked_process(
         configure,
         format!("configure source build for `{}`", plan.resolved_version),
@@ -79,10 +83,12 @@ pub(super) fn build_cpython_source_install(
         .unwrap_or(1);
     let mut make = Command::new("make");
     make.current_dir(build_dir).arg(format!("-j{jobs}"));
+    apply_android_source_build_env(&mut make);
     run_checked_process(make, format!("build `{}`", plan.resolved_version))?;
 
     let mut install = Command::new("make");
     install.current_dir(build_dir).arg("install");
+    apply_android_source_build_env(&mut install);
     run_checked_process(
         install,
         format!(
@@ -107,6 +113,107 @@ fn run_checked_process(mut command: Command, description: String) -> Result<(), 
         output.status.code().unwrap_or(1),
         format_command_output_suffix(&output.stdout, &output.stderr)
     )))
+}
+
+fn apply_android_source_build_env(command: &mut Command) {
+    #[cfg(target_os = "android")]
+    {
+        let prefix = env::var_os("PREFIX").map(PathBuf::from);
+        for (key, value) in android_source_build_env(prefix.as_deref(), detect_android_api_level())
+        {
+            command.env(key, value);
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = command;
+    }
+}
+
+#[cfg(any(target_os = "android", test))]
+fn android_source_build_env(
+    prefix: Option<&Path>,
+    api_level: Option<u32>,
+) -> Vec<(String, String)> {
+    let mut env_pairs = Vec::new();
+
+    if let Some(prefix) = prefix {
+        let include_dir = prefix.join("include");
+        let lib_dir = prefix.join("lib");
+        env_pairs.push((
+            "CPPFLAGS".to_string(),
+            append_shell_flag(
+                env::var("CPPFLAGS").ok().as_deref(),
+                &format!("-I{}", include_dir.display()),
+            ),
+        ));
+        env_pairs.push((
+            "LDFLAGS".to_string(),
+            append_shell_flag(
+                env::var("LDFLAGS").ok().as_deref(),
+                &format!("-L{} -Wl,-rpath,{}", lib_dir.display(), lib_dir.display()),
+            ),
+        ));
+        env_pairs.push(("LIBCRYPT_LIBS".to_string(), "-lcrypt".to_string()));
+    }
+
+    if let Some(api_level) = api_level {
+        if api_level < 28 {
+            env_pairs.push(("ac_cv_func_fexecve".to_string(), "no".to_string()));
+            env_pairs.push(("ac_cv_func_getlogin_r".to_string(), "no".to_string()));
+        }
+        if api_level < 29 {
+            env_pairs.push(("ac_cv_func_getloadavg".to_string(), "no".to_string()));
+        }
+        if api_level < 30 {
+            env_pairs.push(("ac_cv_func_sem_clockwait".to_string(), "no".to_string()));
+        }
+        if api_level < 33 {
+            env_pairs.push(("ac_cv_func_preadv2".to_string(), "no".to_string()));
+            env_pairs.push(("ac_cv_func_pwritev2".to_string(), "no".to_string()));
+        }
+        if api_level < 34 {
+            env_pairs.push(("ac_cv_func_close_range".to_string(), "no".to_string()));
+            env_pairs.push(("ac_cv_func_copy_file_range".to_string(), "no".to_string()));
+        }
+    }
+
+    env_pairs
+}
+
+#[cfg(any(target_os = "android", test))]
+fn append_shell_flag(existing: Option<&str>, addition: &str) -> String {
+    match existing.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(existing) => format!("{existing} {addition}"),
+        None => addition.to_string(),
+    }
+}
+
+#[cfg(any(target_os = "android", test))]
+#[cfg_attr(test, allow(dead_code))]
+fn detect_android_api_level() -> Option<u32> {
+    for key in [
+        "TERMUX_PKG_API_LEVEL",
+        "ANDROID_API_LEVEL",
+        "TERMUX_API_LEVEL",
+    ] {
+        if let Ok(value) = env::var(key)
+            && let Ok(parsed) = value.trim().parse::<u32>()
+        {
+            return Some(parsed);
+        }
+    }
+
+    let output = Command::new("getprop")
+        .arg("ro.build.version.sdk")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
 pub(super) fn ensure_unix_runtime_aliases(
@@ -204,4 +311,60 @@ pub(super) fn ensure_pip_available(python_executable: &Path) -> Result<bool, Pye
     run_python(python_executable, &["-m", "ensurepip", "--default-pip"])?;
     run_python(python_executable, &["-m", "pip", "--version"])?;
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::android_source_build_env;
+
+    #[test]
+    fn android_source_build_env_includes_termux_prefix_flags() {
+        let env_pairs =
+            android_source_build_env(Some(Path::new("/data/data/com.termux/files/usr")), Some(34));
+        let cppflags = env_pairs
+            .iter()
+            .find(|(key, _)| key == "CPPFLAGS")
+            .map(|(_, value)| value.replace('\\', "/"))
+            .expect("CPPFLAGS");
+        let ldflags = env_pairs
+            .iter()
+            .find(|(key, _)| key == "LDFLAGS")
+            .map(|(_, value)| value.replace('\\', "/"))
+            .expect("LDFLAGS");
+
+        assert!(cppflags.contains("/data/data/com.termux/files/usr/include"));
+        assert!(ldflags.contains("/data/data/com.termux/files/usr/lib"));
+        assert!(
+            env_pairs
+                .iter()
+                .any(|(key, value)| key == "LIBCRYPT_LIBS" && value == "-lcrypt")
+        );
+    }
+
+    #[test]
+    fn android_source_build_env_disables_api_gated_functions() {
+        let env_pairs = android_source_build_env(None, Some(32));
+        assert!(
+            env_pairs
+                .iter()
+                .any(|(key, value)| key == "ac_cv_func_close_range" && value == "no")
+        );
+        assert!(
+            env_pairs
+                .iter()
+                .any(|(key, value)| key == "ac_cv_func_copy_file_range" && value == "no")
+        );
+        assert!(
+            env_pairs
+                .iter()
+                .any(|(key, value)| key == "ac_cv_func_preadv2" && value == "no")
+        );
+        assert!(
+            env_pairs
+                .iter()
+                .any(|(key, value)| key == "ac_cv_func_pwritev2" && value == "no")
+        );
+    }
 }
