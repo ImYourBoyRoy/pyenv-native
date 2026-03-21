@@ -91,12 +91,16 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/inst
 ### Latest published release: Android (Termux)
 
 ```sh
-# Install build dependencies first
-pkg install clang make libffi zlib
+# Recommended Termux prerequisites for managed CPython source builds
+pkg install clang make pkg-config \
+  gdbm libandroid-posix-semaphore libandroid-support libbz2 libcrypt \
+  libexpat libffi liblzma libsqlite ncurses ncurses-ui-libs \
+  openssl readline zlib
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
 ```
 
 On Termux, the installer now targets the dedicated `pyenv-native-android-arm64.tar.gz` release artifact rather than the generic Linux ARM64 bundle.
+Those `pkg` dependencies are only for building managed CPython versions inside Termux; `pyenv-native` still installs and manages Python versions itself rather than delegating version installs to `pkg`.
 
 ### Android built-in "Terminal" app
 
@@ -376,6 +380,8 @@ pyenv doctor
 pyenv doctor --json
 pyenv doctor --fix
 ```
+
+On Termux, if a managed CPython build fails, first make sure the recommended native build dependencies above are installed, then retry the `pyenv install ...` command.
 
 For fuller installation, usage, shell, config, uninstall, and development guidance, read [`INSTRUCTIONS.md`](./INSTRUCTIONS.md).
 
