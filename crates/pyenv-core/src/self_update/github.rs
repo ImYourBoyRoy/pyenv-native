@@ -3,10 +3,9 @@
 
 use std::env;
 
-use reqwest::blocking::Client;
-
 use super::types::{GitHubReleaseInfo, ReleaseTarget};
 use super::versioning::{compare_release_versions, normalize_tag};
+use crate::http::build_blocking_client;
 
 pub(super) const DEFAULT_GITHUB_REPO: &str = "imyourboyroy/pyenv-native";
 const DEFAULT_GITHUB_API_BASE: &str = "https://api.github.com";
@@ -57,9 +56,7 @@ pub(super) fn fetch_latest_release_info(
         .map_err(|error| format!("pyenv: failed to parse latest release metadata: {error}"))
 }
 
-fn github_client() -> Result<Client, String> {
-    Client::builder()
-        .user_agent(format!("pyenv-native/{}", env!("CARGO_PKG_VERSION")))
-        .build()
+fn github_client() -> Result<reqwest::blocking::Client, String> {
+    build_blocking_client()
         .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))
 }

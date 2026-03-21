@@ -10,11 +10,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
-use reqwest::blocking::Client;
 use tar::Archive;
 use zip::ZipArchive;
 
 use crate::error::PyenvError;
+use crate::http::build_blocking_client;
 
 use super::report::{io_error, pip_wrapper_names, sanitize_for_fs};
 use super::types::{INSTALL_RECEIPT_FILE, InstallPlan, InstallReceipt};
@@ -44,9 +44,7 @@ pub(super) fn download_package(plan: &InstallPlan) -> Result<(), PyenvError> {
         let _ = fs::remove_file(&partial_path);
     }
 
-    let client = Client::builder()
-        .user_agent(format!("pyenv-native/{}", env!("CARGO_PKG_VERSION")))
-        .build()
+    let client = build_blocking_client()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
     let response = client.get(&plan.download_url).send().map_err(|error| {

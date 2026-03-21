@@ -60,7 +60,29 @@ On Windows, the installer persists both `PYENV_ROOT\\bin` and `PYENV_ROOT\\shims
 $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.ps1 -OutFile $installer; & $installer
 ```
 
-### Latest published release: Linux / macOS
+### Latest published release: Linux / macOS - install and activate in the current shell
+
+Bash:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
+```
+
+Zsh:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
+```
+
+Fish:
+
+```fish
+curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh; and if not contains -- "$HOME/.pyenv/bin" $PATH; set -gx PATH "$HOME/.pyenv/bin" $PATH; end; and "$HOME/.pyenv/bin/pyenv" init - fish | source
+```
+
+### Latest published release: Linux / macOS - install only
+
+Use this form if you are fine opening a new shell afterward or reloading your profile manually:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
@@ -80,21 +102,27 @@ On Termux, the installer now targets the dedicated `pyenv-native-android-arm64.t
 
 Google's built-in Android Terminal app runs a Debian Linux virtual machine, so it should use the **Linux ARM64** bundle rather than the Termux-specific Android bundle.
 
-If you want `pyenv` available in the current POSIX shell immediately after install, run the shell-specific init command:
+Because `curl ... | sh` runs the installer in a child shell, it cannot modify the already-open parent shell automatically.
+If you use the `install only` form, make `pyenv` available in the current POSIX shell by first adding `~/.pyenv/bin` to `PATH`, then running the shell-specific init command:
 
 ```sh
+export PATH="$HOME/.pyenv/bin:$PATH"
 eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
 ```
 
 For zsh:
 
 ```sh
+export PATH="$HOME/.pyenv/bin:$PATH"
 eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
 ```
 
 For Fish:
 
 ```fish
+if not contains -- "$HOME/.pyenv/bin" $PATH
+  set -gx PATH "$HOME/.pyenv/bin" $PATH
+end
 "$HOME/.pyenv/bin/pyenv" init - fish | source
 ```
 

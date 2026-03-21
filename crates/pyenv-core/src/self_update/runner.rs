@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::command::CommandReport;
 use crate::context::AppContext;
+use crate::http::build_blocking_client;
 
 use super::github::{DEFAULT_GITHUB_REPO, resolve_release_target};
 use super::types::{ReleaseTarget, SelfUpdateOptions};
@@ -173,9 +174,7 @@ fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
         .map_err(|error| format!("pyenv: failed to create update temp directory: {error}"))?;
 
     let installer_path = temp_dir.join(format!("install.{extension}"));
-    let bytes = reqwest::blocking::Client::builder()
-        .user_agent(format!("pyenv-native/{}", env!("CARGO_PKG_VERSION")))
-        .build()
+    let bytes = build_blocking_client()
         .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))?
         .get(&installer_url)
         .send()
