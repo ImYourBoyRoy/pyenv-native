@@ -8,6 +8,7 @@ mod context;
 mod doctor;
 mod error;
 mod executable;
+mod http;
 mod install;
 mod manage;
 mod meta;

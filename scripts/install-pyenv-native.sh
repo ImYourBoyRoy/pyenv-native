@@ -137,14 +137,26 @@ render_reload_hint() {
 
 render_current_shell_hint() {
   installed_exe="$1"
-  shell_kind="$2"
+  install_bin="$2"
+  shell_kind="$3"
 
   case "$shell_kind" in
     fish)
-      printf "'%s' init - fish | source\n" "$installed_exe"
+      cat <<EOF
+if not contains -- '$install_bin' \$PATH
+  set -gx PATH '$install_bin' \$PATH
+end
+'$installed_exe' init - fish | source
+EOF
       ;;
     bash|zsh|sh)
-      printf "eval \"\$('%s' init - %s)\"\n" "$installed_exe" "$shell_kind"
+      cat <<EOF
+case ":\${PATH}:" in
+  *:'$install_bin':*) ;;
+  *) export PATH='$install_bin':"\${PATH}" ;;
+esac
+eval "\$('${installed_exe}' init - $shell_kind)"
+EOF
       ;;
     *)
       print_line ""
@@ -536,11 +548,16 @@ fi
 
 CURRENT_SHELL_HINT=""
 if [ "$SHELL_KIND" != "none" ]; then
-  CURRENT_SHELL_HINT="$(render_current_shell_hint "$INSTALLED_EXE" "$SHELL_KIND")"
+  CURRENT_SHELL_HINT="$(render_current_shell_hint "$INSTALLED_EXE" "$INSTALL_BIN" "$SHELL_KIND")"
 fi
 
 if [ -n "$CURRENT_SHELL_HINT" ]; then
-  write_step "Use pyenv in this shell right now with: $CURRENT_SHELL_HINT"
+  write_warn 'This installer ran in its own shell process and cannot modify the already-open parent shell automatically.'
+  write_step 'To use pyenv in your current shell right now, run the command block below manually:'
+  print_line "$CURRENT_SHELL_HINT"
+  if [ -n "$LOG_PATH" ]; then
+    print_line "$CURRENT_SHELL_HINT" >> "$LOG_PATH"
+  fi
 fi
 
 if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ] && [ -n "$PROFILE_PATH" ]; then

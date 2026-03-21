@@ -328,6 +328,62 @@ emit_summary() {
   print_line ""
 }
 
+render_current_shell_hint() {
+  installed_exe="$1"
+  install_bin="$2"
+  shell_kind="$3"
+
+  case "$shell_kind" in
+    fish)
+      cat <<EOF
+if not contains -- '$install_bin' \$PATH
+  set -gx PATH '$install_bin' \$PATH
+end
+'$installed_exe' init - fish | source
+EOF
+      ;;
+    bash|zsh|sh)
+      cat <<EOF
+case ":\${PATH}:" in
+  *:'$install_bin':*) ;;
+  *) export PATH='$install_bin':"\${PATH}" ;;
+esac
+eval "\$('${installed_exe}' init - $shell_kind)"
+EOF
+      ;;
+    *)
+      print_line ""
+      ;;
+  esac
+}
+
+render_single_paste_install_command() {
+  shell_kind="$1"
+
+  if [ -z "$GITHUB_REPO" ] || [ -n "$BUNDLE_URL" ] || [ -n "$RELEASE_BASE_URL" ]; then
+    print_line ""
+    return
+  fi
+
+  raw_ref="main"
+  if [ -n "$TAG" ]; then
+    raw_ref="$TAG"
+  fi
+  raw_install_url="https://raw.githubusercontent.com/${GITHUB_REPO}/${raw_ref}/install.sh"
+
+  case "$shell_kind" in
+    fish)
+      printf "curl -fsSL %s | sh; and if not contains -- \"\$HOME/.pyenv/bin\" \$PATH; set -gx PATH \"\$HOME/.pyenv/bin\" \$PATH; end; and \"\$HOME/.pyenv/bin/pyenv\" init - fish | source\n" "$raw_install_url"
+      ;;
+    bash|zsh|sh)
+      printf "curl -fsSL %s | sh && export PATH=\"\$HOME/.pyenv/bin:\$PATH\" && eval \"\$(\"\$HOME/.pyenv/bin/pyenv\" init - %s)\"\n" "$raw_install_url" "$shell_kind"
+      ;;
+    *)
+      print_line ""
+      ;;
+  esac
+}
+
 confirm_action() {
   if [ "$YES" = "true" ] || [ "$FORCE" = "true" ]; then
     return 0
@@ -540,4 +596,28 @@ print_line "Installed command: ${INSTALL_ROOT}/bin/pyenv"
 print_line "Log file: $LOG_PATH"
 if [ -n "$GITHUB_REPO" ]; then
   print_line "Remote uninstall helper: https://raw.githubusercontent.com/${GITHUB_REPO}/main/uninstall.sh"
+fi
+
+CURRENT_SHELL_HINT=""
+if [ "$SHELL_KIND" != "none" ]; then
+  CURRENT_SHELL_HINT="$(render_current_shell_hint "${INSTALL_ROOT}/bin/pyenv" "${INSTALL_ROOT}/bin" "$SHELL_KIND")"
+fi
+
+if [ -n "$CURRENT_SHELL_HINT" ]; then
+  print_line ""
+  print_line "Current-shell note:"
+  print_line "This installer ran under \`sh\`, so it cannot modify the already-open parent shell automatically."
+  print_line "To use pyenv in your current shell right now, run:"
+  print_line "$CURRENT_SHELL_HINT"
+fi
+
+SINGLE_PASTE_COMMAND=""
+if [ "$SHELL_KIND" != "none" ]; then
+  SINGLE_PASTE_COMMAND="$(render_single_paste_install_command "$SHELL_KIND")"
+fi
+
+if [ -n "$SINGLE_PASTE_COMMAND" ]; then
+  print_line ""
+  print_line "Single copy/paste form for next time:"
+  print_line "$SINGLE_PASTE_COMMAND"
 fi

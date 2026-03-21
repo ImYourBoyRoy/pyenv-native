@@ -5,11 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use reqwest::blocking::Client;
-
 use crate::config::RuntimeArch;
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::http::build_blocking_client;
 
 use super::platform::{pypy_manifest_arches, pypy_manifest_platform};
 use super::report::io_error;
@@ -63,9 +62,7 @@ fn fetch_nuget_package_versions(
         "{base_url}/{}/index.json",
         package_name.to_ascii_lowercase()
     );
-    let client = Client::builder()
-        .user_agent(format!("pyenv-native/{}", env!("CARGO_PKG_VERSION")))
-        .build()
+    let client = build_blocking_client()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
     let response_body = client
@@ -216,9 +213,7 @@ pub(super) fn load_or_fetch_pypy_releases(
 }
 
 fn fetch_pypy_releases() -> Result<Vec<PypyReleaseManifest>, PyenvError> {
-    let client = Client::builder()
-        .user_agent(format!("pyenv-native/{}", env!("CARGO_PKG_VERSION")))
-        .build()
+    let client = build_blocking_client()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
     let response = client.get(PYPY_VERSIONS_URL).send().map_err(|error| {
