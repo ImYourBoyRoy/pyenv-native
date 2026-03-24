@@ -18,8 +18,8 @@ use crate::model::{
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
     build_toolkit_guide, doctor_response, ensure_project_venv_response, ensure_runtime_response,
-    list_available_versions_response, resolve_runtime_inventory, set_global_versions_response,
-    set_local_versions_response,
+    inspect_environment_response, list_available_versions_response, resolve_runtime_inventory,
+    set_global_versions_response, set_local_versions_response,
 };
 
 #[derive(Debug, Clone)]
@@ -141,6 +141,20 @@ impl PyenvNativeMcpServer {
     }
 
     #[tool(
+        name = "inspect_environment",
+        description = "Get a high-level overview of the active environment, including selected versions, their origins, and details about the active managed virtual environment if one is present."
+    )]
+    pub async fn inspect_environment(
+        &self,
+        Parameters(params): Parameters<ProjectPathParams>,
+    ) -> Result<Json<crate::model::EnvironmentStatusProxy>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        inspect_environment_response(&ctx)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
         name = "list_available_versions",
         description = "List installable Python runtimes grouped by family. By default this is provider-backed. Set known=true to ask for the broader known catalog instead."
     )]
@@ -214,6 +228,7 @@ impl PyenvNativeMcpServer {
             &ctx,
             params.version,
             params.venv_path,
+            params.managed_venv_name,
             params.install_if_missing.unwrap_or(true),
             params.set_local_version.unwrap_or(false),
         )

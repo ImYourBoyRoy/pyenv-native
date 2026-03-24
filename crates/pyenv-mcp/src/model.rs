@@ -138,6 +138,7 @@ pub struct EnsureProjectVenvParams {
     pub project_dir: Option<PathBuf>,
     pub version: Option<String>,
     pub venv_path: Option<PathBuf>,
+    pub managed_venv_name: Option<String>,
     pub install_if_missing: Option<bool>,
     pub set_local_version: Option<bool>,
 }
@@ -213,4 +214,20 @@ pub struct ProjectVenvResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JsonForwardResponse {
     pub payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EnvironmentStatusProxy {
+    pub root: PathBuf,
+    pub active_versions: Vec<String>,
+    pub origin: String,
+    pub managed_venv: Option<ManagedVenvSummaryProxy>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedVenvSummaryProxy {
+    pub name: String,
+    pub spec: String,
+    pub base_version: String,
+    pub venv_path: PathBuf,
 }

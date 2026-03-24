@@ -1,0 +1,30 @@
+warning: unused import: `std::path::PathBuf`
+ --> crates\pyenv-core\src\self_update\uninstall.rs:7:5
+  |
+7 | use std::path::PathBuf;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `pyenv-core` (lib) generated 1 warning (run `cargo fix --lib -p pyenv-core` to apply 1 suggestion)
+    Checking pyenv-mcp v0.1.21 (C:\Users\Roy\Desktop\AI\pyenv\pyenv-native\crates\pyenv-mcp)
+error[E0432]: unresolved import `crate::ops::inspect_environment_response`
+  --> crates\pyenv-mcp\src\service.rs:22:34
+   |
+22 |     set_local_versions_response, inspect_environment_response,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `inspect_environment_response` in `ops`
+
+error[E0282]: type annotations needed
+   --> crates\pyenv-mcp\src\service.rs:152:63
+    |
+152 |         inspect_environment_response(&ctx).map(Json).map_err(|error| error.to_string())
+    |                                                               ^^^^^  ----- type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type
+    |
+152 |         inspect_environment_response(&ctx).map(Json).map_err(|error: /* Type */| error.to_string())
+    |                                                                    ++++++++++++
+
+Some errors have detailed explanations: E0282, E0432.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `pyenv-mcp` (bin "pyenv-mcp") due to 2 previous errors

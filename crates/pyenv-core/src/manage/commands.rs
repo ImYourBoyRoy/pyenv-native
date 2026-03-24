@@ -103,6 +103,10 @@ pub fn cmd_versions(ctx: &AppContext, options: &VersionsCommandOptions) -> Comma
 
 pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> CommandReport {
     if versions.is_empty() {
+        use std::io::IsTerminal;
+        if !cfg!(test) && std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+            return prompt_interactive_uninstall(ctx, force);
+        }
         return CommandReport::failure(
             vec!["pyenv: uninstall operation requires at least one version argument".to_string()],
             1,
@@ -236,4 +240,53 @@ fn cmd_versions_executables(ctx: &AppContext) -> CommandReport {
     let mut stdout = names.into_iter().collect::<Vec<_>>();
     stdout.sort_by_key(|value| value.to_ascii_lowercase());
     CommandReport::success(stdout)
+}
+
+fn prompt_interactive_uninstall(ctx: &AppContext, force: bool) -> CommandReport {
+    let installed = match crate::catalog::installed_version_names(ctx) {
+        Ok(versions) => versions,
+        Err(e) => return CommandReport::failure(vec![e.to_string()], 1),
+    };
+
+    if installed.is_empty() {
+        return CommandReport::failure(
+            vec!["pyenv: no versions currently installed to uninstall".to_string()],
+            1,
+        );
+    }
+
+    use std::io::Write;
+    let mut stdout = std::io::stdout();
+    let _ = writeln!(stdout, "Currently installed Python versions:");
+    for (i, v) in installed.iter().enumerate() {
+        let _ = writeln!(stdout, "  {}) {}", i + 1, v);
+    }
+    let _ = write!(
+        stdout,
+        "Select a version to uninstall [1-{} or 'q' to quit]: ",
+        installed.len()
+    );
+    let _ = stdout.flush();
+
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return CommandReport::failure(
+            vec!["pyenv: failed to read interactive input".to_string()],
+            1,
+        );
+    }
+
+    let input = input.trim();
+    if input == "q" || input == "quit" || input.is_empty() {
+        return CommandReport::failure(vec!["pyenv: uninstall cancelled".to_string()], 1);
+    }
+
+    match input.parse::<usize>() {
+        Ok(idx) if idx > 0 && idx <= installed.len() => {
+            let selected = installed[idx - 1].clone();
+            let _ = writeln!(stdout, "\nUninstalling {}...\n", selected);
+            cmd_uninstall(ctx, &[selected], force)
+        }
+        _ => CommandReport::failure(vec!["pyenv: invalid selection".to_string()], 1),
+    }
 }

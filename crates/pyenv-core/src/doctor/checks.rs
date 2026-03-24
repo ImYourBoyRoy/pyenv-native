@@ -95,6 +95,7 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     }
 
     checks.extend(selected_env_checks(&selected));
+    checks.push(functional_shim_check(ctx, &selected));
 
     checks
 }
@@ -112,6 +113,79 @@ fn selected_env_checks(selected: &SelectedVersions) -> Vec<DoctorCheck> {
             ),
         })
         .collect()
+}
+
+fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> DoctorCheck {
+    if selected.versions.is_empty() {
+        return DoctorCheck {
+            name: "functional-shim-check".to_string(),
+            status: DoctorStatus::Info,
+            detail: "skipped functional test; no python version selected".to_string(),
+        };
+    }
+
+    if !selected.missing.is_empty() {
+        return DoctorCheck {
+            name: "functional-shim-check".to_string(),
+            status: DoctorStatus::Info,
+            detail: "skipped functional test; selected versions are missing".to_string(),
+        };
+    }
+
+    let shims_dir = ctx.shims_dir();
+    let python_shim = if cfg!(windows) {
+        shims_dir.join("python.bat")
+    } else {
+        shims_dir.join("python")
+    };
+
+    if !python_shim.exists() {
+        return DoctorCheck {
+            name: "functional-shim-check".to_string(),
+            status: DoctorStatus::Warn,
+            detail: "python shim not found; run `pyenv rehash` to generate it".to_string(),
+        };
+    }
+
+    let output = std::process::Command::new(&python_shim)
+        .arg("--version")
+        .env("PYENV_ROOT", &ctx.root)
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let mut version_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if version_str.is_empty() {
+                version_str = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            }
+            let version_str = version_str.lines().next().unwrap_or("unknown").to_string();
+            DoctorCheck {
+                name: "functional-shim-check".to_string(),
+                status: DoctorStatus::Ok,
+                detail: format!("shim functional; successfully invoked {version_str}"),
+            }
+        }
+        Ok(out) => {
+            let error = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            DoctorCheck {
+                name: "functional-shim-check".to_string(),
+                status: DoctorStatus::Warn,
+                detail: format!(
+                    "shim invocation failed (exit status {}): {}",
+                    out.status, error
+                ),
+            }
+        }
+        Err(e) => DoctorCheck {
+            name: "functional-shim-check".to_string(),
+            status: DoctorStatus::Warn,
+            detail: format!(
+                "failed to launch python shim at {}: {}",
+                python_shim.display(),
+                e
+            ),
+        },
+    }
 }
 
 fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
