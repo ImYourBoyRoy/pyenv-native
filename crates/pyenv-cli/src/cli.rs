@@ -77,6 +77,11 @@ pub(crate) enum Commands {
         #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
         tag: Option<String>,
     },
+    #[command(about = "Uninstall pyenv-native from your system")]
+    SelfUninstall {
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+    },
     #[command(
         hide = true,
         name = "update",
@@ -129,6 +134,14 @@ pub(crate) enum Commands {
         #[arg(long = "bare")]
         bare: bool,
     },
+    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
+    Status {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(about = "Print a concise prompt string for the current environment")]
+    Prompt,
+
     #[command(about = "Set or show the global Python version")]
     Global {
         #[arg(long = "unset", help = "Remove the global version file")]

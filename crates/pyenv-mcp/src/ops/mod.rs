@@ -12,7 +12,8 @@ pub(crate) use context::{
 };
 pub(crate) use docs::{build_install_instructions, build_toolkit_guide};
 pub(crate) use project::{
-    ensure_project_venv_response, set_global_versions_response, set_local_versions_response,
+    ensure_project_venv_response, inspect_environment_response, set_global_versions_response,
+    set_local_versions_response,
 };
 pub(crate) use runtime::{
     doctor_response, ensure_runtime_response, list_available_versions_response,

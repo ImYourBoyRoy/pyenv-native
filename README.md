@@ -337,6 +337,9 @@ pyenv local 3.12.10
 pyenv shell 3.12.10
 ```
 
+> [!TIP]
+> If you run `pyenv local` or `pyenv global` with no arguments, they act as powerful interactive hubs, allowing you to instantly see your active environment, select a new version from a numbered list, install new versions, or build/activate managed venvs!
+
 ### Manage named virtual environments
 
 ```powershell

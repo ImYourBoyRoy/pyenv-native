@@ -42,10 +42,13 @@ pub use install::{
     install_runtime_plan, resolve_install_plan,
 };
 pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
-pub use meta::{cmd_commands, cmd_completions, cmd_help, cmd_shims};
+pub use meta::{
+    EnvironmentStatus, ManagedVenvSummary, build_environment_status, cmd_commands, cmd_completions,
+    cmd_help, cmd_prompt, cmd_shims, cmd_status,
+};
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use runtime::BASE_VENV_DIR_NAME;
-pub use self_update::{SelfUpdateOptions, cmd_self_update};
+pub use self_update::{SelfUpdateOptions, cmd_self_uninstall, cmd_self_update};
 pub use shell::{
     InitCommandOptions, cmd_activate, cmd_deactivate, cmd_init, cmd_sh_activate, cmd_sh_cmd,
     cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_virtualenv_init,

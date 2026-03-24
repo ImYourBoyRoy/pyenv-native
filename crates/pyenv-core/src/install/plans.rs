@@ -51,6 +51,15 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
     }
 
     if options.versions.is_empty() {
+        use std::io::IsTerminal;
+        if !cfg!(test)
+            && std::io::stdin().is_terminal()
+            && std::io::stdout().is_terminal()
+            && !options.json
+            && !options.list
+        {
+            return prompt_interactive_install(ctx, options);
+        }
         return CommandReport::failure(vec![PyenvError::MissingInstallVersion.to_string()], 1);
     }
 
@@ -137,6 +146,65 @@ pub fn cmd_available(
             versions: pattern.into_iter().collect(),
         },
     )
+}
+
+fn prompt_interactive_install(
+    ctx: &AppContext,
+    base_options: &InstallCommandOptions,
+) -> CommandReport {
+    let mut candidates = Vec::new();
+    let curated = [
+        "3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "pypy3.10", "pypy3.9",
+    ];
+
+    for prefix in curated {
+        if let Some(latest) = crate::catalog::latest_known_version(prefix) {
+            candidates.push(latest);
+        }
+    }
+
+    if candidates.is_empty() {
+        return CommandReport::failure(
+            vec!["pyenv: no catalog versions available for interactive prompt".to_string()],
+            1,
+        );
+    }
+
+    let mut stdout = std::io::stdout();
+    let _ = writeln!(stdout, "Available Python versions for quick install:");
+    for (i, v) in candidates.iter().enumerate() {
+        let _ = writeln!(stdout, "  {}) {}", i + 1, v);
+    }
+    let _ = write!(
+        stdout,
+        "Select a version to install [1-{} or 'q' to quit]: ",
+        candidates.len()
+    );
+    let _ = stdout.flush();
+
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return CommandReport::failure(
+            vec!["pyenv: failed to read interactive input".to_string()],
+            1,
+        );
+    }
+
+    let input = input.trim();
+    if input == "q" || input == "quit" || input.is_empty() {
+        return CommandReport::failure(vec!["pyenv: install cancelled".to_string()], 1);
+    }
+
+    match input.parse::<usize>() {
+        Ok(idx) if idx > 0 && idx <= candidates.len() => {
+            let selected = candidates[idx - 1].clone();
+            let _ = writeln!(stdout, "\nInstalling {}...\n", selected);
+            let mut opts = base_options.clone();
+            opts.versions = vec![selected];
+            cmd_install(ctx, &opts)
+        }
+        _ => CommandReport::failure(vec!["pyenv: invalid selection".to_string()], 1),
+    }
 }
 
 pub fn resolve_install_plan(ctx: &AppContext, requested: &str) -> Result<InstallPlan, PyenvError> {

@@ -7,9 +7,14 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use pyenv_core::{AppContext, CommandReport, cmd_global, cmd_local, resolve_install_plan};
+use pyenv_core::{
+    AppContext, CommandReport, build_environment_status, cmd_global, cmd_local,
+    resolve_install_plan,
+};
 
-use crate::model::{ProjectVenvResponse, VersionSelectionResponse};
+use crate::model::{
+    EnvironmentStatusProxy, ManagedVenvSummaryProxy, ProjectVenvResponse, VersionSelectionResponse,
+};
 
 use super::runtime::{
     ensure_runtime_response, resolve_interpreter_path, resolve_runtime_inventory,
@@ -47,6 +52,7 @@ pub fn ensure_project_venv_response(
     ctx: &AppContext,
     requested_version: Option<String>,
     explicit_venv_path: Option<PathBuf>,
+    managed_venv_name: Option<String>,
     install_if_missing: bool,
     set_local_version: bool,
 ) -> Result<ProjectVenvResponse> {
@@ -101,7 +107,21 @@ pub fn ensure_project_venv_response(
         format!("failed to locate interpreter for runtime '{resolved_version}'")
     })?;
 
-    let venv_path = explicit_venv_path.unwrap_or_else(|| project_dir.join(".venv"));
+    let (venv_path, resolved_spec) = if let Some(name) = managed_venv_name {
+        let path = ctx
+            .versions_dir()
+            .join(&resolved_version)
+            .join("envs")
+            .join(&name);
+        let spec = format!("{}/envs/{}", resolved_version, name);
+        (path, Some(spec))
+    } else {
+        (
+            explicit_venv_path.unwrap_or_else(|| project_dir.join(".venv")),
+            None,
+        )
+    };
+
     let venv_python = venv_python_path(&venv_path);
     let created = if venv_python.is_file() {
         false
@@ -111,7 +131,8 @@ pub fn ensure_project_venv_response(
     };
 
     let local_version_written = if set_local_version {
-        let versions = vec![resolved_version.clone()];
+        let target_version = resolved_spec.unwrap_or_else(|| resolved_version.clone());
+        let versions = vec![target_version];
         let report = cmd_local(ctx, &versions, false, true);
         ensure_success(report)?;
         true
@@ -221,4 +242,19 @@ pub(super) fn parse_json_report<T: serde::de::DeserializeOwned>(
 
     let joined = report.stdout.join("\n");
     serde_json::from_str(&joined).with_context(|| format!("invalid JSON payload: {joined}"))
+}
+
+pub fn inspect_environment_response(ctx: &AppContext) -> Result<EnvironmentStatusProxy> {
+    let status = build_environment_status(ctx);
+    Ok(EnvironmentStatusProxy {
+        root: status.root,
+        active_versions: status.active_versions,
+        origin: status.origin,
+        managed_venv: status.managed_venv.map(|v| ManagedVenvSummaryProxy {
+            name: v.name,
+            spec: v.spec,
+            base_version: v.base_version,
+            venv_path: v.venv_path,
+        }),
+    })
 }
