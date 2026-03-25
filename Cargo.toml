@@ -1,11 +1,11 @@
 [workspace]
 members = [
     "crates/pyenv-cli",
-    "crates/pyenv-core", "crates/pyenv-mcp",
+    "crates/pyenv-core", "crates/pyenv-mcp", "crates/pyenv-gui"
 ]
 resolver = "2"
 
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.1.22"
+version = "0.2.0"

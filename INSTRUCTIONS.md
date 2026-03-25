@@ -365,6 +365,46 @@ For the full MCP-specific guide, see [`MCP.md`](./MCP.md).
 
 ---
 
+## GUI companion
+
+`pyenv-native` ships with **Pyenv Native GUI**, a desktop dashboard built with Tauri v2 for visual Python environment management.
+
+### Launching the GUI
+
+```powershell
+.\scripts\launch_gui.ps1
+```
+
+Or build and run directly:
+
+```powershell
+cargo build -p pyenv-gui
+.\target\debug\pyenv-gui.exe
+```
+
+### Views
+
+| View | Purpose |
+| ------ | --------- |
+| **Dashboard** | Live overview of active Python version, managed venv, and pyenv root |
+| **Installed Runtimes** | List installed versions with global/local/uninstall actions |
+| **Virtual Environments** | Create, manage, and delete named managed venvs |
+| **Available Targets** | Search upstream catalog and install new runtimes |
+| **Settings** | Configure registry mode, architecture, pip bootstrap, and venv policies |
+| **About** | Version info, links, and update status |
+
+### Self-Update from GUI
+
+Click **Check for Updates** in the footer. The GUI uses the same self-update API as `pyenv self-update` and will prompt before applying.
+
+### Platform availability
+
+The GUI companion is currently packaged as a **Windows desktop application**.
+macOS and Linux users can build from source with `cargo build -p pyenv-gui`.
+Cross-platform release artifacts for the GUI may be added in a future release.
+
+---
+
 ## Common workflows
 
 ### List installable runtimes
@@ -739,7 +779,13 @@ ARCHITECTURE.md                 technical design notes
 MCP.md                          agent-facing MCP guide
 install.ps1 / install.sh        remote-friendly web installers
 uninstall.ps1 / uninstall.sh    remote-friendly uninstallers
-crates/                         Rust CLI and core runtime
+crates/                         Rust CLI, core runtime, GUI, and MCP server
+  pyenv-cli/                    CLI dispatch and argument handling
+  pyenv-core/                   version resolution, install backends, shims, diagnostics
+  pyenv-gui/                    Tauri v2 desktop GUI companion
+  pyenv-mcp/                    stdio MCP server and agent toolkit
+docs/
+  screenshots/                  GUI screenshots for documentation
 packaging/                      Winget and Homebrew generation assets
 python-package/                 PyPI / pipx bootstrap wrapper
 scripts/                        build, install, publish, validation, and sync helpers
