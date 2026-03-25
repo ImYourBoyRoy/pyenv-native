@@ -1,0 +1,25 @@
+{
+  "productName": "Pyenv Native",
+  "version": "0.0.0",
+  "identifier": "com.pyenv-native.gui",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Pyenv Native",
+        "width": 1024,
+        "height": 720,
+        "transparent": true,
+        "decorations": false,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "icon": []
+  }
+}

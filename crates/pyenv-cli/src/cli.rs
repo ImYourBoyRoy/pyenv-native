@@ -39,6 +39,8 @@ pub(crate) enum Commands {
     },
     #[command(about = "Display the root directory where versions and shims are kept")]
     Root,
+    #[command(about = "Launch the beautiful Pyenv Native GUI dashboard")]
+    Gui,
     #[command(about = "List executable hooks for a given command")]
     Hooks { hook: String },
     #[command(about = "Verify pyenv installation and environment health")]

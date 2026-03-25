@@ -13,14 +13,13 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tar = "0.4.45"
 thiserror = "2.0.18"
-toml = "1.0.7"
-zip = { version = "8.3.0", default-features = false, features = ["deflate"] }
+toml = "1.1.0"
+zip = { version = "8.4.0", default-features = false, features = ["deflate"] }
 
-[target.'cfg(target_os = "android")'.dependencies]
-rustls = { version = "0.23.37", default-features = false, features = ["aws-lc-rs", "std", "tls12"] }
-webpki-roots = "1.0.6"
+
 
 [dev-dependencies]
 mockito = "1.7.2"
 tempfile = "3.27.0"
+
 

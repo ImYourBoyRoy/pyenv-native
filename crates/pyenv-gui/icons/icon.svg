@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0E121A" />
+      <stop offset="100%" stop-color="#040608" />
+    </linearGradient>
+
+    <linearGradient id="activeYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE873" />
+      <stop offset="100%" stop-color="#FFD43B" />
+    </linearGradient>
+
+    <linearGradient id="glassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
+      <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
+    </linearGradient>
+    <linearGradient id="glassRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
+      <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad)" />
+
+  <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
+  <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
+  <path d="M 231 66 L 231 306" stroke="#306998" stroke-width="2" opacity="0.5" />
+
+  <g>
+    <path d="M 141 331 L 231 376 L 231 391 L 141 346 Z" fill="#20496E" opacity="0.7" />
+    <path d="M 321 331 L 231 376 L 231 391 L 321 346 Z" fill="#1A3B5C" opacity="0.7" />
+    <path d="M 231 286 L 321 331 L 231 376 L 141 331 Z" fill="rgba(48, 105, 152, 0.3)"
+      stroke="#4B8BBE" stroke-width="2" />
+  </g>
+
+  <g>
+    <path d="M 141 151 L 231 196 L 231 211 L 141 166 Z" fill="#20496E" opacity="0.7" />
+    <path d="M 321 151 L 231 196 L 231 211 L 321 166 Z" fill="#1A3B5C" opacity="0.7" />
+    <path d="M 231 106 L 321 151 L 231 196 L 141 151 Z" fill="rgba(48, 105, 152, 0.3)"
+      stroke="#4B8BBE" stroke-width="2" />
+  </g>
+
+  <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
+    stroke-dasharray="6,4" opacity="0.3" />
+
+  <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#glassLeft)" />
+  <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#glassRight)" />
+
+  <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
+    stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+  <path d="M 231 66 L 371 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+  <path d="M 231 66 L 91 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+  <path d="M 231 206 L 231 446" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+
+  <g stroke="#FFD43B" stroke-width="3" stroke-dasharray="4,4" opacity="0.8">
+    <path d="M 231 196 L 331 246" />
+    <path d="M 321 241 L 421 291" />
+    <path d="M 231 286 L 331 336" />
+    <path d="M 141 241 L 241 291" />
+  </g>
+
+  <g>
+    <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
+    <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
+    <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#activeYellow)" />
+    <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF"
+      stroke-width="2" stroke-linejoin="round" />
+  </g>
+
+</svg>

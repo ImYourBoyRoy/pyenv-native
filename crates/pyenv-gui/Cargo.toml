@@ -1,0 +1,21 @@
+[package]
+name = "pyenv-gui"
+version.workspace = true
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.10.3", features = [] }
+pyenv-core = { path = "../pyenv-core" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.50.0", features = ["full"] }
+rfd = "0.17.2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+

@@ -5,7 +5,7 @@
 ![PyPI](https://img.shields.io/badge/PyPI-pip%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
-**A native-first, cross-platform Python version manager inspired by `pyenv`, built to feel great on Windows without giving up Linux and macOS.**
+**A native-first, cross-platform Python version manager (CLI, MCP, and GUI) inspired by `pyenv`, built to feel great on Windows without giving up Linux and macOS.**
 
 **Created by [Roy Dawson IV](https://github.com/imyourboyroy)**
 
@@ -200,6 +200,48 @@ For the full agent-facing workflow, see [`MCP.md`](./MCP.md).
 
 ---
 
+## GUI companion
+
+`pyenv-native` includes **Pyenv Native GUI**, a premium desktop dashboard built with Tauri v2.
+
+The GUI provides a visual interface for everyday Python environment management:
+
+- **Dashboard** — live view of your active Python version, managed venvs, and pyenv root.
+- **Installed Runtimes** — browse, set global/local, or uninstall Python versions with one click.
+- **Available Targets** — search and install from the full upstream catalog.
+- **Virtual Environments** — create, manage, and delete named venvs.
+- **Settings** — configure registry mode, architecture, pip bootstrapping, and venv policies.
+- **Self-Update** — check for and install updates directly from the GUI.
+
+![Pyenv-Native GUI Animation](docs/screenshots/animated_gui.webp)
+
+<details>
+<summary><b>View Individual Screens</b></summary>
+<br />
+
+| Dashboard | Installed Versions | Virtual Envs |
+| :---: | :---: | :---: |
+| ![Dashboard](docs/screenshots/Dashboard.webp) | ![Installed Versions](docs/screenshots/Installed_Versions.webp) | ![Virtual Envs](docs/screenshots/VENVs.webp) |
+
+| Available Targets | Settings | About |
+| :---: | :---: | :---: |
+| ![Available](docs/screenshots/Available.webp) | ![Settings](docs/screenshots/Settings.webp) | ![About](docs/screenshots/About.webp) |
+
+</details>
+
+### Launching the GUI
+
+From a development build:
+
+```powershell
+.\scripts\launch_gui.ps1
+```
+
+> [!NOTE]
+> The GUI companion is currently packaged as a **Windows desktop application**. macOS and Linux users can build from source with `cargo build -p pyenv-gui`. Cross-platform release bundles may be added in a future version.
+
+---
+
 ## What makes it useful
 
 ### Familiar `pyenv` behavior
@@ -228,6 +270,7 @@ For the full agent-facing workflow, see [`MCP.md`](./MCP.md).
 - zero-clone web installers
 - `pyenv-mcp` for structured, agent-friendly JSON workflows
 - `pip` / `pipx` install path for users who already have Python
+- **Pyenv Native GUI** — premium Tauri v2 desktop dashboard for visual management
 
 ---
 
@@ -479,7 +522,10 @@ Public-facing release usage is documented in [`INSTRUCTIONS.md`](./INSTRUCTIONS.
 |- crates/
 |  |- pyenv-cli/                   # CLI entrypoint and command parsing
 |  |- pyenv-core/                  # version resolution, install backends, shims, shell init, diagnostics
+|  |- pyenv-gui/                   # Tauri v2 desktop GUI companion
 |  `- pyenv-mcp/                   # stdio MCP server and agent-facing toolkit guide
+|- docs/
+|  `- screenshots/                 # GUI screenshots for documentation
 |- packaging/
 |  |- winget/                      # Winget manifest generation and metadata
 |  `- homebrew/                    # Homebrew formula generation and notes

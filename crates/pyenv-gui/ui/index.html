@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Pyenv Native</title>
+</head>
+
+<body>
+  <div class="bg-gradient"></div>
+
+  <div data-tauri-drag-region class="titlebar">
+    <div class="titlebar-label">pyenv-native dashboard</div>
+    <div class="titlebar-controls">
+      <div class="titlebar-button" id="titlebar-minimize">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="currentColor" d="M0 4.5h10v1H0z" />
+        </svg>
+      </div>
+      <div class="titlebar-button" id="titlebar-maximize">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="none" stroke="currentColor" d="M1.5 1.5h7v7h-7z" />
+        </svg>
+      </div>
+      <div class="titlebar-button close-btn" id="titlebar-close">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="currentColor"
+            d="M1.4 0L5 3.6 8.6 0 10 1.4 6.4 5l3.6 3.6-1.4 1.4L5 6.4 1.4 10 0 8.6 3.6 5 0 1.4z" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+            <defs>
+              <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0E121A" />
+                <stop offset="100%" stop-color="#040608" />
+              </linearGradient>
+
+              <linearGradient id="activeYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFE873" />
+                <stop offset="100%" stop-color="#FFD43B" />
+              </linearGradient>
+
+              <linearGradient id="glassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
+                <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
+              </linearGradient>
+              <linearGradient id="glassRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
+                <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
+              </linearGradient>
+            </defs>
+
+            <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad)" />
+
+            <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
+            <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
+            <path d="M 231 66 L 231 306" stroke="#306998" stroke-width="2" opacity="0.5" />
+
+            <g>
+              <path d="M 141 331 L 231 376 L 231 391 L 141 346 Z" fill="#20496E" opacity="0.7" />
+              <path d="M 321 331 L 231 376 L 231 391 L 321 346 Z" fill="#1A3B5C" opacity="0.7" />
+              <path d="M 231 286 L 321 331 L 231 376 L 141 331 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
+                stroke-width="2" />
+            </g>
+
+            <g>
+              <path d="M 141 151 L 231 196 L 231 211 L 141 166 Z" fill="#20496E" opacity="0.7" />
+              <path d="M 321 151 L 231 196 L 231 211 L 321 166 Z" fill="#1A3B5C" opacity="0.7" />
+              <path d="M 231 106 L 321 151 L 231 196 L 141 151 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
+                stroke-width="2" />
+            </g>
+
+            <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
+              stroke-dasharray="6,4" opacity="0.3" />
+
+            <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#glassLeft)" />
+            <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#glassRight)" />
+
+            <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
+              stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+            <path d="M 231 66 L 371 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+            <path d="M 231 66 L 91 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+            <path d="M 231 206 L 231 446" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+
+            <g stroke="#FFD43B" stroke-width="3" stroke-dasharray="4,4" opacity="0.8">
+              <path d="M 231 196 L 331 246" />
+              <path d="M 321 241 L 421 291" />
+              <path d="M 231 286 L 331 336" />
+              <path d="M 141 241 L 241 291" />
+            </g>
+
+            <g>
+              <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
+              <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
+              <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#activeYellow)" />
+              <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF" stroke-width="2"
+                stroke-linejoin="round" />
+            </g>
+
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Pyenv Native</div>
+          <small class="brand-subtitle">Environment Manager</small>
+        </div>
+      </div>
+
+      <h2 class="nav-header">Environments</h2>
+      <ul class="nav">
+        <li data-view="view-dashboard" class="active">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          Dashboard
+        </li>
+        <li data-view="view-installed">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Installed Versions
+        </li>
+        <li data-view="view-venvs">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          Virtual Environments
+        </li>
+        <li data-view="view-available">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          Available Targets
+        </li>
+        <li data-view="view-settings" style="margin-top: 24px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+          Settings
+        </li>
+        <li data-view="view-about">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          About
+        </li>
+      </ul>
+    </aside>
+
+    <main class="content relative">
+      <!-- DASHBOARD VIEW -->
+      <section id="view-dashboard" class="view fade-in">
+        <h1 class="page-title">Current Environment</h1>
+
+        <div class="status-grid">
+          <div class="status-card glass highlight-card">
+            <div class="stat-header">
+              <span class="status-dot active-dot"></span>
+              <span class="stat-label">Active Version</span>
+            </div>
+            <div class="stat-value text-glow" id="active-version">Loading...</div>
+            <div class="stat-sub" id="active-origin">Determining origin...</div>
+          </div>
+          <div class="status-card glass">
+            <div class="stat-header">
+              <span class="status-dot"></span>
+              <span class="stat-label">Managed Virtual Env</span>
+            </div>
+            <div class="stat-value" id="active-venv">Checking...</div>
+            <div class="stat-sub" id="active-venv-base">Integrated Project Env</div>
+          </div>
+          <div class="status-card glass">
+            <div class="stat-header">
+              <span class="status-dot"></span>
+              <span class="stat-label">Pyenv Root</span>
+            </div>
+            <div class="stat-value small-path" id="sys-root">Checking...</div>
+            <div class="stat-sub">Storage & Cache</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSTALLED VIEW -->
+      <section id="view-installed" class="view" style="display:none;">
+        <div class="header-row">
+          <h1 class="page-title">Installed Runtimes</h1>
+          <button class="btn btn-primary" id="btn-refresh-installed">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        <div id="installed-list" class="card-list">
+          <div class="empty-state">
+            <div class="loader"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIRTUAL ENVIRONMENTS VIEW -->
+      <section id="view-venvs" class="view" style="display:none;">
+        <div class="header-row">
+          <h1 class="page-title">Virtual Environments</h1>
+          <button class="btn btn-primary" id="btn-refresh-venvs">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="margin-top:0;">Create New Venv</h3>
+          <div style="display:flex; gap: 12px; margin-top: 12px;">
+            <input type="text" id="venv-name" placeholder="Name (e.g. my-env)" class="search-input" style="flex: 1;">
+            <select id="venv-base-version" class="dropdown" style="flex: 1;">
+              <option value="">Select Base...</option>
+            </select>
+            <button class="btn btn-primary" id="btn-create-venv">Create</button>
+          </div>
+        </div>
+        <div id="venvs-list" class="card-list">
+          <div class="empty-state">
+            <div class="loader"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AVAILABLE VIEW -->
+      <section id="view-available" class="view" style="display:none;">
+        <div class="header-row">
+          <h1 class="page-title">Installable Runtimes</h1>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <label
+              style="font-size: 13px; color: var(--text-muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="chk-latest-only" checked onchange="reloadAvailable()" /> Latest Major/Minor
+              Only
+            </label>
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="available-search" placeholder="Search versions (e.g. 3.12)..." />
+            </div>
+          </div>
+        </div>
+        <div id="available-list" class="card-list">
+          <div class="empty-state">Ready to fetch upstream catalog...</div>
+        </div>
+      </section>
+
+      <!-- SETTINGS VIEW -->
+      <section id="view-settings" class="view" style="display:none;">
+        <h1 class="page-title">Configuration</h1>
+        <div class="card-list">
+          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
+            <h3 style="margin: 0 0 16px 0;">Windows Settings</h3>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+              <div>
+                <div>Registry Mode</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Expose installations
+                  into the Windows PEP-514 registry (helps IDEs auto-detect Python).</div>
+              </div>
+              <select id="config-windows.registry_mode" class="dropdown"
+                onchange="updateConfig('windows.registry_mode', this.value)">
+                <option value="disabled">Disabled</option>
+                <option value="pep514">PEP 514</option>
+              </select>
+            </div>
+          </div>
+          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
+            <h3 style="margin: 0 0 16px 0;">Install Settings</h3>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+              <div>
+                <div>Architecture</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Target architecture
+                  for fetched Python packages.</div>
+              </div>
+              <select id="config-install.arch" class="dropdown" onchange="updateConfig('install.arch', this.value)">
+                <option value="auto">Auto</option>
+                <option value="x64">x64</option>
+                <option value="arm64">arm64</option>
+              </select>
+            </div>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+              <div>
+                <div>Bootstrap PIP</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically inject
+                  pip into new Python installations.</div>
+              </div>
+              <select id="config-install.bootstrap_pip" class="dropdown"
+                onchange="updateConfig('install.bootstrap_pip', this.value)">
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+            </div>
+          </div>
+          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
+            <h3 style="margin: 0 0 16px 0;">Venv Settings</h3>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+              <div>
+                <div>Auto Create Base Venv</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically setup a
+                  '.venv' alongside every brand new Python installation.</div>
+              </div>
+              <select id="config-venv.auto_create_base_venv" class="dropdown"
+                onchange="updateConfig('venv.auto_create_base_venv', this.value)">
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+            </div>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+              <div>
+                <div>Auto Use Base Venv</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically activate
+                  the base venv instead of the bare interpreter when selected.</div>
+              </div>
+              <select id="config-venv.auto_use_base_venv" class="dropdown"
+                onchange="updateConfig('venv.auto_use_base_venv', this.value)">
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ABOUT VIEW -->
+      <section id="view-about" class="view" style="display:none;">
+        <h1 class="page-title">About Pyenv-Native</h1>
+        <div class="card glass" style="padding: 32px;">
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+            <div class="brand-icon" style="width: 48px; height: 48px; border-radius: 14px; font-size: 20px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+                <defs>
+                  <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0E121A" />
+                    <stop offset="100%" stop-color="#040608" />
+                  </linearGradient>
+
+                  <linearGradient id="activeYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFE873" />
+                    <stop offset="100%" stop-color="#FFD43B" />
+                  </linearGradient>
+
+                  <linearGradient id="glassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
+                    <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
+                  </linearGradient>
+                  <linearGradient id="glassRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
+                    <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
+                  </linearGradient>
+                </defs>
+
+                <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad)" />
+
+                <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
+                <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
+                <path d="M 231 66 L 231 306" stroke="#306998" stroke-width="2" opacity="0.5" />
+
+                <g>
+                  <path d="M 141 331 L 231 376 L 231 391 L 141 346 Z" fill="#20496E" opacity="0.7" />
+                  <path d="M 321 331 L 231 376 L 231 391 L 321 346 Z" fill="#1A3B5C" opacity="0.7" />
+                  <path d="M 231 286 L 321 331 L 231 376 L 141 331 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
+                    stroke-width="2" />
+                </g>
+
+                <g>
+                  <path d="M 141 151 L 231 196 L 231 211 L 141 166 Z" fill="#20496E" opacity="0.7" />
+                  <path d="M 321 151 L 231 196 L 231 211 L 321 166 Z" fill="#1A3B5C" opacity="0.7" />
+                  <path d="M 231 106 L 321 151 L 231 196 L 141 151 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
+                    stroke-width="2" />
+                </g>
+
+                <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
+                  stroke-dasharray="6,4" opacity="0.3" />
+
+                <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#glassLeft)" />
+                <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#glassRight)" />
+
+                <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
+                  stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+                <path d="M 231 66 L 371 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+                <path d="M 231 66 L 91 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+                <path d="M 231 206 L 231 446" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+
+                <g stroke="#FFD43B" stroke-width="3" stroke-dasharray="4,4" opacity="0.8">
+                  <path d="M 231 196 L 331 246" />
+                  <path d="M 321 241 L 421 291" />
+                  <path d="M 231 286 L 331 336" />
+                  <path d="M 141 241 L 241 291" />
+                </g>
+
+                <g>
+                  <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
+                  <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
+                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#activeYellow)" />
+                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF" stroke-width="2"
+                    stroke-linejoin="round" />
+                </g>
+
+              </svg>
+            </div>
+            <div>
+              <h2 style="margin: 0; font-size: 20px;">Pyenv-Native</h2>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Version <span
+                  id="about-version">…</span></div>
+            </div>
+          </div>
+          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 16px 0; font-size: 14px;">
+            A specialized, zero-dependency <b style="color: var(--text-main);">Windows native</b> engine designed to
+            bring the incredible workflow of pyenv to Windows cleanly — without shim lag.
+          </p>
+          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;">
+            Written entirely in pure, deeply typed Rust, pyenv-native seamlessly bridges legacy pyenv implementations
+            with Windows environment bindings and PEP-514 architecture. Manage Python versions, virtual environments,
+            and system configurations — all from one place.
+          </p>
+          <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 8px;">
+            <div
+              style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+              Created by Roy Dawson IV</div>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn btn-primary" onclick="openExternal('https://github.com/imyourboyroy/pyenv-native')"
+                style="font-size: 13px;">GitHub Repository</button>
+              <button class="btn btn-outline" onclick="openExternal('https://pypi.org/user/ImYourBoyRoy/')"
+                style="font-size: 13px;">PyPI Profile</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+
+  <div class="app-footer">
+    <div class="footer-left">
+      <span style="font-weight: 600;" id="footer-version">Pyenv-Native</span>
+      <span id="footer-app-status" style="color: var(--text-muted);"></span>
+    </div>
+    <div class="footer-right">
+      <button class="footer-update-btn" onclick="checkUpdates()" id="footer-btn">Check for Updates</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

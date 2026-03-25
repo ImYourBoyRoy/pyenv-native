@@ -117,6 +117,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         Commands::Help { usage, command } => cmd_help(ctx, command.as_deref(), usage),
         Commands::Commands { sh, no_sh } => cmd_commands(ctx, sh, no_sh),
         Commands::Root => cmd_root(ctx),
+        Commands::Gui => dispatch_gui(ctx),
         Commands::Hooks { hook } => cmd_hooks(ctx, &hook),
         Commands::Doctor { json, fix, force } => dispatch_doctor(ctx, json, fix, force),
         Commands::SelfUpdate {
@@ -249,6 +250,43 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         Commands::ShCmd { args } => cmd_sh_cmd(ctx, &args),
         Commands::Exec { command, args } => cmd_exec(ctx, &command, &args),
         Commands::External(args) => cmd_external(ctx, &args),
+    }
+}
+
+fn dispatch_gui(_ctx: &AppContext) -> CommandReport {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("pyenv"));
+    let mut gui_exe = exe.clone();
+    gui_exe.set_file_name(if cfg!(windows) {
+        "pyenv-gui.exe"
+    } else {
+        "pyenv-gui"
+    });
+
+    if !gui_exe.exists() {
+        return CommandReport::failure(
+            vec![
+                "pyenv: GUI companion not found.".to_string(),
+                format!("Expected: {}", gui_exe.display()),
+                "Please reinstall pyenv-native to acquire the GUI binary.".to_string(),
+            ],
+            1,
+        );
+    }
+
+    let mut child = Command::new(&gui_exe);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        child.creation_flags(0x00000008); // DETACHED_PROCESS
+    }
+
+    match child.spawn() {
+        Ok(_) => CommandReport::success(vec!["Launching pyenv-gui...".to_string()]),
+        Err(e) => CommandReport::failure(vec![format!("pyenv: failed to launch GUI: {e}")], 1),
     }
 }
 
