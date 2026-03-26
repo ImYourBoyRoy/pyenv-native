@@ -147,7 +147,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
         };
     }
 
-    use crate::process::CommandExt;
+    use crate::process::PyenvCommandExt;
     let output = std::process::Command::new(&python_shim)
         .headless()
         .arg("--version")

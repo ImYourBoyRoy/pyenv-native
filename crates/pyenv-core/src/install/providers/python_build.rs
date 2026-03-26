@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/install/providers/python_build.rs
 //! python-build backend discovery and definition loading helpers.
 
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;

@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/install/runtime_support.rs
 //! Shared subprocess, alias, and pip-bootstrap helpers for runtime installation flows.
 
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;

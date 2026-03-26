@@ -4,13 +4,13 @@
 use std::process::Command;
 
 /// Extension trait for `std::process::Command` to handle headless execution on Windows.
-pub trait CommandExt {
+pub trait PyenvCommandExt {
     /// Configures the command to run without a console window on Windows.
     /// This is essential for GUI applications to prevent terminal pop-ups.
     fn headless(&mut self) -> &mut Self;
 }
 
-impl CommandExt for Command {
+impl PyenvCommandExt for Command {
     fn headless(&mut self) -> &mut Self {
         #[cfg(windows)]
         {

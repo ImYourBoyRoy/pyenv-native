@@ -8,7 +8,7 @@
 //! self-update confirmation) use force/yes flags since the GUI provides
 //! its own confirmation modals.
 
-use pyenv_core::CommandExt;
+use pyenv_core::PyenvCommandExt;
 
 #[tauri::command]
 fn get_status() -> Result<String, String> {

@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/self_update/runner.rs
 //! Self-update execution flow, installer download, and platform-specific launcher handling.
 
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 use std::cmp::Ordering;
 use std::env;
 use std::fs;

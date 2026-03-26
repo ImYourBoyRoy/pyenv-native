@@ -28,12 +28,13 @@ if (-not $CargoArgs -or $CargoArgs.Count -eq 0) {
     $CargoArgs = @('test')
 }
 
-$cargoBin = Join-Path $env:USERPROFILE '.cargo\bin'
-if (-not (Test-Path $cargoBin)) {
-    throw "Rust cargo bin path was not found at $cargoBin"
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    $cargoBin = Join-Path $env:USERPROFILE '.cargo\bin'
+    if (-not (Test-Path $cargoBin)) {
+        throw "Rust cargo bin path was not found at $cargoBin and is not on PATH"
+    }
+    $env:PATH = "$cargoBin;$env:PATH"
 }
-
-$env:PATH = "$cargoBin;$env:PATH"
 
 switch ($TargetTriple) {
     'x86_64-pc-windows-gnu' {

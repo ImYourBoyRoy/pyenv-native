@@ -15,7 +15,7 @@ use zip::ZipArchive;
 
 use crate::error::PyenvError;
 use crate::http::build_blocking_client;
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 
 use super::report::{io_error, pip_wrapper_names, sanitize_for_fs};
 use super::types::{INSTALL_RECEIPT_FILE, InstallPlan, InstallReceipt};
