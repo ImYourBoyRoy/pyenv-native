@@ -12,9 +12,79 @@ use clap::{Parser, Subcommand};
     name = "pyenv",
     version,
     about = "Native-first, cross-platform Python version manager",
-    long_about = "Native-first, cross-platform Python version manager.\n\nManage multiple Python versions with local, global, and shell-scoped selection.\nRun `pyenv help` for detailed command information and examples.",
-    after_help = "CORE CONCEPTS:\n  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands\n               and route them to the correct Python version based on your current environment.\n               Run `pyenv rehash` to refresh these after installing new pip packages.\n  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.\n  Managed envs: Named virtual environments can live under `~/.pyenv/venvs/<runtime>/<name>`.\n               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.\n               Compatibility aliases like `pyenv virtualenv` and `pyenv activate` are supported,\n               but `pyenv venv ...` plus `.python-version` remains the preferred workflow.\n  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.\n  Selection:   Pyenv decides which Python version to use in this order (highest priority first):\n                 1. PYENV_VERSION environment variable (set via `pyenv shell`/`pyenv activate`)\n                 2. .python-version file in the current directory (set via `pyenv local` or `pyenv venv use`)\n                 3. The global version file (set via `pyenv global`)\n\nRun `pyenv help <command>` for detailed help on any command.\nFull documentation: https://github.com/imyourboyroy/pyenv-native",
-    disable_help_subcommand = true
+    disable_help_subcommand = true,
+    help_template = "\
+{before-help}{name} {version}
+{about-with-newline}
+{usage-heading} {usage}
+
+SELECTION:
+  global             Set or show the global Python version
+  local              Set or show the local directory Python version
+  shell              Set or show the shell-specific Python version
+  latest             Print the latest installed or known version matching the prefix
+  version            Show the current Python version and its origin
+  version-name       Show the current Python version
+  version-origin     Explain how the current Python version is set
+  prefix             Display paths where the given Python versions are installed
+
+PROVISIONING:
+  install            Install Python versions from native providers
+  available          List installable Python versions from native providers
+  versions           List all Python versions available to pyenv
+  uninstall          Uninstall a specific Python version
+
+ENVIRONMENT:
+  venv               Create, inspect, and assign managed virtual environments
+
+INTERFACE:
+  init               Configure the shell environment for pyenv
+  gui                Launch the beautiful Pyenv Native GUI dashboard
+  rehash             Rehash pyenv shims (installs executables across all versions)
+  shims              List existing pyenv shims
+  prompt             Print a concise prompt string for the current environment
+  exec               Run an executable with the selected Python version
+  completions        Print command completion script
+
+DIAGNOSTICS & CONFIG:
+  doctor             Verify pyenv installation and environment health
+  status             Show the comprehensive environment status (versions, origins, venvs)
+  config             Display or modify pyenv-native configuration
+  root               Display the root directory where versions and shims are kept
+  which              Display the full path to an executable
+  whence             List all Python versions that contain the given executable
+  version-file       Detect the file that sets the current pyenv version
+  version-file-read  Read the contents of a .python-version file
+
+MAINTENANCE:
+  self-update        Check for or install the latest published pyenv-native release
+  self-uninstall     Uninstall pyenv-native from your system
+
+SUPPORT:
+  help               Display help for a command
+  commands           List all available pyenv commands
+  hooks              List executable hooks for a given command
+
+{options}
+
+CORE CONCEPTS:
+  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands
+               and route them to the correct Python version based on your current environment.
+               Run `pyenv rehash` to refresh these after installing new pip packages.
+  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.
+  Managed envs: Named virtual environments can live under `~/.pyenv/venvs/<runtime>/<name>`.
+               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.
+               Compatibility aliases like `pyenv virtualenv` and `pyenv activate` are supported,
+               but `pyenv venv ...` plus `.python-version` remains the preferred workflow.
+  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.
+  Selection:   Pyenv decides which Python version to use in this order (highest priority first):
+                 1. PYENV_VERSION environment variable (set via `pyenv shell`/`pyenv activate`)
+                 2. .python-version file in the current directory (set via `pyenv local` or `pyenv venv use`)
+                 3. The global version file (set via `pyenv global`)
+
+Run `pyenv help <command>` for detailed help on any command.
+Full documentation: https://github.com/imyourboyroy/pyenv-native
+"
 )]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -22,47 +92,65 @@ pub(crate) struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
+#[command(disable_help_subcommand = true)]
 pub(crate) enum Commands {
-    // --- PLUMBING ---
-    #[command(next_help_heading = "PLUMBING")]
-    #[command(about = "Display help for a command")]
-    Help {
-        #[arg(long = "usage")]
-        usage: bool,
-        command: Option<String>,
+    // --- SELECTION ---
+    #[command(next_help_heading = "SELECTION")]
+    #[command(about = "Set or show the global Python version")]
+    Global {
+        #[arg(long = "unset", help = "Remove the global version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
+        versions: Vec<String>,
     },
-    #[command(about = "List all available pyenv commands")]
-    #[allow(clippy::enum_variant_names)]
-    Commands {
-        #[arg(long = "sh")]
-        sh: bool,
-        #[arg(long = "no-sh")]
-        no_sh: bool,
+    #[command(about = "Set or show the local directory Python version")]
+    Local {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Write even if version is not installed"
+        )]
+        force: bool,
+        #[arg(long = "unset", help = "Remove the .python-version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
+        versions: Vec<String>,
     },
-    #[command(about = "Display the root directory where versions and shims are kept")]
-    Root,
-    #[command(about = "List executable hooks for a given command")]
-    Hooks { hook: String },
-    #[command(about = "Print command completion script", trailing_var_arg = true)]
-    Completions {
-        command: String,
+    #[command(
+        about = "Set or show the shell-specific Python version",
+        trailing_var_arg = true
+    )]
+    Shell {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(about = "Detect the file that sets the current pyenv version")]
-    VersionFile { dir: Option<PathBuf> },
-    #[command(about = "Read the contents of a .python-version file")]
-    VersionFileRead { file: PathBuf },
-    #[command(hide = true, name = "version-file-write")]
-    VersionFileWrite {
+    #[command(about = "Print the latest installed or known version matching the prefix")]
+    Latest {
+        #[arg(short = 'k', long = "known")]
+        known: bool,
+        #[arg(short = 'b', long = "bypass")]
+        bypass: bool,
         #[arg(short = 'f', long = "force")]
         force: bool,
-        file: PathBuf,
-        versions: Vec<String>,
+        prefix: String,
     },
+    #[command(about = "Show the current Python version and its origin")]
+    Version {
+        #[arg(long = "bare")]
+        bare: bool,
+    },
+    #[command(about = "Show the current Python version")]
+    VersionName {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+    },
+    #[command(about = "Explain how the current Python version is set")]
+    VersionOrigin,
+    #[command(about = "Display paths where the given Python versions are installed")]
+    Prefix { versions: Vec<String> },
 
-    // --- CORE WORKFLOW ---
-    #[command(next_help_heading = "CORE WORKFLOW")]
+    // --- PROVISIONING ---
+    #[command(next_help_heading = "PROVISIONING")]
     #[command(about = "Install Python versions from native providers")]
     Install {
         #[arg(short = 'l', long = "list", help = "List all installable versions")]
@@ -109,47 +197,15 @@ pub(crate) enum Commands {
         #[arg(long = "executables")]
         executables: bool,
     },
-    #[command(about = "Set or show the global Python version")]
-    Global {
-        #[arg(long = "unset", help = "Remove the global version file")]
-        unset: bool,
-        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
-        versions: Vec<String>,
-    },
-    #[command(about = "Set or show the local directory Python version")]
-    Local {
-        #[arg(
-            short = 'f',
-            long = "force",
-            help = "Write even if version is not installed"
-        )]
-        force: bool,
-        #[arg(long = "unset", help = "Remove the .python-version file")]
-        unset: bool,
-        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
-        versions: Vec<String>,
-    },
-    #[command(
-        about = "Set or show the shell-specific Python version",
-        trailing_var_arg = true
-    )]
-    Shell {
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    #[command(about = "Print the latest installed or known version matching the prefix")]
-    Latest {
-        #[arg(short = 'k', long = "known")]
-        known: bool,
-        #[arg(short = 'b', long = "bypass")]
-        bypass: bool,
+    #[command(about = "Uninstall a specific Python version")]
+    Uninstall {
         #[arg(short = 'f', long = "force")]
         force: bool,
-        prefix: String,
+        versions: Vec<String>,
     },
 
-    // --- ENVIRONMENT MANAGEMENT ---
-    #[command(next_help_heading = "ENVIRONMENT MANAGEMENT")]
+    // --- ENVIRONMENT ---
+    #[command(next_help_heading = "ENVIRONMENT")]
     #[command(about = "Create, inspect, and assign managed virtual environments")]
     Venv {
         #[command(subcommand)]
@@ -188,46 +244,8 @@ pub(crate) enum Commands {
     )]
     VirtualenvPrefix { spec: Option<String> },
 
-    // --- STATUS & INSPECTION ---
-    #[command(next_help_heading = "STATUS & INSPECTION")]
-    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
-    Status {
-        #[arg(long = "json")]
-        json: bool,
-    },
-    #[command(about = "Show the current Python version and its origin")]
-    Version {
-        #[arg(long = "bare")]
-        bare: bool,
-    },
-    #[command(about = "Show the current Python version")]
-    VersionName {
-        #[arg(short = 'f', long = "force")]
-        force: bool,
-    },
-    #[command(about = "Explain how the current Python version is set")]
-    VersionOrigin,
-    #[command(about = "Display paths where the given Python versions are installed")]
-    Prefix { versions: Vec<String> },
-    #[command(about = "Display the full path to an executable")]
-    Which {
-        #[arg(long = "nosystem")]
-        no_system: bool,
-        #[arg(long = "skip-advice")]
-        skip_advice: bool,
-        command: String,
-    },
-    #[command(about = "List all Python versions that contain the given executable")]
-    Whence {
-        #[arg(long = "path")]
-        path: bool,
-        command: String,
-    },
-    #[command(about = "Print a concise prompt string for the current environment")]
-    Prompt,
-
-    // --- SYSTEM & TOOLING ---
-    #[command(next_help_heading = "SYSTEM & TOOLING")]
+    // --- INTERFACE ---
+    #[command(next_help_heading = "INTERFACE")]
     #[command(
         about = "Configure the shell environment for pyenv",
         trailing_var_arg = true
@@ -245,6 +263,26 @@ pub(crate) enum Commands {
         #[arg(long = "short")]
         short: bool,
     },
+    #[command(about = "Print a concise prompt string for the current environment")]
+    Prompt,
+    #[command(
+        about = "Run an executable with the selected Python version",
+        trailing_var_arg = true
+    )]
+    Exec {
+        command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Print command completion script", trailing_var_arg = true)]
+    Completions {
+        command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    // --- DIAGNOSTICS & CONFIG ---
+    #[command(next_help_heading = "DIAGNOSTICS & CONFIG")]
     #[command(about = "Verify pyenv installation and environment health")]
     Doctor {
         #[arg(long = "json")]
@@ -261,19 +299,42 @@ pub(crate) enum Commands {
         )]
         force: bool,
     },
+    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
+    Status {
+        #[arg(long = "json")]
+        json: bool,
+    },
     #[command(about = "Display or modify pyenv-native configuration")]
     Config {
         #[command(subcommand)]
         command: Option<ConfigCommands>,
     },
-    #[command(
-        about = "Run an executable with the selected Python version",
-        trailing_var_arg = true
-    )]
-    Exec {
+    #[command(about = "Display the root directory where versions and shims are kept")]
+    Root,
+    #[command(about = "Display the full path to an executable")]
+    Which {
+        #[arg(long = "nosystem")]
+        no_system: bool,
+        #[arg(long = "skip-advice")]
+        skip_advice: bool,
         command: String,
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
+    },
+    #[command(about = "List all Python versions that contain the given executable")]
+    Whence {
+        #[arg(long = "path")]
+        path: bool,
+        command: String,
+    },
+    #[command(about = "Detect the file that sets the current pyenv version")]
+    VersionFile { dir: Option<PathBuf> },
+    #[command(about = "Read the contents of a .python-version file")]
+    VersionFileRead { file: PathBuf },
+    #[command(hide = true, name = "version-file-write")]
+    VersionFileWrite {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        file: PathBuf,
+        versions: Vec<String>,
     },
 
     // --- MAINTENANCE ---
@@ -303,12 +364,25 @@ pub(crate) enum Commands {
         #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
         yes: bool,
     },
-    #[command(about = "Uninstall a specific Python version")]
-    Uninstall {
-        #[arg(short = 'f', long = "force")]
-        force: bool,
-        versions: Vec<String>,
+
+    // --- SUPPORT ---
+    #[command(next_help_heading = "SUPPORT")]
+    #[command(name = "manual-help", about = "Display help for a command")]
+    ManualHelp {
+        #[arg(long = "usage")]
+        usage: bool,
+        command: Option<String>,
     },
+    #[command(about = "List all available pyenv commands")]
+    #[allow(clippy::enum_variant_names)]
+    Commands {
+        #[arg(long = "sh")]
+        sh: bool,
+        #[arg(long = "no-sh")]
+        no_sh: bool,
+    },
+    #[command(about = "List executable hooks for a given command")]
+    Hooks { hook: String },
 
     // --- Compatibility Aliases (Hidden) ---
     #[command(

@@ -13,6 +13,7 @@ The short version:
 ## Design goals
 
 ### 1. Preserve the parts of `pyenv` people love
+
 - local / global / shell version selection,
 - `.python-version` traversal,
 - familiar command names,
@@ -20,6 +21,7 @@ The short version:
 - plugin and hook extensibility.
 
 ### 2. Improve the places where native behavior matters
+
 - first-class Windows support,
 - portable managed runtimes,
 - structured diagnostics,
@@ -27,6 +29,7 @@ The short version:
 - easier distribution through bundles, shell installers, a PyPI install package, and an MCP-friendly agent surface.
 
 ### 3. Stay honest about compatibility
+
 `pyenv-native` aims for behavioral compatibility where it makes sense, but it does not try to preserve upstream shell-script implementation details when a native approach is clearly better.
 
 ---
@@ -34,7 +37,9 @@ The short version:
 ## Compatibility model
 
 ### Upstream `pyenv` is the reference
+
 Upstream `pyenv` remains the most important compatibility reference for:
+
 - command semantics,
 - version-selection rules,
 - plugin naming conventions,
@@ -42,7 +47,9 @@ Upstream `pyenv` remains the most important compatibility reference for:
 - overall user expectations.
 
 ### What is intentionally different
+
 Some implementation details are intentionally different because the native runtime needs stronger platform behavior:
+
 - runtime code is written in Rust,
 - Windows support is first-class instead of an afterthought,
 - shim generation is native-first,
@@ -92,6 +99,7 @@ scripts/          build, release, install, uninstall, sync, and validation helpe
 ## Core runtime responsibilities
 
 The Rust core owns the behavior that should be consistent across platforms:
+
 - `PYENV_ROOT` discovery,
 - `.python-version` search and parsing,
 - local/global/shell precedence,
@@ -111,6 +119,7 @@ This keeps the most important behavior centralized and testable.
 ## Version-selection model
 
 The runtime follows the familiar selection order:
+
 1. shell environment overrides,
 2. local `.python-version` files,
 3. parent-directory `.python-version` traversal,
@@ -118,6 +127,7 @@ The runtime follows the familiar selection order:
 5. `system` fallback.
 
 The same selection logic is shared by:
+
 - `version-name`,
 - `version`,
 - `prefix`,
@@ -134,16 +144,21 @@ This is one of the most important compatibility decisions in the project.
 `pyenv-native` separates **catalog knowledge** from **provider availability**.
 
 ### Catalog knowledge
+
 This answers:
+
 - what version names are known,
 - what runtime families exist,
 - what prefixes map to what concrete versions.
 
 The project keeps an embedded upstream-derived known-version seed in:
+
 - `crates/pyenv-core/data/known_versions.txt`
 
 ### Provider availability
+
 This answers:
+
 - what can actually be installed on this platform,
 - where it comes from,
 - what archive/build flow is required.
@@ -155,15 +170,18 @@ This is why `install --list` defaults to provider-backed installable versions in
 ## Current install backends
 
 ### CPython
+
 - **Windows**: official NuGet packages
 - **Linux**: official CPython source releases
 - **macOS**: official CPython source releases
 
 ### PyPy
+
 - **Windows**: official PyPy ZIP releases
 - **Linux/macOS**: official PyPy tarball releases
 
 ### Fallback compatibility path
+
 - **Linux/macOS optional fallback**: upstream `python-build` via explicit config or discovered path
 
 This gives the project a native path for the most important cases while keeping a broader compatibility escape hatch on POSIX systems.
@@ -175,6 +193,7 @@ This gives the project a native path for the most important cases while keeping 
 `pyenv-native` now includes an explicit agent-facing layer through **`pyenv-mcp`**.
 
 ### Why it exists
+
 The human CLI is great for operators, but agents need:
 
 - structured arguments,
@@ -184,6 +203,7 @@ The human CLI is great for operators, but agents need:
 - a stable onboarding blob.
 
 ### What `pyenv-mcp` does
+
 `pyenv-mcp` is a stdio MCP server built directly on `pyenv-core`.
 It exposes higher-level tools such as:
 
@@ -194,6 +214,7 @@ It exposes higher-level tools such as:
 - project-local venv creation.
 
 ### Important design choice
+
 It is **not** implemented as a fragile wrapper that scrapes the human CLI output.
 Instead, it calls structured core functionality directly so that agent-facing behavior stays:
 
@@ -203,6 +224,7 @@ Instead, it calls structured core functionality directly so that agent-facing be
 - easier to evolve.
 
 ### Orientation model
+
 The companion `pyenv-mcp guide` command emits a structured JSON guide that is intended to be fed directly to a model or orchestration layer before deeper work begins.
 
 ---
@@ -221,6 +243,7 @@ Default layout:
 ```
 
 Key decisions:
+
 - Windows registry integration defaults to **disabled**.
 - install/cache locations are configurable,
 - receipts are written for installed runtimes,
@@ -236,17 +259,22 @@ If the runtime is launched from `<root>/bin/pyenv(.exe)` and `PYENV_ROOT` is not
 Shims are generated into `<PYENV_ROOT>/shims` and act as the execution handoff point between the user and the selected runtime.
 
 ### Windows
+
 Windows uses a native-first shim strategy:
+
 - `.exe` shims where appropriate,
 - companion `.cmd`, `.bat`, and `.ps1` wrappers,
 - shim manifest tracking,
 - self-dispatch by executable name.
 
 ### POSIX
+
 POSIX uses executable shim scripts that dispatch through the native runtime.
 
 ### Rehash behavior
+
 `rehash`:
+
 - scans managed runtime executables,
 - regenerates shim files,
 - updates the shim manifest,
@@ -259,6 +287,7 @@ POSIX uses executable shim scripts that dispatch through the native runtime.
 The core generates shell-specific init output rather than embedding a shell runtime as the heart of the tool.
 
 Supported shells:
+
 - PowerShell
 - CMD
 - Bash
@@ -267,9 +296,11 @@ Supported shells:
 - POSIX `sh`
 
 ### Why this matters
+
 The runtime still feels like `pyenv`, but shell support is generated and coordinated by the native core.
 
 ### Current emphasis
+
 - PowerShell is the strongest Windows path.
 - CMD support is real, but interactive macro behavior is naturally harder to validate than PowerShell.
 - POSIX shells are supported through generated shell code and tested portability improvements.
@@ -281,19 +312,24 @@ The runtime still feels like `pyenv`, but shell support is generated and coordin
 `pyenv-native` preserves the idea that external commands can extend the tool.
 
 ### Plugin command discovery
+
 Plugins can be discovered from:
+
 - `PYENV_ROOT/plugins/*/bin`,
 - adjacent compatible plugin layouts,
 - `PATH` entries containing `pyenv-<command>` executables.
 
 ### Hooks
+
 Hooks are resolved from:
+
 - `PYENV_HOOK_PATH`,
 - local pyenv hook roots,
 - plugin hook roots,
 - common POSIX system hook roots.
 
 The runtime supports:
+
 - `pyenv hooks`,
 - completion passthrough for plugin commands,
 - upstream-style help parsing from plugin header comments,
@@ -309,6 +345,7 @@ This is more structured than upstream's shell-sourcing behavior, but intentional
 The project is designed to distribute through native assets first.
 
 ### Primary artifacts
+
 - Windows portable ZIP bundle
 - Linux portable `.tar.gz` bundle
 - macOS portable `.tar.gz` bundle
@@ -316,6 +353,7 @@ The project is designed to distribute through native assets first.
 - bundle manifest metadata
 
 ### Installer entrypoints
+
 - `install.ps1`
 - `install.sh`
 - `uninstall.ps1`
@@ -324,6 +362,7 @@ The project is designed to distribute through native assets first.
 These provide zero-clone web installation paths for end users.
 
 ### Python install package
+
 The `pyenv-native` package exists for users who already have Python installed and want a `pip` / `pipx`-friendly install path.
 
 Important principle:
@@ -331,7 +370,9 @@ Important principle:
 > The Python package bootstraps the native runtime. It does not replace it.
 
 ### Package-manager preparation
+
 The repo also includes generator-backed preparation for:
+
 - Winget
 - Homebrew
 
@@ -344,6 +385,7 @@ Those channels are intentionally treated as distribution layers on top of the re
 `pyenv doctor` exists to make common problems easier to reason about.
 
 Current checks include:
+
 - root visibility,
 - shims visibility,
 - system Python detection,
@@ -363,11 +405,13 @@ The project favors explicit diagnostics over silent failure.
 `pyenv-native` supports companion base-venv creation for users who want a more protected default experience.
 
 Current policy:
+
 - supported,
 - configurable,
 - default-off.
 
 When enabled:
+
 - a companion base venv is created after install,
 - command lookup can optionally prefer that venv.
 
@@ -380,6 +424,7 @@ This is intentionally an enhancement, not a forced behavior change.
 The project is treated as infrastructure, so validation matters as much as features.
 
 Current validation emphasis:
+
 - Rust unit and integration tests,
 - Python install-package tests,
 - Windows local validation,
@@ -395,6 +440,7 @@ The architectural goal is to keep core behaviors deterministic, portable, and ea
 ## Release engineering model
 
 The repository includes helper scripts for:
+
 - version synchronization,
 - bundle generation,
 - Python install-package builds,
@@ -410,6 +456,7 @@ The release workflows are intentionally scriptable and repeatable instead of rel
 ## Intentional non-goals
 
 At the current stage, the project is **not** trying to:
+
 - be a source-level fork of upstream `pyenv`,
 - preserve Bash as the core runtime,
 - register every managed runtime into the Windows registry by default,
@@ -423,6 +470,7 @@ At the current stage, the project is **not** trying to:
 `pyenv-native` is designed as a native, cross-platform runtime that keeps the best ideas from `pyenv` while improving the areas where native behavior, portability, and distribution quality matter most.
 
 That means:
+
 - compatibility where users expect it,
 - improvement where users benefit from it,
 - and a cleaner foundation for Windows, Linux, and macOS alike.

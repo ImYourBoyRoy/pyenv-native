@@ -99,6 +99,11 @@ ARCHITECTURE_OVERRIDE=""
 CARGO_CMD="${CARGO:-cargo}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-21}"
 
+# Initialize binary paths to avoid set -u errors in non-GUI branches
+RELEASE_BIN=""
+RELEASE_MCP_BIN=""
+RELEASE_GUI_BIN=""
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --output-root)

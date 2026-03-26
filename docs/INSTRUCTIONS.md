@@ -4,7 +4,7 @@
 
 This document is the full, detailed usage guide for `pyenv-native`.
 
-If `README.md` is the fast public overview, this file is the clear step-by-step handbook for:
+If `../README.md` is the fast public overview, this file is the clear step-by-step handbook for:
 
 - installation,
 - uninstallation,
@@ -46,7 +46,7 @@ When you pin a release, it is best to fetch the installer script from that same 
 #### Windows PowerShell latest-release install
 
 ```powershell
-$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.ps1 -OutFile $installer; & $installer
+$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 -OutFile $installer; & $installer
 ```
 
 #### Linux / macOS latest-release install and activate in the current shell
@@ -74,7 +74,7 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/inst
 Use this form if you are fine opening a new shell afterward or reloading your profile manually:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
 ```
 
 On Android / Termux, the same installer now resolves to the dedicated Android ARM64 release artifact. Because `curl ... | sh` runs in a child shell, it cannot modify the already-open parent shell automatically. If you want `pyenv` available in the current shell immediately after install, run `export PATH="$HOME/.pyenv/bin:$PATH"` followed by `eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"` (or swap `bash` for `zsh` on macOS). Reloading your profile with `. ~/.bashrc` still works too.
@@ -240,13 +240,13 @@ It performs or supports:
 ### Windows web uninstall
 
 ```powershell
-$uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/uninstall.ps1 -OutFile $uninstaller; & $uninstaller -RemoveRoot
+$uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebRequest https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.ps1 -OutFile $uninstaller; & $uninstaller -RemoveRoot
 ```
 
 ### Linux / macOS web uninstall
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/uninstall.sh | sh -s -- --remove-root
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.sh | sh -s -- --remove-root
 ```
 
 ### Windows local uninstall helper
@@ -773,10 +773,10 @@ Internal helper commands such as `sh-shell`, `sh-rehash`, and `sh-cmd` exist for
 ## Project structure
 
 ```text
-README.md                       public overview
-INSTRUCTIONS.md                 detailed usage guide
-ARCHITECTURE.md                 technical design notes
-MCP.md                          agent-facing MCP guide
+README.md                       ../README.md
+INSTRUCTIONS.md                 ./INSTRUCTIONS.md
+ARCHITECTURE.md                 ./ARCHITECTURE.md
+MCP.md                          ./MCP.md
 install.ps1 / install.sh        remote-friendly web installers
 uninstall.ps1 / uninstall.sh    remote-friendly uninstallers
 crates/                         Rust CLI, core runtime, GUI, and MCP server
