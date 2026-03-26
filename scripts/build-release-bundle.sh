@@ -168,17 +168,14 @@ if [ -n "$TARGET" ] && [ "$BUNDLE_PLATFORM" = "android" ]; then
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
 elif [ -n "$TARGET" ]; then
-  # Build GUI only for desktop platforms
-  if [ "$BUNDLE_PLATFORM" = "linux" ] || [ "$BUNDLE_PLATFORM" = "macos" ]; then
-    "$CARGO_CMD" build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp -p pyenv-gui
-  else
-    "$CARGO_CMD" build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp
-  fi
+  # Cross-compiled builds never include pyenv-gui: system libraries (GTK/WebKit) are
+  # unavailable inside cross/cargo-ndk Docker environments.
+  "$CARGO_CMD" build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
-  RELEASE_GUI_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-gui"
+  RELEASE_GUI_BIN=""
 else
-  # Build GUI only for desktop platforms
+  # Native builds: include pyenv-gui only on desktop platforms.
   if [ "$BUNDLE_PLATFORM" = "linux" ] || [ "$BUNDLE_PLATFORM" = "macos" ]; then
     "$CARGO_CMD" build --release -p pyenv-cli -p pyenv-mcp -p pyenv-gui
   else
