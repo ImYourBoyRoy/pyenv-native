@@ -217,9 +217,9 @@ if [ -f "$RELEASE_GUI_BIN" ]; then
   chmod +x "${BUNDLE_DIR}/pyenv-gui"
 fi
 cp "${REPO_ROOT}/README.md" "${BUNDLE_DIR}/README.md"
-cp "${REPO_ROOT}/INSTRUCTIONS.md" "${BUNDLE_DIR}/INSTRUCTIONS.md"
-if [ -f "${REPO_ROOT}/MCP.md" ]; then
-  cp "${REPO_ROOT}/MCP.md" "${BUNDLE_DIR}/MCP.md"
+cp "${REPO_ROOT}/docs/INSTRUCTIONS.md" "${BUNDLE_DIR}/INSTRUCTIONS.md"
+if [ -f "${REPO_ROOT}/docs/MCP.md" ]; then
+  cp "${REPO_ROOT}/docs/MCP.md" "${BUNDLE_DIR}/MCP.md"
 fi
 cp "${REPO_ROOT}/LICENSE" "${BUNDLE_DIR}/LICENSE"
 cp "${SCRIPT_DIR}/install-pyenv-native.sh" "${BUNDLE_DIR}/install-pyenv-native.sh"
