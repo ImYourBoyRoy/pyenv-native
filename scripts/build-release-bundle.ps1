@@ -108,7 +108,6 @@ Set-Content -Path (Join-Path $bundleDir 'pyenv.ps1')     -Value $ps1Wrapper    -
 Set-Content -Path (Join-Path $bundleDir 'pyenv-mcp.cmd') -Value $mcpCmdWrapper -Encoding utf8
 Set-Content -Path (Join-Path $bundleDir 'pyenv-mcp.ps1') -Value $mcpPs1Wrapper -Encoding utf8
 
-$guiExeField = if ($architecture -ne 'arm64') { '"pyenv-gui.exe"' } else { 'null' }
 $bundleManifest = [ordered]@{
     bundle_name      = $BundleName
     bundle_version   = $bundleVersion
