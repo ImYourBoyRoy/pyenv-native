@@ -16,7 +16,7 @@ The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, pro
 
 ## Visual Tour
 
-![Pyenv-Native GUI Animation](../docs/screenshots/animated_gui.webp)
+![Pyenv-Native GUI Animation](./screenshots/animated_gui.webp)
 
 <details>
 <summary><b>View Screen Gallery</b></summary>
@@ -24,11 +24,11 @@ The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, pro
 
 | Dashboard | Installed Versions | Virtual Envs |
 | :---: | :---: | :---: |
-| ![Dashboard](../docs/screenshots/Dashboard.webp) | ![Installed Versions](../docs/screenshots/Installed_Versions.webp) | ![Virtual Envs](../docs/screenshots/VENVs.webp) |
+| ![Dashboard](./screenshots/Dashboard.webp) | ![Installed Versions](./screenshots/Installed_Versions.webp) | ![Virtual Envs](./screenshots/VENVs.webp) |
 
 | Available Targets | Settings | About |
 | :---: | :---: | :---: |
-| ![Available](../docs/screenshots/Available.webp) | ![Settings](../docs/screenshots/Settings.webp) | ![About](../docs/screenshots/About.webp) |
+| ![Available](./screenshots/Available.webp) | ![Settings](./screenshots/Settings.webp) | ![About](./screenshots/About.webp) |
 
 </details>
 

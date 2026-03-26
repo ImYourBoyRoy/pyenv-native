@@ -91,9 +91,9 @@ if ($architecture -ne 'arm64' -and (Test-Path $releaseGuiExe)) {
 }
 
 Copy-Item -Force (Join-Path $repoRoot 'README.md')      (Join-Path $bundleDir 'README.md')
-Copy-Item -Force (Join-Path $repoRoot 'INSTRUCTIONS.md')(Join-Path $bundleDir 'INSTRUCTIONS.md')
-if (Test-Path (Join-Path $repoRoot 'MCP.md')) {
-    Copy-Item -Force (Join-Path $repoRoot 'MCP.md') (Join-Path $bundleDir 'MCP.md')
+Copy-Item -Force (Join-Path $repoRoot 'docs\INSTRUCTIONS.md') (Join-Path $bundleDir 'INSTRUCTIONS.md')
+if (Test-Path (Join-Path $repoRoot 'docs\MCP.md')) {
+    Copy-Item -Force (Join-Path $repoRoot 'docs\MCP.md') (Join-Path $bundleDir 'MCP.md')
 }
 Copy-Item -Force (Join-Path $repoRoot 'LICENSE')        (Join-Path $bundleDir 'LICENSE')
 Copy-Item -Force (Join-Path $PSScriptRoot 'install-pyenv-native.ps1')   (Join-Path $bundleDir 'install-pyenv-native.ps1')
