@@ -566,7 +566,10 @@ if [ -f "$INSTALLED_MCP_EXE" ]; then
   run_sanity_check "$INSTALLED_MCP_EXE" 'pyenv-mcp guide' guide
 fi
 if [ -f "$INSTALLED_GUI_EXE" ]; then
-  run_sanity_check "$INSTALLED_EXE" 'pyenv gui' gui
+  log_line INFO "Sanity check passed: pyenv-gui exists at $INSTALLED_GUI_EXE"
+else
+  log_line ERROR "Sanity check failed: pyenv-gui was not found at $INSTALLED_GUI_EXE"
+  exit 1
 fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then

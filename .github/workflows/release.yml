@@ -54,8 +54,8 @@ jobs:
       - name: Prepare standalone GUI asset (Windows x64)
         shell: pwsh
         run: |
-          if (Test-Path "dist/pyenv-native-windows-x64/bin/pyenv-gui.exe") {
-            Copy-Item "dist/pyenv-native-windows-x64/bin/pyenv-gui.exe" "dist/pyenv-gui-windows-x64.exe"
+          if (Test-Path "dist/pyenv-native-windows-x64/pyenv-gui.exe") {
+            Copy-Item "dist/pyenv-native-windows-x64/pyenv-gui.exe" "dist/pyenv-gui-windows-x64.exe"
           }
 
       - name: Upload Windows x64 bundle artifact
@@ -134,8 +134,8 @@ jobs:
 
       - name: Prepare standalone GUI asset (Linux x64)
         run: |
-          if [ -f "dist/pyenv-native-linux-x64/bin/pyenv-gui" ]; then
-            cp "dist/pyenv-native-linux-x64/bin/pyenv-gui" "dist/pyenv-gui-linux-x64"
+          if [ -f "dist/pyenv-native-linux-x64/pyenv-gui" ]; then
+            cp "dist/pyenv-native-linux-x64/pyenv-gui" "dist/pyenv-gui-linux-x64"
           fi
 
       - name: Upload Linux bundle artifact
@@ -244,8 +244,8 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS arm64)
         run: |
-          if [ -f "dist/pyenv-native-macos-arm64/bin/pyenv-gui" ]; then
-            cp "dist/pyenv-native-macos-arm64/bin/pyenv-gui" "dist/pyenv-gui-macos-arm64"
+          if [ -f "dist/pyenv-native-macos-arm64/pyenv-gui" ]; then
+            cp "dist/pyenv-native-macos-arm64/pyenv-gui" "dist/pyenv-gui-macos-arm64"
           fi
 
       - name: Upload macOS arm64 bundle artifact
@@ -286,8 +286,8 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS x64)
         run: |
-          if [ -f "dist/pyenv-native-macos-x64/bin/pyenv-gui" ]; then
-            cp "dist/pyenv-native-macos-x64/bin/pyenv-gui" "dist/pyenv-gui-macos-x64"
+          if [ -f "dist/pyenv-native-macos-x64/pyenv-gui" ]; then
+            cp "dist/pyenv-native-macos-x64/pyenv-gui" "dist/pyenv-gui-macos-x64"
           fi
 
       - name: Upload macOS x64 bundle artifact
@@ -400,7 +400,6 @@ jobs:
             dist/linux/**
             dist/android/**
             dist/macos/**
-            dist/winget/**
             dist/homebrew/**
             dist/python/*
 

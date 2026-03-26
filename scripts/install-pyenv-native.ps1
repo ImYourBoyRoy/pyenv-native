@@ -244,7 +244,7 @@ function Write-InstallLog {
     Add-Content -Path $ResolvedLogPath -Value $line -Encoding utf8
 }
 
-function Ensure-EntriesInUserPath {
+function Add-UserPathEntries {
     param(
         [string[]]$Entries
     )
@@ -490,7 +490,7 @@ if ($resolvedMcpSource) {
 Write-InstallLog -Level 'INFO' -Message "Installed core binaries into $installBin" -ResolvedLogPath $resolvedLogPath
 
 if ($addToUserPathValue) {
-    Ensure-EntriesInUserPath -Entries @($installBin, $installShims)
+    Add-UserPathEntries -Entries @($installBin, $installShims)
     Write-InstallLog -Level 'INFO' -Message 'Updated user PATH to include the install bin and shims directories.' -ResolvedLogPath $resolvedLogPath
 }
 
@@ -511,7 +511,11 @@ if ($resolvedMcpSource) {
     Invoke-BinarySanityCheck -CommandPath $installedMcpExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv-mcp guide' -Arguments @('guide') -ResolvedLogPath $resolvedLogPath
 }
 if ($resolvedGuiSource) {
-    Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv gui' -Arguments @('gui') -ResolvedLogPath $resolvedLogPath
+    if (Test-Path $installedGuiExe) {
+        Write-InstallLog -Level 'INFO' -Message "Sanity check passed: pyenv-gui exists at $installedGuiExe" -ResolvedLogPath $resolvedLogPath
+    } else {
+        throw "Sanity check failed: pyenv-gui was not found at $installedGuiExe"
+    }
 }
 
 Write-InstallLog -Level 'INFO' -Message 'Install completed successfully.' -ResolvedLogPath $resolvedLogPath
