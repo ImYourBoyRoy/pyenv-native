@@ -94,6 +94,19 @@ if (-not $shouldRemoveRoot -and -not $Yes -and (Test-Path $resolvedInstallRoot))
     }
 }
 
+$shouldRemoveRoot = $RemoveRoot.IsPresent
+
+if (-not $shouldRemoveRoot -and -not $Yes -and (Test-Path $resolvedInstallRoot)) {
+    try {
+        $answer = Read-Host "Do you want to completely wipe the pyenv root directory ('$resolvedInstallRoot') including all installed Python versions? [y/N]"
+        if ($answer -and $answer.Trim() -match '^(y|yes)$') {
+            $shouldRemoveRoot = $true
+        }
+    } catch {
+        # Non-interactive or cancelled, default to false
+    }
+}
+
 foreach ($path in @(
     (Join-Path $installBin 'pyenv.exe'),
     (Join-Path $installBin 'pyenv.cmd'),
@@ -101,7 +114,8 @@ foreach ($path in @(
     (Join-Path $installBin 'pyenv-init.cmd'),
     (Join-Path $installBin 'pyenv-mcp.exe'),
     (Join-Path $installBin 'pyenv-mcp.cmd'),
-    (Join-Path $installBin 'pyenv-mcp.ps1')
+    (Join-Path $installBin 'pyenv-mcp.ps1'),
+    (Join-Path $installBin 'pyenv-gui.exe')
 )) {
     if (Test-Path $path) {
         Remove-Item -Force $path

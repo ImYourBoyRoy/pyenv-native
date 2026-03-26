@@ -549,6 +549,7 @@ tar -xzf "$BUNDLE_PATH" -C "$EXTRACT_ROOT"
 INSTALLER_PATH="${EXTRACT_ROOT}/install-pyenv-native.sh"
 EXECUTABLE_PATH="${EXTRACT_ROOT}/pyenv"
 MCP_EXECUTABLE_PATH="${EXTRACT_ROOT}/pyenv-mcp"
+GUI_EXECUTABLE_PATH="${EXTRACT_ROOT}/pyenv-gui"
 MANIFEST_PATH="${EXTRACT_ROOT}/bundle-manifest.json"
 
 for required_path in "$INSTALLER_PATH" "$EXECUTABLE_PATH" "$MANIFEST_PATH"; do
@@ -565,29 +566,24 @@ if ! grep -q '"platform"[[:space:]]*:[[:space:]]*"'$OPERATING_SYSTEM'"' "$MANIFE
 ' "$OPERATING_SYSTEM" >&2
   exit 1
 fi
-if grep -q '"mcp_executable"' "$MANIFEST_PATH"; then
-  if [ ! -f "$MCP_EXECUTABLE_PATH" ]; then
-    printf 'Downloaded bundle declared an MCP server binary but `%s` was missing.
-' "$MCP_EXECUTABLE_PATH" >&2
+  chmod +x "$MCP_EXECUTABLE_PATH"
+fi
+if grep -q '"gui_executable"' "$MANIFEST_PATH"; then
+  if [ ! -f "$GUI_EXECUTABLE_PATH" ]; then
+    printf 'Downloaded bundle declared a GUI companion binary but `%s` was missing.
+' "$GUI_EXECUTABLE_PATH" >&2
     exit 1
   fi
-  chmod +x "$MCP_EXECUTABLE_PATH"
+  chmod +x "$GUI_EXECUTABLE_PATH"
 fi
 
 write_step "Running bundled installer from ${INSTALLER_PATH}"
-if [ "$FORCE" = true ]; then
-  if [ -f "$MCP_EXECUTABLE_PATH" ]; then
-    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --source-mcp-path "$MCP_EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes       --force
-  else
-    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes       --force
-  fi
-else
-  if [ -f "$MCP_EXECUTABLE_PATH" ]; then
-    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --source-mcp-path "$MCP_EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes
-  else
-    "$INSTALLER_PATH"       --source-path "$EXECUTABLE_PATH"       --install-root "$INSTALL_ROOT"       --shell "$SHELL_KIND"       --add-to-user-path "$ADD_TO_USER_PATH"       --update-shell-profile "$UPDATE_SHELL_PROFILE"       --refresh-shims "$REFRESH_SHIMS"       --log-path "$LOG_PATH"       --yes
-  fi
-fi
+INSTALLER_ARGS="--source-path \"$EXECUTABLE_PATH\" --install-root \"$INSTALL_ROOT\" --shell \"$SHELL_KIND\" --add-to-user-path \"$ADD_TO_USER_PATH\" --update-shell-profile \"$UPDATE_SHELL_PROFILE\" --refresh-shims \"$REFRESH_SHIMS\" --log-path \"$LOG_PATH\" --yes"
+[ "$FORCE" = "true" ] && INSTALLER_ARGS="$INSTALLER_ARGS --force"
+[ -f "$MCP_EXECUTABLE_PATH" ] && INSTALLER_ARGS="$INSTALLER_ARGS --source-mcp-path \"$MCP_EXECUTABLE_PATH\""
+[ -f "$GUI_EXECUTABLE_PATH" ] && INSTALLER_ARGS="$INSTALLER_ARGS --source-gui-path \"$GUI_EXECUTABLE_PATH\""
+
+eval "\"$INSTALLER_PATH\" $INSTALLER_ARGS"
 
 write_step 'Network install completed successfully.'
 print_line ""
