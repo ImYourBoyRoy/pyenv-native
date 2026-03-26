@@ -57,7 +57,7 @@ On Windows, the installer persists both `PYENV_ROOT\\bin` and `PYENV_ROOT\\shims
 ### Latest published release: Windows PowerShell
 
 ```powershell
-$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.ps1 -OutFile $installer; & $installer
+$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 -OutFile $installer; & $installer
 ```
 
 ### Latest published release: Linux / macOS - install and activate in the current shell
@@ -65,19 +65,19 @@ $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest h
 Bash:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
 ```
 
 Zsh:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
 ```
 
 Fish:
 
 ```fish
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh; and if not contains -- "$HOME/.pyenv/bin" $PATH; set -gx PATH "$HOME/.pyenv/bin" $PATH; end; and "$HOME/.pyenv/bin/pyenv" init - fish | source
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh; and if not contains -- "$HOME/.pyenv/bin" $PATH; set -gx PATH "$HOME/.pyenv/bin" $PATH; end; and "$HOME/.pyenv/bin/pyenv" init - fish | source
 ```
 
 ### Latest published release: Linux / macOS - install only
@@ -85,7 +85,7 @@ curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/inst
 Use this form if you are fine opening a new shell afterward or reloading your profile manually:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
 ```
 
 ### Latest published release: Android (Termux)
@@ -96,7 +96,7 @@ pkg install clang make pkg-config \
   gdbm libandroid-posix-semaphore libandroid-support libbz2 libcrypt \
   libexpat libffi liblzma libsqlite ncurses ncurses-ui-libs \
   openssl readline zlib
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
 ```
 
 On Termux, the installer now targets the dedicated `pyenv-native-android-arm64.tar.gz` release artifact rather than the generic Linux ARM64 bundle.

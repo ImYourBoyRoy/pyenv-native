@@ -13,6 +13,7 @@ mod install;
 mod manage;
 mod meta;
 mod plugin;
+mod process;
 mod runtime;
 mod self_update;
 mod shell;
@@ -21,6 +22,8 @@ mod venv;
 mod venv_compat;
 mod venv_paths;
 mod version;
+
+pub use process::CommandExt;
 
 pub use catalog::{
     CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions, cmd_install_list,

@@ -15,6 +15,7 @@ use zip::ZipArchive;
 
 use crate::error::PyenvError;
 use crate::http::build_blocking_client;
+use crate::process::CommandExt;
 
 use super::report::{io_error, pip_wrapper_names, sanitize_for_fs};
 use super::types::{INSTALL_RECEIPT_FILE, InstallPlan, InstallReceipt};
@@ -342,6 +343,7 @@ pub(super) fn validate_python(python_executable: &Path) -> Result<(), PyenvError
 
 pub(super) fn run_python(python_executable: &Path, args: &[&str]) -> Result<(), PyenvError> {
     let output = Command::new(python_executable)
+        .headless()
         .args(args)
         .output()
         .map_err(|error| {

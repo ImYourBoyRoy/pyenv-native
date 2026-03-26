@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/plugin/process.rs
 //! Cross-shell process launching for plugin commands and hook scripts.
 
+use crate::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -22,13 +23,15 @@ pub(super) fn run_process(
     let mut command = match extension.as_deref() {
         Some("ps1") => {
             let mut command = Command::new("powershell");
-            command.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]);
+            command
+                .headless()
+                .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]);
             command.arg(path);
             command
         }
         Some("cmd" | "bat") => {
             let mut command = Command::new("cmd");
-            command.arg("/C");
+            command.headless().arg("/C");
             command.arg(path);
             command
         }
@@ -38,10 +41,14 @@ pub(super) fn run_process(
             } else {
                 "sh"
             });
-            command.arg(path);
+            command.headless().arg(path);
             command
         }
-        _ => Command::new(path),
+        _ => {
+            let mut c = Command::new(path);
+            c.headless();
+            c
+        }
     };
 
     command.args(args);

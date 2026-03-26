@@ -164,17 +164,29 @@ if [ -n "$TARGET" ] && [ "$BUNDLE_PLATFORM" = "android" ]; then
     printf '%s\n' 'cargo-ndk is required for Android bundle production. Install it with `cargo install cargo-ndk --locked`.' >&2
     exit 1
   fi
-  CARGO_NDK_PLATFORM="$ANDROID_API_LEVEL" cargo ndk -t "$ANDROID_ABI" -- build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  CARGO_NDK_PLATFORM="$ANDROID_API_LEVEL" cargo ndk -t "$ANDROID_ABI" -- build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
 elif [ -n "$TARGET" ]; then
-  "$CARGO_CMD" build --release --target "$TARGET" --bin pyenv --bin pyenv-mcp
+  # Build GUI only for desktop platforms
+  if [ "$BUNDLE_PLATFORM" = "linux" ] || [ "$BUNDLE_PLATFORM" = "macos" ]; then
+    "$CARGO_CMD" build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp -p pyenv-gui
+  else
+    "$CARGO_CMD" build --release --target "$TARGET" -p pyenv-cli -p pyenv-mcp
+  fi
   RELEASE_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-mcp"
+  RELEASE_GUI_BIN="${REPO_ROOT}/target/${TARGET}/release/pyenv-gui"
 else
-  "$CARGO_CMD" build --release --bin pyenv --bin pyenv-mcp
+  # Build GUI only for desktop platforms
+  if [ "$BUNDLE_PLATFORM" = "linux" ] || [ "$BUNDLE_PLATFORM" = "macos" ]; then
+    "$CARGO_CMD" build --release -p pyenv-cli -p pyenv-mcp -p pyenv-gui
+  else
+    "$CARGO_CMD" build --release -p pyenv-cli -p pyenv-mcp
+  fi
   RELEASE_BIN="${REPO_ROOT}/target/release/pyenv"
   RELEASE_MCP_BIN="${REPO_ROOT}/target/release/pyenv-mcp"
+  RELEASE_GUI_BIN="${REPO_ROOT}/target/release/pyenv-gui"
 fi
 CARGO_TOML_PATH="${REPO_ROOT}/Cargo.toml"
 
@@ -198,6 +210,10 @@ fi
 
 cp "$RELEASE_BIN" "${BUNDLE_DIR}/pyenv"
 cp "$RELEASE_MCP_BIN" "${BUNDLE_DIR}/pyenv-mcp"
+if [ -f "$RELEASE_GUI_BIN" ]; then
+  cp "$RELEASE_GUI_BIN" "${BUNDLE_DIR}/pyenv-gui"
+  chmod +x "${BUNDLE_DIR}/pyenv-gui"
+fi
 cp "${REPO_ROOT}/README.md" "${BUNDLE_DIR}/README.md"
 cp "${REPO_ROOT}/INSTRUCTIONS.md" "${BUNDLE_DIR}/INSTRUCTIONS.md"
 if [ -f "${REPO_ROOT}/MCP.md" ]; then
@@ -217,6 +233,7 @@ cat > "${BUNDLE_DIR}/bundle-manifest.json" <<EOF
   "target_triple": "${TARGET}",
   "executable": "pyenv",
   "mcp_executable": "pyenv-mcp",
+  "gui_executable": $(if [ -f "$RELEASE_GUI_BIN" ]; then echo '"pyenv-gui"'; else echo "null"; fi),
   "install_script": "install-pyenv-native.sh",
   "uninstall_script": "uninstall-pyenv-native.sh"
 }

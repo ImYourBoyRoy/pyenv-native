@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/venv/commands.rs
 //! Public managed-venv commands for list/info/create/delete/rename/use operations.
 
+use crate::process::CommandExt;
 use std::fs;
 use std::process::Command;
 
@@ -291,6 +292,7 @@ fn create_managed_venv(
     }
 
     let status = Command::new(&interpreter_path)
+        .headless()
         .arg("-m")
         .arg("venv")
         .arg(&venv_path)

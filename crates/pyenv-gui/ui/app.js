@@ -489,6 +489,16 @@ async function uninstallVersion(v) {
     }
 }
 
+function compareVersions(v1, v2) {
+    const p1 = v1.split('.').map(n => parseInt(n, 10) || 0);
+    const p2 = v2.split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+        if ((p1[i] || 0) > (p2[i] || 0)) return 1;
+        if ((p1[i] || 0) < (p2[i] || 0)) return -1;
+    }
+    return 0;
+}
+
 // ─── Version & Init ───
 async function initAppVersion() {
     try {
@@ -502,12 +512,19 @@ async function initAppVersion() {
         // Check for latest version from GitHub
         try {
             const res = await fetch('https://api.github.com/repos/ImYourBoyRoy/pyenv-native/releases/latest');
+            if (!res.ok) throw new Error('Fetch failed');
             const data = await res.json();
-            const latest = (data.tag_name || '').replace('v', '');
+            const latestTag = data.tag_name || '';
+            const latest = latestTag.replace(/^v/, '');
+            
             const statusEl = document.getElementById('footer-app-status');
             if (statusEl && latest) {
-                if (latest !== version) statusEl.innerHTML = `<span style="color:var(--danger)">Update Available: v${latest}</span>`;
-                else statusEl.innerHTML = `<span style="color:#10b981;">✓ Up to Date</span>`;
+                // Only show update if latest > current
+                if (compareVersions(latest, version) > 0) {
+                    statusEl.innerHTML = `<span style="color:var(--danger)">Update Available: v${latest}</span>`;
+                } else {
+                    statusEl.innerHTML = `<span style="color:#10b981;">✓ Up to Date</span>`;
+                }
             }
         } catch {
             const statusEl = document.getElementById('footer-app-status');
@@ -518,6 +535,64 @@ async function initAppVersion() {
     }
 }
 
+// ─── Bootstrapping ───
+async function checkInstallation() {
+    try {
+        const status = await invoke('check_install_status');
+        const banner = document.getElementById('setup-banner');
+        
+        if (!status.is_installed) {
+            if (banner) banner.style.display = 'block';
+        } else {
+            if (banner) banner.style.display = 'none';
+        }
+        
+        // Ensure sidebar is always visible in the new workflow
+        document.querySelector('.sidebar').style.display = 'flex';
+        loadDashboard();
+        
+        if (status.is_portable) {
+            const footerStatus = document.getElementById('footer-app-status');
+            if (status.is_installed) {
+                // Already adding a "Portable" tag if it's both installed and running portably?
+                // Actually, let's just show "Portable Mode" if running next to a binary.
+                if (!footerStatus.innerHTML.includes('Portable')) {
+                   footerStatus.innerHTML += ' <span class="badge badge-success" style="font-size:10px; padding: 2px 6px; margin-left: 8px;">Portable</span>';
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Installation check failed", err);
+        loadDashboard();
+    }
+}
+
+document.getElementById('btn-dismiss-banner')?.addEventListener('click', () => {
+    const banner = document.getElementById('setup-banner');
+    if (banner) banner.style.display = 'none';
+});
+
+document.getElementById('btn-run-setup-banner')?.addEventListener('click', async () => {
+    const actions = document.getElementById('banner-actions');
+    const progress = document.getElementById('banner-progress');
+    const statusText = document.getElementById('banner-status-text');
+
+    if (actions) actions.style.display = 'none';
+    if (progress) progress.style.display = 'flex';
+
+    try {
+        await invoke('install_local_pyenv');
+        if (statusText) statusText.textContent = "Done! Environment refreshed.";
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    } catch (err) {
+        if (progress) progress.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+        showAlert('Setup Failed', err);
+    }
+});
+
 // Init startup
 initAppVersion();
-loadDashboard();
+checkInstallation();

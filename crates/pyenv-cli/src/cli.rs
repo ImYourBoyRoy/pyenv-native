@@ -23,6 +23,8 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
+    // --- PLUMBING ---
+    #[command(next_help_heading = "PLUMBING")]
     #[command(about = "Display help for a command")]
     Help {
         #[arg(long = "usage")]
@@ -39,79 +41,13 @@ pub(crate) enum Commands {
     },
     #[command(about = "Display the root directory where versions and shims are kept")]
     Root,
-    #[command(about = "Launch the beautiful Pyenv Native GUI dashboard")]
-    Gui,
     #[command(about = "List executable hooks for a given command")]
     Hooks { hook: String },
-    #[command(about = "Verify pyenv installation and environment health")]
-    Doctor {
-        #[arg(long = "json")]
-        json: bool,
-        #[arg(
-            long = "fix",
-            help = "Apply safe automated fixes after showing diagnostics"
-        )]
-        fix: bool,
-        #[arg(
-            short = 'f',
-            long = "force",
-            help = "Skip the confirmation prompt when used with --fix"
-        )]
-        force: bool,
-    },
-    #[command(about = "Check for or install the latest published pyenv-native release")]
-    SelfUpdate {
-        #[arg(long = "check", help = "Check for updates without installing")]
-        check: bool,
-        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
-        yes: bool,
-        #[arg(
-            short = 'f',
-            long = "force",
-            help = "Reinstall even when the current version already matches the target release"
-        )]
-        force: bool,
-        #[arg(
-            long = "github-repo",
-            help = "GitHub owner/repo that publishes pyenv-native release bundles"
-        )]
-        github_repo: Option<String>,
-        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
-        tag: Option<String>,
-    },
-    #[command(about = "Uninstall pyenv-native from your system")]
-    SelfUninstall {
-        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
-        yes: bool,
-    },
-    #[command(
-        hide = true,
-        name = "update",
-        about = "Compatibility alias for `pyenv self-update`"
-    )]
-    Update {
-        #[arg(long = "check", help = "Check for updates without installing")]
-        check: bool,
-        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
-        yes: bool,
-        #[arg(
-            short = 'f',
-            long = "force",
-            help = "Reinstall even when the current version already matches the target release"
-        )]
-        force: bool,
-        #[arg(
-            long = "github-repo",
-            help = "GitHub owner/repo that publishes pyenv-native release bundles"
-        )]
-        github_repo: Option<String>,
-        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
-        tag: Option<String>,
-    },
-    #[command(about = "Display or modify pyenv-native configuration")]
-    Config {
-        #[command(subcommand)]
-        command: Option<ConfigCommands>,
+    #[command(about = "Print command completion script", trailing_var_arg = true)]
+    Completions {
+        command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
     },
     #[command(about = "Detect the file that sets the current pyenv version")]
     VersionFile { dir: Option<PathBuf> },
@@ -124,117 +60,9 @@ pub(crate) enum Commands {
         file: PathBuf,
         versions: Vec<String>,
     },
-    #[command(about = "Explain how the current Python version is set")]
-    VersionOrigin,
-    #[command(about = "Show the current Python version")]
-    VersionName {
-        #[arg(short = 'f', long = "force")]
-        force: bool,
-    },
-    #[command(about = "Show the current Python version and its origin")]
-    Version {
-        #[arg(long = "bare")]
-        bare: bool,
-    },
-    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
-    Status {
-        #[arg(long = "json")]
-        json: bool,
-    },
-    #[command(about = "Print a concise prompt string for the current environment")]
-    Prompt,
 
-    #[command(about = "Set or show the global Python version")]
-    Global {
-        #[arg(long = "unset", help = "Remove the global version file")]
-        unset: bool,
-        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
-        versions: Vec<String>,
-    },
-    #[command(about = "Set or show the local directory Python version")]
-    Local {
-        #[arg(
-            short = 'f',
-            long = "force",
-            help = "Write even if version is not installed"
-        )]
-        force: bool,
-        #[arg(long = "unset", help = "Remove the .python-version file")]
-        unset: bool,
-        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
-        versions: Vec<String>,
-    },
-    #[command(about = "Print the latest installed or known version matching the prefix")]
-    Latest {
-        #[arg(short = 'k', long = "known")]
-        known: bool,
-        #[arg(short = 'b', long = "bypass")]
-        bypass: bool,
-        #[arg(short = 'f', long = "force")]
-        force: bool,
-        prefix: String,
-    },
-    #[command(about = "Display paths where the given Python versions are installed")]
-    Prefix { versions: Vec<String> },
-    #[command(
-        about = "Configure the shell environment for pyenv",
-        trailing_var_arg = true
-    )]
-    Init {
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    #[command(
-        about = "Set or show the shell-specific Python version",
-        trailing_var_arg = true
-    )]
-    Shell {
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    #[command(
-        hide = true,
-        about = "Compatibility alias for activating a managed virtual environment",
-        trailing_var_arg = true
-    )]
-    Activate {
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    #[command(
-        hide = true,
-        about = "Compatibility alias for deactivating the current managed virtual environment",
-        trailing_var_arg = true
-    )]
-    Deactivate {
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    #[command(about = "List all Python versions available to pyenv")]
-    Versions {
-        #[arg(long = "bare")]
-        bare: bool,
-        #[arg(long = "skip-aliases")]
-        skip_aliases: bool,
-        #[arg(long = "skip-envs")]
-        skip_envs: bool,
-        #[arg(long = "executables")]
-        executables: bool,
-    },
-    #[command(about = "Display the full path to an executable")]
-    Which {
-        #[arg(long = "nosystem")]
-        no_system: bool,
-        #[arg(long = "skip-advice")]
-        skip_advice: bool,
-        command: String,
-    },
-    #[command(about = "List all Python versions that contain the given executable")]
-    Whence {
-        #[arg(long = "path")]
-        path: bool,
-        command: String,
-    },
+    // --- CORE WORKFLOW ---
+    #[command(next_help_heading = "CORE WORKFLOW")]
     #[command(about = "Install Python versions from native providers")]
     Install {
         #[arg(short = 'l', long = "list", help = "List all installable versions")]
@@ -270,12 +98,58 @@ pub(crate) enum Commands {
         #[arg(help = "Optional pattern such as 3, 3.12, 3.13, or pypy3.11")]
         pattern: Option<String>,
     },
-    #[command(about = "Uninstall a specific Python version")]
-    Uninstall {
-        #[arg(short = 'f', long = "force")]
-        force: bool,
+    #[command(about = "List all Python versions available to pyenv")]
+    Versions {
+        #[arg(long = "bare")]
+        bare: bool,
+        #[arg(long = "skip-aliases")]
+        skip_aliases: bool,
+        #[arg(long = "skip-envs")]
+        skip_envs: bool,
+        #[arg(long = "executables")]
+        executables: bool,
+    },
+    #[command(about = "Set or show the global Python version")]
+    Global {
+        #[arg(long = "unset", help = "Remove the global version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
         versions: Vec<String>,
     },
+    #[command(about = "Set or show the local directory Python version")]
+    Local {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Write even if version is not installed"
+        )]
+        force: bool,
+        #[arg(long = "unset", help = "Remove the .python-version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
+        versions: Vec<String>,
+    },
+    #[command(
+        about = "Set or show the shell-specific Python version",
+        trailing_var_arg = true
+    )]
+    Shell {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Print the latest installed or known version matching the prefix")]
+    Latest {
+        #[arg(short = 'k', long = "known")]
+        known: bool,
+        #[arg(short = 'b', long = "bypass")]
+        bypass: bool,
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        prefix: String,
+    },
+
+    // --- ENVIRONMENT MANAGEMENT ---
+    #[command(next_help_heading = "ENVIRONMENT MANAGEMENT")]
     #[command(about = "Create, inspect, and assign managed virtual environments")]
     Venv {
         #[command(subcommand)]
@@ -313,16 +187,57 @@ pub(crate) enum Commands {
         about = "Print the full path to a managed virtual environment"
     )]
     VirtualenvPrefix { spec: Option<String> },
+
+    // --- STATUS & INSPECTION ---
+    #[command(next_help_heading = "STATUS & INSPECTION")]
+    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
+    Status {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(about = "Show the current Python version and its origin")]
+    Version {
+        #[arg(long = "bare")]
+        bare: bool,
+    },
+    #[command(about = "Show the current Python version")]
+    VersionName {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+    },
+    #[command(about = "Explain how the current Python version is set")]
+    VersionOrigin,
+    #[command(about = "Display paths where the given Python versions are installed")]
+    Prefix { versions: Vec<String> },
+    #[command(about = "Display the full path to an executable")]
+    Which {
+        #[arg(long = "nosystem")]
+        no_system: bool,
+        #[arg(long = "skip-advice")]
+        skip_advice: bool,
+        command: String,
+    },
+    #[command(about = "List all Python versions that contain the given executable")]
+    Whence {
+        #[arg(long = "path")]
+        path: bool,
+        command: String,
+    },
+    #[command(about = "Print a concise prompt string for the current environment")]
+    Prompt,
+
+    // --- SYSTEM & TOOLING ---
+    #[command(next_help_heading = "SYSTEM & TOOLING")]
     #[command(
-        hide = true,
-        name = "virtualenv-init",
-        about = "Compatibility alias for shell init output that supports activate/deactivate",
+        about = "Configure the shell environment for pyenv",
         trailing_var_arg = true
     )]
-    VirtualenvInit {
+    Init {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    #[command(about = "Launch the beautiful Pyenv Native GUI dashboard")]
+    Gui,
     #[command(about = "Rehash pyenv shims (installs executables across all versions)")]
     Rehash,
     #[command(about = "List existing pyenv shims")]
@@ -330,9 +245,121 @@ pub(crate) enum Commands {
         #[arg(long = "short")]
         short: bool,
     },
-    #[command(about = "Print command completion script", trailing_var_arg = true)]
-    Completions {
+    #[command(about = "Verify pyenv installation and environment health")]
+    Doctor {
+        #[arg(long = "json")]
+        json: bool,
+        #[arg(
+            long = "fix",
+            help = "Apply safe automated fixes after showing diagnostics"
+        )]
+        fix: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip the confirmation prompt when used with --fix"
+        )]
+        force: bool,
+    },
+    #[command(about = "Display or modify pyenv-native configuration")]
+    Config {
+        #[command(subcommand)]
+        command: Option<ConfigCommands>,
+    },
+    #[command(
+        about = "Run an executable with the selected Python version",
+        trailing_var_arg = true
+    )]
+    Exec {
         command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    // --- MAINTENANCE ---
+    #[command(next_help_heading = "MAINTENANCE")]
+    #[command(about = "Check for or install the latest published pyenv-native release")]
+    SelfUpdate {
+        #[arg(long = "check", help = "Check for updates without installing")]
+        check: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even when the current version already matches the target release"
+        )]
+        force: bool,
+        #[arg(
+            long = "github-repo",
+            help = "GitHub owner/repo that publishes pyenv-native release bundles"
+        )]
+        github_repo: Option<String>,
+        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
+        tag: Option<String>,
+    },
+    #[command(about = "Uninstall pyenv-native from your system")]
+    SelfUninstall {
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+    },
+    #[command(about = "Uninstall a specific Python version")]
+    Uninstall {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        versions: Vec<String>,
+    },
+
+    // --- Compatibility Aliases (Hidden) ---
+    #[command(
+        hide = true,
+        name = "update",
+        about = "Compatibility alias for `pyenv self-update`"
+    )]
+    Update {
+        #[arg(long = "check", help = "Check for updates without installing")]
+        check: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even when the current version already matches the target release"
+        )]
+        force: bool,
+        #[arg(
+            long = "github-repo",
+            help = "GitHub owner/repo that publishes pyenv-native release bundles"
+        )]
+        github_repo: Option<String>,
+        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
+        tag: Option<String>,
+    },
+    #[command(
+        hide = true,
+        about = "Compatibility alias for activating a managed virtual environment",
+        trailing_var_arg = true
+    )]
+    Activate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(
+        hide = true,
+        about = "Compatibility alias for deactivating the current managed virtual environment",
+        trailing_var_arg = true
+    )]
+    Deactivate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(
+        hide = true,
+        name = "virtualenv-init",
+        about = "Compatibility alias for shell init output that supports activate/deactivate",
+        trailing_var_arg = true
+    )]
+    VirtualenvInit {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
@@ -358,15 +385,7 @@ pub(crate) enum Commands {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(
-        about = "Run an executable with the selected Python version",
-        trailing_var_arg = true
-    )]
-    Exec {
-        command: String,
-        #[arg(allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
+
     #[command(external_subcommand)]
     External(Vec<String>),
 }
