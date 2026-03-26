@@ -40,9 +40,11 @@ The high-performance core. Manages Python installations, shims, and shell integr
 #### GUI Standalone (Latest)
 
 - **Windows**: [Download .exe](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-windows-x64.exe)
+  - *Note: You may need to Right-click -> Properties -> **Unblock** if Windows SmartScreen blocks execution.*
 - **Linux**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-linux-x64)
 - **macOS (Apple Silicon)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-arm64)
 - **macOS (Intel)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-x64)
+  - *Note: On Linux/macOS, run `chmod +x <binary>` in your terminal before launching.*
 
 ### 🤖 [Agentic / MCP Support](./docs/MCP.md)
 

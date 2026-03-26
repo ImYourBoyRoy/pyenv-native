@@ -69,20 +69,35 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
 fn ensure_portable_install(ctx: &AppContext) -> Result<(), String> {
     let current_exe = env::current_exe()
         .map_err(|error| format!("pyenv: failed to resolve current executable path: {error}"))?;
-    let expected = portable_executable_path(&ctx.root);
-    if same_path(&current_exe, &expected) {
+
+    // We allow self-update to be triggered from either the CLI (pyenv) or the GUI companion (pyenv-gui)
+    // provided they are running from the expected installation directory.
+    let bin_dir = ctx.root.join("bin");
+
+    let is_pyenv = same_path(&current_exe, &portable_executable_path(&ctx.root));
+    let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
+
+    if is_pyenv || is_gui {
         return Ok(());
     }
 
     Err(format!(
         "pyenv: self-update only supports portable installs launched from `{}`; current executable is `{}`",
-        expected.display(),
+        bin_dir.join("pyenv").display(),
         current_exe.display()
     ))
 }
 
 fn portable_executable_path(root: &Path) -> PathBuf {
     let mut candidate = root.join("bin").join("pyenv");
+    if cfg!(windows) {
+        candidate.set_extension("exe");
+    }
+    candidate
+}
+
+fn gui_executable_path(bin_dir: &Path) -> PathBuf {
+    let mut candidate = bin_dir.join("pyenv-gui");
     if cfg!(windows) {
         candidate.set_extension("exe");
     }
