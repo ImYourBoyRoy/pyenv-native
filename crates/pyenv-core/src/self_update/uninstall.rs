@@ -79,7 +79,9 @@ fn spawn_windows_uninstall(ctx: &AppContext) -> Result<(), String> {
     fs::write(&launcher_path, launcher)
         .map_err(|error| format!("pyenv: failed to write Windows uninstall helper: {error}"))?;
 
+    use crate::process::CommandExt;
     Command::new("powershell.exe")
+        .headless()
         .args([
             "-NoProfile",
             "-ExecutionPolicy",

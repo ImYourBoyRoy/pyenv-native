@@ -369,7 +369,7 @@ render_single_paste_install_command() {
   if [ -n "$TAG" ]; then
     raw_ref="$TAG"
   fi
-  raw_install_url="https://raw.githubusercontent.com/${GITHUB_REPO}/${raw_ref}/install.sh"
+  raw_install_url="https://github.com/${GITHUB_REPO}/releases/latest/download/install.sh"
 
   case "$shell_kind" in
     fish)
@@ -595,7 +595,7 @@ print_line "Installed pyenv-native to $INSTALL_ROOT"
 print_line "Installed command: ${INSTALL_ROOT}/bin/pyenv"
 print_line "Log file: $LOG_PATH"
 if [ -n "$GITHUB_REPO" ]; then
-  print_line "Remote uninstall helper: https://raw.githubusercontent.com/${GITHUB_REPO}/main/uninstall.sh"
+  print_line "Remote uninstall helper: https://github.com/${GITHUB_REPO}/releases/latest/download/uninstall.sh"
 fi
 
 CURRENT_SHELL_HINT=""

@@ -8,6 +8,8 @@
 //! self-update confirmation) use force/yes flags since the GUI provides
 //! its own confirmation modals.
 
+use pyenv_core::CommandExt;
+
 #[tauri::command]
 fn get_status() -> Result<String, String> {
     let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
@@ -95,6 +97,7 @@ async fn install_version(version: String) -> Result<String, String> {
         let py_path = ctx.versions_dir().join(&ver_clone).join("python.exe");
         if py_path.exists() {
             let _ = std::process::Command::new(&py_path)
+                .headless()
                 .args(["-m", "pip", "install", "-U", "pip"])
                 .output();
         }
@@ -258,6 +261,179 @@ fn open_url(url: String) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+struct InstallStatus {
+    is_installed: bool,
+    root: Option<String>,
+    is_portable: bool,
+}
+
+#[tauri::command]
+fn check_install_status() -> InstallStatus {
+    // Check if pyenv is in the system PATH
+    let pyenv_in_path = if cfg!(windows) {
+        std::process::Command::new("where.exe")
+            .headless()
+            .arg("pyenv")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    } else {
+        std::process::Command::new("which")
+            .arg("pyenv")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+
+    let ctx = pyenv_core::AppContext::from_system();
+
+    // Check if we are in a portable bundle (pyenv executable next to us)
+    let exe_path = std::env::current_exe().unwrap_or_default();
+    let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
+
+    let pyenv_name = if cfg!(windows) { "pyenv.exe" } else { "pyenv" };
+    let local_pyenv = parent.join(pyenv_name);
+    let is_portable = local_pyenv.exists();
+
+    match ctx {
+        Ok(c) => InstallStatus {
+            is_installed: pyenv_in_path,
+            root: Some(c.root.to_string_lossy().to_string()),
+            is_portable,
+        },
+        Err(_) => InstallStatus {
+            is_installed: pyenv_in_path,
+            root: if is_portable {
+                Some(parent.to_string_lossy().to_string())
+            } else {
+                None
+            },
+            is_portable,
+        },
+    }
+}
+
+#[tauri::command]
+async fn install_local_pyenv() -> Result<String, String> {
+    tokio::task::spawn_blocking(|| {
+        let exe_path = std::env::current_exe().unwrap_or_default();
+        let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
+
+        #[cfg(target_os = "windows")]
+        {
+            let script_names = [
+                "install-pyenv-native.ps1",
+                "scripts/install-pyenv-native.ps1",
+            ];
+            let mut script_path = None;
+
+            // Search up the tree for scripts/ (useful for dev builds in target/debug)
+            let mut curr = parent.to_path_buf();
+            for _ in 0..5 {
+                for name in script_names {
+                    let test = curr.join(name);
+                    if test.exists() {
+                        script_path = Some(test);
+                        break;
+                    }
+                }
+                if script_path.is_some() {
+                    break;
+                }
+                if let Some(p) = curr.parent() {
+                    curr = p.to_path_buf();
+                } else {
+                    break;
+                }
+            }
+
+            let script = script_path
+                .ok_or_else(|| "Installer script not found in bundle or workspace.".to_string())?;
+
+            // Detect if we have bundled binaries near the EXE for offline install
+            let pyenv_bin = parent.join("pyenv.exe");
+            let mcp_bin = parent.join("pyenv-mcp.exe");
+
+            let mut args = vec![
+                "-ExecutionPolicy".to_string(),
+                "Bypass".to_string(),
+                "-File".to_string(),
+                script.to_string_lossy().to_string(),
+                "-Yes".to_string(),
+            ];
+
+            if pyenv_bin.exists() {
+                args.push("-SourcePath".to_string());
+                args.push(pyenv_bin.to_string_lossy().to_string());
+            }
+            if mcp_bin.exists() {
+                args.push("-SourceMcpPath".to_string());
+                args.push(mcp_bin.to_string_lossy().to_string());
+            }
+
+            let output = std::process::Command::new("powershell")
+                .headless()
+                .args(&args)
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).to_string());
+            }
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let script_names = ["install-pyenv-native.sh", "scripts/install-pyenv-native.sh"];
+            let mut script_path = None;
+
+            let mut curr = parent.to_path_buf();
+            for _ in 0..5 {
+                for name in script_names {
+                    let test = curr.join(name);
+                    if test.exists() {
+                        script_path = Some(test);
+                        break;
+                    }
+                }
+                if script_path.is_some() {
+                    break;
+                }
+                if let Some(p) = curr.parent() {
+                    curr = p.to_path_buf();
+                } else {
+                    break;
+                }
+            }
+
+            let script = script_path
+                .ok_or_else(|| "Installer script not found in bundle or workspace.".to_string())?;
+
+            // Offline install for POSIX (assuming script handles it or we pass env/args)
+            let mut args = vec![script.to_string_lossy().to_string(), "--yes".to_string()];
+
+            let pyenv_bin = parent.join("pyenv");
+            if pyenv_bin.exists() {
+                args.push("--source-path".to_string());
+                args.push(pyenv_bin.to_string_lossy().to_string());
+            }
+
+            let output = std::process::Command::new("sh")
+                .args(&args)
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).to_string());
+            }
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|_app| Ok(()))
@@ -281,7 +457,9 @@ fn main() {
             maximize_app,
             uninstall_version,
             get_app_version,
-            open_url
+            open_url,
+            check_install_status,
+            install_local_pyenv
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

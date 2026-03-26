@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/self_update/runner.rs
 //! Self-update execution flow, installer download, and platform-specific launcher handling.
 
+use crate::process::CommandExt;
 use std::cmp::Ordering;
 use std::env;
 use std::fs;
@@ -162,8 +163,12 @@ fn confirm_self_update(
 
 fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
     let extension = if cfg!(windows) { "ps1" } else { "sh" };
-    let installer_url =
-        format!("https://raw.githubusercontent.com/{repo}/{tag}/install.{extension}");
+
+    // Primary: Try fetching from the release assets (stable)
+    let release_asset_url =
+        format!("https://github.com/{repo}/releases/download/{tag}/install.{extension}");
+    // Secondary: Fallback to raw GitHub content (useful for dev/main installs if assets are missing)
+    let raw_url = format!("https://raw.githubusercontent.com/{repo}/{tag}/install.{extension}");
 
     let temp_dir = env::temp_dir().join(format!(
         "pyenv-native-self-update-{}-{}",
@@ -174,14 +179,25 @@ fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
         .map_err(|error| format!("pyenv: failed to create update temp directory: {error}"))?;
 
     let installer_path = temp_dir.join(format!("install.{extension}"));
-    let bytes = build_blocking_client()
-        .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))?
-        .get(&installer_url)
+    let client = build_blocking_client()
+        .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))?;
+
+    // Try primary URL first
+    let response = match client
+        .get(&release_asset_url)
         .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|error| {
-            format!("pyenv: failed to download installer from {installer_url}: {error}")
-        })?
+        .and_then(|r| r.error_for_status())
+    {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            // Fallback to raw URL
+            client.get(&raw_url).send().and_then(|r| r.error_for_status()).map_err(|fallback_err| {
+                format!("pyenv: failed to download installer from either {release_asset_url} ({e}) or {raw_url} ({fallback_err})")
+            })
+        }
+    }?;
+
+    let bytes = response
         .bytes()
         .map_err(|error| format!("pyenv: failed to read installer download: {error}"))?;
     fs::write(&installer_path, &bytes)
@@ -200,6 +216,7 @@ fn spawn_windows_update(
         .map_err(|error| format!("pyenv: failed to write Windows updater helper: {error}"))?;
 
     Command::new("powershell.exe")
+        .headless()
         .args([
             "-NoProfile",
             "-ExecutionPolicy",
@@ -276,6 +293,7 @@ fn run_posix_update(
     installer_path: &Path,
 ) -> Result<(), String> {
     let mut command = Command::new("sh");
+    command.headless();
     command
         .arg(installer_path)
         .arg("--github-repo")

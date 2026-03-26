@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/install/providers/python_build.rs
 //! python-build backend discovery and definition loading helpers.
 
+use crate::process::CommandExt;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -14,6 +15,7 @@ use super::super::report::format_command_output_suffix;
 pub(crate) fn load_python_build_definitions(ctx: &AppContext) -> Result<Vec<String>, PyenvError> {
     let python_build = resolve_python_build_path(ctx)?;
     let output = Command::new(&python_build)
+        .headless()
         .arg("--definitions")
         .current_dir(&ctx.dir)
         .output()

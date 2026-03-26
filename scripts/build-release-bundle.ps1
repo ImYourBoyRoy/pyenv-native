@@ -1,4 +1,4 @@
-﻿# ./scripts/build-release-bundle.ps1
+# ./scripts/build-release-bundle.ps1
 <#
 Purpose: Builds release binaries and assembles a portable Windows distribution bundle for pyenv-native.
 How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
@@ -46,13 +46,17 @@ $checksumPath = $archivePath + '.sha256'
 $cargoTomlPath = Join-Path $repoRoot 'Cargo.toml'
 $releaseExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv.exe")
 $releaseMcpExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv-mcp.exe")
+$releaseGuiExe = Join-Path $repoRoot ("target\$TargetTriple\release\pyenv-gui.exe")
 
-& (Join-Path $PSScriptRoot 'dev-cargo.ps1') -TargetTriple $TargetTriple build --release --bin pyenv --bin pyenv-mcp
+
+& (Join-Path $PSScriptRoot 'dev-cargo.ps1') -TargetTriple $TargetTriple build --release -p pyenv-cli -p pyenv-mcp -p pyenv-gui
+
 if ($LASTEXITCODE -ne 0) {
     throw "Release build failed with exit code $LASTEXITCODE"
 }
 
-foreach ($requiredBinary in @($releaseExe, $releaseMcpExe)) {
+foreach ($requiredBinary in @($releaseExe, $releaseMcpExe, $releaseGuiExe)) {
+
     if (-not (Test-Path $requiredBinary)) {
         throw "Release binary was not found at $requiredBinary"
     }
@@ -72,6 +76,8 @@ $bundleVersion = $versionMatch.Groups[1].Value
 
 Copy-Item -Force $releaseExe (Join-Path $bundleDir 'pyenv.exe')
 Copy-Item -Force $releaseMcpExe (Join-Path $bundleDir 'pyenv-mcp.exe')
+Copy-Item -Force $releaseGuiExe (Join-Path $bundleDir 'pyenv-gui.exe')
+
 Copy-Item -Force (Join-Path $repoRoot 'README.md') (Join-Path $bundleDir 'README.md')
 Copy-Item -Force (Join-Path $repoRoot 'INSTRUCTIONS.md') (Join-Path $bundleDir 'INSTRUCTIONS.md')
 if (Test-Path (Join-Path $repoRoot 'MCP.md')) {
@@ -98,6 +104,7 @@ $bundleManifest = [ordered]@{
     target_triple = $TargetTriple
     executable = 'pyenv.exe'
     mcp_executable = 'pyenv-mcp.exe'
+    gui_executable = 'pyenv-gui.exe'
     install_script = 'install-pyenv-native.ps1'
     uninstall_script = 'uninstall-pyenv-native.ps1'
     command_wrappers = @('pyenv.cmd', 'pyenv.ps1', 'pyenv-mcp.cmd', 'pyenv-mcp.ps1')

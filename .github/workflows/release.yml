@@ -106,10 +106,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          
+      - name: Install dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev pkg-config
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace
+        run: cargo test --workspace --exclude pyenv-gui
 
       - name: Test Python install package
         shell: bash
@@ -211,7 +216,7 @@ jobs:
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace
+        run: cargo test --workspace --exclude pyenv-gui
 
       - name: Test Python install package
         shell: bash
@@ -246,7 +251,7 @@ jobs:
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace
+        run: cargo test --workspace --exclude pyenv-gui
 
       - name: Test Python install package
         shell: bash
@@ -357,6 +362,10 @@ jobs:
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
+            install.ps1
+            install.sh
+            uninstall.ps1
+            uninstall.sh
             dist/windows/**
             dist/linux/**
             dist/android/**

@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/install/runtime_support.rs
 //! Shared subprocess, alias, and pip-bootstrap helpers for runtime installation flows.
 
+use crate::process::CommandExt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -25,6 +26,7 @@ pub(super) fn run_python_build_install(
     fs::create_dir_all(&cache_dir).map_err(io_error)?;
 
     let output = Command::new(python_build)
+        .headless()
         .arg(version)
         .arg(prefix)
         .current_dir(&ctx.dir)
@@ -65,6 +67,7 @@ pub(super) fn build_cpython_source_install(
     let prefix_arg = format!("--prefix={}", plan.install_dir.display());
     let mut configure = Command::new("sh");
     configure
+        .headless()
         .current_dir(build_dir)
         .arg(configure_script)
         .arg(prefix_arg)
@@ -82,12 +85,14 @@ pub(super) fn build_cpython_source_install(
         .map(|value| value.get())
         .unwrap_or(1);
     let mut make = Command::new("make");
-    make.current_dir(build_dir).arg(format!("-j{jobs}"));
+    make.headless()
+        .current_dir(build_dir)
+        .arg(format!("-j{jobs}"));
     apply_android_source_build_env(&mut make);
     run_checked_process(make, format!("build `{}`", plan.resolved_version))?;
 
     let mut install = Command::new("make");
-    install.current_dir(build_dir).arg("install");
+    install.headless().current_dir(build_dir).arg("install");
     apply_android_source_build_env(&mut install);
     run_checked_process(
         install,
@@ -206,6 +211,7 @@ fn detect_android_api_level() -> Option<u32> {
     }
 
     let output = Command::new("getprop")
+        .headless()
         .arg("ro.build.version.sdk")
         .output()
         .ok()?;
