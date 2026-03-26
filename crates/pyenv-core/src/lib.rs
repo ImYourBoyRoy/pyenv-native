@@ -23,7 +23,7 @@ mod venv_compat;
 mod venv_paths;
 mod version;
 
-pub use process::CommandExt;
+pub use process::PyenvCommandExt;
 
 pub use catalog::{
     CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions, cmd_install_list,

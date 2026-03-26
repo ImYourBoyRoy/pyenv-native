@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/plugin/process.rs
 //! Cross-shell process launching for plugin commands and hook scripts.
 
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 

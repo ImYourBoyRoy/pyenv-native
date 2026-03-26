@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/venv/commands.rs
 //! Public managed-venv commands for list/info/create/delete/rename/use operations.
 
-use crate::process::CommandExt;
+use crate::process::PyenvCommandExt;
 use std::fs;
 use std::process::Command;
 
