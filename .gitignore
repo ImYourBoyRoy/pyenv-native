@@ -13,16 +13,31 @@
 *.exe
 *.pdb
 
-# AI Memory
+# AI Memory & Interaction artifacts
 MEMORY.md
 .gemini/
+/walkthrough.md
+/implementation_plan.md
+/task.md
+/analysis_results.md
+/research_notes.md
+/experiment_results.md
 
 # IDEs
 .vscode/
 .idea/
 
-# Rust
-Cargo.lock
+# Rust (Commit Cargo.lock for reproducible builds in apps)
+# Cargo.lock
+
+# Tauri & GUI
+crates/pyenv-gui/src-tauri/target/
+crates/pyenv-gui/target/
+
+# Python Virtual Environments
+/venv/
+/.venv/
+/env/
 
 # OS Junk
 .DS_Store
@@ -35,5 +50,4 @@ Thumbs.db
 /repro_*.rs
 /temp_*.rs
 /clippy_errors.txt
-/walkthrough.md
 *.tmp

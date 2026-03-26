@@ -238,20 +238,20 @@ That means less guesswork, less parsing, and fewer broken multi-step environment
 ## Example install + MCP flow
 
 1. Install `pyenv-native`
-2. Run:
+1. Run:
 
 ```text
 pyenv-mcp print-config
 ```
 
-3. Register the JSON with your MCP client
-4. Feed the model the output of:
+1. Register the JSON with your MCP client
+1. Feed the model the output of:
 
 ```text
 pyenv-mcp guide
 ```
 
-5. Let the model use structured tools instead of raw shell commands whenever possible
+1. Let the model use structured tools instead of raw shell commands whenever possible
 
 ---
 
@@ -271,7 +271,7 @@ That matters because it keeps the agent surface:
 
 ## Related docs
 
-- [README.md](./README.md)
+- [README.md](../README.md)
 - [INSTRUCTIONS.md](./INSTRUCTIONS.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [python-package/README.md](./python-package/README.md)
+- [python-package/README.md](../python-package/README.md)

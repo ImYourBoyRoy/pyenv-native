@@ -114,7 +114,7 @@ fn join_single_char_tokens(tokens: &[OsString]) -> Option<String> {
 
 fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
     match command {
-        Commands::Help { usage, command } => cmd_help(ctx, command.as_deref(), usage),
+        Commands::ManualHelp { usage, command } => cmd_help(ctx, command.as_deref(), usage),
         Commands::Commands { sh, no_sh } => cmd_commands(ctx, sh, no_sh),
         Commands::Root => cmd_root(ctx),
         Commands::Gui => dispatch_gui(ctx),
