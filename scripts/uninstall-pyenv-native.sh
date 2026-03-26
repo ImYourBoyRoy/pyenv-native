@@ -94,7 +94,7 @@ done
 INSTALL_ROOT="$(cd "$(dirname -- "$INSTALL_ROOT")" 2>/dev/null && pwd)/$(basename -- "$INSTALL_ROOT")"
 INSTALL_BIN="${INSTALL_ROOT}/bin"
 
-rm -f "${INSTALL_BIN}/pyenv" "${INSTALL_BIN}/pyenv-mcp"
+rm -f "${INSTALL_BIN}/pyenv" "${INSTALL_BIN}/pyenv-mcp" "${INSTALL_BIN}/pyenv-gui"
 
 if [ "$REMOVE_SHELL_PROFILE_BLOCK" = "true" ]; then
   remove_profile_block "$(profile_path_for_shell "$SHELL_KIND")"

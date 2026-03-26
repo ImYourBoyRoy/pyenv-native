@@ -51,6 +51,13 @@ jobs:
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
+      - name: Prepare standalone GUI asset (Windows x64)
+        shell: pwsh
+        run: |
+          if (Test-Path "dist/pyenv-native-windows-x64/bin/pyenv-gui.exe") {
+            Copy-Item "dist/pyenv-native-windows-x64/bin/pyenv-gui.exe" "dist/pyenv-gui-windows-x64.exe"
+          }
+
       - name: Upload Windows x64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
@@ -58,6 +65,7 @@ jobs:
           path: |
             dist/pyenv-native-windows-x64.zip
             dist/pyenv-native-windows-x64.zip.sha256
+            dist/pyenv-gui-windows-x64.exe
 
       - name: Upload Python install package artifact
         uses: actions/upload-artifact@v7
@@ -124,6 +132,12 @@ jobs:
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
+      - name: Prepare standalone GUI asset (Linux x64)
+        run: |
+          if [ -f "dist/pyenv-native-linux-x64/bin/pyenv-gui" ]; then
+            cp "dist/pyenv-native-linux-x64/bin/pyenv-gui" "dist/pyenv-gui-linux-x64"
+          fi
+
       - name: Upload Linux bundle artifact
         uses: actions/upload-artifact@v7
         with:
@@ -131,6 +145,7 @@ jobs:
           path: |
             dist/pyenv-native-linux-*.tar.gz
             dist/pyenv-native-linux-*.tar.gz.sha256
+            dist/pyenv-gui-linux-x64
 
   linux-arm64-bundle:
     runs-on: ubuntu-latest
@@ -227,6 +242,12 @@ jobs:
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
+      - name: Prepare standalone GUI asset (macOS arm64)
+        run: |
+          if [ -f "dist/pyenv-native-macos-arm64/bin/pyenv-gui" ]; then
+            cp "dist/pyenv-native-macos-arm64/bin/pyenv-gui" "dist/pyenv-gui-macos-arm64"
+          fi
+
       - name: Upload macOS arm64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
@@ -234,6 +255,7 @@ jobs:
           path: |
             dist/pyenv-native-macos-arm64.tar.gz
             dist/pyenv-native-macos-arm64.tar.gz.sha256
+            dist/pyenv-gui-macos-arm64
 
   macos-x64-bundle:
     runs-on: macos-15-intel
@@ -262,6 +284,12 @@ jobs:
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
 
+      - name: Prepare standalone GUI asset (macOS x64)
+        run: |
+          if [ -f "dist/pyenv-native-macos-x64/bin/pyenv-gui" ]; then
+            cp "dist/pyenv-native-macos-x64/bin/pyenv-gui" "dist/pyenv-gui-macos-x64"
+          fi
+
       - name: Upload macOS x64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
@@ -269,6 +297,7 @@ jobs:
           path: |
             dist/pyenv-native-macos-x64.tar.gz
             dist/pyenv-native-macos-x64.tar.gz.sha256
+            dist/pyenv-gui-macos-x64
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')

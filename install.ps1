@@ -353,6 +353,7 @@ function Invoke-BundledInstaller {
     $executablePath = Join-Path $ExtractedDir 'pyenv.exe'
     $manifestPath = Join-Path $ExtractedDir 'bundle-manifest.json'
     $mcpExecutablePath = Join-Path $ExtractedDir 'pyenv-mcp.exe'
+    $guiExecutablePath = Join-Path $ExtractedDir 'pyenv-gui.exe'
 
     foreach ($requiredPath in @($installerPath, $executablePath, $manifestPath)) {
         if (-not (Test-Path $requiredPath)) {
@@ -369,55 +370,34 @@ function Invoke-BundledInstaller {
         throw "Downloaded bundle declared an MCP server binary but '$mcpExecutablePath' was missing."
     }
 
-    if (Test-Path $mcpExecutablePath) {
-        if ($Overwrite) {
-            & $installerPath `
-                -SourcePath $executablePath `
-                -SourceMcpPath $mcpExecutablePath `
-                -InstallRoot $ResolvedInstallRoot `
-                -Shell $Shell `
-                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
-                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
-                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
-                -LogPath $ResolvedLogPath `
-                -Yes `
-                -Force
-        } else {
-            & $installerPath `
-                -SourcePath $executablePath `
-                -SourceMcpPath $mcpExecutablePath `
-                -InstallRoot $ResolvedInstallRoot `
-                -Shell $Shell `
-                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
-                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
-                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
-                -LogPath $ResolvedLogPath `
-                -Yes
-        }
-    } else {
-        if ($Overwrite) {
-            & $installerPath `
-                -SourcePath $executablePath `
-                -InstallRoot $ResolvedInstallRoot `
-                -Shell $Shell `
-                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
-                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
-                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
-                -LogPath $ResolvedLogPath `
-                -Yes `
-                -Force
-        } else {
-            & $installerPath `
-                -SourcePath $executablePath `
-                -InstallRoot $ResolvedInstallRoot `
-                -Shell $Shell `
-                -AddToUserPath $AddToUserPathValue.ToString().ToLowerInvariant() `
-                -UpdatePowerShellProfile $UpdateProfileValue.ToString().ToLowerInvariant() `
-                -RefreshShims $RefreshShimsValue.ToString().ToLowerInvariant() `
-                -LogPath $ResolvedLogPath `
-                -Yes
-        }
+    if ($manifest.gui_executable -and -not (Test-Path $guiExecutablePath)) {
+        throw "Downloaded bundle declared a GUI companion binary but '$guiExecutablePath' was missing."
     }
+
+    $installerArgs = @{
+        SourcePath = $executablePath
+        InstallRoot = $ResolvedInstallRoot
+        Shell = $Shell
+        AddToUserPath = $AddToUserPathValue.ToString().ToLowerInvariant()
+        UpdatePowerShellProfile = $UpdateProfileValue.ToString().ToLowerInvariant()
+        RefreshShims = $RefreshShimsValue.ToString().ToLowerInvariant()
+        LogPath = $ResolvedLogPath
+        Yes = $true
+    }
+
+    if ($Overwrite) {
+        $installerArgs['Force'] = $true
+    }
+
+    if (Test-Path $mcpExecutablePath) {
+        $installerArgs['SourceMcpPath'] = $mcpExecutablePath
+    }
+
+    if (Test-Path $guiExecutablePath) {
+        $installerArgs['SourceGuiPath'] = $guiExecutablePath
+    }
+
+    & $installerPath @installerArgs
 }
 
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)

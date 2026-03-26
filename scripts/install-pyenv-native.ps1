@@ -1,7 +1,7 @@
 # ./scripts/install-pyenv-native.ps1
 <#
 Purpose: Installs the native pyenv executables into a portable Windows root and optionally updates PATH/profile integration.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-InstallRoot <dir>] [-Yes]
+How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-SourceGuiPath <pyenv-gui.exe>] [-InstallRoot <dir>] [-Yes]
 Inputs: Optional source binary paths, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
 Outputs/side effects: Copies pyenv.exe plus pyenv-mcp.exe into <InstallRoot>\bin, creates shims/versions/cache folders, optionally updates user PATH and PowerShell profile, and writes an install log.
 Notes: Keeps the install portable under a pyenv-managed root, avoids registry-based installation flows, and performs post-install sanity checks.
@@ -10,6 +10,7 @@ Notes: Keeps the install portable under a pyenv-managed root, avoids registry-ba
 param(
     [string]$SourcePath,
     [string]$SourceMcpPath,
+    [string]$SourceGuiPath,
     [string]$InstallRoot = (Join-Path $HOME '.pyenv'),
     [ValidateSet('pwsh', 'cmd', 'none')]
     [string]$Shell = 'pwsh',
@@ -94,6 +95,28 @@ function Resolve-OptionalMcpBinary {
     )
 
     return Resolve-SourceBinary -ExplicitPath $ExplicitPath -BinaryName 'pyenv-mcp.exe' -FallbackCandidates $fallbackCandidates -Required:$false
+}
+
+function Resolve-OptionalGuiBinary {
+    param(
+        [string]$ExplicitPath,
+        [string]$ResolvedPyenvBinary
+    )
+
+    $fallbackCandidates = @()
+    if ($ResolvedPyenvBinary) {
+        $fallbackCandidates += Join-Path (Split-Path -Parent $ResolvedPyenvBinary) 'pyenv-gui.exe'
+    }
+    $fallbackCandidates += @(
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\release\pyenv-gui.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-gnu\debug\pyenv-gui.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\release\pyenv-gui.exe'),
+        (Join-Path $PSScriptRoot '..\target\x86_64-pc-windows-msvc\debug\pyenv-gui.exe'),
+        (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\release\pyenv-gui.exe'),
+        (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\debug\pyenv-gui.exe')
+    )
+
+    return Resolve-SourceBinary -ExplicitPath $ExplicitPath -BinaryName 'pyenv-gui.exe' -FallbackCandidates $fallbackCandidates -Required:$false
 }
 
 function Get-NearestExistingDirectory {
@@ -307,7 +330,7 @@ function Write-InstallSummary {
     }
     Write-Host ''
     Write-Host 'This will create or update a portable pyenv-native installation under the selected root.'
-    Write-Host 'It installs pyenv plus the agent-friendly pyenv-mcp server when available, writes an install log, and runs basic sanity checks.'
+    Write-Host 'It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks.'
     if ($Summary.update_profile -eq $true) {
         Write-Host 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.'
     } else {
@@ -390,11 +413,13 @@ $resolvedSource = Resolve-SourceBinary -ExplicitPath $SourcePath -BinaryName 'py
     (Join-Path $PSScriptRoot '..\target\aarch64-pc-windows-msvc\debug\pyenv.exe')
 )
 $resolvedMcpSource = Resolve-OptionalMcpBinary -ExplicitPath $SourceMcpPath -ResolvedPyenvBinary $resolvedSource
+$resolvedGuiSource = Resolve-OptionalGuiBinary -ExplicitPath $SourceGuiPath -ResolvedPyenvBinary $resolvedSource
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $installBin = Join-Path $resolvedInstallRoot 'bin'
 $installShims = Join-Path $resolvedInstallRoot 'shims'
 $installedExe = Join-Path $installBin 'pyenv.exe'
 $installedMcpExe = Join-Path $installBin 'pyenv-mcp.exe'
+$installedGuiExe = Join-Path $installBin 'pyenv-gui.exe'
 $addToUserPathValue = Convert-ToBoolean -Value $AddToUserPath -ParameterName 'AddToUserPath'
 $updatePowerShellProfileValue = Convert-ToBoolean -Value $UpdatePowerShellProfile -ParameterName 'UpdatePowerShellProfile'
 $refreshShimsValue = Convert-ToBoolean -Value $RefreshShims -ParameterName 'RefreshShims'
@@ -413,9 +438,11 @@ Assert-InstallRootState -ResolvedInstallRoot $resolvedInstallRoot -InstalledExe 
 $summary = [ordered]@{
     source_binary = $resolvedSource
     source_mcp = $(if ($resolvedMcpSource) { $resolvedMcpSource } else { '<not found>' })
+    source_gui = $(if ($resolvedGuiSource) { $resolvedGuiSource } else { '<not found>' })
     install_root = $resolvedInstallRoot
     installed_exe = $installedExe
     installed_mcp = $installedMcpExe
+    installed_gui = $(if ($resolvedGuiSource) { $installedGuiExe } else { '<not found>' })
     shims_dir = $installShims
     shell = $Shell
     add_to_path = $addToUserPathValue
@@ -441,6 +468,10 @@ if ($resolvedMcpSource) {
     Write-InstallLog -Level 'INFO' -Message "Installed MCP server binary into $installedMcpExe" -ResolvedLogPath $resolvedLogPath
 } else {
     Write-InstallLog -Level 'WARN' -Message 'pyenv-mcp source binary was not found; installing pyenv CLI only.' -ResolvedLogPath $resolvedLogPath
+}
+if ($resolvedGuiSource) {
+    Copy-Item -Force -Path $resolvedGuiSource -Destination $installedGuiExe
+    Write-InstallLog -Level 'INFO' -Message "Installed GUI companion binary into $installedGuiExe" -ResolvedLogPath $resolvedLogPath
 }
 
 $cmdWrapper = '@echo off' + "`r`n" + '"%~dp0pyenv.exe" %*' + "`r`n"
@@ -479,6 +510,9 @@ Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolv
 if ($resolvedMcpSource) {
     Invoke-BinarySanityCheck -CommandPath $installedMcpExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv-mcp guide' -Arguments @('guide') -ResolvedLogPath $resolvedLogPath
 }
+if ($resolvedGuiSource) {
+    Invoke-BinarySanityCheck -CommandPath $installedExe -ResolvedInstallRoot $resolvedInstallRoot -Name 'pyenv gui' -Arguments @('gui') -ResolvedLogPath $resolvedLogPath
+}
 
 Write-InstallLog -Level 'INFO' -Message 'Install completed successfully.' -ResolvedLogPath $resolvedLogPath
 Write-Host ''
@@ -487,6 +521,9 @@ Write-Host "Installed command: $installedExe"
 if ($resolvedMcpSource) {
     Write-Host "Installed MCP server: $installedMcpExe"
     Write-Host "MCP config helper: & '$installedMcpExe' print-config"
+}
+if ($resolvedGuiSource) {
+    Write-Host "Installed GUI: $installedGuiExe"
 }
 Write-Host "Log file: $resolvedLogPath"
 if ($Shell -eq 'cmd') {

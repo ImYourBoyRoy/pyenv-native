@@ -100,7 +100,8 @@ foreach ($path in @(
     (Join-Path $installBin 'pyenv-init.cmd'),
     (Join-Path $installBin 'pyenv-mcp.exe'),
     (Join-Path $installBin 'pyenv-mcp.cmd'),
-    (Join-Path $installBin 'pyenv-mcp.ps1')
+    (Join-Path $installBin 'pyenv-mcp.ps1'),
+    (Join-Path $installBin 'pyenv-gui.exe')
 )) {
     if (Test-Path $path) {
         Remove-Item -Force $path

@@ -10,6 +10,7 @@ set -eu
 
 SOURCE_PATH=""
 SOURCE_MCP_PATH=""
+SOURCE_GUI_PATH=""
 INSTALL_ROOT="${HOME}/.pyenv"
 SHELL_KIND=""
 ADD_TO_USER_PATH="true"
@@ -102,6 +103,15 @@ resolve_source_mcp_binary() {
     "$sibling_dir/pyenv-mcp" \
     "$script_dir/../target/release/pyenv-mcp" \
     "$script_dir/../target/debug/pyenv-mcp" || true
+}
+
+resolve_source_gui_binary() {
+  script_dir="$(resolve_script_dir)"
+  sibling_dir="$(dirname -- "$RESOLVED_SOURCE")"
+  resolve_binary_path "$SOURCE_GUI_PATH" 'pyenv-gui' false \
+    "$sibling_dir/pyenv-gui" \
+    "$script_dir/../target/release/pyenv-gui" \
+    "$script_dir/../target/debug/pyenv-gui" || true
 }
 
 profile_path_for_shell() {
@@ -369,9 +379,11 @@ emit_summary() {
   print_line "============================"
   print_line "source binary : $RESOLVED_SOURCE"
   print_line "source mcp    : ${RESOLVED_MCP_SOURCE:-<not found>}"
+  print_line "source gui    : ${RESOLVED_GUI_SOURCE:-<not found>}"
   print_line "install root  : $INSTALL_ROOT"
   print_line "installed exe : $INSTALLED_EXE"
   print_line "installed mcp : $INSTALLED_MCP_EXE"
+  print_line "installed gui : $INSTALLED_GUI_EXE"
   print_line "shell         : $SHELL_KIND"
   print_line "profile update: $UPDATE_PROFILE_EFFECTIVE"
   print_line "path hint     : $ADD_TO_USER_PATH"
@@ -380,7 +392,7 @@ emit_summary() {
   print_line "log path      : $LOG_PATH"
   print_line ""
   print_line "This will create or update a portable pyenv-native installation under the selected root."
-  print_line "It installs pyenv plus the agent-friendly pyenv-mcp server when available, writes an install log, and runs basic sanity checks."
+  print_line "It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks."
   if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ]; then
     print_line "Your shell profile will be updated so future sessions can find pyenv-native automatically."
   else
@@ -447,6 +459,10 @@ while [ "$#" -gt 0 ]; do
       SOURCE_MCP_PATH="${2:-}"
       shift 2
       ;;
+    --source-gui-path)
+      SOURCE_GUI_PATH="${2:-}"
+      shift 2
+      ;;
     --install-root)
       INSTALL_ROOT="${2:-}"
       shift 2
@@ -495,8 +511,10 @@ INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename
 INSTALL_BIN="${INSTALL_ROOT}/bin"
 INSTALLED_EXE="${INSTALL_BIN}/pyenv"
 INSTALLED_MCP_EXE="${INSTALL_BIN}/pyenv-mcp"
+INSTALLED_GUI_EXE="${INSTALL_BIN}/pyenv-gui"
 RESOLVED_SOURCE="$(resolve_source_binary)"
 RESOLVED_MCP_SOURCE="$(resolve_source_mcp_binary)"
+RESOLVED_GUI_SOURCE="$(resolve_source_gui_binary)"
 UPDATE_PROFILE_EFFECTIVE="false"
 if [ "$SHELL_KIND" != "none" ] && [ "$UPDATE_SHELL_PROFILE" = "true" ]; then
   UPDATE_PROFILE_EFFECTIVE="true"
@@ -522,6 +540,12 @@ else
   write_warn 'pyenv-mcp source binary was not found; installing pyenv CLI only.'
 fi
 
+if [ -n "$RESOLVED_GUI_SOURCE" ] && [ -f "$RESOLVED_GUI_SOURCE" ]; then
+  cp -f "$RESOLVED_GUI_SOURCE" "$INSTALLED_GUI_EXE"
+  chmod +x "$INSTALLED_GUI_EXE"
+  write_step "Installed GUI companion binary into ${INSTALLED_GUI_EXE}"
+fi
+
 PROFILE_PATH=""
 if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ]; then
   PROFILE_PATH="$(profile_path_for_shell "$SHELL_KIND")"
@@ -540,6 +564,9 @@ run_sanity_check "$INSTALLED_EXE" 'pyenv root' root
 run_sanity_check "$INSTALLED_EXE" 'pyenv commands' commands
 if [ -f "$INSTALLED_MCP_EXE" ]; then
   run_sanity_check "$INSTALLED_MCP_EXE" 'pyenv-mcp guide' guide
+fi
+if [ -f "$INSTALLED_GUI_EXE" ]; then
+  run_sanity_check "$INSTALLED_EXE" 'pyenv gui' gui
 fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then
@@ -584,5 +611,8 @@ print_line "Installed command: ${INSTALL_ROOT}/bin/pyenv"
 if [ -f "$INSTALLED_MCP_EXE" ]; then
   print_line "Installed MCP server: ${INSTALLED_MCP_EXE}"
   print_line "MCP config helper: ${INSTALLED_MCP_EXE} print-config"
+fi
+if [ -f "$INSTALLED_GUI_EXE" ]; then
+  print_line "Installed GUI: ${INSTALLED_GUI_EXE}"
 fi
 print_line "Log file: $LOG_PATH"

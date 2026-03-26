@@ -33,13 +33,16 @@ The high-performance core. Manages Python installations, shims, and shell integr
 - **Opinionated Power**: Built-in managed `venv` support (replaces `pyenv-virtualenv`).
 - **Validated Performance**: Reliable version selection on Windows, Linux, and macOS.
 
-### 🖼️ [The GUI Companion (Preview)](./docs/GUI.md)
-
-A premium desktop dashboard built with Tauri v2.
-
 - **Dashboard**: Live view of your managed environments.
 - **Visual Control**: Install versions and manage venvs with one click.
-- **Status**: Stable on Windows; Experimental/Build-from-source on Linux/macOS.
+- **Status**: Stable on Windows; Experimental on Linux/macOS.
+
+#### GUI Standalone (Latest)
+
+- **Windows**: [Download .exe](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-windows-x64.exe)
+- **Linux**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-linux-x64)
+- **macOS (Apple Silicon)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-arm64)
+- **macOS (Intel)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-x64)
 
 ### 🤖 [Agentic / MCP Support](./docs/MCP.md)
 
@@ -144,6 +147,21 @@ MAINTENANCE:    self-update, self-uninstall
 ### GUI Dashboard
 
 ![Pyenv-Native GUI Animation](docs/screenshots/animated_gui.webp)
+
+---
+
+## Reporting Issues
+
+If you encounter an issue, please [open a GitHub Issue](https://github.com/imyourboyroy/pyenv-native/issues). To help us troubleshoot, please include:
+
+- **OS Version** (e.g., Windows 11, macOS Sequoia, Ubuntu 24.04)
+- **Processor Architecture** (e.g., x64, ARM64/Apple Silicon)
+- **Shell** (e.g., PowerShell 7, Bash, Zsh, Fish)
+- **Relevant Logs** (found in your `.pyenv/logs/` directory)
+- **Problematic Output** (the full command and any error messages)
+
+> [!TIP]
+> Run `pyenv doctor` to get a quick summary of your environment health if the CLI is already installed.
 
 ---
 
