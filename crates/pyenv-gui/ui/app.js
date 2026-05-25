@@ -4,6 +4,44 @@
 
 const invoke = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core.invoke : window.__TAURI__.invoke;
 
+// Workspace context logic
+let currentWorkspaceDir = localStorage.getItem('pyenv-workspace-dir') || '';
+
+function getWorkspaceDir() {
+    return currentWorkspaceDir || null;
+}
+
+function updateWorkspaceUI() {
+    const el = document.getElementById('workspace-path');
+    if (el) {
+        el.textContent = currentWorkspaceDir || 'Default System Root';
+    }
+}
+
+// Bind Change Workspace Button
+document.addEventListener('DOMContentLoaded', () => {
+    updateWorkspaceUI();
+    document.getElementById('btn-change-workspace')?.addEventListener('click', async () => {
+        try {
+            const selectedDir = await invoke('select_directory');
+            if (selectedDir) {
+                currentWorkspaceDir = selectedDir;
+                localStorage.setItem('pyenv-workspace-dir', selectedDir);
+                updateWorkspaceUI();
+                // Reload views
+                loadDashboard();
+                loadInstalled();
+                availableLoaded = false;
+                loadVenvs();
+                loadConfig();
+                showAlert('Workspace Changed', `Active workspace switched to:<br><code style="font-size: 12px; opacity: 0.8;">${selectedDir}</code>`);
+            }
+        } catch (err) {
+            showAlert('Error', 'Failed to change workspace directory:\n' + err);
+        }
+    });
+});
+
 // ─── Custom Modal System ───
 function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary'}]) {
     return new Promise(resolve => {
@@ -84,7 +122,7 @@ sidebarNavItems.forEach(item => {
 // ─── Dashboard ───
 async function loadDashboard() {
     try {
-        const jsonStr = await invoke('get_status');
+        const jsonStr = await invoke('get_status', { workspaceDir: getWorkspaceDir() });
         const status = JSON.parse(jsonStr);
         
         const activeVersionEl = document.getElementById('active-version');
@@ -113,7 +151,7 @@ async function loadInstalled() {
     list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
     
     try {
-        const jsonStr = await invoke('get_installed_versions');
+        const jsonStr = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const versions = JSON.parse(jsonStr);
         list.innerHTML = '';
         
@@ -173,7 +211,7 @@ async function loadInstalled() {
 
 async function detectSystemPython() {
     try {
-        const statusJson = await invoke('get_status');
+        const statusJson = await invoke('get_status', { workspaceDir: getWorkspaceDir() });
         const status = JSON.parse(statusJson);
         // If the active version resolves to something and origin isn't 'system',
         // we can't determine from status alone — check if system is in the root
@@ -211,11 +249,11 @@ async function setupAvailableView() {
     const list = document.getElementById('available-list');
     list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
     try {
-        const installedStr = await invoke('get_installed_versions');
+        const installedStr = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         installedVersionsSet = JSON.parse(installedStr);
 
         if (fullAvailableCache.length === 0) {
-            const jsonStr = await invoke('get_available_versions', { family: null, pattern: null });
+            const jsonStr = await invoke('get_available_versions', { workspaceDir: getWorkspaceDir(), family: null, pattern: null });
             const data = JSON.parse(jsonStr);
             const groups = (data.results || data);
             groups.forEach(g => {
@@ -281,7 +319,7 @@ async function loadVenvs() {
     const list = document.getElementById('venvs-list');
     list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
     try {
-        const jsonStr = await invoke('get_managed_venvs');
+        const jsonStr = await invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() });
         const venvs = JSON.parse(jsonStr);
         list.innerHTML = '';
         if (venvs.length === 0) {
@@ -304,7 +342,7 @@ async function loadVenvs() {
                 list.appendChild(card);
             });
         }
-        const sysInfo = await invoke('get_installed_versions');
+        const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
         const sel = document.getElementById('venv-base-version');
         sel.innerHTML = '<option value="">Select Base...</option>';
@@ -332,7 +370,7 @@ async function installTarget(v, btnEl) {
     btnEl.innerHTML = 'Installing… <div class="loader loader-sm" style="display:inline-block; vertical-align:middle; margin-left:6px;"></div>';
     
     try {
-        await invoke('install_version', { version: v });
+        await invoke('install_version', { workspaceDir: getWorkspaceDir(), version: v });
         btnEl.innerHTML = "Installed ✓";
         btnEl.classList.remove('btn-primary');
         btnEl.classList.add('btn-outline');
@@ -348,7 +386,7 @@ async function installTarget(v, btnEl) {
 
 async function setGlobal(v) {
     try {
-        await invoke('set_global', { version: v });
+        await invoke('set_global', { workspaceDir: getWorkspaceDir(), version: v });
         loadDashboard();
         showAlert('Global Version Set', `Python <b>${v}</b> is now the global default.`);
     } catch(err) {
@@ -369,7 +407,7 @@ document.getElementById('btn-create-venv')?.addEventListener('click', async () =
     btn.disabled = true;
     btn.innerText = "Creating...";
     try {
-        await invoke('create_venv', { baseVersion: base, name: name });
+        await invoke('create_venv', { workspaceDir: getWorkspaceDir(), baseVersion: base, name: name });
         document.getElementById('venv-name').value = '';
         loadVenvs();
         loadDashboard();
@@ -385,7 +423,7 @@ async function deleteVenv(name) {
     const yes = await showConfirm('Delete Virtual Environment', `Are you sure you want to delete venv <b>${name}</b>? This cannot be undone.`);
     if (!yes) return;
     try {
-        await invoke('delete_venv', { spec: name });
+        await invoke('delete_venv', { workspaceDir: getWorkspaceDir(), spec: name });
         loadVenvs();
         loadDashboard();
     } catch(err) {
@@ -399,7 +437,7 @@ async function checkUpdates() {
     const btn = document.getElementById('footer-btn');
     if(btn) { btn.innerText = "Checking…"; btn.disabled = true; }
     try {
-        const result = await invoke('check_for_updates');
+        const result = await invoke('check_for_updates', { workspaceDir: getWorkspaceDir() });
         // Parse whether an update is available from the result text
         if (result.includes('up to date') || result.includes('Up to date') || result.includes('already up to date')) {
             showAlert('Up to Date', result);
@@ -408,7 +446,7 @@ async function checkUpdates() {
             if (yes) {
                 if(btn) btn.innerText = "Updating…";
                 try {
-                    const updateResult = await invoke('perform_update');
+                    const updateResult = await invoke('perform_update', { workspaceDir: getWorkspaceDir() });
                     showAlert('Update Started', updateResult || 'The update process has been initiated. The application may need to restart.');
                 } catch(updateErr) {
                     showAlert('Update Failed', updateErr);
@@ -441,7 +479,7 @@ async function setLocal(v) {
 // ─── Config ───
 async function loadConfig() {
     try {
-        const jsonStr = await invoke('get_config');
+        const jsonStr = await invoke('get_config', { workspaceDir: getWorkspaceDir() });
         const config = JSON.parse(jsonStr);
         
         document.getElementById('config-windows.registry_mode').value = config.windows?.registry_mode || 'disabled';
@@ -456,7 +494,7 @@ async function loadConfig() {
 
 async function updateConfig(key, value) {
     try {
-        await invoke('set_config', { key, value });
+        await invoke('set_config', { workspaceDir: getWorkspaceDir(), key, value });
         console.log(`Saved config ${key}=${value}`);
     } catch(err) {
         showAlert('Config Error', 'Failed to save config:\n' + err);
@@ -478,7 +516,7 @@ async function uninstallVersion(v) {
     }
     
     try {
-        await invoke('uninstall_version', { version: v });
+        await invoke('uninstall_version', { workspaceDir: getWorkspaceDir(), version: v });
         installedVersionsSet = installedVersionsSet.filter(x => x !== v);
         showAlert('Uninstalled', `Python <b>${v}</b> has been removed.`);
         loadInstalled();
@@ -545,6 +583,12 @@ async function checkInstallation() {
             if (banner) banner.style.display = 'block';
         } else {
             if (banner) banner.style.display = 'none';
+        }
+        
+        if (!currentWorkspaceDir && status.root) {
+            currentWorkspaceDir = status.root;
+            localStorage.setItem('pyenv-workspace-dir', status.root);
+            updateWorkspaceUI();
         }
         
         // Ensure sidebar is always visible in the new workflow

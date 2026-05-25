@@ -152,6 +152,16 @@ fn lock_file_is_stale(path: &Path) -> bool {
     let Ok(contents) = fs::read_to_string(path) else {
         return false;
     };
+
+    let pid = contents
+        .lines()
+        .find_map(|line| line.strip_prefix("pid="))
+        .and_then(|value| value.parse::<u32>().ok());
+
+    if pid.is_some_and(|p| !process_exists(p)) {
+        return true;
+    }
+
     let Some(created_at) = contents
         .lines()
         .find_map(|line| line.strip_prefix("created_at="))
@@ -164,6 +174,43 @@ fn lock_file_is_stale(path: &Path) -> bool {
         .unwrap_or_default()
         .as_secs();
     now.saturating_sub(created_at) > SHIM_LOCK_STALE_SECS
+}
+
+#[cfg(windows)]
+fn process_exists(pid: u32) -> bool {
+    unsafe extern "system" {
+        fn OpenProcess(
+            dwDesiredAccess: u32,
+            bInheritHandle: i32,
+            dwProcessId: u32,
+        ) -> *mut std::ffi::c_void;
+        fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+    }
+
+    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if !handle.is_null() {
+            CloseHandle(handle);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+#[cfg(unix)]
+fn process_exists(pid: u32) -> bool {
+    unsafe extern "C" {
+        fn kill(pid: i32, sig: i32) -> i32;
+    }
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(not(any(windows, unix)))]
+fn process_exists(_pid: u32) -> bool {
+    true
 }
 
 fn io_error(error: std::io::Error) -> PyenvError {
