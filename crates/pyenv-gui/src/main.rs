@@ -10,9 +10,22 @@
 
 use pyenv_core::PyenvCommandExt;
 
+fn get_context_with_dir(workspace_dir: Option<String>) -> Result<pyenv_core::AppContext, String> {
+    let mut ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+    if let Some(dir_str) = workspace_dir {
+        if !dir_str.trim().is_empty() {
+            let path = std::path::PathBuf::from(dir_str);
+            if path.exists() && path.is_dir() {
+                ctx.dir = path;
+            }
+        }
+    }
+    Ok(ctx)
+}
+
 #[tauri::command]
-fn get_status() -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn get_status(workspace_dir: Option<String>) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_status(&ctx, true);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -22,10 +35,11 @@ fn get_status() -> Result<String, String> {
 
 #[tauri::command]
 fn get_available_versions(
+    workspace_dir: Option<String>,
     family: Option<String>,
     pattern: Option<String>,
 ) -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_available(&ctx, family, pattern, false, true);
     if report.exit_code != 0 {
         let errs = report.stderr.join("\n");
@@ -38,15 +52,15 @@ fn get_available_versions(
 }
 
 #[tauri::command]
-fn get_installed_versions() -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn get_installed_versions(workspace_dir: Option<String>) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let names = pyenv_core::installed_version_names(&ctx).map_err(|e| e.to_string())?;
     serde_json::to_string(&names).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_managed_venvs() -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn get_managed_venvs(workspace_dir: Option<String>) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_venv_list(&ctx, false, true);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -75,9 +89,9 @@ fn maximize_app(window: tauri::Window) {
 
 /// Install a Python version asynchronously so the GUI stays responsive.
 #[tauri::command]
-async fn install_version(version: String) -> Result<String, String> {
+async fn install_version(workspace_dir: Option<String>, version: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
-        let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+        let ctx = get_context_with_dir(workspace_dir)?;
         let ver_clone = version.clone();
         let options = pyenv_core::InstallCommandOptions {
             list: false,
@@ -112,9 +126,12 @@ async fn install_version(version: String) -> Result<String, String> {
 /// Uses `force=true` because the GUI provides its own confirmation modal,
 /// avoiding the stdin-blocking `confirm_uninstall()` prompt.
 #[tauri::command]
-async fn uninstall_version(version: String) -> Result<String, String> {
+async fn uninstall_version(
+    workspace_dir: Option<String>,
+    version: String,
+) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
-        let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+        let ctx = get_context_with_dir(workspace_dir)?;
         let report = pyenv_core::cmd_uninstall(&ctx, &[version], true);
         if report.exit_code != 0 {
             return Err(report.stderr.join("\n"));
@@ -135,8 +152,8 @@ fn select_directory() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn set_global(version: String) -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn set_global(workspace_dir: Option<String>, version: String) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_global(&ctx, &[version], false);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -146,7 +163,7 @@ fn set_global(version: String) -> Result<String, String> {
 
 #[tauri::command]
 fn set_local(version: String, path: String) -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+    let ctx = get_context_with_dir(Some(path.clone()))?;
     let target = std::path::Path::new(&path).join(".python-version");
     let report = pyenv_core::cmd_version_file_write(&ctx, &target, &[version], false);
     if report.exit_code != 0 {
@@ -156,14 +173,14 @@ fn set_local(version: String, path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn get_config() -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn get_config(workspace_dir: Option<String>) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     serde_json::to_string(&ctx.config).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_config(key: String, value: String) -> Result<String, String> {
-    let mut ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn set_config(workspace_dir: Option<String>, key: String, value: String) -> Result<String, String> {
+    let mut ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_config_set(&mut ctx, &key, &value);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -172,8 +189,12 @@ fn set_config(key: String, value: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn create_venv(base_version: String, name: String) -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn create_venv(
+    workspace_dir: Option<String>,
+    base_version: String,
+    name: String,
+) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_venv_create(&ctx, &base_version, &name, false, false);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -182,8 +203,8 @@ fn create_venv(base_version: String, name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn delete_venv(spec: String) -> Result<String, String> {
-    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+fn delete_venv(workspace_dir: Option<String>, spec: String) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
     let report = pyenv_core::cmd_venv_delete(&ctx, &spec, true);
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
@@ -194,9 +215,9 @@ fn delete_venv(spec: String) -> Result<String, String> {
 /// Check for pyenv-native updates using the core self-update API (check-only mode).
 /// Returns a human-readable status string.
 #[tauri::command]
-async fn check_for_updates() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| {
-        let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+async fn check_for_updates(workspace_dir: Option<String>) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
         let options = pyenv_core::SelfUpdateOptions {
             check: true,
             yes: false,
@@ -216,9 +237,9 @@ async fn check_for_updates() -> Result<String, String> {
 
 /// Perform the actual self-update with `yes=true` to skip interactive confirmation.
 #[tauri::command]
-async fn perform_update() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| {
-        let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+async fn perform_update(workspace_dir: Option<String>) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
         let options = pyenv_core::SelfUpdateOptions {
             check: false,
             yes: true,

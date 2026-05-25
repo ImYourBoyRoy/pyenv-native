@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub(super) const SHIM_MANIFEST_FILE: &str = ".pyenv-shims.json";
 pub(super) const SHIM_LOCK_FILE: &str = ".pyenv-shims.lock";
-pub(super) const SHIM_LOCK_STALE_SECS: u64 = 60 * 10;
+pub(super) const SHIM_LOCK_STALE_SECS: u64 = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub(super) struct ShimManifest {

@@ -184,6 +184,24 @@
 
         <h1 class="page-title">Current Environment</h1>
 
+        <!-- WORKSPACE SELECTOR -->
+        <div class="glass" style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.02);">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
+            <div class="brand-icon" style="width: 32px; height: 32px; border-radius: 8px; font-size: 14px; background: rgba(75, 139, 190, 0.1); flex-shrink: 0; box-shadow: none;">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">Active Workspace Context</div>
+              <div id="workspace-path" style="font-size: 13px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">Loading workspace...</div>
+            </div>
+          </div>
+          <button class="btn btn-outline" id="btn-change-workspace" style="font-size: 11px; padding: 6px 12px; height: auto;">
+            Change Directory
+          </button>
+        </div>
+
         <div class="status-grid">
           <div class="status-card glass highlight-card">
             <div class="stat-header">

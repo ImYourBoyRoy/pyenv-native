@@ -59,7 +59,7 @@ pub fn managed_venv_entries_for_base(
         })
         .collect::<Vec<_>>();
 
-    results.sort_by(|lhs, rhs| lhs.0.to_ascii_lowercase().cmp(&rhs.0.to_ascii_lowercase()));
+    results.sort_by_key(|lhs| lhs.0.to_ascii_lowercase());
     Ok(results)
 }
 

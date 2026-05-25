@@ -211,7 +211,7 @@ mod tests {
             .as_secs();
         fs::write(
             ctx.shims_dir().join(SHIM_LOCK_FILE),
-            format!("pid=9999\ncreated_at={created_at}\n"),
+            format!("pid={}\ncreated_at={created_at}\n", std::process::id()),
         )
         .expect("lock");
 
