@@ -45,7 +45,7 @@ pub fn list_managed_venvs(ctx: &AppContext) -> Result<Vec<ManagedVenvInfo>, Pyen
 }
 
 pub fn resolve_managed_venv(ctx: &AppContext, spec: &str) -> Result<ManagedVenvInfo, PyenvError> {
-    let trimmed = spec.trim();
+    let trimmed = spec.trim().strip_prefix("venv:").unwrap_or(spec.trim());
     if trimmed.is_empty() {
         return Err(PyenvError::Io(
             "pyenv: managed venv spec cannot be empty".to_string(),

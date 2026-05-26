@@ -20,6 +20,11 @@ pub fn managed_search_roots_for_version(ctx: &AppContext, version: &str) -> Vec<
         return Vec::new();
     }
 
+    let target_version = version.strip_prefix("venv:").unwrap_or(version);
+    if let Ok(resolved) = crate::venv::resolve_managed_venv(ctx, target_version) {
+        return vec![resolved.path];
+    }
+
     if let Some(venv_dir) = managed_venv_dir_from_spec(ctx, version)
         && venv_dir.is_dir()
     {

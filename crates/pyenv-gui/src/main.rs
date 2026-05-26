@@ -189,27 +189,35 @@ fn set_config(workspace_dir: Option<String>, key: String, value: String) -> Resu
 }
 
 #[tauri::command]
-fn create_venv(
+async fn create_venv(
     workspace_dir: Option<String>,
     base_version: String,
     name: String,
 ) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_venv_create(&ctx, &base_version, &name, false, false);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_venv_create(&ctx, &base_version, &name, false, false);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
 }
 
 #[tauri::command]
-fn delete_venv(workspace_dir: Option<String>, spec: String) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_venv_delete(&ctx, &spec, true);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn delete_venv(workspace_dir: Option<String>, spec: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_venv_delete(&ctx, &spec, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
 }
 
 /// Check for pyenv-native updates using the core self-update API (check-only mode).

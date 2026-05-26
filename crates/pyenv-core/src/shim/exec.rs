@@ -127,7 +127,16 @@ fn resolve_exec_target(ctx: &AppContext, command: &str) -> Result<ExecTarget, Co
     let mut stderr = selected
         .missing
         .into_iter()
-        .map(|version| format!("pyenv: version `{version}' is not installed (set by {origin})"))
+        .map(|version| {
+            if version.contains("/envs/")
+                || version.contains("\\envs\\")
+                || version.starts_with("venv:")
+            {
+                format!("pyenv: managed venv `{version}` no longer exists (set by {origin})")
+            } else {
+                format!("pyenv: version `{version}` is not installed (set by {origin})")
+            }
+        })
         .collect::<Vec<_>>();
     stderr.push(format!("pyenv: {command}: command not found"));
     Err(CommandReport::failure(stderr, 127))

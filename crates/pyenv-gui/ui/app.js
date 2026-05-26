@@ -376,6 +376,7 @@ async function installTarget(v, btnEl) {
         btnEl.classList.add('btn-outline');
         installedVersionsSet.push(v);
         loadDashboard();
+        loadInstalled();
     } catch (err) {
         console.error("Install failed:", err);
         btnEl.innerText = originalText;
