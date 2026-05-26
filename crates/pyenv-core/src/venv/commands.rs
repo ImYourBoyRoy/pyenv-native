@@ -332,3 +332,236 @@ fn create_managed_venv(
 
     Ok((info, local_written, progress_steps))
 }
+
+pub fn cmd_venv_upgrade(
+    ctx: &AppContext,
+    spec: &str,
+    new_runtime: &str,
+    force: bool,
+    set_local: bool,
+) -> CommandReport {
+    // 1. Resolve old managed venv
+    let info = match resolve_managed_venv(ctx, spec) {
+        Ok(i) => i,
+        Err(e) => return CommandReport::failure(vec![e.to_string()], 1),
+    };
+
+    // 2. Resolve target Python version
+    let resolved_new_version = match resolve_installed_runtime_version(ctx, new_runtime) {
+        Ok(ver) => ver,
+        Err(e) => {
+            return CommandReport::failure(
+                vec![
+                    format!("pyenv: target new runtime `{new_runtime}` is not installed."),
+                    format!("Error: {e}"),
+                    format!("Hint: install it first with `pyenv install {new_runtime}`"),
+                ],
+                1,
+            );
+        }
+    };
+
+    // 3. Query installed pip packages in old venv
+    let py_path = match &info.python_path {
+        Some(p) if p.exists() => p,
+        _ => {
+            return CommandReport::failure(
+                vec![format!(
+                    "pyenv: python interpreter for managed venv `{}` is missing from disk.",
+                    info.spec
+                )],
+                1,
+            );
+        }
+    };
+
+    let mut packages = Vec::new();
+    let mut backup_success = false;
+    if let Some(output) = Command::new(py_path)
+        .headless()
+        .args(["-m", "pip", "list", "--format=json"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+    {
+        let stdout_str = String::from_utf8_lossy(&output.stdout);
+        if let Ok(pkgs) = serde_json::from_str::<Vec<crate::pip::PipPackage>>(&stdout_str) {
+            packages = pkgs;
+            backup_success = true;
+        }
+    }
+
+    let pkgs_to_install: Vec<String> = packages
+        .iter()
+        .filter(|pkg| {
+            let name_lower = pkg.name.to_lowercase();
+            name_lower != "pip"
+                && name_lower != "setuptools"
+                && name_lower != "wheel"
+                && name_lower != "distribute"
+        })
+        .map(|pkg| format!("{}=={}", pkg.name, pkg.version))
+        .collect();
+
+    // 4. Confirm upgrade with user
+    if !force {
+        let msg = format!(
+            "pyenv: migrate managed venv {} to runtime {}? (this will recreate the environment and attempt to reinstall {} packages) [y/N] ",
+            info.spec,
+            resolved_new_version,
+            pkgs_to_install.len()
+        );
+        if !confirm_action(&msg) {
+            return CommandReport::failure(
+                vec!["pyenv: virtual environment upgrade cancelled".to_string()],
+                1,
+            );
+        }
+    }
+
+    let mut stdout = vec!["Progress:".to_string()];
+    if backup_success {
+        stdout.push(format!(
+            "  - backup: captured {} custom packages from {}",
+            pkgs_to_install.len(),
+            info.spec
+        ));
+    } else {
+        stdout.push(
+            "  - [WARNING] failed to query old packages list; creating clean environment"
+                .to_string(),
+        );
+    }
+
+    // 5. Recreate environment under new target runtime
+    let (new_info, _local_written, create_steps) =
+        match create_managed_venv(ctx, &resolved_new_version, &info.name, true, set_local) {
+            Ok(res) => res,
+            Err(e) => {
+                return CommandReport::failure(
+                    vec![format!("pyenv: failed to create new venv: {e}")],
+                    1,
+                );
+            }
+        };
+
+    stdout.extend(create_steps.into_iter().map(|s| format!("  - {s}")));
+
+    let new_py_path = match &new_info.python_path {
+        Some(p) if p.exists() => p,
+        _ => {
+            return CommandReport::failure(
+                vec![format!(
+                    "pyenv: new python interpreter was not found on disk at {:?}",
+                    new_info.python_path
+                )],
+                1,
+            );
+        }
+    };
+
+    // 6. Cozy self-update for pip in new environment
+    stdout.push("  - pip: updating pip to the latest version...".to_string());
+    let pip_upgrade = Command::new(new_py_path)
+        .headless()
+        .args(["-m", "pip", "install", "-U", "pip"])
+        .status();
+    match pip_upgrade {
+        Ok(status) if status.success() => {
+            stdout.push("    - pip updated successfully".to_string());
+        }
+        _ => {
+            stdout.push(
+                "    - [WARNING] pip update failed, continuing with default version".to_string(),
+            );
+        }
+    }
+
+    // 7. Reinstall the backed up packages progressively
+    let total_pkgs = pkgs_to_install.len();
+    if total_pkgs > 0 {
+        stdout.push(format!(
+            "  - restore: restoring {total_pkgs} custom packages..."
+        ));
+        for (i, pkg_spec) in pkgs_to_install.iter().enumerate() {
+            stdout.push(format!(
+                "    [{}/{}] installing {}...",
+                i + 1,
+                total_pkgs,
+                pkg_spec
+            ));
+            let install_status = Command::new(new_py_path)
+                .headless()
+                .args(["-m", "pip", "install", pkg_spec])
+                .status();
+            match install_status {
+                Ok(status) if status.success() => {
+                    stdout.push(format!("      - installed {}", pkg_spec));
+                }
+                Ok(status) => {
+                    stdout.push(format!(
+                        "      - [WARNING] failed to install {} (exit code {:?})",
+                        pkg_spec,
+                        status.code()
+                    ));
+                }
+                Err(e) => {
+                    stdout.push(format!(
+                        "      - [WARNING] failed to launch pip install for {}: {}",
+                        pkg_spec, e
+                    ));
+                }
+            }
+        }
+    }
+
+    // 8. Verify dependency health via pip check
+    stdout.push("  - verify: checking dependency constraints...".to_string());
+    let check_status = Command::new(new_py_path)
+        .headless()
+        .args(["-m", "pip", "check"])
+        .output();
+    match check_status {
+        Ok(output) if output.status.success() => {
+            stdout.push(
+                "    - verification success: all dependency constraints satisfied!".to_string(),
+            );
+        }
+        Ok(output) => {
+            stdout.push("    - [WARNING] dependency conflicts detected:".to_string());
+            let err_str = String::from_utf8_lossy(&output.stdout);
+            for line in err_str.lines() {
+                stdout.push(format!("      ! {}", line));
+            }
+        }
+        Err(e) => {
+            stdout.push(format!("    - failed to run verification check: {}", e));
+        }
+    }
+
+    // 9. Cleanup old venv if target is different from source
+    if info.path != new_info.path {
+        stdout.push("  - cleanup: removing old virtual environment...".to_string());
+        match fs::remove_dir_all(&info.path) {
+            Ok(_) => {
+                stdout.push(format!(
+                    "    - removed old managed venv at {}",
+                    info.path.display()
+                ));
+            }
+            Err(e) => {
+                stdout.push(format!(
+                    "    - [WARNING] failed to remove old venv at {}: {}",
+                    info.path.display(),
+                    e
+                ));
+            }
+        }
+    }
+
+    stdout.push(format!(
+        "Managed venv successfully upgraded to: {}",
+        new_info.spec
+    ));
+    CommandReport::success(stdout)
+}

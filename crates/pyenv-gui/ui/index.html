@@ -607,6 +607,95 @@
     </main>
   </div>
 
+  <!-- Upgrade Environment Sliding Drawer -->
+  <div id="drawer-venv-upgrader" class="drawer glass">
+    <div class="drawer-header">
+      <div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Upgrade Environment</h3>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Target Environment</div>
+      </div>
+      <button class="drawer-close" id="btn-close-upgrader">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer-content-container" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;">
+      <!-- Step 1: Select target version -->
+      <div id="upgrader-setup-card" class="glass" style="padding: 16px; border-radius: 8px;">
+        <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--text-heading); font-size: 13px;">Select Target Runtime</h4>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <select id="upgrader-target-version" class="dropdown" style="width: 100%;">
+            <option value="">Select Target...</option>
+          </select>
+          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;">
+            Start Migration Wizard
+          </button>
+        </div>
+      </div>
+
+      <!-- Progressive steps checklist card -->
+      <div id="upgrader-progress-card" class="glass" style="padding: 16px; border-radius: 8px; display: none;">
+        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-heading); font-size: 13px;">Migration Progress</h4>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Step: Backup -->
+          <div class="upgrader-step-row" id="step-row-backup" style="display: flex; align-items: center; gap: 12px;">
+            <div class="upgrader-step-icon" id="step-icon-backup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">1</div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-backup">Inventory old environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-backup">Discovering installed packages...</div>
+            </div>
+          </div>
+
+          <!-- Step: Recreate -->
+          <div class="upgrader-step-row" id="step-row-recreate" style="display: flex; align-items: center; gap: 12px;">
+            <div class="upgrader-step-icon" id="step-icon-recreate" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">2</div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-recreate">Create fresh environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-recreate">Rebuilding venv under target version...</div>
+            </div>
+          </div>
+
+          <!-- Step: Restore -->
+          <div class="upgrader-step-row" id="step-row-restore" style="display: flex; align-items: center; gap: 12px;">
+            <div class="upgrader-step-icon" id="step-icon-restore" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">3</div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-restore">Restore packages</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-restore">Progressively reinstalling packages...</div>
+            </div>
+          </div>
+
+          <!-- Step: Verify -->
+          <div class="upgrader-step-row" id="step-row-verify" style="display: flex; align-items: center; gap: 12px;">
+            <div class="upgrader-step-icon" id="step-icon-verify" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">4</div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-verify">Dependency diagnostics</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-verify">Running pip check verification...</div>
+            </div>
+          </div>
+
+          <!-- Step: Cleanup -->
+          <div class="upgrader-step-row" id="step-row-cleanup" style="display: flex; align-items: center; gap: 12px;">
+            <div class="upgrader-step-icon" id="step-icon-cleanup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">5</div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-cleanup">Cleanup old environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-cleanup">Removing old virtual environment...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dark console log card -->
+      <div id="upgrader-log-card" class="glass" style="padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 180px; max-height: 280px; box-sizing: border-box;">
+        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Migration Logs</div>
+        <div id="upgrader-console" style="background: rgba(0, 0, 0, 0.3); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 10px; color: #a3b3c2; overflow-y: auto; flex: 1; line-height: 1.5; white-space: pre-wrap; box-sizing: border-box;">Select a target Python version to begin migration.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Package Explorer Sliding Drawer -->
   <div id="drawer-package-manager" class="drawer glass">
     <div class="drawer-header">

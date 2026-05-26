@@ -449,6 +449,7 @@ pyenv venv list
 pyenv venv info api
 pyenv venv use api
 pyenv local 3.13.12/envs/api
+pyenv venv upgrade api 3.14
 ```
 
 Managed envs live under `PYENV_ROOT/venvs/<runtime>/<name>`.
@@ -729,7 +730,7 @@ pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 pyenv install --list [--known] [--family <family>] [--json] [pattern]
 pyenv available [--known] [--family <family>] [--json] [pattern]
 pyenv install [--dry-run] [--force] [--json] <version>...
-pyenv venv <list|info|create|delete|rename|use> [options]
+pyenv venv <list|info|create|delete|rename|use|upgrade> [options]
 pyenv uninstall [-f] <version>...
 pyenv which [--nosystem] [--skip-advice] <command>
 pyenv whence [--path] <command>

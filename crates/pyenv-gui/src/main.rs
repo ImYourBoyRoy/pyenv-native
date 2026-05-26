@@ -265,6 +265,95 @@ async fn perform_update(workspace_dir: Option<String>) -> Result<String, String>
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+#[derive(serde::Serialize)]
+struct VenvUpgradeInfo {
+    name: String,
+    base_version: String,
+    packages: Vec<String>,
+}
+
+#[tauri::command]
+async fn get_venv_upgrade_info(
+    workspace_dir: Option<String>,
+    spec: String,
+) -> Result<VenvUpgradeInfo, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let info = pyenv_core::resolve_managed_venv(&ctx, &spec).map_err(|e| e.to_string())?;
+
+        let py_path = info
+            .python_path
+            .as_ref()
+            .ok_or_else(|| format!("pyenv: interpreter for managed venv '{}' is missing.", spec))?;
+
+        let mut packages = Vec::new();
+        if let Ok(output) = std::process::Command::new(py_path)
+            .headless()
+            .args(["-m", "pip", "list", "--format=json"])
+            .output()
+        {
+            if output.status.success() {
+                let stdout_str = String::from_utf8_lossy(&output.stdout);
+                if let Ok(pkgs) = serde_json::from_str::<Vec<pyenv_core::PipPackage>>(&stdout_str) {
+                    packages = pkgs;
+                }
+            }
+        }
+
+        let custom_packages: Vec<String> = packages
+            .into_iter()
+            .filter(|p| {
+                let name_lower = p.name.to_lowercase();
+                name_lower != "pip"
+                    && name_lower != "setuptools"
+                    && name_lower != "wheel"
+                    && name_lower != "distribute"
+            })
+            .map(|p| format!("{}=={}", p.name, p.version))
+            .collect();
+
+        Ok(VenvUpgradeInfo {
+            name: info.name,
+            base_version: info.base_version,
+            packages: custom_packages,
+        })
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn install_pip_packages(
+    workspace_dir: Option<String>,
+    target: String,
+    packages: Vec<String>,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let py_path = pyenv_core::resolve_interpreter_path(&ctx, &target)?;
+
+        let mut stdout = Vec::new();
+        for pkg in packages {
+            let output = std::process::Command::new(&py_path)
+                .headless()
+                .args(["-m", "pip", "install", &pkg])
+                .output()
+                .map_err(|e| format!("Failed to run pip install for {pkg}: {e}"))?;
+
+            if !output.status.success() {
+                return Err(format!(
+                    "Failed to install package {pkg}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
+            stdout.push(format!("Successfully installed {pkg}"));
+        }
+        Ok(stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 #[tauri::command]
 async fn get_pip_packages(workspace_dir: Option<String>, target: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
@@ -418,6 +507,31 @@ struct ShellStatus {
     profile_path: String,
     is_configured: bool,
     active_in_path: bool,
+    is_installed: bool,
+}
+
+fn is_executable_in_path(name: &str) -> bool {
+    let name_ext = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in std::env::split_paths(&path_var) {
+            let target = dir.join(&name_ext);
+            if target.is_file() {
+                return true;
+            }
+            if cfg!(windows) {
+                let target_no_ext = dir.join(name);
+                if target_no_ext.is_file() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 fn get_home_dir() -> Result<std::path::PathBuf, String> {
@@ -464,6 +578,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         profile_path: pwsh_profile.to_string_lossy().to_string(),
         is_configured: pwsh_configured,
         active_in_path: shims_in_path,
+        is_installed: is_executable_in_path("pwsh"),
     });
 
     // 2. Windows PowerShell 5.1 Profile (Windows only)
@@ -481,6 +596,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
             profile_path: win_ps_profile.to_string_lossy().to_string(),
             is_configured: win_ps_configured,
             active_in_path: shims_in_path,
+            is_installed: true, // Always true on Windows
         });
     }
 
@@ -495,6 +611,11 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         profile_path: zsh_profile.to_string_lossy().to_string(),
         is_configured: zsh_configured,
         active_in_path: shims_in_path,
+        is_installed: if cfg!(target_os = "macos") {
+            true
+        } else {
+            is_executable_in_path("zsh")
+        },
     });
 
     // 4. Bash Profile
@@ -508,6 +629,11 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         profile_path: bash_profile.to_string_lossy().to_string(),
         is_configured: bash_configured,
         active_in_path: shims_in_path,
+        is_installed: if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+            true
+        } else {
+            is_executable_in_path("bash")
+        },
     });
 
     // 5. Fish Profile
@@ -521,6 +647,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         profile_path: fish_profile.to_string_lossy().to_string(),
         is_configured: fish_configured,
         active_in_path: shims_in_path,
+        is_installed: is_executable_in_path("fish"),
     });
 
     Ok(statuses)
@@ -815,7 +942,9 @@ fn main() {
             configure_shell,
             analyze_codebase_imports,
             run_doctor,
-            run_doctor_fix
+            run_doctor_fix,
+            get_venv_upgrade_info,
+            install_pip_packages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

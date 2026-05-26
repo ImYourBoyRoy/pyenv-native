@@ -135,3 +135,24 @@ fn venv_create_rejects_duplicate_name_collisions() {
     assert_eq!(report.exit_code, 1);
     assert!(report.stderr[0].contains("managed venv name `demo` already exists"));
 }
+
+#[test]
+fn venv_upgrade_fails_on_missing_source() {
+    let (_temp, ctx) = test_context();
+    create_fake_runtime(&ctx, "3.13.1");
+
+    let report = super::cmd_venv_upgrade(&ctx, "demo", "3.13.1", true, false);
+    assert_eq!(report.exit_code, 1);
+    assert!(report.stderr[0].contains("pyenv: no managed venv named `demo` was found"));
+}
+
+#[test]
+fn venv_upgrade_fails_on_missing_target() {
+    let (_temp, ctx) = test_context();
+    create_fake_runtime(&ctx, "3.12.6");
+    create_fake_managed_env(&ctx, "3.12.6", "demo");
+
+    let report = super::cmd_venv_upgrade(&ctx, "demo", "3.13.1", true, false);
+    assert_eq!(report.exit_code, 1);
+    assert!(report.stderr[0].contains("pyenv: target new runtime `3.13.1` is not installed"));
+}

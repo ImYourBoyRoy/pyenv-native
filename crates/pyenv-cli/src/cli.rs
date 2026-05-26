@@ -539,6 +539,28 @@ pub(crate) enum VenvCommands {
         #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
         spec: String,
     },
+    #[command(
+        about = "Upgrade/migrate a managed virtual environment to a new base runtime version"
+    )]
+    Upgrade {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip confirmation prompts and overwrite any existing venv in the new runtime target if present"
+        )]
+        force: bool,
+        #[arg(
+            long = "set-local",
+            help = "Write the upgraded env spec into the current directory's .python-version file"
+        )]
+        set_local: bool,
+        #[arg(help = "The old env name or full spec (e.g. demo or 3.12.1/envs/demo) to migrate")]
+        spec: String,
+        #[arg(
+            help = "The target Python runtime version or prefix (e.g. 3.13 or 3.13.12) to upgrade to"
+        )]
+        new_runtime: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

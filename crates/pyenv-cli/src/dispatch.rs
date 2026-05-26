@@ -17,8 +17,8 @@ use pyenv_core::{
     cmd_pip_outdated, cmd_pip_update, cmd_prefix, cmd_prompt, cmd_rehash, cmd_root,
     cmd_self_uninstall, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
     cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status, cmd_uninstall, cmd_venv_create,
-    cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_use, cmd_version,
-    cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
+    cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use,
+    cmd_version, cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
     cmd_version_origin, cmd_versions, cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_init,
     cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan,
 };
@@ -337,6 +337,12 @@ fn dispatch_venv(ctx: &AppContext, command: VenvCommands) -> CommandReport {
                 VenvUseScope::Local
             },
         ),
+        VenvCommands::Upgrade {
+            force,
+            set_local,
+            spec,
+            new_runtime,
+        } => cmd_venv_upgrade(ctx, &spec, &new_runtime, force, set_local),
     }
 }
 

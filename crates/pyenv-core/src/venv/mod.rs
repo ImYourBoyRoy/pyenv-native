@@ -10,7 +10,8 @@ mod tests;
 mod types;
 
 pub use self::commands::{
-    cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_use,
+    cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename,
+    cmd_venv_upgrade, cmd_venv_use,
 };
 pub use self::inventory::{
     list_managed_venvs, resolve_installed_runtime_version, resolve_managed_venv,
