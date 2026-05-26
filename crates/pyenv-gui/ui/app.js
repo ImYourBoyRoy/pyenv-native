@@ -188,13 +188,17 @@ async function loadInstalled() {
                         <div class="version-meta">${entry.available ? 'System-wide Python installation' : 'No system Python found (Microsoft Store alias detected)'}</div>
                     </div>
                     <div class="version-actions">
-                        ${entry.available ? `<button class="btn btn-outline" onclick="setGlobal('system')">Make Global</button>` : ''}
+                        ${entry.available ? `
+                            <button class="btn btn-outline" onclick="openPackageExplorer('system')">Package Explorer</button>
+                            <button class="btn btn-outline" onclick="setGlobal('system')">Make Global</button>
+                        ` : ''}
                     </div>
                 `;
             } else {
                 card.innerHTML = `
                     <div class="version-name">${entry.name}</div>
                     <div class="version-actions">
+                        <button class="btn btn-outline" onclick="openPackageExplorer('${entry.name}')">Package Explorer</button>
                         <button class="btn btn-outline" onclick="setGlobal('${entry.name}')">Make Global</button>
                         <button class="btn btn-outline" onclick="setLocal('${entry.name}')">Make Local</button>
                         <button class="btn btn-danger" onclick="uninstallVersion('${entry.name}')">Uninstall</button>
@@ -325,22 +329,23 @@ async function loadVenvs() {
         if (venvs.length === 0) {
             list.innerHTML = '<div class="empty-state">No virtual environments found.</div>';
         } else {
-            venvs.forEach(v => {
-                const card = document.createElement('div');
-                card.className = 'version-card';
-                card.innerHTML = `
-                    <div>
-                        <div class="version-name">${v.name}</div>
-                        <div class="version-meta">Base: ${v.base_version} • ${v.path}</div>
-                    </div>
-                    <div class="version-actions">
-                        <button class="btn btn-outline" onclick="setGlobal('venv:${v.name}')">Global</button>
-                        <button class="btn btn-outline" onclick="setLocal('venv:${v.name}')">Local</button>
-                        <button class="btn btn-danger" onclick="deleteVenv('${v.name}')">Delete</button>
-                    </div>
-                `;
-                list.appendChild(card);
-            });
+                venvs.forEach(v => {
+                    const card = document.createElement('div');
+                    card.className = 'version-card';
+                    card.innerHTML = `
+                        <div>
+                            <div class="version-name">${v.name}</div>
+                            <div class="version-meta">Base: ${v.base_version} • ${v.path}</div>
+                        </div>
+                        <div class="version-actions">
+                            <button class="btn btn-outline" onclick="openPackageExplorer('venv:${v.name}')">Package Explorer</button>
+                            <button class="btn btn-outline" onclick="setGlobal('venv:${v.name}')">Global</button>
+                            <button class="btn btn-outline" onclick="setLocal('venv:${v.name}')">Local</button>
+                            <button class="btn btn-danger" onclick="deleteVenv('${v.name}')">Delete</button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
         }
         const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
@@ -640,6 +645,552 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
         showAlert('Setup Failed', err);
     }
 });
+
+// ─── Package Explorer Drawer Controller ───
+let currentExplorerTarget = '';
+let installedPackages = [];
+let outdatedPackages = [];
+let selectedOutdated = new Set();
+let scannedTarget = ''; // Track which target was scanned for outdated packages
+
+// DOM Elements inside the drawer
+const drawer = document.getElementById('drawer-package-manager');
+const drawerCloseBtn = document.getElementById('btn-close-drawer');
+const drawerTargetTitle = document.getElementById('drawer-target-title');
+const drawerTargetSubtitle = document.getElementById('drawer-target-subtitle');
+const drawerTabBtns = document.querySelectorAll('.drawer-tab-btn');
+const drawerTabContents = document.querySelectorAll('.drawer-tab-content');
+
+// Installed Tab DOMs
+const drawerPackageList = document.getElementById('drawer-package-list');
+const drawerPackageSearch = document.getElementById('drawer-package-search');
+const drawerPackageEmpty = document.getElementById('drawer-package-empty');
+const drawerPackageLoading = document.getElementById('drawer-package-loading');
+const pipSelfUpdateCard = document.getElementById('pip-self-update-card');
+const pipSelfUpdateVersions = document.getElementById('pip-self-update-versions');
+const btnUpgradePip = document.getElementById('btn-upgrade-pip');
+
+// Updates Tab DOMs
+const btnScanOutdated = document.getElementById('btn-scan-outdated');
+const btnUpdateSelected = document.getElementById('btn-update-selected');
+const updatesScanPrompt = document.getElementById('updates-scan-prompt');
+const updatesScanning = document.getElementById('updates-scanning');
+const updatesChecklistView = document.getElementById('updates-checklist-view');
+const updatesChecklist = document.getElementById('updates-checklist');
+const chkSelectAllUpdates = document.getElementById('chk-select-all-updates');
+const selectedUpdatesCount = document.getElementById('selected-updates-count');
+const updatesCountBadge = document.getElementById('updates-count-badge');
+
+// Import Tab DOMs
+const importRequirementsPath = document.getElementById('import-requirements-path');
+const btnPrecheckImport = document.getElementById('btn-precheck-import');
+const btnInstallImported = document.getElementById('btn-install-imported');
+const importPrecheckLoading = document.getElementById('import-precheck-loading');
+const importPrecheckDashboard = document.getElementById('import-precheck-dashboard');
+const precheckBanner = document.getElementById('precheck-banner');
+const precheckBannerIcon = document.getElementById('precheck-banner-icon');
+const precheckBannerText = document.getElementById('precheck-banner-text');
+const precheckConflictsSection = document.getElementById('precheck-conflicts-section');
+const precheckConflictsList = document.getElementById('precheck-conflicts-list');
+const precheckResolvedList = document.getElementById('precheck-resolved-list');
+
+// Open Package Explorer Drawer
+window.openPackageExplorer = function(target) {
+    currentExplorerTarget = target;
+    
+    // Set Target Title/Subtitle
+    drawerTargetTitle.textContent = target.startsWith('venv:') ? `Venv: ${target.substring(5)}` : `Runtime: ${target}`;
+    drawerTargetSubtitle.textContent = `Package Explorer Target Context`;
+    
+    // Switch to first tab (Installed)
+    switchDrawerTab('tab-installed');
+    
+    // Reset search
+    drawerPackageSearch.value = '';
+    
+    // Open the drawer
+    drawer.classList.add('open');
+    
+    // Load installed packages
+    loadDrawerPackages();
+    
+    // Check if we should reset outdated scans if target changed
+    if (scannedTarget !== target) {
+        resetOutdatedScanView();
+    }
+    
+    // Clear precheck inputs
+    importRequirementsPath.value = '';
+    importPrecheckDashboard.style.display = 'none';
+    importPrecheckLoading.style.display = 'none';
+    btnInstallImported.disabled = true;
+};
+
+// Close Package Explorer Drawer
+function closePackageExplorer() {
+    drawer.classList.remove('open');
+    currentExplorerTarget = '';
+}
+
+drawerCloseBtn.addEventListener('click', closePackageExplorer);
+
+// Tab switching logic inside the drawer
+function switchDrawerTab(tabId) {
+    drawerTabBtns.forEach(btn => {
+        if (btn.dataset.drawerTab === tabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    drawerTabContents.forEach(content => {
+        if (content.id === tabId) {
+            content.classList.add('active');
+        } else {
+            content.classList.remove('active');
+        }
+    });
+}
+
+drawerTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        switchDrawerTab(btn.dataset.drawerTab);
+    });
+});
+
+// Load installed packages from Rust backend
+async function loadDrawerPackages() {
+    drawerPackageLoading.style.display = 'block';
+    drawerPackageEmpty.style.display = 'none';
+    drawerPackageList.innerHTML = '';
+    pipSelfUpdateCard.style.display = 'none';
+    
+    try {
+        const jsonStr = await invoke('get_pip_packages', { workspaceDir: getWorkspaceDir(), target: currentExplorerTarget });
+        installedPackages = JSON.parse(jsonStr);
+        
+        renderInstalledPackages();
+        
+        // Cozy Check if pip is installed and has updates
+        checkForPipUpdatesInBackground();
+        
+    } catch(err) {
+        console.error("Failed to load packages:", err);
+        drawerPackageList.innerHTML = `<tr><td colspan="3" style="color: var(--danger); text-align: center;">Error loading packages: ${err}</td></tr>`;
+    } finally {
+        drawerPackageLoading.style.display = 'none';
+    }
+}
+
+// Check for pip updates in the background
+async function checkForPipUpdatesInBackground() {
+    try {
+        const jsonStr = await invoke('get_outdated_packages', { workspaceDir: getWorkspaceDir(), target: currentExplorerTarget });
+        const outdated = JSON.parse(jsonStr);
+        
+        const pipOutdated = outdated.find(p => p.name.toLowerCase() === 'pip');
+        if (pipOutdated) {
+            pipSelfUpdateCard.style.display = 'flex';
+            pipSelfUpdateVersions.textContent = `Current: ${pipOutdated.version} → Latest: ${pipOutdated.latest_version}`;
+            
+            // Also light up the active pip status in the main GUI if this matches active environment!
+            updateActivePipLight(true, pipOutdated.version, pipOutdated.latest_version);
+        } else {
+            pipSelfUpdateCard.style.display = 'none';
+            updateActivePipLight(false);
+        }
+    } catch(err) {
+        console.warn("Failed to check pip updates in background:", err);
+    }
+}
+
+// Upgrade Pip cozy action
+btnUpgradePip.addEventListener('click', async () => {
+    btnUpgradePip.disabled = true;
+    btnUpgradePip.textContent = "Upgrading...";
+    
+    try {
+        await invoke('update_pip_packages', {
+            workspaceDir: getWorkspaceDir(),
+            target: currentExplorerTarget,
+            packages: ["pip"]
+        });
+        showAlert("Pip Upgraded", "pip self-update completed successfully.");
+        loadDrawerPackages();
+    } catch(err) {
+        showAlert("Upgrade Failed", err);
+    } finally {
+        btnUpgradePip.disabled = false;
+        btnUpgradePip.textContent = "Update";
+    }
+});
+
+// Render installed packages list with filtering
+function renderInstalledPackages() {
+    drawerPackageList.innerHTML = '';
+    const query = drawerPackageSearch.value.trim().toLowerCase();
+    
+    const filtered = installedPackages.filter(p => p.name.toLowerCase().includes(query));
+    
+    if (filtered.length === 0) {
+        drawerPackageEmpty.style.display = 'block';
+        return;
+    }
+    
+    drawerPackageEmpty.style.display = 'none';
+    
+    filtered.forEach(p => {
+        const tr = document.createElement('tr');
+        
+        // Determine status tag if any
+        let statusTag = '<span style="opacity: 0.6;">OK</span>';
+        if (p.name.toLowerCase() === 'pip') {
+            statusTag = '<span style="color: var(--accent); font-weight: 500;">System</span>';
+        }
+        
+        tr.innerHTML = `
+            <td style="font-weight: 500;">${p.name}</td>
+            <td style="font-family: 'JetBrains Mono', monospace; opacity: 0.8;">${p.version}</td>
+            <td>${statusTag}</td>
+        `;
+        drawerPackageList.appendChild(tr);
+    });
+}
+
+// Search filter binding
+drawerPackageSearch.addEventListener('input', renderInstalledPackages);
+
+// Reset Outdated check view
+function resetOutdatedScanView() {
+    outdatedPackages = [];
+    selectedOutdated.clear();
+    scannedTarget = '';
+    updatesScanPrompt.style.display = 'block';
+    updatesScanning.style.display = 'none';
+    updatesChecklistView.style.display = 'none';
+    updatesCountBadge.style.display = 'none';
+}
+
+// Scan Outdated packages
+btnScanOutdated.addEventListener('click', async () => {
+    updatesScanPrompt.style.display = 'none';
+    updatesScanning.style.display = 'block';
+    
+    try {
+        const jsonStr = await invoke('get_outdated_packages', { workspaceDir: getWorkspaceDir(), target: currentExplorerTarget });
+        outdatedPackages = JSON.parse(jsonStr);
+        
+        scannedTarget = currentExplorerTarget;
+        
+        renderOutdatedChecklist();
+    } catch(err) {
+        showAlert("Scan Failed", err);
+        updatesScanPrompt.style.display = 'block';
+    } finally {
+        updatesScanning.style.display = 'none';
+    }
+});
+
+// Render the checklist of outdated packages
+function renderOutdatedChecklist() {
+    updatesChecklist.innerHTML = '';
+    selectedOutdated.clear();
+    
+    // Filter out 'pip' if it's there, as pip has a cozy dedicated self-update card
+    const listToRender = outdatedPackages.filter(p => p.name.toLowerCase() !== 'pip');
+    
+    // Update badge count
+    if (listToRender.length > 0) {
+        updatesCountBadge.style.display = 'inline-block';
+        updatesCountBadge.textContent = listToRender.length;
+    } else {
+        updatesCountBadge.style.display = 'none';
+    }
+    
+    if (listToRender.length === 0) {
+        updatesChecklist.innerHTML = '<div class="empty-state" style="padding: 20px;">All libraries are up to date!</div>';
+        updatesScanPrompt.style.display = 'none';
+        updatesChecklistView.style.display = 'block';
+        btnUpdateSelected.disabled = true;
+        chkSelectAllUpdates.checked = false;
+        updateSelectedCountText();
+        return;
+    }
+    
+    listToRender.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'update-item';
+        div.innerHTML = `
+            <input type="checkbox" id="chk-pkg-${p.name}" data-pkg-name="${p.name}" />
+            <label for="chk-pkg-${p.name}" class="update-info" style="cursor: pointer; width: 100%;">
+                <span class="update-name">${p.name}</span>
+                <span class="update-versions">
+                    <span style="opacity: 0.6;">${p.version}</span>
+                    <span class="arrow-symbol">→</span>
+                    <span style="color: #ffd43b; font-weight: 600;">${p.latest_version}</span>
+                </span>
+            </label>
+        `;
+        
+        // Register event listener on checkbox
+        const chk = div.querySelector('input[type="checkbox"]');
+        chk.addEventListener('change', () => {
+            if (chk.checked) {
+                selectedOutdated.add(p.name);
+            } else {
+                selectedOutdated.delete(p.name);
+            }
+            updateSelectedCountText();
+        });
+        
+        updatesChecklist.appendChild(div);
+    });
+    
+    updatesScanPrompt.style.display = 'none';
+    updatesChecklistView.style.display = 'block';
+    
+    // Reset Select All state
+    chkSelectAllUpdates.checked = false;
+    updateSelectedCountText();
+}
+
+// Update selected text and action button state
+function updateSelectedCountText() {
+    const size = selectedOutdated.size;
+    selectedUpdatesCount.textContent = `${size} selected`;
+    btnUpdateSelected.disabled = size === 0;
+    
+    const actualPackagesCount = outdatedPackages.filter(p => p.name.toLowerCase() !== 'pip').length;
+    chkSelectAllUpdates.checked = size === actualPackagesCount && actualPackagesCount > 0;
+}
+
+// Select All / Deselect All checkbox binding
+chkSelectAllUpdates.addEventListener('change', () => {
+    const chks = updatesChecklist.querySelectorAll('input[type="checkbox"]');
+    if (chkSelectAllUpdates.checked) {
+        chks.forEach(chk => {
+            chk.checked = true;
+            selectedOutdated.add(chk.dataset.pkgName);
+        });
+    } else {
+        chks.forEach(chk => {
+            chk.checked = false;
+            selectedOutdated.delete(chk.dataset.pkgName);
+        });
+    }
+    updateSelectedCountText();
+});
+
+// Update Selected Packages action
+btnUpdateSelected.addEventListener('click', async () => {
+    const pkgs = Array.from(selectedOutdated);
+    if (pkgs.length === 0) return;
+    
+    btnUpdateSelected.disabled = true;
+    btnUpdateSelected.textContent = "Updating Selected Packages...";
+    
+    try {
+        await invoke('update_pip_packages', {
+            workspaceDir: getWorkspaceDir(),
+            target: currentExplorerTarget,
+            packages: pkgs
+        });
+        
+        showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${pkgs.join(', ')}</code>`);
+        
+        // Refresh installed packages table
+        loadDrawerPackages();
+        
+        // Reset outdated check since updates were performed
+        resetOutdatedScanView();
+    } catch(err) {
+        showAlert("Update Failed", err);
+        btnUpdateSelected.disabled = false;
+        btnUpdateSelected.textContent = "Update Selected Packages";
+    }
+});
+
+// Precheck Requirements.txt URL or File Path
+btnPrecheckImport.addEventListener('click', async () => {
+    const pathOrUrl = importRequirementsPath.value.trim();
+    if (!pathOrUrl) {
+        showAlert("Input Required", "Please paste a requirements.txt local path or remote URL.");
+        return;
+    }
+    
+    btnPrecheckImport.disabled = true;
+    importPrecheckLoading.style.display = 'block';
+    importPrecheckDashboard.style.display = 'none';
+    btnInstallImported.disabled = true;
+    
+    try {
+        const jsonStr = await invoke('precheck_requirements', {
+            workspaceDir: getWorkspaceDir(),
+            target: currentExplorerTarget,
+            pathOrUrl: pathOrUrl
+        });
+        
+        const precheck = JSON.parse(jsonStr);
+        renderPrecheckResults(precheck);
+    } catch(err) {
+        showAlert("Precheck Failed", err);
+    } finally {
+        btnPrecheckImport.disabled = false;
+        importPrecheckLoading.style.display = 'none';
+    }
+});
+
+// Render precheck analysis dashboard
+function renderPrecheckResults(precheck) {
+    importPrecheckDashboard.style.display = 'block';
+    
+    // 1. Result Banner
+    if (precheck.is_safe) {
+        precheckBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+        precheckBanner.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+        precheckBanner.style.color = 'var(--success)';
+        precheckBannerIcon.textContent = '✓';
+        precheckBannerText.textContent = 'Environment is safe and fully compatible!';
+        btnInstallImported.disabled = false;
+    } else {
+        precheckBanner.style.background = 'rgba(239, 68, 68, 0.1)';
+        precheckBanner.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+        precheckBanner.style.color = '#f87171';
+        precheckBannerIcon.textContent = '⚠';
+        precheckBannerText.textContent = 'Version mismatch or conflicts detected.';
+        btnInstallImported.disabled = false; // We still allow installation, but with warning
+    }
+    
+    // 2. Active conflicts
+    precheckConflictsList.innerHTML = '';
+    if (precheck.potential_conflicts && precheck.potential_conflicts.length > 0) {
+        precheckConflictsSection.style.display = 'block';
+        precheck.potential_conflicts.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'import-issue-item';
+            div.innerHTML = `<strong>${c.package}</strong>: installed version (${c.installed}) violates requirement "${c.requirement}"`;
+            precheckConflictsList.appendChild(div);
+        });
+    } else {
+        precheckConflictsSection.style.display = 'none';
+    }
+    
+    // 3. Resolved packages
+    precheckResolvedList.innerHTML = '';
+    if (precheck.resolved_packages && precheck.resolved_packages.length > 0) {
+        precheck.resolved_packages.forEach(p => {
+            const tr = document.createElement('tr');
+            
+            let statusBadge = '<span style="color: var(--success); font-weight: 500;">Compatible</span>';
+            // Check if this package has a conflict
+            const hasConflict = precheck.potential_conflicts?.some(c => c.package === p.name);
+            if (hasConflict) {
+                // Find matching conflict
+                const conf = precheck.potential_conflicts.find(c => c.package === p.name);
+                statusBadge = `<span class="warning-badge" data-tooltip="Installed: ${conf.installed} vs Req: ${conf.requirement}">Conflict</span>`;
+            } else if (p.version === 'not installed') {
+                statusBadge = '<span style="color: #60a5fa;">Pending Install</span>';
+            }
+            
+            tr.innerHTML = `
+                <td style="font-weight: 500;">${p.name}</td>
+                <td style="font-family: 'JetBrains Mono', monospace;">${p.version}</td>
+                <td>${statusBadge}</td>
+            `;
+            precheckResolvedList.appendChild(tr);
+        });
+    } else {
+        precheckResolvedList.innerHTML = '<tr><td colspan="3" style="text-align:center; opacity:0.6;">No packages specified.</td></tr>';
+    }
+}
+
+// Trigger Install of Imported dependencies
+btnInstallImported.addEventListener('click', async () => {
+    const pathOrUrl = importRequirementsPath.value.trim();
+    if (!pathOrUrl) return;
+    
+    btnInstallImported.disabled = true;
+    btnInstallImported.textContent = "Installing Dependencies...";
+    
+    try {
+        await invoke('install_requirements', {
+            workspaceDir: getWorkspaceDir(),
+            target: currentExplorerTarget,
+            pathOrUrl: pathOrUrl
+        });
+        
+        showAlert("Installation Complete", "Dependencies installed successfully.");
+        
+        // Refresh installed packages table
+        loadDrawerPackages();
+        
+        // Reset outdated check
+        resetOutdatedScanView();
+        
+        // Switch to installed tab to see them
+        switchDrawerTab('tab-installed');
+    } catch(err) {
+        showAlert("Installation Failed", err);
+        btnInstallImported.disabled = false;
+        btnInstallImported.textContent = "Install Dependencies";
+    }
+});
+
+// Check Active Pip Status in background on Dashboard Load
+async function checkActivePipStatus(target) {
+    try {
+        const jsonStr = await invoke('get_outdated_packages', { workspaceDir: getWorkspaceDir(), target: target });
+        const outdated = JSON.parse(jsonStr);
+        
+        const pipOutdated = outdated.find(p => p.name.toLowerCase() === 'pip');
+        if (pipOutdated) {
+            updateActivePipLight(true, pipOutdated.version, pipOutdated.latest_version);
+        } else {
+            updateActivePipLight(false);
+        }
+    } catch(err) {
+        console.warn("Failed to check active pip status in background:", err);
+        updateActivePipLight(false);
+    }
+}
+
+// Update Active Pip Status indicator on main GUI Dashboard
+function updateActivePipLight(isOutdated, currentVer = '', latestVer = '') {
+    const container = document.getElementById('active-pip-status-container');
+    const text = document.getElementById('active-pip-status-text');
+    
+    if (container && text) {
+        if (isOutdated) {
+            container.style.display = 'inline-flex';
+            text.innerHTML = `pip update available (current ${currentVer} → latest ${latestVer})`;
+        } else {
+            container.style.display = 'none';
+        }
+    }
+}
+
+// Hook into Dashboard loading to trigger background Pip checks
+const originalLoadDashboard = loadDashboard;
+loadDashboard = async function() {
+    await originalLoadDashboard();
+    
+    try {
+        const jsonStr = await invoke('get_status', { workspaceDir: getWorkspaceDir() });
+        const status = JSON.parse(jsonStr);
+        
+        if (status.active_versions && status.active_versions.length > 0) {
+            checkActivePipStatus(status.active_versions[0]);
+        } else if (status.managed_venv) {
+            checkActivePipStatus(`venv:${status.managed_venv.name}`);
+        } else {
+            updateActivePipLight(false);
+        }
+    } catch(err) {
+        console.warn("Dashboard background check failure:", err);
+        updateActivePipLight(false);
+    }
+};
 
 // Init startup
 initAppVersion();

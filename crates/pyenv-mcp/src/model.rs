@@ -231,3 +231,31 @@ pub struct ManagedVenvSummaryProxy {
     pub base_version: String,
     pub venv_path: PathBuf,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipListParams {
+    pub target: String,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipPrecheckParams {
+    pub target: String,
+    pub path_or_url: String,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipInstallParams {
+    pub target: String,
+    pub path_or_url: String,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipUpdateParams {
+    pub target: String,
+    pub packages: Option<Vec<String>>,
+    pub all: Option<bool>,
+    pub project_dir: Option<PathBuf>,
+}

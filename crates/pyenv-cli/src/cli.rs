@@ -211,6 +211,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: VenvCommands,
     },
+    #[command(about = "List, check, install, and update pip packages for a runtime or venv")]
+    Pip {
+        #[command(subcommand)]
+        command: PipCommands,
+    },
     #[command(hide = true, about = "Compatibility alias for `pyenv venv create`")]
     Virtualenv {
         #[arg(short = 'f', long = "force")]
@@ -533,5 +538,50 @@ pub(crate) enum VenvCommands {
         global: bool,
         #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
         spec: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum PipCommands {
+    #[command(about = "List installed pip packages in a target environment")]
+    List {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "List outdated pip packages in a target environment")]
+    Outdated {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Check for broken package requirements in a target environment")]
+    Check {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Install packages from requirements.txt file or remote URL")]
+    Install {
+        #[arg(
+            short = 'r',
+            long = "requirement",
+            help = "Local path or remote URL to a requirements.txt file"
+        )]
+        requirement: String,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Update pip packages inside a target environment")]
+    Update {
+        #[arg(long = "all", help = "Update all outdated packages")]
+        all: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+        #[arg(help = "List of package names to update")]
+        packages: Vec<String>,
     },
 }

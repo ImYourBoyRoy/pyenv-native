@@ -158,6 +158,12 @@ Current high-value tools include:
 - `set_local_version`
 - `set_global_version`
 - `ensure_project_venv`
+- `pip_list` (lists installed environment packages)
+- `pip_outdated` (audits outdated environment packages)
+- `pip_check` (runs active post-install diagnostics)
+- `pip_precheck` (statically resolves requirements files and checks conflicts before install)
+- `pip_install` (installs packages from a file or remote URL)
+- `pip_update` (safely upgrades packages, updating pip itself first if needed)
 
 These are intentionally higher-level than raw shell commands.
 
@@ -172,7 +178,10 @@ When possible, use this order:
 3. `list_available_versions` if a runtime decision is needed
 4. `ensure_runtime`
 5. `ensure_project_venv`
-6. `doctor` when something looks wrong
+6. `pip_precheck` if importing dependency files
+7. `pip_install` or `pip_update` to manage libraries
+8. `pip_check` to audit constraints
+9. `doctor` when something looks wrong
 
 This keeps the workflow structured and predictable.
 
@@ -217,6 +226,14 @@ Use:
 1. `ensure_runtime`
 2. `set_local_version`
 3. optionally `ensure_project_venv`
+
+### 5. Safe requirements.txt dependency import
+
+Use:
+
+1. `pip_precheck` (checks version and constraints matches, resolving remote raw GitHub links)
+2. `pip_install` (completes installation cleanly)
+3. `pip_check` (audits post-install constraints health)
 
 ---
 

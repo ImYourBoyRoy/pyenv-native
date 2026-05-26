@@ -91,6 +91,16 @@ Unlike upstream `pyenv` which requires a plugin (`pyenv-virtualenv`), `pyenv-nat
 - `pyenv venv use <name>` — Activate a managed venv in the current shell.
 - `pyenv local <version>/envs/<name>` — Bind a project to a managed venv by writing it to `.python-version`.
 
+### Pip Package Management & Diagnostics (`pip`)
+
+`pyenv-native` includes a robust, conflict-safe `pip` integration suite to manage environment dependencies cleanly.
+
+* `pyenv pip list <target>` — List all installed third-party libraries and versions inside a runtime version or managed venv target.
+* `pyenv pip outdated <target>` — Check PyPI for available upgrades across all installed packages in the target.
+* `pyenv pip check <target>` — Run active diagnostics (`pip check`) to inspect and output broken requirements.
+* `pyenv pip install <target> [-r requirements.txt]` — Idempotently install packages from a local file path or remote HTTP/HTTPS URL (which supports auto-translated GitHub repository paths).
+* `pyenv pip update <target> [--all] [packages...]` — Perform cozy individual or batch updates inside the environment. If `pip` itself is outdated, the engine will safely self-update `pip` first to improve resolution reliability.
+
 ### Diagnostics
 
 - `pyenv doctor` — Run a suite of health checks to verify your installation and PATH.

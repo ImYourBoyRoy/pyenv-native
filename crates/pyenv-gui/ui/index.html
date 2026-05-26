@@ -210,6 +210,11 @@
             </div>
             <div class="stat-value text-glow" id="active-version">Loading...</div>
             <div class="stat-sub" id="active-origin">Determining origin...</div>
+            <!-- Glow dot for Pip self update indicator -->
+            <div id="active-pip-status-container" style="display: none; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; background: rgba(255,255,255,0.03); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--glass-border);">
+              <span class="status-dot status-light-glow gold" id="active-pip-glow" style="width: 6px; height: 6px; border-radius: 50%;"></span>
+              <span id="active-pip-status-text" style="color: #ffd43b; font-weight: 500;">pip update available</span>
+            </div>
           </div>
           <div class="status-card glass">
             <div class="stat-header">
@@ -519,6 +524,168 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- Package Explorer Sliding Drawer -->
+  <div id="drawer-package-manager" class="drawer glass">
+    <div class="drawer-header">
+      <div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title">Package Explorer</h3>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle">Target Environment</div>
+      </div>
+      <button class="drawer-close" id="btn-close-drawer">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer-tabs">
+      <button class="drawer-tab-btn active" data-drawer-tab="tab-installed">Installed</button>
+      <button class="drawer-tab-btn" data-drawer-tab="tab-updates">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
+      <button class="drawer-tab-btn" data-drawer-tab="tab-import">Import (Precheck)</button>
+    </div>
+
+    <div class="drawer-content-container">
+      <!-- INSTALLED TAB CONTENT -->
+      <div id="tab-installed" class="drawer-tab-content active">
+        <!-- Pip Cozy Self-Update Card -->
+        <div id="pip-self-update-card" style="display: none; background: rgba(255, 212, 59, 0.1); border: 1px solid rgba(255, 212, 59, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="status-dot status-light-glow gold" style="width: 8px; height: 8px; border-radius: 50%;"></span>
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: #ffd43b;">Pip Update Available</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="pip-self-update-versions">Upgrading pip enhances resolver stability.</div>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;">Update</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+          <div class="search-box" style="width: 100%; padding: 6px 12px;">
+            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" />
+          </div>
+        </div>
+
+        <div class="table-container" style="max-height: calc(100vh - 240px);">
+          <table class="package-table">
+            <thead>
+              <tr>
+                <th>Package</th>
+                <th>Version</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="drawer-package-list">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div id="drawer-package-empty" class="empty-state" style="display: none;">No packages found.</div>
+          <div id="drawer-package-loading" class="empty-state">
+            <div class="loader loader-sm"></div>
+            <div style="font-size: 11px; margin-top: 8px;">Querying packages...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPDATES TAB CONTENT -->
+      <div id="tab-updates" class="drawer-tab-content">
+        <div id="updates-scan-prompt" class="empty-state" style="padding: 30px 20px;">
+          <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
+          <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Check for Outdated Packages</div>
+          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
+          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;">Scan Environment</button>
+        </div>
+
+        <div id="updates-scanning" class="empty-state" style="display: none; padding: 40px 20px;">
+          <div class="loader"></div>
+          <div style="font-size: 12px; margin-top: 12px;">Scanning PyPI catalog...</div>
+        </div>
+
+        <div id="updates-checklist-view" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500;">
+              <input type="checkbox" id="chk-select-all-updates" /> Select All Packages
+            </label>
+            <span style="color: var(--text-muted);" id="selected-updates-count">0 selected</span>
+          </div>
+
+          <div class="updates-list-container" style="max-height: calc(100vh - 280px); margin-bottom: 20px;">
+            <div class="updates-checkbox-list" id="updates-checklist">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled>
+            Update Selected Packages
+          </button>
+        </div>
+      </div>
+
+      <!-- IMPORT TAB CONTENT -->
+      <div id="tab-import" class="drawer-tab-content">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 6px;">Requirements File or URL</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" />
+            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;">Precheck</button>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+            GitHub URLs are auto-translated (e.g. <code>github.com/.../blob/...</code> → <code>raw.githubusercontent.com</code>) for static conflict checking before install.
+          </div>
+        </div>
+
+        <div id="import-precheck-loading" class="empty-state" style="display: none; padding: 20px;">
+          <div class="loader loader-sm"></div>
+          <div style="font-size: 11px; margin-top: 8px;">Running conflict analysis...</div>
+        </div>
+
+        <!-- Precheck Diagnostic Dashboard -->
+        <div id="import-precheck-dashboard" style="display: none; margin-bottom: 20px;">
+          <!-- Result Banner -->
+          <div id="precheck-banner" style="padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <span id="precheck-banner-icon" style="font-size: 14px;"></span>
+            <span id="precheck-banner-text"></span>
+          </div>
+
+          <!-- Active conflicts warnings list -->
+          <div id="precheck-conflicts-section" style="display: none; margin-bottom: 16px;">
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--danger); letter-spacing: 0.5px; margin-bottom: 8px;">Version Mismatch Mappings</div>
+            <div class="import-issues-container" id="precheck-conflicts-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Resolved packages summary -->
+          <div>
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;">Resolved Dependencies</div>
+            <div class="table-container" style="max-height: 180px;">
+              <table class="package-table" style="font-size: 11px;">
+                <thead>
+                  <tr>
+                    <th>Package</th>
+                    <th>Target Version</th>
+                    <th>Current Status</th>
+                  </tr>
+                </thead>
+                <tbody id="precheck-resolved-list">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled>
+          Install Dependencies
+        </button>
+      </div>
+    </div>
   </div>
 
   <div id="modal-root"></div>

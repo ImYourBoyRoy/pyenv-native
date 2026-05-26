@@ -13,7 +13,8 @@ use pyenv_core::{
     VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_available, cmd_commands,
     cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
     cmd_deactivate, cmd_doctor, cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init,
-    cmd_install, cmd_latest, cmd_local, cmd_prefix, cmd_prompt, cmd_rehash, cmd_root,
+    cmd_install, cmd_latest, cmd_local, cmd_pip_check, cmd_pip_install, cmd_pip_list,
+    cmd_pip_outdated, cmd_pip_update, cmd_prefix, cmd_prompt, cmd_rehash, cmd_root,
     cmd_self_uninstall, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
     cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status, cmd_uninstall, cmd_venv_create,
     cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_use, cmd_version,
@@ -22,7 +23,7 @@ use pyenv_core::{
     cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan,
 };
 
-use crate::cli::{Cli, Commands, ConfigCommands, VenvCommands};
+use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
 
 pub(crate) fn run() -> ExitCode {
     if let Some(command_name) = shim_invocation_name() {
@@ -231,6 +232,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         } => cmd_available(ctx, family, pattern, known, json),
         Commands::Uninstall { force, versions } => cmd_uninstall(ctx, &versions, force),
         Commands::Venv { command } => dispatch_venv(ctx, command),
+        Commands::Pip { command } => dispatch_pip(ctx, command),
         Commands::Virtualenv {
             force,
             set_local,
@@ -335,6 +337,23 @@ fn dispatch_venv(ctx: &AppContext, command: VenvCommands) -> CommandReport {
                 VenvUseScope::Local
             },
         ),
+    }
+}
+
+fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
+    match command {
+        PipCommands::List { json, target } => cmd_pip_list(ctx, &target, json),
+        PipCommands::Outdated { json, target } => cmd_pip_outdated(ctx, &target, json),
+        PipCommands::Check { json, target } => cmd_pip_check(ctx, &target, json),
+        PipCommands::Install {
+            requirement,
+            target,
+        } => cmd_pip_install(ctx, &target, &requirement),
+        PipCommands::Update {
+            all,
+            target,
+            packages,
+        } => cmd_pip_update(ctx, &target, &packages, all),
     }
 }
 

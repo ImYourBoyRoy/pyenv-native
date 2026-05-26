@@ -106,5 +106,75 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
             arguments: vec![ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory for context-sensitive diagnostics.".to_string() }],
             example_input: Some(json!({})),
         },
+        ToolSummary {
+            tool_name: "pip_list".to_string(),
+            use_when: "You need to see which third-party libraries are installed inside a target environment.".to_string(),
+            returns: "Structured list of installed package names and versions.".to_string(),
+            side_effects: "Read-only.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version (e.g. 3.13.2) or managed venv spec (e.g. venv:testing).".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory used for context mapping.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing" })),
+        },
+        ToolSummary {
+            tool_name: "pip_outdated".to_string(),
+            use_when: "You want to check which packages in a target environment have newer versions available on PyPI.".to_string(),
+            returns: "List of outdated packages, current versions, and latest available versions.".to_string(),
+            side_effects: "Read-only.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "3.13.2" })),
+        },
+        ToolSummary {
+            tool_name: "pip_check".to_string(),
+            use_when: "You want to audit an active environment for broken dependencies or violated requirement constraints.".to_string(),
+            returns: "List of active broken requirements and conflict messages.".to_string(),
+            side_effects: "Read-only.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing" })),
+        },
+        ToolSummary {
+            tool_name: "pip_precheck".to_string(),
+            use_when: "You want to statically analyze a requirements.txt file or remote URL against the installed packages before installation to identify conflicts.".to_string(),
+            returns: "A diagnostic report showing if the installation is safe, the resolved package versions, and warning descriptions of any version mismatches.".to_string(),
+            side_effects: "Read-only.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "path_or_url".to_string(), required: true, data_type: "string".to_string(), description: "Local path to a requirements.txt or a remote HTTP/HTTPS URL.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing", "path_or_url": "https://github.com/user/repo/blob/main/requirements.txt" })),
+        },
+        ToolSummary {
+            tool_name: "pip_install".to_string(),
+            use_when: "You want to install dependencies from a requirements.txt file or URL. Run pip_precheck first to identify conflicts safely.".to_string(),
+            returns: "Structured outcome with stdout/stderr lines and exit code.".to_string(),
+            side_effects: "Downloads and installs third-party packages inside the target environment.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "path_or_url".to_string(), required: true, data_type: "string".to_string(), description: "Local path to a requirements.txt or a remote HTTP/HTTPS URL.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing", "path_or_url": "./requirements.txt" })),
+        },
+        ToolSummary {
+            tool_name: "pip_update".to_string(),
+            use_when: "You want to upgrade individual packages, run a checklist batch update, or upgrade all packages inside an environment.".to_string(),
+            returns: "Structured outcome with stdout/stderr lines and exit code. Automatically updates pip itself first if an update is available.".to_string(),
+            side_effects: "Modifies and upgrades library files inside the target environment.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "packages".to_string(), required: false, data_type: "array<string>".to_string(), description: "List of package names to update explicitly. Required if all is false.".to_string() },
+                ToolArgument { name: "all".to_string(), required: false, data_type: "boolean".to_string(), description: "Upgrade all outdated packages inside the target environment.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing", "all": true })),
+        },
     ]
 }

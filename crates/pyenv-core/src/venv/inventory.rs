@@ -117,7 +117,7 @@ pub(super) fn build_managed_venv_info(
     }
 }
 
-pub(super) fn resolve_installed_runtime_version(
+pub fn resolve_installed_runtime_version(
     ctx: &AppContext,
     requested_version: &str,
 ) -> Result<String, PyenvError> {
