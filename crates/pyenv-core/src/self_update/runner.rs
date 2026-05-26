@@ -225,8 +225,12 @@ fn spawn_windows_update(
     target: &ReleaseTarget,
     installer_path: &Path,
 ) -> Result<(), String> {
+    let current_exe = env::current_exe().unwrap_or_default();
+    let bin_dir = ctx.root.join("bin");
+    let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
+
     let launcher_path = installer_path.with_file_name("run-self-update.ps1");
-    let launcher = render_windows_launcher(ctx, target, installer_path);
+    let launcher = render_windows_launcher(ctx, target, installer_path, is_gui);
     fs::write(&launcher_path, launcher)
         .map_err(|error| format!("pyenv: failed to write Windows updater helper: {error}"))?;
 
@@ -251,6 +255,7 @@ fn render_windows_launcher(
     ctx: &AppContext,
     target: &ReleaseTarget,
     installer_path: &Path,
+    restart_gui: bool,
 ) -> String {
     let mut installer_args = vec![
         "-NoProfile".to_string(),
@@ -285,6 +290,16 @@ fn render_windows_launcher(
         .collect::<Vec<_>>()
         .join(", ");
 
+    let restart_script = if restart_gui {
+        let gui_exe = ctx.root.join("bin").join("pyenv-gui.exe");
+        format!(
+            "\n$guiExe = '{}'\nif (Test-Path $guiExe) {{\n  Start-Process -FilePath $guiExe\n}}\n",
+            escape_powershell_single_quoted(&gui_exe.display().to_string())
+        )
+    } else {
+        String::new()
+    };
+
     format!(
         "param([int]$ParentPid)\n\
          $ErrorActionPreference = 'Stop'\n\
@@ -294,6 +309,7 @@ fn render_windows_launcher(
          }}\n\
          $installerArgs = @({rendered_args})\n\
          & powershell.exe @installerArgs\n\
+         {restart_script}\n\
          exit $LASTEXITCODE\n"
     )
 }
