@@ -68,8 +68,8 @@ pub use shell::{
 pub use shim::{cmd_exec, cmd_rehash};
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
-    cmd_venv_rename, cmd_venv_use, list_managed_venvs, resolve_installed_runtime_version,
-    resolve_managed_venv,
+    cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use, list_managed_venvs,
+    resolve_installed_runtime_version, resolve_managed_venv,
 };
 pub use venv_compat::{
     cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,

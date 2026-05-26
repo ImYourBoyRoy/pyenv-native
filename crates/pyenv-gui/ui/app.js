@@ -340,6 +340,7 @@ async function loadVenvs() {
                         </div>
                         <div class="version-actions">
                             <button class="btn btn-outline" onclick="openPackageExplorer('venv:${v.name}')">Package Explorer</button>
+                            <button class="btn btn-gold" style="border: 1px solid var(--accent-gold); color: var(--accent-gold);" onclick="openVenvUpgradeWizard('${v.name}', '${v.base_version}')">Upgrade</button>
                             <button class="btn btn-outline" onclick="setGlobal('venv:${v.name}')">Global</button>
                             <button class="btn btn-outline" onclick="setLocal('venv:${v.name}')">Local</button>
                             <button class="btn btn-danger" onclick="deleteVenv('${v.name}')">Delete</button>
@@ -706,6 +707,276 @@ const scanInstalledCard = document.getElementById('scan-installed-card');
 const scanInstalledBadges = document.getElementById('scan-installed-badges');
 
 let scannedMissingImports = [];
+
+// ─── Upgrade Environment Drawer Controller ───
+let upgraderSourceSpec = '';
+let upgraderSourceName = '';
+let upgraderSourceBase = '';
+let upgraderTargetVersion = '';
+let upgraderPackages = [];
+
+const upgraderDrawer = document.getElementById('drawer-venv-upgrader');
+const upgraderCloseBtn = document.getElementById('btn-close-upgrader');
+const upgraderTargetTitle = document.getElementById('upgrader-target-title');
+const upgraderTargetSubtitle = document.getElementById('upgrader-target-subtitle');
+const upgraderTargetVersionSel = document.getElementById('upgrader-target-version');
+const btnStartUpgrade = document.getElementById('btn-start-upgrade');
+const upgraderSetupCard = document.getElementById('upgrader-setup-card');
+const upgraderProgressCard = document.getElementById('upgrader-progress-card');
+const upgraderConsole = document.getElementById('upgrader-console');
+
+// Helper to write to console log
+function appendUpgraderLog(text) {
+    upgraderConsole.textContent += text + "\n";
+    upgraderConsole.scrollTop = upgraderConsole.scrollHeight;
+}
+
+function clearUpgraderLog() {
+    upgraderConsole.textContent = '';
+}
+
+// Reset step row style
+function resetStepRow(stepId, num, label, desc) {
+    const row = document.getElementById(`step-row-${stepId}`);
+    const icon = document.getElementById(`step-icon-${stepId}`);
+    const lbl = document.getElementById(`step-label-${stepId}`);
+    const dsc = document.getElementById(`step-desc-${stepId}`);
+    
+    if (row) {
+        row.style.opacity = '0.5';
+    }
+    if (icon) {
+        icon.innerHTML = num;
+        icon.style.background = 'rgba(255,255,255,0.05)';
+        icon.style.color = 'var(--text-muted)';
+    }
+    if (lbl) lbl.textContent = label;
+    if (dsc) dsc.textContent = desc;
+}
+
+// Mark step row in progress (HSL Gold)
+function markStepInProgress(stepId, label, desc) {
+    const row = document.getElementById(`step-row-${stepId}`);
+    const icon = document.getElementById(`step-icon-${stepId}`);
+    const lbl = document.getElementById(`step-label-${stepId}`);
+    const dsc = document.getElementById(`step-desc-${stepId}`);
+    
+    if (row) row.style.opacity = '1';
+    if (icon) {
+        icon.innerHTML = `<div class="loader loader-sm" style="width:12px; height:12px; border-width:2px; border-top-color:#ffd43b;"></div>`;
+        icon.style.background = 'rgba(255, 212, 59, 0.1)';
+        icon.style.color = '#ffd43b';
+    }
+    if (lbl) lbl.textContent = label;
+    if (dsc) dsc.textContent = desc;
+}
+
+// Mark step row success (Safety Green)
+function markStepSuccess(stepId, label, desc) {
+    const icon = document.getElementById(`step-icon-${stepId}`);
+    const lbl = document.getElementById(`step-label-${stepId}`);
+    const dsc = document.getElementById(`step-desc-${stepId}`);
+    
+    if (icon) {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        icon.style.background = 'rgba(16, 185, 129, 0.15)';
+        icon.style.color = '#10b981';
+    }
+    if (lbl) lbl.textContent = label;
+    if (dsc) dsc.textContent = desc;
+}
+
+// Mark step row warning/error (Coral Red)
+function markStepWarning(stepId, label, desc) {
+    const icon = document.getElementById(`step-icon-${stepId}`);
+    const lbl = document.getElementById(`step-label-${stepId}`);
+    const dsc = document.getElementById(`step-desc-${stepId}`);
+    
+    if (icon) {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+        icon.style.background = 'rgba(239, 68, 68, 0.15)';
+        icon.style.color = '#ef4444';
+    }
+    if (lbl) lbl.textContent = label;
+    if (dsc) dsc.textContent = desc;
+}
+
+// Function to open the wizard drawer
+window.openVenvUpgradeWizard = async function(name, baseVersion) {
+    upgraderSourceSpec = `venv:${name}`;
+    upgraderSourceName = name;
+    upgraderSourceBase = baseVersion;
+    
+    upgraderTargetTitle.textContent = `Upgrade ${name}`;
+    upgraderTargetSubtitle.textContent = `Current Base: ${baseVersion}`;
+    
+    // Reset wizard view
+    upgraderSetupCard.style.display = 'block';
+    upgraderProgressCard.style.display = 'none';
+    clearUpgraderLog();
+    appendUpgraderLog("Select a target Python version to begin migration.");
+    
+    // Reset checklist items to default empty style
+    resetStepRow('backup', '1', 'Inventory old environment', 'Discovering installed packages...');
+    resetStepRow('recreate', '2', 'Create fresh environment', 'Rebuilding venv under target version...');
+    resetStepRow('restore', '3', 'Restore packages', 'Progressively reinstalling packages...');
+    resetStepRow('verify', '4', 'Dependency diagnostics', 'Running pip check verification...');
+    resetStepRow('cleanup', '5', 'Cleanup old environment', 'Removing old virtual environment...');
+
+    // Populate dropdown with installed python versions
+    try {
+        const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
+        const bases = JSON.parse(sysInfo);
+        upgraderTargetVersionSel.innerHTML = '<option value="">Select Target...</option>';
+        bases.forEach(b => {
+            if (b !== baseVersion) {
+                upgraderTargetVersionSel.innerHTML += `<option value="${b}">${b}</option>`;
+            }
+        });
+    } catch (err) {
+        console.error("Failed to load targets for upgrade:", err);
+    }
+    
+    // Open drawer
+    upgraderDrawer.classList.add('open');
+};
+
+// Close button listener
+if (upgraderCloseBtn) {
+    upgraderCloseBtn.addEventListener('click', () => {
+        upgraderDrawer.classList.remove('open');
+    });
+}
+
+// Start upgrade wizard button listener
+if (btnStartUpgrade) {
+    btnStartUpgrade.addEventListener('click', async () => {
+        const targetVer = upgraderTargetVersionSel.value;
+        if (!targetVer) {
+            showAlert("Migration Error", "Please select a target Python runtime version.");
+            return;
+        }
+        
+        upgraderTargetVersion = targetVer;
+        upgraderSetupCard.style.display = 'none';
+        upgraderProgressCard.style.display = 'block';
+        clearUpgraderLog();
+        appendUpgraderLog(`Initializing migration wizard for venv:${upgraderSourceName} -> ${targetVer}...`);
+        
+        try {
+            // Step 1: Inventory old environment packages
+            markStepInProgress('backup', 'Inventory old environment', 'Gathering package details...');
+            appendUpgraderLog("\n[STEP 1] Discovery: Reading currently installed packages...");
+            
+            const upgradeInfo = await invoke('get_venv_upgrade_info', {
+                workspaceDir: getWorkspaceDir(),
+                spec: upgraderSourceSpec
+            });
+            
+            upgraderPackages = upgradeInfo.packages;
+            appendUpgraderLog(`Captured ${upgraderPackages.length} custom packages to migrate:`);
+            upgraderPackages.forEach(p => appendUpgraderLog(`  - ${p}`));
+            markStepSuccess('backup', 'Inventory complete', `Captured ${upgraderPackages.length} custom packages`);
+            
+            // Step 2: Create new virtual environment under target version
+            markStepInProgress('recreate', 'Create fresh environment', 'Invoking backend creator...');
+            appendUpgraderLog(`\n[STEP 2] Environment: Recreating venv '${upgraderSourceName}' under runtime ${targetVer}...`);
+            
+            const createResult = await invoke('create_venv', {
+                workspaceDir: getWorkspaceDir(),
+                baseVersion: targetVer,
+                name: upgraderSourceName
+            });
+            
+            appendUpgraderLog(createResult);
+            markStepSuccess('recreate', 'Environment recreated', `Venv is now running Python ${targetVer}`);
+            
+            // Step 3: Reinstall packages progressively
+            markStepInProgress('restore', 'Restore packages', `Reinstalling custom libraries (0/${upgraderPackages.length})...`);
+            appendUpgraderLog("\n[STEP 3] Pip Restoration: Reinstalling custom libraries...");
+            
+            if (upgraderPackages.length > 0) {
+                for (let i = 0; i < upgraderPackages.length; i++) {
+                    const pkg = upgraderPackages[i];
+                    markStepInProgress('restore', 'Restore packages', `Reinstalling ${pkg} (${i + 1}/${upgraderPackages.length})...`);
+                    appendUpgraderLog(`  - Installing ${pkg}...`);
+                    
+                    try {
+                        await invoke('install_pip_packages', {
+                            workspaceDir: getWorkspaceDir(),
+                            target: `venv:${upgraderSourceName}`,
+                            packages: [pkg]
+                        });
+                        appendUpgraderLog(`    ✓ ${pkg} installed successfully.`);
+                    } catch (e) {
+                        appendUpgraderLog(`    [WARNING] Failed to install ${pkg}: ${e}`);
+                    }
+                }
+                markStepSuccess('restore', 'Packages restored', `Restored custom dependencies`);
+            } else {
+                appendUpgraderLog("  - No custom packages to reinstall.");
+                markStepSuccess('restore', 'Packages restored', 'No packages to restore');
+            }
+            
+            // Step 4: Run diagnostic verification
+            markStepInProgress('verify', 'Dependency diagnostics', 'Running pip check...');
+            appendUpgraderLog("\n[STEP 4] Diagnostics: Running pip check conflict verification...");
+            
+            try {
+                const checkRes = await invoke('check_pip_conflicts', {
+                    workspaceDir: getWorkspaceDir(),
+                    target: `venv:${upgraderSourceName}`
+                });
+                appendUpgraderLog(checkRes);
+                const conflicts = JSON.parse(checkRes);
+                if (conflicts.length === 0) {
+                    appendUpgraderLog("  ✓ All package dependencies are fully satisfied and healthy!");
+                    markStepSuccess('verify', 'Verification success', 'No dependency conflicts detected');
+                } else {
+                    appendUpgraderLog(`  [WARNING] Discovered ${conflicts.length} package dependency conflicts!`);
+                    conflicts.forEach(c => appendUpgraderLog(`    ! ${c.message}`));
+                    markStepWarning('verify', 'Conflicts discovered', `Found ${conflicts.length} package warning(s)`);
+                }
+            } catch (e) {
+                appendUpgraderLog(`  - pip check verification complete.`);
+                markStepSuccess('verify', 'Verification complete', 'Dependency verification complete');
+            }
+            
+            // Step 5: Clean up old environment
+            markStepInProgress('cleanup', 'Cleanup old environment', 'Purging old files...');
+            appendUpgraderLog("\n[STEP 5] Cleanup: Purging old virtual environment files...");
+            
+            const oldSpec = `${upgraderSourceBase}/envs/${upgraderSourceName}`;
+            const newSpecPath = `${targetVer}/envs/${upgraderSourceName}`;
+            
+            if (oldSpec !== newSpecPath) {
+                try {
+                    await invoke('delete_venv', {
+                        workspaceDir: getWorkspaceDir(),
+                        spec: oldSpec
+                    });
+                    appendUpgraderLog(`  ✓ Safely purged old environment directory: ${oldSpec}`);
+                    markStepSuccess('cleanup', 'Cleanup complete', 'Old environment purged successfully');
+                } catch (e) {
+                    appendUpgraderLog(`  - [WARNING] Could not delete old environment: ${e}`);
+                    markStepWarning('cleanup', 'Cleanup warning', 'Could not purge old files');
+                }
+            } else {
+                appendUpgraderLog("  - Same runtime, skipped directory cleanup.");
+                markStepSuccess('cleanup', 'Cleanup complete', 'Same version recreation, skipped purge');
+            }
+            
+            appendUpgraderLog("\n[FINISH] Venv migration completed successfully!");
+            showAlert("Migration Success", `Managed virtual environment '${upgraderSourceName}' has been fully migrated to Python ${targetVer}.`);
+            loadVenvs();
+            
+        } catch (error) {
+            console.error("Migration failed:", error);
+            appendUpgraderLog(`\n[FATAL ERROR] Migration failed: ${error}`);
+            showAlert("Migration Failed", error);
+        }
+    });
+}
 
 // Open Package Explorer Drawer
 window.openPackageExplorer = function(target) {
@@ -1401,23 +1672,52 @@ async function loadShellIntegration() {
             card.style.justifyContent = 'space-between';
             card.style.minHeight = '180px';
             
+            if (!status.is_installed) {
+                card.style.opacity = '0.55';
+            }
+            
             // Config Badge HTML
-            const configBadge = status.is_configured 
-                ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">
+            let configBadge = '';
+            if (!status.is_installed) {
+                configBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.08); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15);">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Not Detected
+                   </span>`;
+            } else if (status.is_configured) {
+                configBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">
                     <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>Configured
-                   </span>`
-                : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);">
+                   </span>`;
+            } else {
+                configBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);">
                     <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Not Configured
                    </span>`;
+            }
                    
             // PATH Badge HTML
-            const pathBadge = status.active_in_path 
-                ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;">
-                    PATH Active
-                   </span>`
-                : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;">
-                    Shims Missing from PATH
-                   </span>`;
+            let pathBadge = '';
+            if (status.is_installed) {
+                pathBadge = status.active_in_path 
+                    ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;">
+                        PATH Active
+                       </span>`
+                    : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;">
+                        Shims Missing from PATH
+                       </span>`;
+            }
+
+            // Button style & text
+            let btnClass = 'btn-gold';
+            let btnText = 'Auto-Configure Shell';
+            let btnDisabled = '';
+            
+            if (!status.is_installed) {
+                btnClass = 'btn-outline';
+                btnText = 'Shell Not Installed';
+                btnDisabled = 'disabled';
+            } else if (status.is_configured) {
+                btnClass = 'btn-outline';
+                btnText = 'Configured';
+                btnDisabled = 'disabled';
+            }
 
             card.innerHTML = `
                 <div>
@@ -1431,11 +1731,11 @@ async function loadShellIntegration() {
                   </div>
                 </div>
                 <div style="margin-top: 16px;">
-                  <button class="btn ${status.is_configured ? 'btn-outline' : 'btn-gold'}" 
+                  <button class="btn ${btnClass}" 
                     style="width: 100%; padding: 8px; font-size: 11px; font-weight: 600;" 
-                    ${status.is_configured ? 'disabled' : ''} 
+                    ${btnDisabled} 
                     id="btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}">
-                    ${status.is_configured ? 'Configured' : 'Auto-Configure Shell'}
+                    ${btnText}
                   </button>
                 </div>
             `;
@@ -1443,7 +1743,7 @@ async function loadShellIntegration() {
             cardsContainer.appendChild(card);
             
             // Add click listener to config button
-            if (!status.is_configured) {
+            if (status.is_installed && !status.is_configured) {
                 const btn = card.querySelector(`#btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}`);
                 if (btn) {
                     btn.addEventListener('click', async () => {

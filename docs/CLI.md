@@ -89,6 +89,7 @@ Unlike upstream `pyenv` which requires a plugin (`pyenv-virtualenv`), `pyenv-nat
 - `pyenv venv create <version> <name>` — Create a named venv under the managed root.
 - `pyenv venv list` — List all managed venvs.
 - `pyenv venv use <name>` — Activate a managed venv in the current shell.
+- `pyenv venv upgrade <spec> <new_runtime>` — Migrate/upgrade a managed venv to a new base runtime version.
 - `pyenv local <version>/envs/<name>` — Bind a project to a managed venv by writing it to `.python-version`.
 
 ### Pip Package Management & Diagnostics (`pip`)
