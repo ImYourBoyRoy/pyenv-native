@@ -11,15 +11,18 @@ use rmcp::{
 
 use crate::model::{
     AvailableVersionsParams, EnsureProjectVenvParams, EnsureRuntimeParams,
-    InstallInstructionParams, JsonForwardResponse, ProjectPathParams, ProjectVenvResponse,
-    RuntimeInventory, SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide,
-    VersionCatalogResponse, VersionSelectionResponse,
+    InstallInstructionParams, JsonForwardResponse, PipInstallParams, PipListParams,
+    PipPrecheckParams, PipUpdateParams, ProjectPathParams, ProjectVenvResponse, RuntimeInventory,
+    SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide, VersionCatalogResponse,
+    VersionSelectionResponse,
 };
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
     build_toolkit_guide, doctor_response, ensure_project_venv_response, ensure_runtime_response,
-    inspect_environment_response, list_available_versions_response, resolve_runtime_inventory,
-    set_global_versions_response, set_local_versions_response,
+    inspect_environment_response, list_available_versions_response, pip_check_response,
+    pip_install_response, pip_list_response, pip_outdated_response, pip_precheck_response,
+    pip_update_response, resolve_runtime_inventory, set_global_versions_response,
+    set_local_versions_response,
 };
 
 #[derive(Debug, Clone)]
@@ -234,5 +237,91 @@ impl PyenvNativeMcpServer {
         )
         .map(Json)
         .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_list",
+        description = "List all installed pip packages in a target environment (runtimes like '3.13.2' or managed venv names like 'venv:testing')."
+    )]
+    pub async fn pip_list(
+        &self,
+        Parameters(params): Parameters<PipListParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_list_response(&ctx, &params.target)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_outdated",
+        description = "Audit outdated pip packages in a target environment against the upstream PyPI package catalog."
+    )]
+    pub async fn pip_outdated(
+        &self,
+        Parameters(params): Parameters<PipListParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_outdated_response(&ctx, &params.target)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_check",
+        description = "Audit and diagnose dependency conflicts or broken requirement constraints (pip check) inside a target environment."
+    )]
+    pub async fn pip_check(
+        &self,
+        Parameters(params): Parameters<PipListParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_check_response(&ctx, &params.target)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_precheck",
+        description = "Perform a static version dependency analysis before installation, comparing an incoming requirements.txt file or remote URL against currently installed packages to identify potential version conflicts. Auto-resolves GitHub URLs to raw content."
+    )]
+    pub async fn pip_precheck(
+        &self,
+        Parameters(params): Parameters<PipPrecheckParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_precheck_response(&ctx, &params.target, &params.path_or_url)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_install",
+        description = "Install pip requirements packages in a target environment from a local requirements.txt path or remote URL. Always run pip_precheck before triggering this."
+    )]
+    pub async fn pip_install(
+        &self,
+        Parameters(params): Parameters<PipInstallParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_install_response(&ctx, &params.target, &params.path_or_url)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_update",
+        description = "Upgrade pip packages in a target environment. Supports batch upgrade checklist or updating all. Upgrades pip itself first if pip itself is outdated."
+    )]
+    pub async fn pip_update(
+        &self,
+        Parameters(params): Parameters<PipUpdateParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        let pkgs = params.packages.unwrap_or_default();
+        let all = params.all.unwrap_or(false);
+        pip_update_response(&ctx, &params.target, &pkgs, all)
+            .map(Json)
+            .map_err(|error| error.to_string())
     }
 }

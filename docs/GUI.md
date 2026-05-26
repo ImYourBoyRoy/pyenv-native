@@ -8,7 +8,10 @@ The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, pro
 
 ## Features
 
-- **Dashboard**: Live view of your active Python version, managed venvs, and pyenv root.
+- **Dashboard**: Live view of your active Python version, managed venvs, and pyenv root, including a glowing status light indicator for pending active pip updates.
+- **Pip Package Explorer**: Frosted-glass sliding drawer focused on a target interpreter to browse installed dependencies, audit updates, and statically pre-check requirements.txt constraints.
+- **Cozy Pip Updates**: Audits packages against PyPI and provides a checklist for multiselect updates. Outdated pip installations get an isolated cozy update card first before modifying libraries.
+- **Conflict Pre-checker**: Statically resolves local files or pasted remote URLs (auto-translating GitHub repositories) to run conflict analysis comparisons against installed packages, raising coral mismatch indicators and hover tooltips *before* triggering pip.
 - **Visual Management**: Browse and install from the full CPython/PyPy catalog with a single click.
 - **Venv Manager**: Create, list, and delete named virtual environments graphically.
 - **Settings**: Configure registry integration, architecture preferences, and pip bootstrapping.

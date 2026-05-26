@@ -12,6 +12,7 @@ mod http;
 mod install;
 mod manage;
 mod meta;
+mod pip;
 mod plugin;
 mod process;
 mod runtime;
@@ -49,6 +50,11 @@ pub use meta::{
     EnvironmentStatus, ManagedVenvSummary, build_environment_status, cmd_commands, cmd_completions,
     cmd_help, cmd_prompt, cmd_shims, cmd_status,
 };
+pub use pip::{
+    DependencyConflict, OutdatedPackage, PipPackage, PrecheckResult, cmd_pip_check,
+    cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements, cmd_pip_update,
+    resolve_interpreter_path,
+};
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use runtime::BASE_VENV_DIR_NAME;
 pub use self_update::{SelfUpdateOptions, cmd_self_uninstall, cmd_self_update};
@@ -59,7 +65,8 @@ pub use shell::{
 pub use shim::{cmd_exec, cmd_rehash};
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
-    cmd_venv_rename, cmd_venv_use, list_managed_venvs, resolve_managed_venv,
+    cmd_venv_rename, cmd_venv_use, list_managed_venvs, resolve_installed_runtime_version,
+    resolve_managed_venv,
 };
 pub use venv_compat::{
     cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,

@@ -265,6 +265,109 @@ async fn perform_update(workspace_dir: Option<String>) -> Result<String, String>
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+#[tauri::command]
+async fn get_pip_packages(workspace_dir: Option<String>, target: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_list(&ctx, &target, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn get_outdated_packages(
+    workspace_dir: Option<String>,
+    target: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_outdated(&ctx, &target, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn check_pip_conflicts(
+    workspace_dir: Option<String>,
+    target: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_check(&ctx, &target, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn precheck_requirements(
+    workspace_dir: Option<String>,
+    target: String,
+    path_or_url: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_precheck_requirements(&ctx, &target, &path_or_url);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn install_requirements(
+    workspace_dir: Option<String>,
+    target: String,
+    path_or_url: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_install(&ctx, &target, &path_or_url);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn update_pip_packages(
+    workspace_dir: Option<String>,
+    target: String,
+    packages: Vec<String>,
+    all: bool,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_update(&ctx, &target, &packages, all);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 /// Returns the app version from the Cargo package metadata at compile time.
 #[tauri::command]
 fn get_app_version() -> String {
@@ -488,7 +591,13 @@ fn main() {
             get_app_version,
             open_url,
             check_install_status,
-            install_local_pyenv
+            install_local_pyenv,
+            get_pip_packages,
+            get_outdated_packages,
+            check_pip_conflicts,
+            precheck_requirements,
+            install_requirements,
+            update_pip_packages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
