@@ -988,16 +988,43 @@ btnUpdateSelected.addEventListener('click', async () => {
     const pkgs = Array.from(selectedOutdated);
     if (pkgs.length === 0) return;
     
+    const progressContainer = document.getElementById('pkg-update-progress-container');
+    const progressText = document.getElementById('pkg-update-progress-text');
+    const progressPercent = document.getElementById('pkg-update-progress-percent');
+    const progressBar = document.getElementById('pkg-update-progress-bar');
+    
     btnUpdateSelected.disabled = true;
-    btnUpdateSelected.textContent = "Updating Selected Packages...";
+    btnUpdateSelected.textContent = "Updating Packages...";
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressPercent.textContent = '0%';
     
     try {
-        await invoke('update_pip_packages', {
-            workspaceDir: getWorkspaceDir(),
-            target: currentExplorerTarget,
-            packages: pkgs,
-            all: false
-        });
+        for (let i = 0; i < pkgs.length; i++) {
+            const pkg = pkgs[i];
+            const currentNum = i + 1;
+            const percent = Math.round((i / pkgs.length) * 100);
+            
+            progressText.textContent = `Upgrading ${pkg} (${currentNum}/${pkgs.length})...`;
+            progressPercent.textContent = `${percent}%`;
+            progressBar.style.width = `${percent}%`;
+            
+            await invoke('update_pip_packages', {
+                workspaceDir: getWorkspaceDir(),
+                target: currentExplorerTarget,
+                packages: [pkg],
+                all: false
+            });
+        }
+        
+        progressText.textContent = `All updates completed!`;
+        progressPercent.textContent = `100%`;
+        progressBar.style.width = `100%`;
+        
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            btnUpdateSelected.textContent = "Update Selected Packages";
+        }, 1500);
         
         showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${pkgs.join(', ')}</code>`);
         
@@ -1008,6 +1035,7 @@ btnUpdateSelected.addEventListener('click', async () => {
         resetOutdatedScanView();
     } catch(err) {
         showAlert("Update Failed", err);
+        progressContainer.style.display = 'none';
         btnUpdateSelected.disabled = false;
         btnUpdateSelected.textContent = "Update Selected Packages";
     }
