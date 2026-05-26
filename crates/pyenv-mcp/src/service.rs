@@ -11,18 +11,18 @@ use rmcp::{
 
 use crate::model::{
     AvailableVersionsParams, EnsureProjectVenvParams, EnsureRuntimeParams,
-    InstallInstructionParams, JsonForwardResponse, PipInstallParams, PipListParams,
-    PipPrecheckParams, PipUpdateParams, ProjectPathParams, ProjectVenvResponse, RuntimeInventory,
-    SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide, VersionCatalogResponse,
-    VersionSelectionResponse,
+    InstallInstructionParams, JsonForwardResponse, PipAnalyzeParams, PipInstallParams,
+    PipListParams, PipPrecheckParams, PipUpdateParams, ProjectPathParams, ProjectVenvResponse,
+    RuntimeInventory, SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide,
+    VersionCatalogResponse, VersionSelectionResponse,
 };
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
     build_toolkit_guide, doctor_response, ensure_project_venv_response, ensure_runtime_response,
-    inspect_environment_response, list_available_versions_response, pip_check_response,
-    pip_install_response, pip_list_response, pip_outdated_response, pip_precheck_response,
-    pip_update_response, resolve_runtime_inventory, set_global_versions_response,
-    set_local_versions_response,
+    inspect_environment_response, list_available_versions_response, pip_analyze_imports_response,
+    pip_check_response, pip_install_response, pip_list_response, pip_outdated_response,
+    pip_precheck_response, pip_update_response, resolve_runtime_inventory,
+    set_global_versions_response, set_local_versions_response,
 };
 
 #[derive(Debug, Clone)]
@@ -321,6 +321,20 @@ impl PyenvNativeMcpServer {
         let pkgs = params.packages.unwrap_or_default();
         let all = params.all.unwrap_or(false);
         pip_update_response(&ctx, &params.target, &pkgs, all)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "pip_analyze_imports",
+        description = "Scan Python files statically within a workspace directory using AST to identify all imported libraries, detect missing third-party dependencies, and categorize currently installed ones."
+    )]
+    pub async fn pip_analyze_imports(
+        &self,
+        Parameters(params): Parameters<PipAnalyzeParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        pip_analyze_imports_response(&ctx, &params.target, &params.dir_path)
             .map(Json)
             .map_err(|error| error.to_string())
     }

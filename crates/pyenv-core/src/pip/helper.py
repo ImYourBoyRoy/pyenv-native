@@ -88,14 +88,113 @@ def get_requirements(path_or_url):
             parsed.append(p)
     return parsed
 
+# Helper list of standard library modules to skip immediately
+STD_LIBS = {
+    'abc', 'argparse', 'ast', 'asyncio', 'base64', 'bisect', 'builtins', 'calendar', 'cmath',
+    'cmd', 'code', 'codecs', 'collections', 'colorsys', 'compileall', 'concurrent', 'configparser',
+    'contextlib', 'contextvars', 'copy', 'copyreg', 'crypt', 'csv', 'ctypes', 'curses', 'dataclasses',
+    'datetime', 'dbm', 'decimal', 'difflib', 'dis', 'distutils', 'doctest', 'email', 'encodings',
+    'ensurepip', 'enum', 'errno', 'faulthandler', 'filecmp', 'fileinput', 'fnmatch', 'fractions',
+    'ftplib', 'functools', 'gc', 'getopt', 'getpass', 'gettext', 'glob', 'grp', 'gzip',
+    'hashlib', 'hmac', 'html', 'http', 'imaplib', 'imghdr', 'importlib', 'inspect', 'io', 'ipaddress',
+    'itertools', 'json', 'keyword', 'lib2to3', 'linecache', 'locale', 'logging', 'lzma', 'mailbox',
+    'mailcap', 'marshal', 'math', 'mimetypes', 'mmap', 'modulefinder', 'multiprocessing', 'netrc',
+    'nis', 'nntplib', 'numbers', 'operator', 'optparse', 'os', 'pathlib', 'pdb', 'pickle', 'pickletools',
+    'pipes', 'pkgutil', 'platform', 'plistlib', 'poplib', 'posix', 'pprint', 'profile', 'pstats',
+    'pty', 'pwd', 'py_compile', 'pyclbr', 'pydoc', 'queue', 'quopri', 'random', 're', 'readline',
+    'reprlib', 'resource', 'rlcompleter', 'runpy', 'sched', 'secrets', 'select', 'selectors', 'shelve',
+    'shlex', 'shutil', 'signal', 'site', 'smtpd', 'smtplib', 'sndhdr', 'socket', 'socketserver',
+    'spwd', 'sqlite3', 'ssl', 'stat', 'statistics', 'string', 'stringprep', 'struct', 'subprocess',
+    'sunau', 'symtable', 'sys', 'sysconfig', 'syslog', 'tabnanny', 'tarfile', 'telnetlib', 'tempfile',
+    'termios', 'test', 'textwrap', 'threading', 'time', 'timeit', 'tkinter', 'token', 'tokenize',
+    'tomllib', 'trace', 'traceback', 'tracemalloc', 'tty', 'types', 'typing', 'unicodedata', 'unittest',
+    'urllib', 'uu', 'uuid', 'warnings', 'wave', 'weakref', 'webbrowser', 'wsgiref', 'xdrlib', 'xml',
+    'xmlrpc', 'zipfile', 'zipimport', 'zlib', 'zoneinfo'
+}
+
+def scan_workspace_imports(dir_path):
+    import os
+    import ast
+    import importlib.util
+    
+    imported = set()
+    for root, dirs, files in os.walk(dir_path):
+        if any(ignored in root for ignored in ['.git', '.venv', 'venv', '__pycache__', 'build', 'dist', 'target', '.gemini']):
+            continue
+        for file in files:
+            if file.endswith('.py'):
+                file_path = os.path.join(root, file)
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        tree = ast.parse(f.read(), filename=file_path)
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for name in node.names:
+                                imported.add(name.name.split('.')[0])
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module:
+                                imported.add(node.module.split('.')[0])
+                except Exception:
+                    pass
+                    
+    third_party = set()
+    for name in imported:
+        if not name:
+            continue
+        name_lower = name.lower()
+        if name_lower in STD_LIBS:
+            continue
+        try:
+            spec = importlib.util.find_spec(name)
+            if spec is None:
+                third_party.add(name)
+            else:
+                origin = getattr(spec, 'origin', '') or ''
+                if 'site-packages' in origin or 'dist-packages' in origin:
+                    third_party.add(name)
+        except Exception:
+            third_party.add(name)
+            
+    installed = get_installed()
+    detected = sorted(list(third_party))
+    
+    missing = []
+    installed_imports = []
+    
+    for name in detected:
+        name_lower = name.lower()
+        if name_lower in installed:
+            installed_imports.append({"name": name, "version": installed[name_lower]})
+        else:
+            missing.append(name)
+            
+    return {
+        "detected_imports": detected,
+        "missing_imports": missing,
+        "installed_imports": installed_imports
+    }
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({"error": "Missing path or URL argument"}))
         return
     
-    path_or_url = sys.argv[1]
+    first_arg = sys.argv[1]
+    
+    if first_arg == '--scan':
+        if len(sys.argv) < 3:
+            print(json.dumps({"error": "Missing workspace directory path for scan"}))
+            return
+        workspace_dir = sys.argv[2]
+        try:
+            result = scan_workspace_imports(workspace_dir)
+            print(json.dumps(result))
+        except Exception as e:
+            print(json.dumps({"error": str(e)}))
+        return
+        
     try:
-        reqs = get_requirements(path_or_url)
+        reqs = get_requirements(first_arg)
         installed = get_installed()
         
         resolved = []
@@ -121,8 +220,6 @@ def main():
                             "message": f"Installed version {inst_ver} violates requirement {orig}"
                         })
             else:
-                # We don't mark not installed as unsafe, since the installation itself is safe (will install it).
-                # But we can list it as a potential item or just note it.
                 resolved.append({"name": name, "version": "not installed"})
         
         print(json.dumps({

@@ -5,14 +5,14 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub(super) enum DoctorStatus {
+pub enum DoctorStatus {
     Ok,
     Warn,
     Info,
 }
 
 impl DoctorStatus {
-    pub(super) fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             Self::Ok => "OK",
             Self::Warn => "WARN",
@@ -22,14 +22,14 @@ impl DoctorStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(super) struct DoctorCheck {
+pub struct DoctorCheck {
     pub name: String,
     pub status: DoctorStatus,
     pub detail: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(super) struct DoctorReport {
+pub struct DoctorReport {
     pub root: String,
     pub platform: String,
     pub installed_versions: usize,

@@ -107,17 +107,78 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
         }
     } else {
         fixes.extend(non_windows_manual_dependency_fixes(ctx, platform));
+
+        // Add Termux automated repair if compile dependencies are missing
+        if is_termux_environment() {
+            let termux_usr = Path::new("/data/data/com.termux/files/usr");
+            let required = [
+                termux_usr.join("bin/clang"),
+                termux_usr.join("bin/make"),
+                termux_usr.join("bin/pkg-config"),
+                termux_usr.join("include/ffi.h"),
+                termux_usr.join("include/openssl/ssl.h"),
+                termux_usr.join("include/readline/readline.h"),
+                termux_usr.join("include/ncurses.h"),
+            ];
+
+            let missing = required.iter().any(|p| !p.exists());
+            if missing {
+                fixes.push(DoctorFix {
+                    key: "termux-compile-deps".to_string(),
+                    automated: true,
+                    description: "Install missing Termux compilation tools and system library headers (clang, make, pkg-config, libffi, openssl, readline, ncurses)".to_string(),
+                    command_hint: Some("pkg install clang make pkg-config libffi openssl readline ncurses -y".to_string()),
+                });
+            }
+        }
     }
 
     fixes
 }
 
 pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, PyenvError> {
-    let manual = doctor_fix_plan(ctx)
+    let plan = doctor_fix_plan(ctx);
+    let has_termux_fix = plan.iter().any(|f| f.key == "termux-compile-deps");
+    let manual = plan
         .into_iter()
         .filter(|item| !item.automated)
         .collect::<Vec<_>>();
     let mut applied = Vec::new();
+
+    // Execute Termux automated repair if planned
+    if has_termux_fix {
+        let output = std::process::Command::new("pkg")
+            .args([
+                "install",
+                "clang",
+                "make",
+                "pkg-config",
+                "libffi",
+                "openssl",
+                "readline",
+                "ncurses",
+                "-y",
+            ])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => {
+                applied.push("Successfully auto-installed missing Termux compilation tools and system libraries via pkg.".to_string());
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                return Err(PyenvError::Io(format!(
+                    "pyenv: failed to auto-install Termux dependencies (exit code {}): {}",
+                    out.status, stderr
+                )));
+            }
+            Err(e) => {
+                return Err(PyenvError::Io(format!(
+                    "pyenv: failed to execute pkg install command: {}",
+                    e
+                )));
+            }
+        }
+    }
 
     for path in [
         ctx.root.clone(),

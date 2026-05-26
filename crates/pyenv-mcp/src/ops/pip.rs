@@ -5,8 +5,8 @@ use anyhow::{Context, Result};
 use serde_json::Value;
 
 use pyenv_core::{
-    AppContext, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
-    cmd_pip_precheck_requirements, cmd_pip_update,
+    AppContext, cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list,
+    cmd_pip_outdated, cmd_pip_precheck_requirements, cmd_pip_update,
 };
 
 use super::project::parse_json_report;
@@ -39,6 +39,17 @@ pub fn pip_precheck_response(
     let report = cmd_pip_precheck_requirements(ctx, target, path_or_url);
     let payload =
         parse_json_report::<Value>(&report).context("failed to parse pip precheck JSON")?;
+    Ok(JsonForwardResponse { payload })
+}
+
+pub fn pip_analyze_imports_response(
+    ctx: &AppContext,
+    target: &str,
+    dir_path: &str,
+) -> Result<JsonForwardResponse> {
+    let report = cmd_pip_analyze_imports(ctx, target, dir_path);
+    let payload =
+        parse_json_report::<Value>(&report).context("failed to parse codebase scanner JSON")?;
     Ok(JsonForwardResponse { payload })
 }
 

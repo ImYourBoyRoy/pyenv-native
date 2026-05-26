@@ -9,11 +9,13 @@ The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, pro
 ## Features
 
 - **Dashboard**: Live view of your active Python version, managed venvs, and pyenv root, including a glowing status light indicator for pending active pip updates.
-- **Pip Package Explorer**: Frosted-glass sliding drawer focused on a target interpreter to browse installed dependencies, audit updates, and statically pre-check requirements.txt constraints.
+- **Pip Package Explorer**: Frosted-glass sliding drawer focused on a target interpreter to browse installed dependencies, audit updates, statically pre-check requirements.txt constraints, and scan codebase imports.
+- **Codebase Import Analyzer**: Statically parses all Python (`.py`) source files in your active workspace using Python AST to identify imports, automatically detects third-party packages, segments missing libraries using warm coral-red tags, and provides a single-click progressive installer to heal your environment package-by-package.
 - **Cozy Pip Updates**: Audits packages against PyPI and provides a checklist for multiselect updates. Outdated pip installations get an isolated cozy update card first before modifying libraries.
 - **Conflict Pre-checker**: Statically resolves local files or pasted remote URLs (auto-translating GitHub repositories) to run conflict analysis comparisons against installed packages, raising coral mismatch indicators and hover tooltips *before* triggering pip.
 - **Visual Management**: Browse and install from the full CPython/PyPy catalog with a single click.
 - **Venv Manager**: Create, list, and delete named virtual environments graphically.
+- **Diagnostics & Self-Healing**: A dedicated **"System Health & Self-Healing Diagnostics"** dashboard that runs comprehensive audits of required shells, profiles, PATH shims, compiler chains (`clang`, `make`), and system library dependencies (`openssl`, `libffi`, `ncurses`), providing a single-click button to attempt automated self-healing repairs.
 - **Settings**: Configure registry integration, architecture preferences, and pip bootstrapping.
 - **Self-Update**: Check for and install `pyenv-native` updates directly from the UI.
 

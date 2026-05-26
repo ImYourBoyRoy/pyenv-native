@@ -369,6 +369,24 @@ async fn update_pip_packages(
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+#[tauri::command]
+async fn analyze_codebase_imports(
+    workspace_dir: Option<String>,
+    target: String,
+    dir_path: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_pip_analyze_imports(&ctx, &target, &dir_path);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 /// Returns the app version from the Cargo package metadata at compile time.
 #[tauri::command]
 fn get_app_version() -> String {
@@ -391,6 +409,163 @@ fn open_url(url: String) -> Result<(), String> {
     {
         let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
     }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct ShellStatus {
+    name: String,
+    profile_path: String,
+    is_configured: bool,
+    active_in_path: bool,
+}
+
+fn get_home_dir() -> Result<std::path::PathBuf, String> {
+    if cfg!(windows) {
+        std::env::var("USERPROFILE")
+            .map(std::path::PathBuf::from)
+            .map_err(|_| "Could not resolve USERPROFILE environment variable".to_string())
+    } else {
+        std::env::var("HOME")
+            .map(std::path::PathBuf::from)
+            .map_err(|_| "Could not resolve HOME environment variable".to_string())
+    }
+}
+
+#[tauri::command]
+fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
+    let mut statuses = Vec::new();
+    let shims_str = ctx.shims_dir().to_string_lossy().to_string().to_lowercase();
+
+    // Check if shims are currently present in PATH
+    let path_val = std::env::var("PATH").unwrap_or_default().to_lowercase();
+    let shims_in_path = path_val.contains(&shims_str);
+
+    // Resolve home directory
+    let home = get_home_dir()?;
+
+    // 1. PowerShell 7 Profile
+    let pwsh_profile = if cfg!(windows) {
+        home.join("Documents")
+            .join("PowerShell")
+            .join("Microsoft.PowerShell_profile.ps1")
+    } else {
+        home.join(".config")
+            .join("powershell")
+            .join("Microsoft.PowerShell_profile.ps1")
+    };
+    let pwsh_configured = pwsh_profile.is_file() && {
+        let content = std::fs::read_to_string(&pwsh_profile).unwrap_or_default();
+        content.contains("pyenv init")
+    };
+    statuses.push(ShellStatus {
+        name: "PowerShell 7 (pwsh)".to_string(),
+        profile_path: pwsh_profile.to_string_lossy().to_string(),
+        is_configured: pwsh_configured,
+        active_in_path: shims_in_path,
+    });
+
+    // 2. Windows PowerShell 5.1 Profile (Windows only)
+    if cfg!(windows) {
+        let win_ps_profile = home
+            .join("Documents")
+            .join("WindowsPowerShell")
+            .join("Microsoft.PowerShell_profile.ps1");
+        let win_ps_configured = win_ps_profile.is_file() && {
+            let content = std::fs::read_to_string(&win_ps_profile).unwrap_or_default();
+            content.contains("pyenv init")
+        };
+        statuses.push(ShellStatus {
+            name: "Windows PowerShell 5.1".to_string(),
+            profile_path: win_ps_profile.to_string_lossy().to_string(),
+            is_configured: win_ps_configured,
+            active_in_path: shims_in_path,
+        });
+    }
+
+    // 3. Zsh Profile
+    let zsh_profile = home.join(".zshrc");
+    let zsh_configured = zsh_profile.is_file() && {
+        let content = std::fs::read_to_string(&zsh_profile).unwrap_or_default();
+        content.contains("pyenv init")
+    };
+    statuses.push(ShellStatus {
+        name: "Zsh".to_string(),
+        profile_path: zsh_profile.to_string_lossy().to_string(),
+        is_configured: zsh_configured,
+        active_in_path: shims_in_path,
+    });
+
+    // 4. Bash Profile
+    let bash_profile = home.join(".bashrc");
+    let bash_configured = bash_profile.is_file() && {
+        let content = std::fs::read_to_string(&bash_profile).unwrap_or_default();
+        content.contains("pyenv init")
+    };
+    statuses.push(ShellStatus {
+        name: "Bash".to_string(),
+        profile_path: bash_profile.to_string_lossy().to_string(),
+        is_configured: bash_configured,
+        active_in_path: shims_in_path,
+    });
+
+    // 5. Fish Profile
+    let fish_profile = home.join(".config").join("fish").join("config.fish");
+    let fish_configured = fish_profile.is_file() && {
+        let content = std::fs::read_to_string(&fish_profile).unwrap_or_default();
+        content.contains("pyenv init")
+    };
+    statuses.push(ShellStatus {
+        name: "Fish".to_string(),
+        profile_path: fish_profile.to_string_lossy().to_string(),
+        is_configured: fish_configured,
+        active_in_path: shims_in_path,
+    });
+
+    Ok(statuses)
+}
+
+#[tauri::command]
+fn configure_shell(shell_name: String, profile_path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&profile_path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create parent directory: {e}"))?;
+    }
+
+    let mut content = if path.exists() {
+        std::fs::read_to_string(&path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    if content.contains("pyenv init") {
+        return Ok(());
+    }
+
+    // Format the initialization block to append
+    let init_block = if shell_name.contains("PowerShell") {
+        "\n# pyenv-native shell initialization\niex ((pyenv init - pwsh) -join \"`n\")\n"
+    } else if shell_name.contains("Zsh") {
+        "\n# pyenv-native shell initialization\neval \"$(pyenv init - zsh)\"\n"
+    } else if shell_name.contains("Bash") {
+        "\n# pyenv-native shell initialization\neval \"$(pyenv init - bash)\"\n"
+    } else if shell_name.contains("Fish") {
+        "\n# pyenv-native shell initialization\npyenv init - fish | source\n"
+    } else {
+        return Err(format!(
+            "Unsupported shell for automatic configuration: {shell_name}"
+        ));
+    };
+
+    // Add trailing newline safety
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content.push_str(init_block);
+
+    std::fs::write(&path, content).map_err(|e| format!("Failed to write profile: {e}"))?;
     Ok(())
 }
 
@@ -567,6 +742,43 @@ async fn install_local_pyenv() -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[derive(serde::Serialize)]
+struct DoctorCheckGui {
+    name: String,
+    status: String,
+    detail: String,
+}
+
+#[tauri::command]
+async fn run_doctor(workspace_dir: Option<String>) -> Result<Vec<DoctorCheckGui>, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let checks = pyenv_core::collect_checks(&ctx);
+        let gui_checks = checks
+            .into_iter()
+            .map(|c| DoctorCheckGui {
+                name: c.name,
+                status: c.status.label().to_string(),
+                detail: c.detail,
+            })
+            .collect();
+        Ok(gui_checks)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let outcome = pyenv_core::apply_doctor_fixes(&ctx).map_err(|e| e.to_string())?;
+        Ok(outcome.applied)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|_app| Ok(()))
@@ -598,7 +810,12 @@ fn main() {
             check_pip_conflicts,
             precheck_requirements,
             install_requirements,
-            update_pip_packages
+            update_pip_packages,
+            get_shell_statuses,
+            configure_shell,
+            analyze_codebase_imports,
+            run_doctor,
+            run_doctor_fix
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

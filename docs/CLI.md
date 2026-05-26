@@ -101,10 +101,11 @@ Unlike upstream `pyenv` which requires a plugin (`pyenv-virtualenv`), `pyenv-nat
 * `pyenv pip install <target> [-r requirements.txt]` — Idempotently install packages from a local file path or remote HTTP/HTTPS URL (which supports auto-translated GitHub repository paths).
 * `pyenv pip update <target> [--all] [packages...]` — Perform cozy individual or batch updates inside the environment. If `pip` itself is outdated, the engine will safely self-update `pip` first to improve resolution reliability.
 
-### Diagnostics
+### Diagnostics & Self-Healing
 
-- `pyenv doctor` — Run a suite of health checks to verify your installation and PATH.
-- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues.
+- `pyenv doctor` — Run a suite of health checks to verify your installation, PATH, and platform prerequisites.
+  - **Android/Termux Auditing:** On Termux environments, the doctor will automatically audit the state of required compiler toolchains (`clang`, `make`, `pkg-config`) and system header libraries (`libffi`, `openssl`, `readline`, `ncurses`) to verify source-compilation readiness.
+- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`).
 
 ## Shell Integration
 

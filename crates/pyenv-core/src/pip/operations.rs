@@ -322,6 +322,59 @@ pub fn cmd_pip_precheck_requirements(
     CommandReport::success(stdout_str.lines().map(ToOwned::to_owned).collect())
 }
 
+/// Executes our embedded python helper script with `--scan <dir>` to extract codebase imports and detect missing dependencies.
+pub fn cmd_pip_analyze_imports(ctx: &AppContext, target: &str, dir_path: &str) -> CommandReport {
+    let py_path = match resolve_interpreter_path(ctx, target) {
+        Ok(p) => p,
+        Err(e) => return CommandReport::failure(vec![e], 1),
+    };
+
+    let helper_script = include_str!("helper.py");
+    let temp_script_path =
+        std::env::temp_dir().join(format!("pyenv-scan-{}.py", std::process::id()));
+
+    if let Err(e) = fs::write(&temp_script_path, helper_script) {
+        return CommandReport::failure(
+            vec![format!(
+                "pyenv: failed to write scan script helper to temp folder: {e}"
+            )],
+            1,
+        );
+    }
+
+    let output = match Command::new(&py_path)
+        .headless()
+        .arg(&temp_script_path)
+        .arg("--scan")
+        .arg(dir_path)
+        .output()
+    {
+        Ok(o) => o,
+        Err(e) => {
+            let _ = fs::remove_file(&temp_script_path);
+            return CommandReport::failure(
+                vec![format!("pyenv: failed to run codebase scan process: {e}")],
+                1,
+            );
+        }
+    };
+
+    let _ = fs::remove_file(&temp_script_path);
+
+    if !output.status.success() {
+        return CommandReport::failure(
+            vec![
+                format!("pyenv: codebase scanner process failed."),
+                String::from_utf8_lossy(&output.stderr).to_string(),
+            ],
+            1,
+        );
+    }
+
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    CommandReport::success(stdout_str.lines().map(ToOwned::to_owned).collect())
+}
+
 /// Installs requirements inside the target environment from a requirements.txt file or URL.
 pub fn cmd_pip_install(ctx: &AppContext, target: &str, path_or_url: &str) -> CommandReport {
     let py_path = match resolve_interpreter_path(ctx, target) {
