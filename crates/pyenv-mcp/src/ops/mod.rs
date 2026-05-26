@@ -10,8 +10,8 @@ pub(crate) use context::{
 };
 pub(crate) use docs::{build_install_instructions, build_toolkit_guide};
 pub(crate) use pip::{
-    pip_check_response, pip_install_response, pip_list_response, pip_outdated_response,
-    pip_precheck_response, pip_update_response,
+    pip_analyze_imports_response, pip_check_response, pip_install_response, pip_list_response,
+    pip_outdated_response, pip_precheck_response, pip_update_response,
 };
 pub(crate) use project::{
     ensure_project_venv_response, inspect_environment_response, set_global_versions_response,

@@ -152,6 +152,18 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
             example_input: Some(json!({ "target": "venv:testing", "path_or_url": "https://github.com/user/repo/blob/main/requirements.txt" })),
         },
         ToolSummary {
+            tool_name: "pip_analyze_imports".to_string(),
+            use_when: "You want to statically scan Python files in the workspace directory to identify imported libraries and detect missing dependencies.".to_string(),
+            returns: "A JSON object containing detected_imports, missing_imports, and installed_imports.".to_string(),
+            side_effects: "Read-only workspace AST analysis.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "target".to_string(), required: true, data_type: "string".to_string(), description: "Target environment version or managed venv spec.".to_string() },
+                ToolArgument { name: "dir_path".to_string(), required: true, data_type: "string".to_string(), description: "Workspace directory to scan.".to_string() },
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory.".to_string() },
+            ],
+            example_input: Some(json!({ "target": "venv:testing", "dir_path": "/path/to/workspace" })),
+        },
+        ToolSummary {
             tool_name: "pip_install".to_string(),
             use_when: "You want to install dependencies from a requirements.txt file or URL. Run pip_precheck first to identify conflicts safely.".to_string(),
             returns: "Structured outcome with stdout/stderr lines and exit code.".to_string(),

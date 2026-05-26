@@ -72,58 +72,62 @@ A structured bridge for AI models like Claude or Gemini.
 
 ---
 
-## Quick Install
+## Installation
 
-To ensure stability, the following commands fetch the installer from the **latest fixed release tag**.
+`pyenv-native` can be installed using modern package managers or standard interactive terminal scripts.
 
-### Windows (PowerShell)
+### 1. Package Managers (Recommended)
 
+| Platform | Command | Description |
+| :--- | :--- | :--- |
+| **Windows (winget)** | `winget install pyenv-native` | Direct, system-wide Windows installation |
+| **macOS / Linux (Homebrew)** | `brew install imyourboyroy/pyenv-native/pyenv-native` | Universal Unix taps management |
+| **Universal (pipx)** | `pipx install pyenv-native` | Isolated Python application bootstrap |
+
+> [!NOTE]
+> When installing via `pipx`, you will run the self-installer command immediately after package installation:
+> ```bash
+> pyenv-native install --install-root ~/.pyenv
+> ```
+
+---
+
+### 2. Interactive Shell Scripts (Fastest)
+
+For single-line boots directly from standard terminal shells:
+
+#### Windows (PowerShell)
 ```powershell
-$installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 -OutFile $installer; & $installer
+irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 | iex
 ```
 
-### Linux / macOS (Bash/Zsh)
-
+#### macOS / Linux / Android (Bash/Zsh)
 ```bash
-curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
 ```
 
 ---
 
-## Quick Uninstall
+## Uninstallation
 
-If you need to remove `pyenv-native`, you can use the web uninstaller or the native CLI command.
+If you need to remove `pyenv-native` and its shims, you can use the native CLI or standard web scripts:
 
-### Web Uninstaller (Self-Contained)
-
-**Windows (PowerShell):**
-
-```powershell
-$uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebRequest https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.ps1 -OutFile $uninstaller; & $uninstaller -RemoveRoot
-```
-
-**Linux / macOS (Bash/Zsh):**
-
-```bash
-curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.sh | sh -s -- --remove-root
-```
-
-### Native CLI Uninstall
-
-If `pyenv` is already in your PATH, you can run:
-
+### 1. Native CLI (Self-Contained)
+If `pyenv` is already in your PATH, simply run:
 ```bash
 pyenv self-uninstall
 ```
 
-### Python Bootstrap (`pip` / `pipx`)
->
-> [!NOTE]
-> The PyPI package is a **bootstrap installer only**. It is used to download and manage the native `pyenv-native` runtime; it is not the implementation of the tool itself.
+### 2. Interactive Shell Scripts
 
+#### Windows (PowerShell)
+```powershell
+irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.ps1 | iex
+```
+
+#### macOS / Linux (Bash/Zsh)
 ```bash
-pipx install pyenv-native
-pyenv-native install --install-root ~/.pyenv
+curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.sh | sh -s -- --remove-root
 ```
 
 ---

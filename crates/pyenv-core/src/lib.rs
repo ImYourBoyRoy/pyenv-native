@@ -38,7 +38,10 @@ pub use config::{
     resolve_cache_dir,
 };
 pub use context::{AppContext, is_pyenv_win_root, resolve_dir, resolve_root};
-pub use doctor::{DoctorFix, DoctorFixOutcome, apply_doctor_fixes, cmd_doctor, doctor_fix_plan};
+pub use doctor::{
+    DoctorCheck, DoctorFix, DoctorFixOutcome, DoctorStatus, apply_doctor_fixes, cmd_doctor,
+    collect_checks, doctor_fix_plan,
+};
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
 pub use install::{
@@ -51,9 +54,9 @@ pub use meta::{
     cmd_help, cmd_prompt, cmd_shims, cmd_status,
 };
 pub use pip::{
-    DependencyConflict, OutdatedPackage, PipPackage, PrecheckResult, cmd_pip_check,
-    cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements, cmd_pip_update,
-    resolve_interpreter_path,
+    DependencyConflict, OutdatedPackage, PipPackage, PrecheckResult, cmd_pip_analyze_imports,
+    cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements,
+    cmd_pip_update, resolve_interpreter_path,
 };
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use runtime::BASE_VENV_DIR_NAME;

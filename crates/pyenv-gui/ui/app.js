@@ -113,6 +113,7 @@ sidebarNavItems.forEach(item => {
         
         if (item.dataset.view === 'view-dashboard') loadDashboard();
         if (item.dataset.view === 'view-installed') loadInstalled();
+        if (item.dataset.view === 'view-shell') loadShellIntegration();
         if (item.dataset.view === 'view-available') setupAvailableView();
         if (item.dataset.view === 'view-venvs') loadVenvs();
         if (item.dataset.view === 'view-settings') loadConfig();
@@ -694,6 +695,18 @@ const precheckConflictsSection = document.getElementById('precheck-conflicts-sec
 const precheckConflictsList = document.getElementById('precheck-conflicts-list');
 const precheckResolvedList = document.getElementById('precheck-resolved-list');
 
+// Codebase Import Analyzer DOMs
+const btnScanImports = document.getElementById('btn-scan-imports');
+const scanImportsLoading = document.getElementById('scan-imports-loading');
+const scanImportsResults = document.getElementById('scan-imports-results');
+const scanMissingCard = document.getElementById('scan-missing-card');
+const scanMissingBadges = document.getElementById('scan-missing-badges');
+const btnInstallMissingImports = document.getElementById('btn-install-missing-imports');
+const scanInstalledCard = document.getElementById('scan-installed-card');
+const scanInstalledBadges = document.getElementById('scan-installed-badges');
+
+let scannedMissingImports = [];
+
 // Open Package Explorer Drawer
 window.openPackageExplorer = function(target) {
     currentExplorerTarget = target;
@@ -724,6 +737,17 @@ window.openPackageExplorer = function(target) {
     importPrecheckDashboard.style.display = 'none';
     importPrecheckLoading.style.display = 'none';
     btnInstallImported.disabled = true;
+    
+    // Clear import scanner results
+    if (scanImportsResults) scanImportsResults.style.display = 'none';
+    if (scanImportsLoading) scanImportsLoading.style.display = 'none';
+    if (btnScanImports) {
+        btnScanImports.disabled = false;
+        btnScanImports.textContent = "Scan Workspace";
+    }
+    scannedMissingImports = [];
+    if (scanMissingBadges) scanMissingBadges.innerHTML = '';
+    if (scanInstalledBadges) scanInstalledBadges.innerHTML = '';
 };
 
 // Close Package Explorer Drawer
@@ -1167,6 +1191,137 @@ btnInstallImported.addEventListener('click', async () => {
     }
 });
 
+// Codebase Import Analyzer Logic
+if (btnScanImports) {
+    btnScanImports.addEventListener('click', async () => {
+        const wsDir = currentWorkspaceDir || '';
+        if (!wsDir) {
+            showAlert("Workspace Required", "Please select a workspace directory first using the Workspace Selector in the sidebar.");
+            return;
+        }
+        
+        btnScanImports.disabled = true;
+        btnScanImports.textContent = "Scanning...";
+        if (scanImportsResults) scanImportsResults.style.display = 'none';
+        if (scanImportsLoading) scanImportsLoading.style.display = 'block';
+        if (scanMissingBadges) scanMissingBadges.innerHTML = '';
+        if (scanInstalledBadges) scanInstalledBadges.innerHTML = '';
+        
+        try {
+            const jsonStr = await invoke('analyze_codebase_imports', {
+                workspaceDir: getWorkspaceDir(),
+                target: currentExplorerTarget,
+                dirPath: wsDir
+            });
+            
+            const scan = JSON.parse(jsonStr);
+            if (scan.error) {
+                throw new Error(scan.error);
+            }
+            
+            scannedMissingImports = scan.missing_imports || [];
+            
+            // 1. Render Missing Dependencies
+            if (scannedMissingImports.length === 0) {
+                if (scanMissingCard) scanMissingCard.style.display = 'none';
+            } else {
+                if (scanMissingCard) scanMissingCard.style.display = 'block';
+                const missingDesc = document.getElementById('scan-missing-desc');
+                if (missingDesc) {
+                    missingDesc.textContent = `These ${scannedMissingImports.length} libraries are used in the codebase but not currently installed.`;
+                }
+                
+                if (scanMissingBadges) {
+                    scannedMissingImports.forEach(pkg => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge';
+                        badge.style.background = 'rgba(239, 68, 68, 0.1)';
+                        badge.style.color = '#f87171';
+                        badge.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                        badge.style.marginRight = '4px';
+                        badge.style.marginBottom = '4px';
+                        badge.textContent = pkg;
+                        scanMissingBadges.appendChild(badge);
+                    });
+                }
+                
+                if (btnInstallMissingImports) {
+                    btnInstallMissingImports.disabled = false;
+                    btnInstallMissingImports.textContent = "Install Missing Dependencies";
+                }
+            }
+            
+            // 2. Render Aligned/Installed Dependencies
+            const installedImports = scan.installed_imports || [];
+            if (installedImports.length === 0) {
+                if (scanInstalledCard) scanInstalledCard.style.display = 'none';
+            } else {
+                if (scanInstalledCard) scanInstalledCard.style.display = 'block';
+                if (scanInstalledBadges) {
+                    installedImports.forEach(pkg => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge';
+                        badge.style.background = 'rgba(16, 185, 129, 0.1)';
+                        badge.style.color = '#34d399';
+                        badge.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+                        badge.style.marginRight = '4px';
+                        badge.style.marginBottom = '4px';
+                        badge.textContent = `${pkg.name} (${pkg.version})`;
+                        scanInstalledBadges.appendChild(badge);
+                    });
+                }
+            }
+            
+            if (scanImportsResults) scanImportsResults.style.display = 'block';
+            
+        } catch (err) {
+            showAlert("Scan Failed", `Failed to statically scan workspace codebase imports:<br><code style="font-size: 11px;">${err}</code>`);
+        } finally {
+            if (scanImportsLoading) scanImportsLoading.style.display = 'none';
+            btnScanImports.disabled = false;
+            btnScanImports.textContent = "Scan Workspace";
+        }
+    });
+}
+
+if (btnInstallMissingImports) {
+    btnInstallMissingImports.addEventListener('click', async () => {
+        if (!scannedMissingImports || scannedMissingImports.length === 0) return;
+        
+        btnInstallMissingImports.disabled = true;
+        const total = scannedMissingImports.length;
+        let installedCount = 0;
+        
+        for (const pkg of scannedMissingImports) {
+            btnInstallMissingImports.textContent = `Installing ${pkg} (${installedCount + 1}/${total})...`;
+            try {
+                await invoke('update_pip_packages', {
+                    workspaceDir: getWorkspaceDir(),
+                    target: currentExplorerTarget,
+                    packages: [pkg],
+                    all: false
+                });
+                installedCount++;
+            } catch (err) {
+                showAlert("Installation Failed", `Failed to install dependency <b>${pkg}</b>:<br><code style="font-size:11px;">${err}</code>`);
+                btnInstallMissingImports.disabled = false;
+                btnInstallMissingImports.textContent = "Install Missing Dependencies";
+                return;
+            }
+        }
+        
+        showAlert("Installation Complete", `Successfully installed all ${total} missing dependencies!`);
+        
+        // Refresh installed list in drawer
+        loadDrawerPackages();
+        // Reset outdated check in updates tab
+        resetOutdatedScanView();
+        
+        // Re-run scan to update status UI instantly
+        if (btnScanImports) btnScanImports.click();
+    });
+}
+
 // Check Active Pip Status in background on Dashboard Load
 async function checkActivePipStatus(target) {
     try {
@@ -1221,6 +1376,203 @@ loadDashboard = async function() {
         updateActivePipLight(false);
     }
 };
+
+// ─── Shell Integration & Diagnostics ───
+async function loadShellIntegration() {
+    const cardsContainer = document.getElementById('shell-status-cards');
+    if (!cardsContainer) return;
+    
+    cardsContainer.innerHTML = '<div class="empty-state">Scanning shells and configurations...</div>';
+    
+    try {
+        const statuses = await invoke('get_shell_statuses', { workspaceDir: getWorkspaceDir() });
+        cardsContainer.innerHTML = '';
+        
+        if (!statuses || statuses.length === 0) {
+            cardsContainer.innerHTML = '<div class="empty-state">No standard shells discovered on this platform.</div>';
+            return;
+        }
+        
+        statuses.forEach(status => {
+            const card = document.createElement('div');
+            card.className = 'status-card glass fade-in';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.justifyContent = 'space-between';
+            card.style.minHeight = '180px';
+            
+            // Config Badge HTML
+            const configBadge = status.is_configured 
+                ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>Configured
+                   </span>`
+                : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Not Configured
+                   </span>`;
+                   
+            // PATH Badge HTML
+            const pathBadge = status.active_in_path 
+                ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;">
+                    PATH Active
+                   </span>`
+                : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;">
+                    Shims Missing from PATH
+                   </span>`;
+
+            card.innerHTML = `
+                <div>
+                  <h3 style="margin: 0 0 8px; color: #fff; font-size: 16px;">${status.name}</h3>
+                  <div style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px;">
+                    ${configBadge}
+                    ${pathBadge}
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); word-break: break-all; line-height: 1.4;">
+                    <strong>Profile File:</strong><br>${status.profile_path}
+                  </div>
+                </div>
+                <div style="margin-top: 16px;">
+                  <button class="btn ${status.is_configured ? 'btn-outline' : 'btn-gold'}" 
+                    style="width: 100%; padding: 8px; font-size: 11px; font-weight: 600;" 
+                    ${status.is_configured ? 'disabled' : ''} 
+                    id="btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}">
+                    ${status.is_configured ? 'Configured' : 'Auto-Configure Shell'}
+                  </button>
+                </div>
+            `;
+            
+            cardsContainer.appendChild(card);
+            
+            // Add click listener to config button
+            if (!status.is_configured) {
+                const btn = card.querySelector(`#btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}`);
+                if (btn) {
+                    btn.addEventListener('click', async () => {
+                        btn.disabled = true;
+                        btn.textContent = "Configuring...";
+                        try {
+                            await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
+                            showAlert("Shell Configured", `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${status.profile_path}</code><br><br>Restart your terminal shell for the changes to take effect!`);
+                            loadShellIntegration();
+                        } catch(err) {
+                            showAlert("Configuration Failed", err);
+                            btn.disabled = false;
+                            btn.textContent = "Auto-Configure Shell";
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Proactively run diagnostics in the background
+        runDoctorDiagnostics();
+    } catch(err) {
+        console.error("Failed to load shell statuses:", err);
+        cardsContainer.innerHTML = `<div class="empty-state" style="color: var(--danger);">Failed to scan shells: ${err}</div>`;
+    }
+}
+
+// Refresh Shells action
+const btnRefreshShells = document.getElementById('btn-refresh-shells');
+if (btnRefreshShells) {
+    btnRefreshShells.addEventListener('click', loadShellIntegration);
+}
+
+// Doctor Diagnostics & Self-Healing Repairs Logic
+async function runDoctorDiagnostics() {
+    const btnRunDoctor = document.getElementById('btn-run-doctor');
+    const doctorLoading = document.getElementById('doctor-loading');
+    const doctorResults = document.getElementById('doctor-results');
+    const doctorIssuesCard = document.getElementById('doctor-issues-card');
+    const doctorIssuesList = document.getElementById('doctor-issues-list');
+    const doctorHealthyCard = document.getElementById('doctor-healthy-card');
+    const btnDoctorFix = document.getElementById('btn-doctor-fix');
+
+    if (!btnRunDoctor) return;
+
+    btnRunDoctor.disabled = true;
+    btnRunDoctor.textContent = "Checking...";
+    if (doctorLoading) doctorLoading.style.display = 'block';
+    if (doctorResults) doctorResults.style.display = 'none';
+    if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
+    if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
+    if (doctorIssuesList) doctorIssuesList.innerHTML = '';
+
+    try {
+        const jsonStr = await invoke('run_doctor', { workspaceDir: getWorkspaceDir() });
+        // FFI command returns Vec<DoctorCheckGui> direct serialization
+        const checks = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        
+        // Filter out Ok/Info checks to locate Warn/issues
+        const issues = checks.filter(c => c.status === 'Warn');
+        
+        if (issues.length === 0) {
+            if (doctorHealthyCard) doctorHealthyCard.style.display = 'block';
+        } else {
+            if (doctorIssuesCard) doctorIssuesCard.style.display = 'block';
+            if (doctorIssuesList) {
+                issues.forEach(issue => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px 12px';
+                    item.style.borderRadius = '6px';
+                    item.style.background = 'rgba(251, 191, 36, 0.04)';
+                    item.style.borderLeft = '3px solid #fbbf24';
+                    item.style.marginBottom = '6px';
+                    item.innerHTML = `<strong style="color: #fbbf24;">${issue.name}</strong>: ${issue.detail}`;
+                    doctorIssuesList.appendChild(item);
+                });
+            }
+            if (btnDoctorFix) {
+                btnDoctorFix.disabled = false;
+                btnDoctorFix.textContent = "Attempt Self-Healing Repair";
+            }
+        }
+        
+        if (doctorResults) doctorResults.style.display = 'block';
+    } catch(err) {
+        console.error("Doctor failed:", err);
+    } finally {
+        if (doctorLoading) doctorLoading.style.display = 'none';
+        btnRunDoctor.disabled = false;
+        btnRunDoctor.textContent = "Run Diagnostics";
+    }
+}
+
+async function attemptDoctorFix() {
+    const btnDoctorFix = document.getElementById('btn-doctor-fix');
+    if (!btnDoctorFix) return;
+
+    btnDoctorFix.disabled = true;
+    btnDoctorFix.textContent = "Applying self-healing repairs...";
+
+    try {
+        const applied = await invoke('run_doctor_fix', { workspaceDir: getWorkspaceDir() });
+        
+        let message = "Applied the following automated repairs:<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>";
+        applied.forEach(act => {
+            message += `<li>${act}</li>`;
+        });
+        message += "</ul><br>Diagnostics will now be re-run.";
+        
+        showAlert("Self-Healing Complete", message);
+        
+        // Re-run diagnostics
+        runDoctorDiagnostics();
+    } catch(err) {
+        showAlert("Self-Healing Failed", `Failed to automatically repair system environment:<br><code style="font-size:11px;">${err}</code>`);
+        btnDoctorFix.disabled = false;
+        btnDoctorFix.textContent = "Attempt Self-Healing Repair";
+    }
+}
+
+const btnRunDoctor = document.getElementById('btn-run-doctor');
+if (btnRunDoctor) {
+    btnRunDoctor.addEventListener('click', runDoctorDiagnostics);
+}
+
+const btnDoctorFix = document.getElementById('btn-doctor-fix');
+if (btnDoctorFix) {
+    btnDoctorFix.addEventListener('click', attemptDoctorFix);
+}
 
 // Init startup
 initAppVersion();

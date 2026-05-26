@@ -13,7 +13,7 @@ use crate::version::{SelectedVersions, resolve_selected_versions};
 use super::helpers::{path_contains, path_ext_for_platform, paths_equal};
 use super::types::{DoctorCheck, DoctorStatus};
 
-pub(super) fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
+pub fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
     collect_checks_for_platform(ctx, env::consts::OS)
 }
 
@@ -92,10 +92,82 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
         checks.push(windows_store_alias_check(ctx));
     } else {
         checks.extend(non_windows_source_build_checks(ctx, platform));
+        checks.extend(termux_compile_environment_checks(ctx));
     }
 
     checks.extend(selected_env_checks(&selected));
     checks.push(functional_shim_check(ctx, &selected));
+
+    checks
+}
+
+fn termux_compile_environment_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
+    use super::helpers::is_termux_environment;
+    if !is_termux_environment() {
+        return Vec::new();
+    }
+
+    let mut checks = Vec::new();
+    let termux_usr = Path::new("/data/data/com.termux/files/usr");
+
+    // 1. Check for compile-time CLI tools
+    let tools = [
+        ("clang", vec!["clang", "gcc", "cc"]),
+        ("make", vec!["make"]),
+        ("pkg-config", vec!["pkg-config"]),
+    ];
+
+    for (name, cmds) in tools {
+        let status = command_presence_check(
+            ctx,
+            &format!("termux-tool-{}", name),
+            &cmds,
+            &format!("Termux tool {} is missing", name),
+            "linux",
+        );
+        checks.push(status);
+    }
+
+    // 2. Check for system libraries headers or shared objects
+    let libraries = [
+        (
+            "libffi",
+            vec!["include/ffi.h", "include/ffi/ffi.h", "lib/libffi.so"],
+        ),
+        ("openssl", vec!["include/openssl/ssl.h", "lib/libssl.so"]),
+        (
+            "readline",
+            vec!["include/readline/readline.h", "lib/libreadline.so"],
+        ),
+        (
+            "ncurses",
+            vec![
+                "include/ncurses.h",
+                "include/ncursesw/ncurses.h",
+                "lib/libncurses.so",
+            ],
+        ),
+    ];
+
+    for (lib, paths) in libraries {
+        let found = paths.iter().any(|rel| termux_usr.join(rel).exists());
+        checks.push(DoctorCheck {
+            name: format!("termux-lib-{}", lib),
+            status: if found {
+                DoctorStatus::Ok
+            } else {
+                DoctorStatus::Warn
+            },
+            detail: if found {
+                format!("Termux library {} is installed", lib)
+            } else {
+                format!(
+                    "Termux library package {} is missing; please install it",
+                    lib
+                )
+            },
+        });
+    }
 
     checks
 }

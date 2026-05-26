@@ -162,6 +162,7 @@ Current high-value tools include:
 - `pip_outdated` (audits outdated environment packages)
 - `pip_check` (runs active post-install diagnostics)
 - `pip_precheck` (statically resolves requirements files and checks conflicts before install)
+- `pip_analyze_imports` (statically parses codebase Python source files using AST to identify missing dependencies)
 - `pip_install` (installs packages from a file or remote URL)
 - `pip_update` (safely upgrades packages, updating pip itself first if needed)
 
@@ -178,10 +179,11 @@ When possible, use this order:
 3. `list_available_versions` if a runtime decision is needed
 4. `ensure_runtime`
 5. `ensure_project_venv`
-6. `pip_precheck` if importing dependency files
-7. `pip_install` or `pip_update` to manage libraries
-8. `pip_check` to audit constraints
-9. `doctor` when something looks wrong
+6. `pip_analyze_imports` to check which libraries the codebase actually uses and find missing ones
+7. `pip_precheck` if importing dependency files
+8. `pip_install` or `pip_update` to manage libraries
+9. `pip_check` to audit constraints
+10. `doctor` when something looks wrong
 
 This keeps the workflow structured and predictable.
 
@@ -234,6 +236,13 @@ Use:
 1. `pip_precheck` (checks version and constraints matches, resolving remote raw GitHub links)
 2. `pip_install` (completes installation cleanly)
 3. `pip_check` (audits post-install constraints health)
+
+### 6. Scan workspace codebase for missing dependencies
+
+Use:
+
+1. `pip_analyze_imports` (scans all `.py` files inside the target workspace directory, detects imported modules, checks them against installed packages, and lists missing dependencies)
+2. `pip_install` or `pip_update` (progressive install to resolve the missing dependencies)
 
 ---
 

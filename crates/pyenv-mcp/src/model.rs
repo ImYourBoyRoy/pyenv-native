@@ -259,3 +259,10 @@ pub struct PipUpdateParams {
     pub all: Option<bool>,
     pub project_dir: Option<PathBuf>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipAnalyzeParams {
+    pub target: String,
+    pub dir_path: String,
+    pub project_dir: Option<PathBuf>,
+}
