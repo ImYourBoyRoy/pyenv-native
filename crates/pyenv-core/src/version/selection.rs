@@ -57,6 +57,8 @@ pub fn resolve_selected_versions(ctx: &AppContext, force: bool) -> SelectedVersi
             versions.push(resolved);
         } else if let Some(resolved) = latest_installed_version(ctx, &normalized) {
             versions.push(resolved);
+        } else if let Some(resolved) = resolve_upgraded_version(ctx, &normalized) {
+            versions.push(resolved);
         } else if force {
             versions.push(normalized);
         } else {
@@ -102,9 +104,20 @@ pub(super) fn ensure_versions_exist(
 }
 
 fn version_exists(ctx: &AppContext, version: &str) -> bool {
-    version == "system"
-        || installed_version_dir(ctx, version).is_dir()
-        || managed_venv_dir_from_spec(ctx, version).is_some_and(|path| path.is_dir())
+    if version == "system" {
+        return true;
+    }
+    if installed_version_dir(ctx, version).is_dir() {
+        return true;
+    }
+    if managed_venv_dir_from_spec(ctx, version).is_some_and(|path| path.is_dir()) {
+        return true;
+    }
+    let trimmed = version.strip_prefix("venv:").unwrap_or(version);
+    if crate::venv::resolve_managed_venv(ctx, trimmed).is_ok() {
+        return true;
+    }
+    false
 }
 
 fn normalize_version_name(version: &str) -> String {
@@ -121,4 +134,18 @@ fn parse_env_versions(value: &str) -> Vec<String> {
         .filter(|segment| !segment.is_empty())
         .map(ToOwned::to_owned)
         .collect()
+}
+
+fn resolve_upgraded_version(ctx: &AppContext, version: &str) -> Option<String> {
+    if version.contains("/envs/") || version.contains("\\envs\\") || version.starts_with("venv:") {
+        return None;
+    }
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() >= 3 {
+        let major_minor = format!("{}.{}", parts[0], parts[1]);
+        if let Some(resolved) = latest_installed_version(ctx, &major_minor) {
+            return Some(resolved);
+        }
+    }
+    None
 }
