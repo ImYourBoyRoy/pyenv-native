@@ -814,7 +814,8 @@ btnUpgradePip.addEventListener('click', async () => {
         await invoke('update_pip_packages', {
             workspaceDir: getWorkspaceDir(),
             target: currentExplorerTarget,
-            packages: ["pip"]
+            packages: ["pip"],
+            all: false
         });
         showAlert("Pip Upgraded", "pip self-update completed successfully.");
         loadDrawerPackages();
@@ -994,7 +995,8 @@ btnUpdateSelected.addEventListener('click', async () => {
         await invoke('update_pip_packages', {
             workspaceDir: getWorkspaceDir(),
             target: currentExplorerTarget,
-            packages: pkgs
+            packages: pkgs,
+            all: false
         });
         
         showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${pkgs.join(', ')}</code>`);

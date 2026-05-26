@@ -354,11 +354,12 @@ async fn update_pip_packages(
     workspace_dir: Option<String>,
     target: String,
     packages: Vec<String>,
-    all: bool,
+    all: Option<bool>,
 ) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let report = pyenv_core::cmd_pip_update(&ctx, &target, &packages, all);
+        let is_all = all.unwrap_or(false);
+        let report = pyenv_core::cmd_pip_update(&ctx, &target, &packages, is_all);
         if report.exit_code != 0 {
             return Err(report.stderr.join("\n"));
         }

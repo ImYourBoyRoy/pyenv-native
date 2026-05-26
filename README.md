@@ -17,7 +17,24 @@
 
 - **Windows**: Stable (Primary platform)
 - **Linux/macOS**: Tested
-- **Android/Termux**: **Experimental** (Requires manual setup)
+- **Android/Termux**: **Experimental** (Requires manual setup for compilation)
+
+<details>
+<summary><b>Android / Termux Build Prerequisites</b></summary>
+<br />
+
+Since Android/Termux does not ship with pre-built CPython binaries, `pyenv-native` automatically fetches and compiles Python from source. To prevent compilation failures, you **must** install the required compiler tools and system development libraries inside Termux first:
+
+```bash
+# 1. Update Termux package repositories
+pkg update && pkg upgrade -y
+
+# 2. Install required compilers, builders, and standard libraries
+pkg install clang make pkg-config libffi openssl readline ncurses -y
+```
+
+After installing these prerequisites, running `pyenv install <version>` will compile and build your chosen Python runtime flawlessly on Android.
+</details>
 
 ---
 
