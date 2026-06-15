@@ -115,6 +115,24 @@ fn sh_shell_unset_and_rehash_use_pwsh_syntax() {
 }
 
 #[test]
+fn init_print_uses_cli_launcher_when_current_exe_is_gui() {
+    let (_temp, mut ctx) = test_context();
+    let bin = ctx.root.join("bin");
+    fs::create_dir_all(&bin).expect("bin dir");
+    let cli = bin.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
+    let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+    fs::write(&cli, "cli").expect("cli");
+    fs::write(&gui, "gui").expect("gui");
+    ctx.exe_path = gui;
+
+    let report = cmd_init(&ctx, &[String::from("-"), String::from("pwsh")]);
+    assert_eq!(report.exit_code, 0);
+    let joined = report.stdout.join("\n");
+    assert!(joined.contains(&cli.display().to_string()));
+    assert!(!joined.contains("pyenv-gui"));
+}
+
+#[test]
 fn sh_activate_emits_virtualenv_environment_updates() {
     let (_temp, ctx) = test_context();
     seed_managed_venv(&ctx, "3.12.6", "demo");

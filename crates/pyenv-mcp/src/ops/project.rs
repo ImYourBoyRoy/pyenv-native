@@ -249,6 +249,7 @@ pub fn inspect_environment_response(ctx: &AppContext) -> Result<EnvironmentStatu
     Ok(EnvironmentStatusProxy {
         root: status.root,
         active_versions: status.active_versions,
+        global_versions: status.global_versions,
         origin: status.origin,
         managed_venv: status.managed_venv.map(|v| ManagedVenvSummaryProxy {
             name: v.name,
