@@ -3,7 +3,7 @@
 
 use std::env;
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config::{AppConfig, load_config, resolve_cache_dir, resolve_versions_dir};
 use crate::error::PyenvError;
@@ -62,6 +62,51 @@ impl AppContext {
     pub fn shims_dir(&self) -> PathBuf {
         self.root.join("shims")
     }
+
+    /// Resolve the pyenv CLI binary used to generate shims and shell init snippets.
+    ///
+    /// Companion binaries such as `pyenv-gui` and `pyenv-mcp` must never be copied into
+    /// `shims/` because they do not implement shim dispatch (`exec <command>`).
+    pub fn cli_exe_path(&self) -> PathBuf {
+        resolve_cli_exe_path(&self.root, &self.exe_path)
+    }
+}
+
+fn cli_binary_name() -> &'static str {
+    if cfg!(windows) {
+        "pyenv.exe"
+    } else {
+        "pyenv"
+    }
+}
+
+fn is_pyenv_cli_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(|stem| {
+            let lowered = stem.to_ascii_lowercase();
+            lowered == "pyenv" || lowered == "pyenv-cli"
+        })
+}
+
+fn resolve_cli_exe_path(root: &Path, current_exe: &Path) -> PathBuf {
+    let managed = root.join("bin").join(cli_binary_name());
+    if managed.is_file() {
+        return managed;
+    }
+
+    if let Some(parent) = current_exe.parent() {
+        let sibling = parent.join(cli_binary_name());
+        if sibling.is_file() {
+            return sibling;
+        }
+    }
+
+    if is_pyenv_cli_executable(current_exe) {
+        return current_exe.to_path_buf();
+    }
+
+    current_exe.to_path_buf()
 }
 
 pub fn resolve_root(
@@ -249,5 +294,30 @@ mod tests {
 
         assert!(!is_pyenv_win_root(&base_path));
         assert!(!is_pyenv_win_root(std::path::Path::new("custom-root")));
+    }
+
+    #[test]
+    fn cli_exe_path_prefers_managed_bin_pyenv_over_gui_current_exe() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).expect("bin dir");
+        let cli = bin.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
+        let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+        std::fs::write(&cli, "cli").expect("cli");
+        std::fs::write(&gui, "gui").expect("gui");
+
+        let ctx = super::AppContext {
+            root: root.clone(),
+            dir: temp.path().join("work"),
+            exe_path: gui,
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: crate::config::AppConfig::default(),
+        };
+
+        assert_eq!(ctx.cli_exe_path(), cli);
     }
 }

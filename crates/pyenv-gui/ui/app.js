@@ -128,7 +128,11 @@ async function loadDashboard() {
         
         const activeVersionEl = document.getElementById('active-version');
         activeVersionEl.textContent = status.active_versions.length ? status.active_versions.join(', ') : 'None';
-        document.getElementById('active-origin').textContent = `Origin: ${status.origin}`;
+        const globalLabel = status.global_versions?.length
+            ? status.global_versions.join(', ')
+            : 'system';
+        document.getElementById('active-origin').textContent =
+            `Origin: ${status.origin} • Global: ${globalLabel}`;
         
         if (status.managed_venv) {
             document.getElementById('active-venv').textContent = status.managed_venv.name;
