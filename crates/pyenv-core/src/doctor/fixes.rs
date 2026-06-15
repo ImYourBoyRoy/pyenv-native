@@ -55,10 +55,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
         });
     }
 
-    if !path_contains(
-        ctx.path_env.as_ref(),
-        &ctx.bin_dir(),
-    ) {
+    if !path_contains(ctx.path_env.as_ref(), &ctx.bin_dir()) {
         fixes.push(DoctorFix {
             key: "path-bin-manual".to_string(),
             automated: false,

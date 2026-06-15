@@ -240,9 +240,7 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
             };
         }
 
-        if shim.is_file()
-            && !contents_embed_cli_launcher(&shim, &cli).unwrap_or(true)
-        {
+        if shim.is_file() && !contents_embed_cli_launcher(&shim, &cli).unwrap_or(true) {
             return DoctorCheck {
                 name: "shim-launcher-integrity".to_string(),
                 status: DoctorStatus::Warn,

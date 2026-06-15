@@ -134,7 +134,10 @@ mod tests {
         } else {
             fs::write(
                 ctx.shims_dir().join("python"),
-                format!("#!/usr/bin/env sh\nexec '{}' exec \"$(basename \"$0\")\" \"$@\"\n", gui.display()),
+                format!(
+                    "#!/usr/bin/env sh\nexec '{}' exec \"$(basename \"$0\")\" \"$@\"\n",
+                    gui.display()
+                ),
             )
             .expect("bad shim");
         }

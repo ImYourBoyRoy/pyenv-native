@@ -120,7 +120,11 @@ fn init_print_uses_cli_launcher_when_current_exe_is_gui() {
     let bin = ctx.root.join("bin");
     fs::create_dir_all(&bin).expect("bin dir");
     let cli = bin.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
-    let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+    let gui = bin.join(if cfg!(windows) {
+        "pyenv-gui.exe"
+    } else {
+        "pyenv-gui"
+    });
     fs::write(&cli, "cli").expect("cli");
     fs::write(&gui, "gui").expect("gui");
     ctx.exe_path = gui;
