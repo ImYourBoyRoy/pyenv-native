@@ -7,12 +7,13 @@ use std::path::PathBuf;
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::venv::resolve_managed_venv;
-use crate::version::resolve_selected_versions;
+use crate::version::{read_version_file, resolve_selected_versions};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentStatus {
     pub root: PathBuf,
     pub active_versions: Vec<String>,
+    pub global_versions: Vec<String>,
     pub origin: String,
     pub managed_venv: Option<ManagedVenvSummary>,
 }
@@ -42,6 +43,15 @@ pub fn cmd_status(ctx: &AppContext, json: bool) -> CommandReport {
         stdout.push(format!(
             "  Active Versions: {}",
             status.active_versions.join(", ")
+        ));
+    }
+
+    if status.global_versions.is_empty() {
+        stdout.push("  Global Versions: system".to_string());
+    } else {
+        stdout.push(format!(
+            "  Global Versions: {}",
+            status.global_versions.join(", ")
         ));
     }
 
@@ -78,7 +88,17 @@ pub fn build_environment_status(ctx: &AppContext) -> EnvironmentStatus {
     EnvironmentStatus {
         root: ctx.root.clone(),
         active_versions: selection.versions,
+        global_versions: read_global_versions(ctx),
         origin: selection.origin.to_string(),
         managed_venv,
     }
+}
+
+fn read_global_versions(ctx: &AppContext) -> Vec<String> {
+    for fallback in ["version", "global", "default"] {
+        if let Ok(versions) = read_version_file(&ctx.root.join(fallback)) {
+            return versions;
+        }
+    }
+    vec!["system".to_string()]
 }

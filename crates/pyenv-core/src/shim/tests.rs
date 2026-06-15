@@ -60,6 +60,47 @@ mod tests {
     }
 
     #[test]
+    fn rehash_from_gui_context_uses_cli_launcher_for_shims() {
+        let (_temp, mut ctx) = test_context();
+        let bin_dir = ctx.root.join("bin");
+        fs::create_dir_all(&bin_dir).expect("bin dir");
+        let cli_path = bin_dir.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
+        let gui_path = bin_dir.join(if cfg!(windows) {
+            "pyenv-gui.exe"
+        } else {
+            "pyenv-gui"
+        });
+        fs::write(&cli_path, "cli launcher").expect("cli");
+        fs::write(&gui_path, "gui launcher").expect("gui");
+        ctx.exe_path = gui_path;
+
+        let version_dir = ctx.versions_dir().join("3.14.0");
+        if cfg!(windows) {
+            fs::create_dir_all(&version_dir).expect("version");
+            fs::write(version_dir.join("python.exe"), "").expect("python");
+        } else {
+            fs::create_dir_all(version_dir.join("bin")).expect("bin");
+            fs::write(version_dir.join("bin").join("python"), "").expect("python");
+        }
+
+        rehash_shims(&ctx).expect("rehash");
+
+        if cfg!(windows) {
+            let shim_path = ctx.shims_dir().join("python.exe");
+            assert!(shim_path.is_file());
+            assert_eq!(
+                fs::read(&shim_path).expect("shim bytes"),
+                fs::read(&cli_path).expect("cli bytes")
+            );
+        } else {
+            let shim_path = ctx.shims_dir().join("python");
+            let contents = fs::read_to_string(&shim_path).expect("shim script");
+            assert!(contents.contains(&cli_path.display().to_string()));
+            assert!(!contents.contains("pyenv-gui"));
+        }
+    }
+
+    #[test]
     fn rehash_generates_cmd_shims_and_manifest() {
         let (_temp, ctx) = test_context();
         let version_dir = ctx.versions_dir().join("3.12.6");
