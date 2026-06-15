@@ -81,11 +81,7 @@ impl AppContext {
 }
 
 fn cli_binary_name() -> &'static str {
-    if cfg!(windows) {
-        "pyenv.exe"
-    } else {
-        "pyenv"
-    }
+    if cfg!(windows) { "pyenv.exe" } else { "pyenv" }
 }
 
 fn is_pyenv_cli_executable(path: &Path) -> bool {
@@ -331,7 +327,11 @@ mod tests {
         let bin = root.join("bin");
         std::fs::create_dir_all(&bin).expect("bin dir");
         let cli = bin.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
-        let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+        let gui = bin.join(if cfg!(windows) {
+            "pyenv-gui.exe"
+        } else {
+            "pyenv-gui"
+        });
         std::fs::write(&cli, "cli").expect("cli");
         std::fs::write(&gui, "gui").expect("gui");
 
@@ -355,7 +355,11 @@ mod tests {
         let root = temp.path().join(".pyenv");
         let bin = root.join("bin");
         std::fs::create_dir_all(&bin).expect("bin dir");
-        let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+        let gui = bin.join(if cfg!(windows) {
+            "pyenv-gui.exe"
+        } else {
+            "pyenv-gui"
+        });
         std::fs::write(&gui, "gui").expect("gui");
 
         let ctx = super::AppContext {
@@ -371,11 +375,8 @@ mod tests {
 
         assert_eq!(
             ctx.cli_exe_path(),
-            root.join("bin").join(if cfg!(windows) {
-                "pyenv.exe"
-            } else {
-                "pyenv"
-            })
+            root.join("bin")
+                .join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" })
         );
     }
 }
