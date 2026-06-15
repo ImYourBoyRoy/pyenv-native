@@ -220,6 +220,7 @@ pub struct JsonForwardResponse {
 pub struct EnvironmentStatusProxy {
     pub root: PathBuf,
     pub active_versions: Vec<String>,
+    pub global_versions: Vec<String>,
     pub origin: String,
     pub managed_venv: Option<ManagedVenvSummaryProxy>,
 }

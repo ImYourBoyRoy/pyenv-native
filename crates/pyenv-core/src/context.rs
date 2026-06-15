@@ -70,6 +70,14 @@ impl AppContext {
     pub fn cli_exe_path(&self) -> PathBuf {
         resolve_cli_exe_path(&self.root, &self.exe_path)
     }
+
+    /// Directory containing the pyenv CLI binary (`PYENV_ROOT/bin` in managed installs).
+    pub fn bin_dir(&self) -> PathBuf {
+        self.cli_exe_path()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| self.root.join("bin"))
+    }
 }
 
 fn cli_binary_name() -> &'static str {
@@ -89,7 +97,23 @@ fn is_pyenv_cli_executable(path: &Path) -> bool {
         })
 }
 
+fn is_companion_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(|stem| {
+            let lowered = stem.to_ascii_lowercase();
+            lowered == "pyenv-gui" || lowered == "pyenv-mcp"
+        })
+}
+
 fn resolve_cli_exe_path(root: &Path, current_exe: &Path) -> PathBuf {
+    if let Ok(pyenv) = env::var("PYENV") {
+        let explicit = PathBuf::from(pyenv);
+        if explicit.is_file() && is_pyenv_cli_executable(&explicit) {
+            return explicit;
+        }
+    }
+
     let managed = root.join("bin").join(cli_binary_name());
     if managed.is_file() {
         return managed;
@@ -104,6 +128,10 @@ fn resolve_cli_exe_path(root: &Path, current_exe: &Path) -> PathBuf {
 
     if is_pyenv_cli_executable(current_exe) {
         return current_exe.to_path_buf();
+    }
+
+    if is_companion_executable(current_exe) {
+        return managed;
     }
 
     current_exe.to_path_buf()
@@ -319,5 +347,35 @@ mod tests {
         };
 
         assert_eq!(ctx.cli_exe_path(), cli);
+    }
+
+    #[test]
+    fn cli_exe_path_never_returns_companion_when_cli_missing() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).expect("bin dir");
+        let gui = bin.join(if cfg!(windows) { "pyenv-gui.exe" } else { "pyenv-gui" });
+        std::fs::write(&gui, "gui").expect("gui");
+
+        let ctx = super::AppContext {
+            root: root.clone(),
+            dir: temp.path().join("work"),
+            exe_path: gui,
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: crate::config::AppConfig::default(),
+        };
+
+        assert_eq!(
+            ctx.cli_exe_path(),
+            root.join("bin").join(if cfg!(windows) {
+                "pyenv.exe"
+            } else {
+                "pyenv"
+            })
+        );
     }
 }

@@ -468,7 +468,10 @@ fn shim_invocation_name() -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     let stem = Path::new(&exe).file_stem()?.to_string_lossy().to_string();
     let lowered = stem.to_ascii_lowercase();
-    if matches!(lowered.as_str(), "pyenv" | "pyenv-cli" | "cargo" | "rustc") {
+    if matches!(
+        lowered.as_str(),
+        "pyenv" | "pyenv-cli" | "pyenv-gui" | "pyenv-mcp" | "cargo" | "rustc"
+    ) {
         None
     } else {
         Some(stem)

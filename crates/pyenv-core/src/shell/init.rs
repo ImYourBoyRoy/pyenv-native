@@ -119,7 +119,7 @@ pub(super) fn render_init_print(ctx: &AppContext, options: &InitCommandOptions) 
     lines.extend(shell_emit_set_shell(options.shell));
     lines.extend(render_shell_function(
         options.shell,
-        &ctx.exe_path.display().to_string(),
+        &ctx.cli_exe_path().display().to_string(),
     ));
     lines
 }
@@ -136,7 +136,7 @@ pub(super) fn render_init_path(ctx: &AppContext, options: &InitCommandOptions) -
     if !options.no_rehash {
         lines.extend(shell_emit_rehash(
             options.shell,
-            &ctx.exe_path.display().to_string(),
+            &ctx.cli_exe_path().display().to_string(),
         ));
     }
     lines
