@@ -11,6 +11,10 @@ use super::super::archive::{
 };
 use super::super::report::io_error;
 use super::super::runtime_support::ensure_pip_available;
+#[cfg(unix)]
+use super::super::runtime_support::ensure_unix_runtime_aliases;
+#[cfg(windows)]
+use super::super::runtime_support::ensure_windows_runtime_aliases;
 use super::super::types::{InstallOutcome, InstallPlan};
 use super::shared::{
     ProgressTracker, cleanup_paths, create_base_venv_if_requested, finalize_install,
@@ -57,6 +61,11 @@ pub(super) fn install_runtime_via_archive(
                 plan.python_executable.display()
             ),
         );
+
+        #[cfg(unix)]
+        ensure_unix_runtime_aliases(&plan.install_dir, &plan.runtime_version)?;
+        #[cfg(windows)]
+        ensure_windows_runtime_aliases(&plan.install_dir)?;
 
         let pip_bootstrapped = if plan.bootstrap_pip {
             progress.push("pip", "ensuring pip is available");

@@ -260,6 +260,24 @@ pub(super) fn ensure_unix_runtime_aliases(
     Ok(())
 }
 
+#[cfg(windows)]
+pub(super) fn ensure_windows_runtime_aliases(prefix: &Path) -> Result<(), PyenvError> {
+    let python = prefix.join("python.exe");
+    if python.is_file() {
+        ensure_path_alias(&python, &prefix.join("python3.exe"))?;
+    }
+
+    let scripts = prefix.join("Scripts");
+    if scripts.is_dir() {
+        let pip = scripts.join("pip.exe");
+        if pip.is_file() {
+            ensure_path_alias(&pip, &scripts.join("pip3.exe"))?;
+        }
+    }
+
+    Ok(())
+}
+
 fn first_existing_file(paths: &[PathBuf]) -> Option<PathBuf> {
     paths.iter().find(|path| path.is_file()).cloned()
 }

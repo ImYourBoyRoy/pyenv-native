@@ -115,21 +115,63 @@ mod tests {
         }
 
         let count = rehash_shims(&ctx).expect("rehash");
-        assert_eq!(count, 2);
         if cfg!(windows) {
+            assert_eq!(count, 4);
             assert!(ctx.shims_dir().join("python.exe").is_file());
+            assert!(ctx.shims_dir().join("python3.exe").is_file());
             assert!(ctx.shims_dir().join("python.cmd").is_file());
             assert!(ctx.shims_dir().join("python.bat").is_file());
             assert!(ctx.shims_dir().join("pip.cmd").is_file());
         } else {
+            assert_eq!(count, 4);
             assert!(ctx.shims_dir().join("python").is_file());
+            assert!(ctx.shims_dir().join("python3").is_file());
             assert!(ctx.shims_dir().join("pip").is_file());
+            assert!(ctx.shims_dir().join("pip3").is_file());
         }
         assert!(ctx.shims_dir().join(".pyenv-shims.json").is_file());
         assert!(!ctx.shims_dir().join(SHIM_LOCK_FILE).exists());
 
         let report = cmd_rehash(&ctx);
         assert_eq!(report.exit_code, 0);
+    }
+
+    #[test]
+    fn rehash_generates_python3_shim_when_only_python_binary_exists() {
+        let (_temp, ctx) = test_context();
+        let version_dir = ctx.versions_dir().join("3.14.0");
+        if cfg!(windows) {
+            fs::create_dir_all(&version_dir).expect("version");
+            fs::write(version_dir.join("python.exe"), "").expect("python");
+        } else {
+            fs::create_dir_all(version_dir.join("bin")).expect("bin");
+            fs::write(version_dir.join("bin").join("python"), "").expect("python");
+        }
+
+        rehash_shims(&ctx).expect("rehash");
+
+        let python3_shim = if cfg!(windows) {
+            ctx.shims_dir().join("python3.exe")
+        } else {
+            ctx.shims_dir().join("python3")
+        };
+        assert!(python3_shim.is_file());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn exec_resolves_python3_to_python_in_managed_version() {
+        let (_temp, ctx) = test_context();
+        let version_dir = ctx.versions_dir().join("3.14.0");
+        let python_path = version_dir.join("bin").join("python");
+        fs::create_dir_all(version_dir.join("bin")).expect("bin");
+        fs::write(&python_path, "#!/usr/bin/env sh\nexit 0\n").expect("python");
+        make_executable(&python_path).expect("python executable");
+        fs::write(ctx.root.join("version"), "3.14.0").expect("global version");
+        rehash_shims(&ctx).expect("rehash");
+
+        let report = cmd_exec(&ctx, "python3", &[]);
+        assert_eq!(report.exit_code, 0, "{:?}", report.stderr);
     }
 
     #[test]
@@ -279,7 +321,7 @@ mod tests {
         .expect("lock");
 
         let count = rehash_shims(&ctx).expect("rehash");
-        assert_eq!(count, 1);
+        assert_eq!(count, 2);
         assert!(!ctx.shims_dir().join(SHIM_LOCK_FILE).exists());
     }
 
