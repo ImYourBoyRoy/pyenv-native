@@ -566,6 +566,12 @@ if ! grep -q '"platform"[[:space:]]*:[[:space:]]*"'$OPERATING_SYSTEM'"' "$MANIFE
 ' "$OPERATING_SYSTEM" >&2
   exit 1
 fi
+if grep -q '"mcp_executable"' "$MANIFEST_PATH"; then
+  if [ ! -f "$MCP_EXECUTABLE_PATH" ]; then
+    printf 'Downloaded bundle declared an MCP server binary but `%s` was missing.
+' "$MCP_EXECUTABLE_PATH" >&2
+    exit 1
+  fi
   chmod +x "$MCP_EXECUTABLE_PATH"
 fi
 if grep -q '"gui_executable"' "$MANIFEST_PATH"; then
