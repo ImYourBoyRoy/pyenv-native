@@ -8,6 +8,15 @@ use crate::context::AppContext;
 use crate::runtime::{find_command_in_prefix, search_path_entries};
 
 pub(crate) fn find_system_command(ctx: &AppContext, command: &str) -> Option<PathBuf> {
+    for candidate in command_lookup_candidates(command) {
+        if let Some(path) = find_system_command_exact(ctx, candidate) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn find_system_command_exact(ctx: &AppContext, command: &str) -> Option<PathBuf> {
     let mut path_entries = ctx
         .path_env
         .as_ref()
@@ -44,12 +53,24 @@ pub(crate) fn find_command_in_version(
     version: &str,
     command: &str,
 ) -> Option<PathBuf> {
-    for prefix in crate::runtime::managed_search_roots_for_version(ctx, version) {
-        if let Some(path) = find_command_in_prefix(&prefix, command, ctx.path_ext.as_deref()) {
-            return Some(path);
+    for candidate in command_lookup_candidates(command) {
+        for prefix in crate::runtime::managed_search_roots_for_version(ctx, version) {
+            if let Some(path) = find_command_in_prefix(&prefix, candidate, ctx.path_ext.as_deref())
+            {
+                return Some(path);
+            }
         }
     }
     None
+}
+
+fn command_lookup_candidates(command: &str) -> Vec<&str> {
+    match command {
+        "python3" => vec!["python3", "python"],
+        "python2" => vec!["python2", "python"],
+        "pip3" => vec!["pip3", "pip"],
+        other => vec![other],
+    }
 }
 
 fn program_specific_shim_paths_env(command: &str) -> String {

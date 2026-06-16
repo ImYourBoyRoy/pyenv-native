@@ -104,6 +104,27 @@ function showView(viewId) {
     target.classList.add('fade-in');
 }
 
+function navigateToView(viewId) {
+    const navItem = document.querySelector(`.nav li[data-view="${viewId}"]`);
+    if (!navItem) return;
+    navItem.click();
+}
+
+function isGlobalVersion(versionName, globalVersions) {
+    const normalized = versionName.trim();
+    if (!globalVersions?.length) {
+        return normalized === 'system';
+    }
+    return globalVersions.includes(normalized);
+}
+
+function renderGlobalButton(versionName, globalVersions) {
+    if (isGlobalVersion(versionName, globalVersions)) {
+        return '<button class="btn btn-global-active" disabled>Global</button>';
+    }
+    return `<button class="btn btn-outline" onclick="setGlobal('${versionName}')">Make Global</button>`;
+}
+
 sidebarNavItems.forEach(item => {
     item.addEventListener('click', () => {
         if(item.classList.contains('active')) return;
@@ -153,11 +174,46 @@ async function loadDashboard() {
 // ─── Installed Versions ───
 async function loadInstalled() {
     const list = document.getElementById('installed-list');
+    const summary = document.getElementById('installed-global-summary');
     list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
     
     try {
-        const jsonStr = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
-        const versions = JSON.parse(jsonStr);
+        const [versionsJson, statusJson] = await Promise.all([
+            invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() }),
+            invoke('get_status', { workspaceDir: getWorkspaceDir() }),
+        ]);
+        const versions = JSON.parse(versionsJson);
+        const status = JSON.parse(statusJson);
+        const globalVersions = status.global_versions?.length
+            ? status.global_versions
+            : ['system'];
+        const globalLabel = globalVersions.join(', ');
+        const activeLabel = status.active_versions?.length
+            ? status.active_versions.join(', ')
+            : 'None';
+
+        if (summary) {
+            summary.style.display = 'block';
+            summary.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Current setup</div>
+                        <div style="font-size: 14px; font-weight: 600;">
+                            Active: <span style="color: #fff;">${activeLabel}</span>
+                            <span style="opacity: 0.4; margin: 0 8px;">•</span>
+                            Global: <span class="badge badge-success" style="margin-left: 0;">${globalLabel}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+                            Origin: ${status.origin}
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="navigateToView('view-available')" style="font-size: 12px;">
+                        Install New Runtime
+                    </button>
+                </div>
+            `;
+        }
+
         list.innerHTML = '';
         
         // Build the display list with system detection
@@ -173,38 +229,57 @@ async function loadInstalled() {
             }
         });
 
-        if (displayVersions.length === 0) {
-            list.innerHTML = '<div class="empty-state">No versions installed yet.</div>';
+        const managedVersions = displayVersions.filter(entry => !entry.isSystem);
+        if (managedVersions.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state" style="padding: 32px 16px;">
+                    <div style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">No managed runtimes installed yet</div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                        Install a Python runtime from <b>Available Targets</b> to get started.
+                    </div>
+                    <button class="btn btn-primary" onclick="navigateToView('view-available')">Browse Available Targets</button>
+                </div>
+            `;
             return;
         }
 
         displayVersions.forEach(entry => {
             const card = document.createElement('div');
             card.className = 'version-card';
+            const isGlobal = isGlobalVersion(entry.name, globalVersions);
             
             if (entry.isSystem) {
                 const badge = entry.available
                     ? '<span class="system-badge badge-success">Detected</span>'
                     : '<span class="system-badge badge-muted">Not Available</span>';
+                const globalBadge = isGlobal
+                    ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
+                    : '';
                 
                 card.innerHTML = `
                     <div>
-                        <div class="version-name">system ${badge}</div>
+                        <div class="version-name">system ${badge}${globalBadge}</div>
                         <div class="version-meta">${entry.available ? 'System-wide Python installation' : 'No system Python found (Microsoft Store alias detected)'}</div>
                     </div>
                     <div class="version-actions">
                         ${entry.available ? `
                             <button class="btn btn-outline" onclick="openPackageExplorer('system')">Package Explorer</button>
-                            <button class="btn btn-outline" onclick="setGlobal('system')">Make Global</button>
+                            ${renderGlobalButton('system', globalVersions)}
                         ` : ''}
                     </div>
                 `;
             } else {
+                const globalBadge = isGlobal
+                    ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
+                    : '';
                 card.innerHTML = `
-                    <div class="version-name">${entry.name}</div>
+                    <div>
+                        <div class="version-name">${entry.name}${globalBadge}</div>
+                        <div class="version-meta">${isGlobal ? 'Configured as the global default runtime' : 'Installed managed runtime'}</div>
+                    </div>
                     <div class="version-actions">
                         <button class="btn btn-outline" onclick="openPackageExplorer('${entry.name}')">Package Explorer</button>
-                        <button class="btn btn-outline" onclick="setGlobal('${entry.name}')">Make Global</button>
+                        ${renderGlobalButton(entry.name, globalVersions)}
                         <button class="btn btn-outline" onclick="setLocal('${entry.name}')">Make Local</button>
                         <button class="btn btn-danger" onclick="uninstallVersion('${entry.name}')">Uninstall</button>
                     </div>
@@ -328,24 +403,36 @@ async function loadVenvs() {
     const list = document.getElementById('venvs-list');
     list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
     try {
-        const jsonStr = await invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() });
-        const venvs = JSON.parse(jsonStr);
+        const [venvsJson, statusJson] = await Promise.all([
+            invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() }),
+            invoke('get_status', { workspaceDir: getWorkspaceDir() }),
+        ]);
+        const venvs = JSON.parse(venvsJson);
+        const status = JSON.parse(statusJson);
+        const globalVersions = status.global_versions?.length
+            ? status.global_versions
+            : ['system'];
         list.innerHTML = '';
         if (venvs.length === 0) {
             list.innerHTML = '<div class="empty-state">No virtual environments found.</div>';
         } else {
                 venvs.forEach(v => {
+                    const globalKey = `venv:${v.name}`;
+                    const isGlobal = isGlobalVersion(globalKey, globalVersions);
+                    const globalBadge = isGlobal
+                        ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
+                        : '';
                     const card = document.createElement('div');
                     card.className = 'version-card';
                     card.innerHTML = `
                         <div>
-                            <div class="version-name">${v.name}</div>
+                            <div class="version-name">${v.name}${globalBadge}</div>
                             <div class="version-meta">Base: ${v.base_version} • ${v.path}</div>
                         </div>
                         <div class="version-actions">
                             <button class="btn btn-outline" onclick="openPackageExplorer('venv:${v.name}')">Package Explorer</button>
                             <button class="btn btn-gold" style="border: 1px solid var(--accent-gold); color: var(--accent-gold);" onclick="openVenvUpgradeWizard('${v.name}', '${v.base_version}')">Upgrade</button>
-                            <button class="btn btn-outline" onclick="setGlobal('venv:${v.name}')">Global</button>
+                            ${renderGlobalButton(globalKey, globalVersions)}
                             <button class="btn btn-outline" onclick="setLocal('venv:${v.name}')">Local</button>
                             <button class="btn btn-danger" onclick="deleteVenv('${v.name}')">Delete</button>
                         </div>
@@ -400,6 +487,8 @@ async function setGlobal(v) {
     try {
         await invoke('set_global', { workspaceDir: getWorkspaceDir(), version: v });
         loadDashboard();
+        loadInstalled();
+        loadVenvs();
         showAlert('Global Version Set', `Python <b>${v}</b> is now the global default.`);
     } catch(err) {
         showAlert('Error', 'Failed to set global version:\n' + err);
