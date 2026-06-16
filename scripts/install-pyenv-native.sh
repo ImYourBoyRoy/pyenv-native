@@ -567,9 +567,11 @@ if [ -f "$INSTALLED_MCP_EXE" ]; then
 fi
 if [ -f "$INSTALLED_GUI_EXE" ]; then
   log_line INFO "Sanity check passed: pyenv-gui exists at $INSTALLED_GUI_EXE"
-else
-  log_line ERROR "Sanity check failed: pyenv-gui was not found at $INSTALLED_GUI_EXE"
+elif [ -n "$RESOLVED_GUI_SOURCE" ]; then
+  log_line ERROR "Sanity check failed: pyenv-gui source was provided but not installed at $INSTALLED_GUI_EXE"
   exit 1
+else
+  write_warn 'pyenv-gui was not installed; GUI features remain unavailable until a GUI bundle is installed.'
 fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then

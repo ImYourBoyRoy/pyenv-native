@@ -2625,7 +2625,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-cli"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "anyhow",
  "clap",
@@ -2634,7 +2634,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-core"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "anyhow",
  "bzip2",
@@ -2652,7 +2652,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-gui"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "pyenv-core",
  "rfd",
@@ -2665,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-mcp"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "anyhow",
  "clap",
