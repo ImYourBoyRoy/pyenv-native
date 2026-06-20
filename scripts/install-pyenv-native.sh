@@ -59,6 +59,27 @@ is_interactive() {
   [ -r /dev/tty ]
 }
 
+expand_user_path() {
+  path="$1"
+  case "$path" in
+    "~")
+      printf '%s' "$HOME"
+      ;;
+    "~/"*)
+      printf '%s' "$HOME${path#\~}"
+      ;;
+    *)
+      printf '%s' "$path"
+      ;;
+  esac
+}
+
+normalize_install_root() {
+  INSTALL_ROOT="$(expand_user_path "$INSTALL_ROOT")"
+  mkdir -p "$(dirname -- "$INSTALL_ROOT")"
+  INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename -- "$INSTALL_ROOT")"
+}
+
 resolve_script_dir() {
   CDPATH= cd -- "$(dirname -- "$0")" && pwd
 }
@@ -314,14 +335,15 @@ assert_install_root_access() {
 
 assert_install_root_state() {
   installed_executable="${INSTALL_ROOT}/bin/pyenv"
-  if [ -e "$installed_executable" ] && [ "$FORCE" != "true" ]; then
-    printf 'pyenv-native is already installed at %s. Re-run with --force to overwrite or uninstall first.\n' "$installed_executable" >&2
-    exit 1
+  if [ -e "$installed_executable" ]; then
+    printf 'Upgrading existing pyenv-native installation at %s.\n' "$installed_executable" >&2
+    return 0
   fi
 
   if [ -d "$INSTALL_ROOT" ] \
     && [ ! -e "$installed_executable" ] \
-    && [ "$FORCE" != "true" ]; then
+    && [ "$FORCE" != "true" ] \
+    && [ "$YES" != "true" ]; then
     non_log_children="$(find "$INSTALL_ROOT" -mindepth 1 -maxdepth 1 -exec basename {} \; 2>/dev/null | grep -v '^logs$' || true)"
     if [ -n "$non_log_children" ]; then
       printf 'Install root `%s` already exists and is not empty. Re-run with --force or choose a different --install-root.\n' "$INSTALL_ROOT" >&2
@@ -506,8 +528,7 @@ if [ -z "$SHELL_KIND" ]; then
   SHELL_KIND="$(detect_shell_kind)"
 fi
 
-mkdir -p "$(dirname -- "$INSTALL_ROOT")"
-INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename -- "$INSTALL_ROOT")"
+normalize_install_root
 INSTALL_BIN="${INSTALL_ROOT}/bin"
 INSTALLED_EXE="${INSTALL_BIN}/pyenv"
 INSTALLED_MCP_EXE="${INSTALL_BIN}/pyenv-mcp"
@@ -567,9 +588,11 @@ if [ -f "$INSTALLED_MCP_EXE" ]; then
 fi
 if [ -f "$INSTALLED_GUI_EXE" ]; then
   log_line INFO "Sanity check passed: pyenv-gui exists at $INSTALLED_GUI_EXE"
-else
-  log_line ERROR "Sanity check failed: pyenv-gui was not found at $INSTALLED_GUI_EXE"
+elif [ -n "$RESOLVED_GUI_SOURCE" ]; then
+  log_line ERROR "Sanity check failed: pyenv-gui source was provided but not installed at $INSTALLED_GUI_EXE"
   exit 1
+else
+  write_warn 'pyenv-gui was not installed; GUI features remain unavailable until a GUI bundle is installed.'
 fi
 
 if [ "$ADD_TO_USER_PATH" = "true" ] && [ "$UPDATE_PROFILE_EFFECTIVE" != "true" ]; then

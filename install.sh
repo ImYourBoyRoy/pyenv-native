@@ -87,6 +87,27 @@ is_interactive() {
   [ -r /dev/tty ]
 }
 
+expand_user_path() {
+  path="$1"
+  case "$path" in
+    "~")
+      printf '%s' "$HOME"
+      ;;
+    "~/"*)
+      printf '%s' "$HOME${path#\~}"
+      ;;
+    *)
+      printf '%s' "$path"
+      ;;
+  esac
+}
+
+normalize_install_root() {
+  INSTALL_ROOT="$(expand_user_path "$INSTALL_ROOT")"
+  mkdir -p "$(dirname -- "$INSTALL_ROOT")"
+  INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename -- "$INSTALL_ROOT")"
+}
+
 nearest_existing_dir() {
   candidate="$1"
   while [ ! -e "$candidate" ]; do
@@ -130,14 +151,15 @@ assert_install_root_access() {
 
 assert_install_root_state() {
   installed_executable="${INSTALL_ROOT}/bin/pyenv"
-  if [ -e "$installed_executable" ] && [ "$FORCE" != "true" ]; then
-    printf 'Warning: pyenv-native is already installed at %s. Proceeding will upgrade or overwrite the installation in-place.\n' "$installed_executable" >&2
+  if [ -e "$installed_executable" ]; then
+    printf 'Upgrading existing pyenv-native installation at %s.\n' "$installed_executable" >&2
+    return 0
   fi
 
   if [ -d "$INSTALL_ROOT" ] \
     && [ -n "$(find "$INSTALL_ROOT" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ] \
-    && [ ! -e "$installed_executable" ] \
-    && [ "$FORCE" != "true" ]; then
+    && [ "$FORCE" != "true" ] \
+    && [ "$YES" != "true" ]; then
     printf 'Warning: Install root `%s` already exists and is not empty. Proceeding will install into this existing directory.\n' "$INSTALL_ROOT" >&2
   fi
 }
@@ -502,8 +524,7 @@ if ! command -v tar >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "$(dirname -- "$INSTALL_ROOT")"
-INSTALL_ROOT="$(CDPATH= cd -- "$(dirname -- "$INSTALL_ROOT")" && pwd)/$(basename -- "$INSTALL_ROOT")"
+normalize_install_root
 mkdir -p "$TEMP_ROOT"
 TEMP_ROOT="$(CDPATH= cd -- "$TEMP_ROOT" && pwd)"
 UPDATE_PROFILE_EFFECTIVE=false
@@ -566,6 +587,12 @@ if ! grep -q '"platform"[[:space:]]*:[[:space:]]*"'$OPERATING_SYSTEM'"' "$MANIFE
 ' "$OPERATING_SYSTEM" >&2
   exit 1
 fi
+if grep -q '"mcp_executable"' "$MANIFEST_PATH"; then
+  if [ ! -f "$MCP_EXECUTABLE_PATH" ]; then
+    printf 'Downloaded bundle declared an MCP server binary but `%s` was missing.
+' "$MCP_EXECUTABLE_PATH" >&2
+    exit 1
+  fi
   chmod +x "$MCP_EXECUTABLE_PATH"
 fi
 if grep -q '"gui_executable"' "$MANIFEST_PATH"; then
@@ -578,8 +605,7 @@ if grep -q '"gui_executable"' "$MANIFEST_PATH"; then
 fi
 
 write_step "Running bundled installer from ${INSTALLER_PATH}"
-INSTALLER_ARGS="--source-path \"$EXECUTABLE_PATH\" --install-root \"$INSTALL_ROOT\" --shell \"$SHELL_KIND\" --add-to-user-path \"$ADD_TO_USER_PATH\" --update-shell-profile \"$UPDATE_SHELL_PROFILE\" --refresh-shims \"$REFRESH_SHIMS\" --log-path \"$LOG_PATH\" --yes"
-[ "$FORCE" = "true" ] && INSTALLER_ARGS="$INSTALLER_ARGS --force"
+INSTALLER_ARGS="--source-path \"$EXECUTABLE_PATH\" --install-root \"$INSTALL_ROOT\" --shell \"$SHELL_KIND\" --add-to-user-path \"$ADD_TO_USER_PATH\" --update-shell-profile \"$UPDATE_SHELL_PROFILE\" --refresh-shims \"$REFRESH_SHIMS\" --log-path \"$LOG_PATH\" --yes --force"
 [ -f "$MCP_EXECUTABLE_PATH" ] && INSTALLER_ARGS="$INSTALLER_ARGS --source-mcp-path \"$MCP_EXECUTABLE_PATH\""
 [ -f "$GUI_EXECUTABLE_PATH" ] && INSTALLER_ARGS="$INSTALLER_ARGS --source-gui-path \"$GUI_EXECUTABLE_PATH\""
 

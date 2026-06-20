@@ -257,7 +257,7 @@ fn render_windows_launcher(
     installer_path: &Path,
     restart_gui: bool,
 ) -> String {
-    let mut installer_args = vec![
+    let installer_args = vec![
         "-NoProfile".to_string(),
         "-ExecutionPolicy".to_string(),
         "Bypass".to_string(),
@@ -278,11 +278,8 @@ fn render_windows_launcher(
         "-RefreshShims".to_string(),
         "true".to_string(),
         "-Yes".to_string(),
+        "-Force".to_string(),
     ];
-
-    if target.comparison == Ordering::Equal {
-        installer_args.push("-Force".to_string());
-    }
 
     let rendered_args = installer_args
         .iter()
@@ -341,19 +338,29 @@ fn run_posix_update(
         .arg("false")
         .arg("--refresh-shims")
         .arg("true")
-        .arg("--yes");
+        .arg("--yes")
+        .arg("--force");
 
-    let status = command
-        .status()
+    let output = command
+        .output()
         .map_err(|error| format!("pyenv: failed to launch installer: {error}"))?;
-    if status.success() {
+    if output.status.success() {
         return Ok(());
     }
 
-    Err(format!(
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut details = vec![format!(
         "pyenv: self-update installer exited with status {:?}",
-        status.code()
-    ))
+        output.status.code()
+    )];
+    if !stderr.trim().is_empty() {
+        details.push(format!("pyenv: installer stderr:\n{}", stderr.trim()));
+    }
+    if !stdout.trim().is_empty() {
+        details.push(format!("pyenv: installer stdout:\n{}", stdout.trim()));
+    }
+    Err(details.join("\n"))
 }
 
 fn timestamp_suffix() -> u128 {

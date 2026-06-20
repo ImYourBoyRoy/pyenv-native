@@ -55,7 +55,7 @@ pub(super) fn run_process(
     command.current_dir(&ctx.dir);
     command.env("PYENV_ROOT", &ctx.root);
     command.env("PYENV_DIR", &ctx.dir);
-    command.env("PYENV_EXE", &ctx.exe_path);
+    command.env("PYENV_EXE", ctx.cli_exe_path());
     if let Some(version) = &ctx.env_version {
         command.env("PYENV_VERSION", version);
     }

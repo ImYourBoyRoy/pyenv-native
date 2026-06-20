@@ -19,11 +19,7 @@ pub fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
 
 pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> Vec<DoctorCheck> {
     let mut checks = Vec::new();
-    let exe_dir = ctx
-        .exe_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| ctx.root.join("bin"));
+    let exe_dir = ctx.bin_dir();
     let shims_dir = ctx.shims_dir();
     let versions_dir = ctx.versions_dir();
 
@@ -96,6 +92,7 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     }
 
     checks.extend(selected_env_checks(&selected));
+    checks.push(shim_launcher_integrity_check(ctx));
     checks.push(functional_shim_check(ctx, &selected));
 
     checks
@@ -185,6 +182,98 @@ fn selected_env_checks(selected: &SelectedVersions) -> Vec<DoctorCheck> {
             ),
         })
         .collect()
+}
+
+fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
+    let cli = ctx.cli_exe_path();
+    let shims_dir = ctx.shims_dir();
+
+    if !cli.is_file() {
+        return DoctorCheck {
+            name: "shim-launcher-integrity".to_string(),
+            status: DoctorStatus::Warn,
+            detail: format!(
+                "pyenv CLI launcher not found at {}; reinstall pyenv-native or run the installer",
+                cli.display()
+            ),
+        };
+    }
+
+    #[cfg(windows)]
+    {
+        let companion = ctx.root.join("bin").join("pyenv-gui.exe");
+        let shim = shims_dir.join("python.exe");
+        if shim.is_file()
+            && companion.is_file()
+            && files_are_identical(&shim, &companion).unwrap_or(false)
+        {
+            return DoctorCheck {
+                name: "shim-launcher-integrity".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "python shim is a copy of pyenv-gui.exe and will open the GUI instead of running Python; run `pyenv rehash` to repair".to_string(),
+            };
+        }
+
+        if shim.is_file() && !files_are_identical(&shim, &cli).unwrap_or(false) {
+            return DoctorCheck {
+                name: "shim-launcher-integrity".to_string(),
+                status: DoctorStatus::Warn,
+                detail: format!(
+                    "python shim at {} does not match the pyenv CLI launcher at {}; run `pyenv rehash` to refresh shims",
+                    shim.display(),
+                    cli.display()
+                ),
+            };
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let shim = shims_dir.join("python");
+        if let Ok(contents) = std::fs::read_to_string(&shim)
+            && contents.contains("pyenv-gui")
+        {
+            return DoctorCheck {
+                name: "shim-launcher-integrity".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "python shim references pyenv-gui and will open the GUI instead of running Python; run `pyenv rehash` to repair".to_string(),
+            };
+        }
+
+        if shim.is_file() && !contents_embed_cli_launcher(&shim, &cli).unwrap_or(true) {
+            return DoctorCheck {
+                name: "shim-launcher-integrity".to_string(),
+                status: DoctorStatus::Warn,
+                detail: format!(
+                    "python shim at {} does not reference the pyenv CLI launcher at {}; run `pyenv rehash` to refresh shims",
+                    shim.display(),
+                    cli.display()
+                ),
+            };
+        }
+    }
+
+    DoctorCheck {
+        name: "shim-launcher-integrity".to_string(),
+        status: DoctorStatus::Ok,
+        detail: format!("shim launchers reference {}", cli.display()),
+    }
+}
+
+#[cfg(windows)]
+fn files_are_identical(lhs: &Path, rhs: &Path) -> Result<bool, std::io::Error> {
+    let lhs_meta = lhs.metadata()?;
+    let rhs_meta = rhs.metadata()?;
+    if lhs_meta.len() != rhs_meta.len() {
+        return Ok(false);
+    }
+    Ok(std::fs::read(lhs)? == std::fs::read(rhs)?)
+}
+
+#[cfg(not(windows))]
+fn contents_embed_cli_launcher(shim: &Path, cli: &Path) -> Result<bool, std::io::Error> {
+    let contents = std::fs::read_to_string(shim)?;
+    Ok(contents.contains(&cli.display().to_string()))
 }
 
 fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> DoctorCheck {
@@ -278,11 +367,7 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
         });
     }
 
-    let exe_dir = ctx
-        .exe_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| ctx.root.join("bin"));
+    let exe_dir = ctx.bin_dir();
     let shims_dir = ctx.shims_dir();
 
     if let Some(path_env) = ctx.path_env.as_ref() {

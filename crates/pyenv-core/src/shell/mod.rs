@@ -137,14 +137,15 @@ pub fn cmd_sh_deactivate(ctx: &AppContext, _args: &[String]) -> CommandReport {
 pub fn cmd_sh_rehash(ctx: &AppContext) -> CommandReport {
     CommandReport::success(shell_emit_rehash(
         effective_shell(ctx),
-        &ctx.exe_path.display().to_string(),
+        &ctx.cli_exe_path().display().to_string(),
     ))
 }
 
 pub fn cmd_sh_cmd(ctx: &AppContext, args: &[String]) -> CommandReport {
     let args = strip_shell_separator(args);
+    let cli_exe = ctx.cli_exe_path();
     let Some((command, rest)) = args.split_first() else {
-        return CommandReport::success(vec![format!("\"{}\"", ctx.exe_path.display())]);
+        return CommandReport::success(vec![format!("\"{}\"", cli_exe.display())]);
     };
 
     match command.to_ascii_lowercase().as_str() {
@@ -152,7 +153,7 @@ pub fn cmd_sh_cmd(ctx: &AppContext, args: &[String]) -> CommandReport {
         "activate" => cmd_sh_activate(ctx, rest),
         "deactivate" => cmd_sh_deactivate(ctx, rest),
         "rehash" => cmd_sh_rehash(ctx),
-        _ => CommandReport::success(vec![render_cmd_exec_line(&ctx.exe_path, args)]),
+        _ => CommandReport::success(vec![render_cmd_exec_line(&cli_exe, args)]),
     }
 }
 
