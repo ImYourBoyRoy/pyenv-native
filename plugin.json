@@ -1,0 +1,11 @@
+{
+  "name": "pyenv-native",
+  "description": "Agent skills for pyenv-native — native Python version management and pyenv-mcp workflows.",
+  "author": {
+    "name": "Roy Dawson IV"
+  },
+  "homepage": "https://github.com/imyourboyroy/pyenv-native",
+  "repository": "https://github.com/imyourboyroy/pyenv-native",
+  "license": "MIT",
+  "skills": "./skills"
+}
