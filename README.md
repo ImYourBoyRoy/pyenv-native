@@ -139,7 +139,28 @@ This repo ships **agent skills** so coding agents follow pyenv-native / pyenv-mc
 ### Tell your agent (copy-paste)
 
 ```text
-Install the agent skills from https://github.com/imyourboyroy/pyenv-native
+Install the agent skills from https://github.com/imyourboyroy/pyenv-native. Clone the repo, then run scripts/install-agent-skills.ps1 -Agent all on Windows (PowerShell 7+) or scripts/install-agent-skills.sh --agent all on macOS/Linux. Install for Cursor, Claude Code, Gemini CLI, Antigravity, GitHub Copilot, Windsurf, OpenCode, and Kiro.
+```
+
+### One-shot (no manual cd)
+
+**Windows (PowerShell 7+):**
+
+```powershell
+$repo = "https://github.com/imyourboyroy/pyenv-native"
+$dir = Join-Path $env:TEMP "agent-skills-$(Get-Random)"
+git clone --depth 1 $repo $dir
+& (Join-Path $dir "scripts/install-agent-skills.ps1") -RepoRoot $dir -Agent all
+```
+
+**macOS / Linux:**
+
+```bash
+repo="https://github.com/imyourboyroy/pyenv-native"
+dir="$(mktemp -d)"
+git clone --depth 1 "$repo" "$dir"
+chmod +x "$dir/scripts/install-agent-skills.sh"
+"$dir/scripts/install-agent-skills.sh" --repo-root "$dir" --agent all
 ```
 
 ### Quick install
@@ -161,7 +182,7 @@ chmod +x ./scripts/install-agent-skills.sh
 ./scripts/install-agent-skills.sh --agent all
 ```
 
-Full guides for every supported agent: **[docs/agent-skills/README.md](./docs/agent-skills/README.md)**
+Full guides for every supported agent: **[docs/agent-skills/README.md](./docs/agent-skills/README.md)** · **[Getting started](./docs/agent-skills/getting-started.md)**
 
 ---
 

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "pyenv-native-skills",
+  "description": "Agent skills for pyenv-native — MCP-first Python version management.",
+  "owner": {
+    "name": "Roy Dawson IV",
+    "url": "https://github.com/imyourboyroy"
+  },
+  "plugins": [
+    {
+      "name": "pyenv-native",
+      "source": {
+        "source": "github",
+        "repo": "imyourboyroy/pyenv-native"
+      },
+      "description": "Structured workflows for pyenv-native and pyenv-mcp on Windows, macOS, and Linux.",
+      "homepage": "https://github.com/imyourboyroy/pyenv-native",
+      "license": "MIT",
+      "keywords": ["python", "pyenv", "mcp", "venv", "windows"]
+    }
+  ]
+}
