@@ -2,6 +2,7 @@
 
 Install structured agent workflows for **pyenv-native** across mainstream coding agents (Cursor, Claude Code, Gemini CLI, Antigravity, GitHub Copilot, Windsurf, OpenCode, Kiro).
 
+**Start here:** [getting-started.md](./getting-started.md) (all platforms + one-shot install)
 ## Tell your agent (copy-paste)
 
 Use this prompt in **any** supported agent:

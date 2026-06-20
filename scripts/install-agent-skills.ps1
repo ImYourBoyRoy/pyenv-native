@@ -31,12 +31,18 @@ param(
     [Parameter(ParameterSetName = 'Remote')]
     [string]$RepoUrl,
 
+    [Alias('LocalPath')]
     [string]$RepoRoot = '',
+
     [string]$Branch = 'main'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Windows: USERPROFILE. macOS/Linux (incl. pwsh): HOME fallback.
+$UserHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { $null }
+if (-not $UserHome) { throw 'Cannot resolve user home directory (set USERPROFILE or HOME).' }
 
 function Get-RepoSlug([string]$Url) {
     $clean = ($Url -replace '\.git$', '').TrimEnd('/')
@@ -61,7 +67,7 @@ function Install-CursorSkills {
     $dest = if ($Scope -eq 'project') {
         Join-Path (Get-Location) '.cursor\skills'
     } else {
-        Join-Path $env:USERPROFILE '.cursor\skills'
+        Join-Path $UserHome '.cursor\skills'
     }
     Write-Host "  Cursor -> $dest"
     Copy-SkillTree -SourceSkillsDir $SkillsSource -DestDir $dest
@@ -83,7 +89,7 @@ function Install-KiroSkills {
     $dest = if ($Scope -eq 'project') {
         Join-Path (Get-Location) '.kiro\skills'
     } else {
-        Join-Path $env:USERPROFILE '.kiro\skills'
+        Join-Path $UserHome '.kiro\skills'
     }
     Write-Host "  Kiro -> $dest"
     Copy-SkillTree -SourceSkillsDir $SkillsSource -DestDir $dest
@@ -103,14 +109,24 @@ function Install-AgentsFolder {
 }
 
 function Install-GeminiSkills {
-    param([string]$RepoRoot, [string]$Scope)
+    param([string]$RepoRoot, [string]$Scope, [string]$RepoUrl)
+    $scopeArg = if ($Scope -eq 'project') { @('--scope', 'workspace') } else { @() }
     if (-not (Get-Command gemini -ErrorAction SilentlyContinue)) {
         Write-Host "  Gemini CLI: 'gemini' not in PATH — manual:"
-        Write-Host "    gemini skills install $RepoRoot/skills/ $(if ($Scope -eq 'project') { '--scope workspace' })"
+        if ($RepoUrl) {
+            $url = if ($RepoUrl -match '\.git$') { $RepoUrl } else { "$RepoUrl.git" }
+            Write-Host "    gemini skills install $url --path skills $($scopeArg -join ' ')"
+        } else {
+            Write-Host "    gemini skills install $RepoRoot/skills/ $($scopeArg -join ' ')"
+        }
         return
     }
-    $scopeArg = if ($Scope -eq 'project') { '--scope', 'workspace' } else { @() }
-    & gemini skills install (Join-Path $RepoRoot 'skills') @scopeArg
+    if ($RepoUrl) {
+        $url = if ($RepoUrl -match '\.git$') { $RepoUrl } else { "$RepoUrl.git" }
+        & gemini skills install $url --path skills @scopeArg
+    } else {
+        & gemini skills install (Join-Path $RepoRoot 'skills') @scopeArg
+    }
 }
 
 function Install-AntigravityPlugin {
@@ -148,7 +164,7 @@ function Show-OpenCodeInstructions {
 # Resolve repo root
 if ($RepoUrl) {
     $slug = Get-RepoSlug $RepoUrl
-    $cache = Join-Path $env:USERPROFILE ".agent-skills-cache\$slug"
+    $cache = Join-Path $UserHome ".agent-skills-cache/$slug"
     if (Test-Path $cache) {
         git -C $cache pull --ff-only
     } else {
@@ -184,12 +200,12 @@ foreach ($t in $targets) {
         'cursor' {
             Install-CursorSkills -SkillsSource $skillsSource -Scope $Scope
             if ($Scope -eq 'user') {
-                Install-AgentsFolder -RepoRoot $RepoRoot -DestSkillsDir (Join-Path $env:USERPROFILE '.cursor\skills')
+                Install-AgentsFolder -RepoRoot $RepoRoot -DestSkillsDir (Join-Path $UserHome '.cursor/skills')
             }
         }
         'copilot' { Install-CopilotSkills -SkillsSource $skillsSource -Scope $Scope }
         'kiro' { Install-KiroSkills -SkillsSource $skillsSource -Scope $Scope }
-        'gemini' { Install-GeminiSkills -RepoRoot $RepoRoot -Scope $Scope }
+        'gemini' { Install-GeminiSkills -RepoRoot $RepoRoot -Scope $Scope -RepoUrl $RepoUrl }
         'antigravity' { Install-AntigravityPlugin -RepoRoot $RepoRoot }
         'claude' { Show-ClaudeInstructions -RepoUrl $RepoUrl -RepoRoot $RepoRoot }
         'windsurf' { Show-WindsurfInstructions }
