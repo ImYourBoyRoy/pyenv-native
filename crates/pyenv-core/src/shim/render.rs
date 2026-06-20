@@ -16,16 +16,17 @@ pub(super) fn write_shim_artifacts(
     shims_dir: &Path,
     command: &str,
 ) -> Result<(), PyenvError> {
+    let launcher = ctx.cli_exe_path();
     if cfg!(windows) {
-        if ctx.exe_path.is_file() {
-            create_windows_native_shim(&ctx.exe_path, &shim_native_path(shims_dir, command))?;
+        if launcher.is_file() {
+            create_windows_native_shim(&launcher, &shim_native_path(shims_dir, command))?;
         }
         fs::write(shim_cmd_path(shims_dir, command), render_cmd_shim()).map_err(io_error)?;
         fs::write(shim_bat_path(shims_dir, command), render_bat_shim()).map_err(io_error)?;
         fs::write(shim_ps1_path(shims_dir, command), render_ps1_shim()).map_err(io_error)?;
     } else {
         let shim_path = shim_posix_path(shims_dir, command);
-        fs::write(&shim_path, render_posix_shim(&ctx.exe_path)).map_err(io_error)?;
+        fs::write(&shim_path, render_posix_shim(&launcher)).map_err(io_error)?;
         make_executable(&shim_path)?;
     }
     Ok(())

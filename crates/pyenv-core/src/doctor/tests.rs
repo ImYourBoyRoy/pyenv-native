@@ -114,4 +114,40 @@ mod tests {
             .expect("python-build check");
         assert_eq!(python_build.status, DoctorStatus::Info);
     }
+
+    #[test]
+    fn doctor_warns_when_python_shim_matches_gui_launcher() {
+        let (_temp, mut ctx) = test_context();
+        let bin = ctx.root.join("bin");
+        let cli = bin.join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" });
+        let gui = bin.join(if cfg!(windows) {
+            "pyenv-gui.exe"
+        } else {
+            "pyenv-gui"
+        });
+        fs::write(&cli, "cli launcher").expect("cli");
+        fs::write(&gui, "gui launcher").expect("gui");
+        ctx.exe_path = gui.clone();
+
+        if cfg!(windows) {
+            fs::copy(&gui, ctx.shims_dir().join("python.exe")).expect("bad shim");
+        } else {
+            fs::write(
+                ctx.shims_dir().join("python"),
+                format!(
+                    "#!/usr/bin/env sh\nexec '{}' exec \"$(basename \"$0\")\" \"$@\"\n",
+                    gui.display()
+                ),
+            )
+            .expect("bad shim");
+        }
+
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let integrity = checks
+            .iter()
+            .find(|check| check.name == "shim-launcher-integrity")
+            .expect("integrity check");
+        assert_eq!(integrity.status, DoctorStatus::Warn);
+        assert!(integrity.detail.contains("pyenv-gui"));
+    }
 }

@@ -5,8 +5,10 @@
 //! validation, and remote requirements.txt fetching and verification.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use serde::de::DeserializeOwned;
 
 use crate::command::CommandReport;
 use crate::context::AppContext;
@@ -16,6 +18,65 @@ use crate::venv::{resolve_installed_runtime_version, resolve_managed_venv};
 use crate::version::installed_version_dir;
 
 use super::types::{DependencyConflict, OutdatedPackage, PipPackage};
+
+/// Build a pip subprocess with flags/env that keep stdout machine-readable.
+fn pip_subcommand(py_path: &Path) -> Command {
+    let mut command = Command::new(py_path);
+    command
+        .headless()
+        .env("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+        .env("PIP_NO_COLOR", "1")
+        .env("NO_COLOR", "1")
+        .env("PIP_PROGRESS_BAR", "off");
+    command
+}
+
+fn trim_json_array_line(line: &str) -> &str {
+    if let Some(end) = line.rfind(']') {
+        &line[..=end]
+    } else {
+        line
+    }
+}
+
+fn extract_json_array_payload(stdout: &str) -> &str {
+    let trimmed = stdout.trim();
+    if trimmed.is_empty() {
+        return "[]";
+    }
+
+    for line in trimmed.lines() {
+        let line = line.trim();
+        if line == "[]" || line.starts_with("[{") {
+            return trim_json_array_line(line);
+        }
+    }
+
+    if let Some(start) = trimmed.find("[{")
+        && let Some(rel_end) = trimmed[start..].rfind(']')
+    {
+        return trim_json_array_line(&trimmed[start..start + rel_end + 1]);
+    }
+
+    if let (Some(start), Some(end)) = (trimmed.find('['), trimmed.rfind(']'))
+        && end > start
+    {
+        let slice = &trimmed[start..=end];
+        if slice == "[]" || slice.starts_with("[{") {
+            return slice;
+        }
+    }
+
+    trimmed
+}
+
+fn parse_pip_json_array<T>(stdout: &[u8]) -> Result<Vec<T>, serde_json::Error>
+where
+    T: DeserializeOwned,
+{
+    let text = String::from_utf8_lossy(stdout);
+    serde_json::from_str(extract_json_array_payload(&text))
+}
 
 /// Resolves the absolute path to the Python interpreter for a given target spec (runtime version or managed venv name).
 pub fn resolve_interpreter_path(ctx: &AppContext, target: &str) -> Result<PathBuf, String> {
@@ -60,9 +121,15 @@ pub fn cmd_pip_list(ctx: &AppContext, target: &str, json: bool) -> CommandReport
         Err(e) => return CommandReport::failure(vec![e], 1),
     };
 
-    let output = match Command::new(&py_path)
-        .headless()
-        .args(["-m", "pip", "list", "--format=json"])
+    let output = match pip_subcommand(&py_path)
+        .args([
+            "-m",
+            "pip",
+            "-q",
+            "--disable-pip-version-check",
+            "list",
+            "--format=json",
+        ])
         .output()
     {
         Ok(o) => o,
@@ -84,16 +151,17 @@ pub fn cmd_pip_list(ctx: &AppContext, target: &str, json: bool) -> CommandReport
         );
     }
 
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let packages: Vec<PipPackage> = match serde_json::from_str(&stdout_str) {
+    let packages: Vec<PipPackage> = match parse_pip_json_array(&output.stdout) {
         Ok(pkgs) => pkgs,
         Err(e) => {
-            return CommandReport::failure(
-                vec![format!(
-                    "pyenv: failed to parse pip list output as JSON: {e}"
-                )],
-                1,
-            );
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+            let mut lines = vec![format!(
+                "pyenv: failed to parse pip list output as JSON: {e}"
+            )];
+            if !stderr_str.trim().is_empty() {
+                lines.push(format!("pyenv: pip stderr: {}", stderr_str.trim()));
+            }
+            return CommandReport::failure(lines, 1);
         }
     };
 
@@ -121,9 +189,16 @@ pub fn cmd_pip_outdated(ctx: &AppContext, target: &str, json: bool) -> CommandRe
         Err(e) => return CommandReport::failure(vec![e], 1),
     };
 
-    let output = match Command::new(&py_path)
-        .headless()
-        .args(["-m", "pip", "list", "--outdated", "--format=json"])
+    let output = match pip_subcommand(&py_path)
+        .args([
+            "-m",
+            "pip",
+            "-q",
+            "--disable-pip-version-check",
+            "list",
+            "--outdated",
+            "--format=json",
+        ])
         .output()
     {
         Ok(o) => o,
@@ -145,16 +220,17 @@ pub fn cmd_pip_outdated(ctx: &AppContext, target: &str, json: bool) -> CommandRe
         );
     }
 
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let packages: Vec<OutdatedPackage> = match serde_json::from_str(&stdout_str) {
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    let packages: Vec<OutdatedPackage> = match parse_pip_json_array(&output.stdout) {
         Ok(pkgs) => pkgs,
         Err(e) => {
-            return CommandReport::failure(
-                vec![format!(
-                    "pyenv: failed to parse pip outdated output as JSON: {e}"
-                )],
-                1,
-            );
+            let mut lines = vec![format!(
+                "pyenv: failed to parse pip outdated output as JSON: {e}"
+            )];
+            if !stderr_str.trim().is_empty() {
+                lines.push(format!("pyenv: pip stderr: {}", stderr_str.trim()));
+            }
+            return CommandReport::failure(lines, 1);
         }
     };
 
@@ -640,4 +716,38 @@ pub fn cmd_pip_update(
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     stdout.extend(stdout_str.lines().map(ToOwned::to_owned));
     CommandReport::success(stdout)
+}
+
+#[cfg(test)]
+mod parse_tests {
+    use super::{extract_json_array_payload, parse_pip_json_array};
+    use crate::pip::types::{OutdatedPackage, PipPackage};
+
+    #[test]
+    fn parse_pip_json_array_treats_empty_stdout_as_empty_list() {
+        let packages: Vec<PipPackage> = parse_pip_json_array(b"").expect("empty stdout");
+        assert!(packages.is_empty());
+    }
+
+    #[test]
+    fn parse_pip_json_array_strips_leading_notice_lines() {
+        let stdout = b"[notice] A new release of pip is available: 25.0 -> 25.1\n[{\"name\":\"requests\",\"version\":\"2.31.0\"}]\n";
+        let packages: Vec<PipPackage> = parse_pip_json_array(stdout).expect("notice-prefixed json");
+        assert_eq!(packages.len(), 1);
+        assert_eq!(packages[0].name, "requests");
+    }
+
+    #[test]
+    fn parse_pip_json_array_parses_outdated_payload_with_trailing_noise() {
+        let stdout = b"[{\"name\":\"urllib3\",\"version\":\"1.26.15\",\"latest_version\":\"2.2.1\",\"latest_filetype\":\"wheel\"}]\x1b[0m\n";
+        let packages: Vec<OutdatedPackage> =
+            parse_pip_json_array(stdout).expect("outdated json with trailing escape");
+        assert_eq!(packages.len(), 1);
+        assert_eq!(packages[0].latest_version, "2.2.1");
+    }
+
+    #[test]
+    fn extract_json_array_payload_returns_empty_array_for_blank_output() {
+        assert_eq!(extract_json_array_payload("   \n"), "[]");
+    }
 }

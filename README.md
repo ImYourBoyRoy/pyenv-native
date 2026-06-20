@@ -102,8 +102,54 @@ irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/instal
 ```
 
 #### macOS / Linux / Android (Bash/Zsh)
+
+**Fresh install** (defaults to `$HOME/.pyenv`):
+
 ```bash
 curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+```
+
+**Upgrade an existing install** — re-run the same command. The installer detects an existing `pyenv` at the install root and upgrades in place. You do **not** need `--force` for normal upgrades.
+
+```bash
+curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+```
+
+Non-interactive upgrade (no prompts):
+
+```bash
+curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh -s -- --yes
+```
+
+If `pyenv` is already on your PATH, you can also use:
+
+```bash
+pyenv self-update --yes
+```
+
+**Install root notes**
+
+- The default install root is `$HOME/.pyenv`. You usually do **not** need `--install-root`.
+- If you set a custom root, prefer `$HOME/.pyenv` over `~/.pyenv` in scripts. The installer expands `~/path` forms, but omitting `--install-root` is the most reliable option.
+- Use `--force` only when installing into a non-empty directory that does **not** already contain a `pyenv-native` install.
+
+---
+
+## Upgrading
+
+| Method | Command |
+| :--- | :--- |
+| **Web installer (macOS/Linux)** | Re-run the `curl ... install.sh` command above |
+| **CLI self-update** | `pyenv self-update --yes` |
+| **Windows (PowerShell)** | Re-run `irm ... install.ps1 \| iex` |
+| **winget** | `winget upgrade pyenv-native` |
+| **Homebrew** | `brew upgrade imyourboyroy/pyenv-native/pyenv-native` |
+| **pipx** | `pipx upgrade pyenv-native` then `pyenv-native install --install-root "$HOME/.pyenv"` |
+
+After upgrading, refresh shims if `python` or `python3` behave unexpectedly:
+
+```bash
+pyenv rehash
 ```
 
 ---

@@ -2,7 +2,7 @@
 //! Automated and manual doctor fix planning for shell, PATH, and source-build issues.
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::context::{AppContext, is_pyenv_win_root};
 use crate::error::PyenvError;
@@ -55,13 +55,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
         });
     }
 
-    if !path_contains(
-        ctx.path_env.as_ref(),
-        &ctx.exe_path
-            .parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| ctx.root.join("bin")),
-    ) {
+    if !path_contains(ctx.path_env.as_ref(), &ctx.bin_dir()) {
         fixes.push(DoctorFix {
             key: "path-bin-manual".to_string(),
             automated: false,

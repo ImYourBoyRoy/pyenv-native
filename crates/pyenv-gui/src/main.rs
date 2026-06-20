@@ -158,6 +158,10 @@ fn set_global(workspace_dir: Option<String>, version: String) -> Result<String, 
     if report.exit_code != 0 {
         return Err(report.stderr.join("\n"));
     }
+    let rehash = pyenv_core::cmd_rehash(&ctx);
+    if rehash.exit_code != 0 {
+        return Err(rehash.stderr.join("\n"));
+    }
     Ok(report.stdout.join("\n"))
 }
 

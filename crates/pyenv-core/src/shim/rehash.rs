@@ -85,9 +85,20 @@ fn collect_rehash_commands(ctx: &AppContext) -> Result<Vec<String>, PyenvError> 
         commands.insert(hook_name);
     }
 
+    expand_python_shim_commands(&mut commands);
+
     let mut values = commands.into_iter().collect::<Vec<_>>();
     values.sort_by_key(|value| value.to_ascii_lowercase());
     Ok(values)
+}
+
+fn expand_python_shim_commands(commands: &mut HashSet<String>) {
+    if commands.contains("python") {
+        commands.insert("python3".to_string());
+    }
+    if commands.contains("pip") {
+        commands.insert("pip3".to_string());
+    }
 }
 
 fn read_shim_manifest(shims_dir: &Path) -> Option<ShimManifest> {
