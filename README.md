@@ -132,6 +132,39 @@ curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download
 
 ---
 
+## Agent skills (Cursor, Claude Code, Gemini, Copilot, and more)
+
+This repo ships **agent skills** so coding agents follow pyenv-native / pyenv-mcp workflows instead of guessing Python setup.
+
+### Tell your agent (copy-paste)
+
+```text
+Install the agent skills from https://github.com/imyourboyroy/pyenv-native
+```
+
+### Quick install
+
+**Windows (PowerShell 7+):**
+
+```powershell
+git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
+cd pyenv-native
+./scripts/install-agent-skills.ps1 -Agent all
+```
+
+**macOS / Linux:**
+
+```bash
+git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
+cd pyenv-native
+chmod +x ./scripts/install-agent-skills.sh
+./scripts/install-agent-skills.sh --agent all
+```
+
+Full guides for every supported agent: **[docs/agent-skills/README.md](./docs/agent-skills/README.md)**
+
+---
+
 ## Documentation Registry
 
 Detailed technical guides and instructions:
@@ -139,6 +172,7 @@ Detailed technical guides and instructions:
 - 📖 **[CLI Usage Guide](./docs/CLI.md)** — Core commands, `venv` management, and shell setup.
 - 🎨 **[GUI Dashboard Guide](./docs/GUI.md)** — Features, screenshots, and visual management.
 - 🔗 **[MCP / Agent Guide](./docs/MCP.md)** — Integration for AI models and IDEs.
+- 🤖 **[Agent Skills Install](./docs/agent-skills/README.md)** — Cursor, Claude Code, Gemini CLI, Antigravity, Copilot, Windsurf, OpenCode, Kiro.
 - 🏗️ **[Architecture](./docs/ARCHITECTURE.md)** — Native shims, version resolution, and design philosophy.
 - 🗑️ **[Uninstallation Guide](./docs/INSTRUCTIONS.md#uninstallation)** — Safely removing `pyenv-native`.
 
