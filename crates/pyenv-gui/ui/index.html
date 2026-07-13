@@ -17,7 +17,7 @@
   <div id="status-toast" class="status-toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="bg-gradient"></div>
 
-  <div data-tauri-drag-region class="titlebar">
+  <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar">
     <div class="titlebar-label">pyenv-native dashboard</div>
     <div class="titlebar-controls">
       <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window">
@@ -37,7 +37,7 @@
         </svg>
       </button>
     </div>
-  </div>
+  </header>
 
   <div class="app-container">
     <aside class="sidebar glass">
@@ -428,8 +428,7 @@
           <div style="display: flex; align-items: center; gap: 16px;">
             <label
               style="font-size: 13px; color: var(--text-muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
-              <input type="checkbox" id="chk-latest-only" checked onchange="reloadAvailable()" /> Latest Major/Minor
-              Only
+              <input type="checkbox" id="chk-latest-only" checked /> Latest Major/Minor Only
             </label>
             <div class="search-box">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
@@ -451,8 +450,8 @@
       <section id="view-settings" class="view" style="display:none;" aria-labelledby="settings-title">
         <h1 class="page-title" id="settings-title">Configuration</h1>
         <div class="card-list">
-          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
-            <h3 style="margin: 0 0 16px 0;">Windows Settings</h3>
+          <fieldset class="version-card settings-fieldset">
+            <legend>Windows Settings</legend>
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-windows.registry_mode">Registry Mode</label>
@@ -463,9 +462,9 @@
                 <option value="pep514">PEP 514</option>
               </select>
             </div>
-          </div>
-          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
-            <h3 style="margin: 0 0 16px 0;">Install Settings</h3>
+          </fieldset>
+          <fieldset class="version-card settings-fieldset">
+            <legend>Install Settings</legend>
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-install.arch">Architecture</label>
@@ -478,42 +477,39 @@
               </select>
             </div>
             <div class="setting-row">
-              <div>
-                <label class="setting-label" for="config-install.bootstrap_pip">Bootstrap PIP</label>
-                <span class="setting-help" id="help-bootstrap-pip">Automatically inject pip into new Python installations.</span>
-              </div>
-              <select id="config-install.bootstrap_pip" class="dropdown" aria-describedby="help-bootstrap-pip">
-                <option value="true">True</option>
-                <option value="false">False</option>
-              </select>
+              <label class="setting-toggle" for="config-install.bootstrap_pip">
+                <input type="checkbox" id="config-install.bootstrap_pip" aria-describedby="help-bootstrap-pip" />
+                <span>
+                  <span class="setting-label">Bootstrap PIP</span>
+                  <span class="setting-help" id="help-bootstrap-pip">Automatically inject pip into new Python installations.</span>
+                </span>
+              </label>
             </div>
-          </div>
-          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
-            <h3 style="margin: 0 0 16px 0;">Venv Settings</h3>
+          </fieldset>
+          <fieldset class="version-card settings-fieldset">
+            <legend>Venv Settings</legend>
             <div class="setting-row">
-              <div>
-                <label class="setting-label" for="config-venv.auto_create_base_venv">Auto Create Base Venv</label>
-                <span class="setting-help" id="help-auto-create-venv">Automatically setup a '.venv' alongside every brand new Python installation.</span>
-              </div>
-              <select id="config-venv.auto_create_base_venv" class="dropdown" aria-describedby="help-auto-create-venv">
-                <option value="true">True</option>
-                <option value="false">False</option>
-              </select>
+              <label class="setting-toggle" for="config-venv.auto_create_base_venv">
+                <input type="checkbox" id="config-venv.auto_create_base_venv" aria-describedby="help-auto-create-venv" />
+                <span>
+                  <span class="setting-label">Auto Create Base Venv</span>
+                  <span class="setting-help" id="help-auto-create-venv">Automatically setup a '.venv' alongside every brand new Python installation.</span>
+                </span>
+              </label>
             </div>
             <div class="setting-row">
-              <div>
-                <label class="setting-label" for="config-venv.auto_use_base_venv">Auto Use Base Venv</label>
-                <span class="setting-help" id="help-auto-use-venv">Automatically activate the base venv instead of the bare interpreter when selected.</span>
-              </div>
-              <select id="config-venv.auto_use_base_venv" class="dropdown" aria-describedby="help-auto-use-venv">
-                <option value="true">True</option>
-                <option value="false">False</option>
-              </select>
+              <label class="setting-toggle" for="config-venv.auto_use_base_venv">
+                <input type="checkbox" id="config-venv.auto_use_base_venv" aria-describedby="help-auto-use-venv" />
+                <span>
+                  <span class="setting-label">Auto Use Base Venv</span>
+                  <span class="setting-help" id="help-auto-use-venv">Automatically activate the base venv instead of the bare interpreter when selected.</span>
+                </span>
+              </label>
             </div>
-          </div>
-          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
-            <h3 style="margin: 0 0 16px 0;">Accessibility</h3>
-            <p class="setting-help" style="margin: 0 0 12px 0; padding-right: 0;">Adjust contrast, motion, and readability preferences for this dashboard.</p>
+          </fieldset>
+          <fieldset class="version-card settings-fieldset">
+            <legend>Accessibility</legend>
+            <p class="setting-help settings-intro">Adjust contrast, motion, and readability preferences for this dashboard. System reduced-motion is honored until you override it here.</p>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-high-contrast">
                 <input type="checkbox" id="a11y-high-contrast" />
@@ -538,7 +534,10 @@
                 Larger interface text
               </label>
             </div>
-          </div>
+            <div class="setting-row">
+              <button type="button" class="btn btn-outline" id="btn-reset-a11y">Reset accessibility preferences</button>
+            </div>
+          </fieldset>
         </div>
         <p id="config-save-status" class="setting-help" role="status" aria-live="polite" style="margin-top: 16px; min-height: 1.2em;"></p>
       </section>
@@ -639,10 +638,8 @@
               style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
               Created by Roy Dawson IV</div>
             <div style="display: flex; gap: 12px;">
-              <button class="btn btn-primary" onclick="openExternal('https://github.com/imyourboyroy/pyenv-native')"
-                style="font-size: 13px;">GitHub Repository</button>
-              <button class="btn btn-outline" onclick="openExternal('https://pypi.org/user/ImYourBoyRoy/')"
-                style="font-size: 13px;">PyPI Profile</button>
+              <button type="button" class="btn btn-primary" id="btn-open-github">GitHub Repository</button>
+              <button type="button" class="btn btn-outline" id="btn-open-pypi">PyPI Profile</button>
             </div>
           </div>
         </div>
@@ -962,16 +959,16 @@
 
   <div id="modal-root"></div>
 
-  <div class="app-footer">
+  <footer class="app-footer" id="app-footer" role="contentinfo">
     <div class="footer-left">
       <span style="font-weight: 600;" id="footer-version">Pyenv-Native</span>
       <span id="footer-app-status" style="color: var(--text-muted);"></span>
     </div>
     <div class="footer-right">
-      <button type="button" class="footer-update-btn" onclick="checkUpdates()" id="footer-btn">Check for Updates</button>
+      <button type="button" class="footer-update-btn" id="footer-btn">Check for Updates</button>
     </div>
-  </div>
-
+  </footer>
+  <script src="dom-utils.js"></script>
   <script src="app.js"></script>
 </body>
 

@@ -1,0 +1,12 @@
+{
+  "name": "pyenv-native-gui-a11y",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node check-a11y.mjs"
+  },
+  "dependencies": {
+    "axe-core": "^4.10.3",
+    "jsdom": "^26.1.0"
+  }
+}
