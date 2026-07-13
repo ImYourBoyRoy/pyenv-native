@@ -994,10 +994,10 @@ async function checkUpdates() {
                 if(btn) btn.innerText = "Updating…";
                 try {
                     const updateResult = await invoke('perform_update', { workspaceDir: getWorkspaceDir() });
-                    showAlert('Update In Progress', 'The application will now automatically close, install the update, and restart. Please wait...');
+                    showAlert('Update In Progress', 'The application will close, apply the update, and relaunch automatically. Please wait...');
                     setTimeout(async () => {
                         await invoke('close_app');
-                    }, 4000);
+                    }, 1500);
                 } catch(updateErr) {
                     showAlert('Update Failed', updateErr);
                 }

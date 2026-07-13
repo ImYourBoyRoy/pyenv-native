@@ -554,6 +554,11 @@ confirm_action
 
 write_step "Creating portable pyenv-native layout"
 mkdir -p "$INSTALL_BIN" "${INSTALL_ROOT}/shims" "${INSTALL_ROOT}/versions" "${INSTALL_ROOT}/cache" "${INSTALL_ROOT}/logs"
+if [ -d "$script_dir/share" ]; then
+  mkdir -p "${INSTALL_ROOT}/share"
+  cp -R "$script_dir/share/." "${INSTALL_ROOT}/share/"
+  write_step "Installed desktop integration assets into ${INSTALL_ROOT}/share"
+fi
 cp -f "$RESOLVED_SOURCE" "$INSTALLED_EXE"
 chmod +x "$INSTALLED_EXE"
 
@@ -570,7 +575,11 @@ if [ -n "$RESOLVED_GUI_SOURCE" ] && [ -f "$RESOLVED_GUI_SOURCE" ]; then
   chmod +x "$INSTALLED_GUI_EXE"
   write_step "Installed GUI companion binary into ${INSTALLED_GUI_EXE}"
   if [ "$(uname -s)" = "Linux" ]; then
-    if sh "$script_dir/install-gui-desktop.sh" "$INSTALLED_GUI_EXE"; then
+    ICONS_SRC=""
+    if [ -d "${INSTALL_ROOT}/share/icons/hicolor" ]; then
+      ICONS_SRC="${INSTALL_ROOT}/share/icons/hicolor"
+    fi
+    if sh "$script_dir/install-gui-desktop.sh" "$INSTALLED_GUI_EXE" $ICONS_SRC; then
       write_step "Installed GUI desktop launcher and icons for Linux"
     else
       write_warn 'Failed to install GUI desktop launcher; dock icon may be missing until install-gui-desktop.sh is run manually.'
