@@ -57,12 +57,28 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
             "Keep this shell open until the updater finishes.".to_string(),
         ])
     } else {
-        run_posix_update(ctx, &target, &installer_path)?;
-        Ok(vec![format!(
-            "Updated pyenv-native to {} in {}.",
-            target.target_tag,
-            ctx.root.display()
-        )])
+        let current_exe = env::current_exe().unwrap_or_default();
+        let bin_dir = ctx.root.join("bin");
+        let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
+        if is_gui {
+            spawn_posix_update(ctx, &target, &installer_path)?;
+            Ok(vec![
+                format!(
+                    "Started pyenv-native update to {} for install root {}.",
+                    target.target_tag,
+                    ctx.root.display()
+                ),
+                "The application will close, apply the update, and relaunch automatically."
+                    .to_string(),
+            ])
+        } else {
+            run_posix_update(ctx, &target, &installer_path)?;
+            Ok(vec![format!(
+                "Updated pyenv-native to {} in {}.",
+                target.target_tag,
+                ctx.root.display()
+            )])
+        }
     }
 }
 
@@ -320,6 +336,47 @@ fn run_posix_update(
     target: &ReleaseTarget,
     installer_path: &Path,
 ) -> Result<(), String> {
+    let output = posix_installer_command(ctx, target, installer_path)
+        .output()
+        .map_err(|error| format!("pyenv: failed to launch installer: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    posix_installer_failure(output)
+}
+
+fn spawn_posix_update(
+    ctx: &AppContext,
+    target: &ReleaseTarget,
+    installer_path: &Path,
+) -> Result<(), String> {
+    let launcher_path = installer_path.with_file_name("run-self-update.sh");
+    let gui_exe = gui_executable_path(&ctx.root.join("bin"));
+    let launcher = render_posix_launcher(ctx, target, installer_path, &gui_exe);
+    fs::write(&launcher_path, launcher)
+        .map_err(|error| format!("pyenv: failed to write POSIX updater helper: {error}"))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&launcher_path, fs::Permissions::from_mode(0o755))
+            .map_err(|error| format!("pyenv: failed to mark updater helper executable: {error}"))?;
+    }
+
+    Command::new("sh")
+        .headless()
+        .arg(&launcher_path)
+        .arg(std::process::id().to_string())
+        .spawn()
+        .map_err(|error| format!("pyenv: failed to launch updater helper: {error}"))?;
+    Ok(())
+}
+
+fn posix_installer_command(
+    ctx: &AppContext,
+    target: &ReleaseTarget,
+    installer_path: &Path,
+) -> Command {
     let mut command = Command::new("sh");
     command.headless();
     command
@@ -340,14 +397,10 @@ fn run_posix_update(
         .arg("true")
         .arg("--yes")
         .arg("--force");
+    command
+}
 
-    let output = command
-        .output()
-        .map_err(|error| format!("pyenv: failed to launch installer: {error}"))?;
-    if output.status.success() {
-        return Ok(());
-    }
-
+fn posix_installer_failure(output: std::process::Output) -> Result<(), String> {
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut details = vec![format!(
@@ -361,6 +414,48 @@ fn run_posix_update(
         details.push(format!("pyenv: installer stdout:\n{}", stdout.trim()));
     }
     Err(details.join("\n"))
+}
+
+fn render_posix_launcher(
+    ctx: &AppContext,
+    target: &ReleaseTarget,
+    installer_path: &Path,
+    gui_exe: &Path,
+) -> String {
+    let installer = shell_single_quote(&installer_path.display().to_string());
+    let gui = shell_single_quote(&gui_exe.display().to_string());
+    let root = shell_single_quote(&ctx.root.display().to_string());
+    let repo = shell_single_quote(&target.repo);
+    let tag = shell_single_quote(&target.target_tag);
+
+    format!(
+        "#!/bin/sh\n\
+         set -eu\n\
+         PARENT_PID=\"$1\"\n\
+         for attempt in $(seq 1 240); do\n\
+           if ! kill -0 \"$PARENT_PID\" 2>/dev/null; then\n\
+             break\n\
+           fi\n\
+           sleep 0.5\n\
+         done\n\
+         sh {installer} \\\n\
+           --github-repo {repo} \\\n\
+           --tag {tag} \\\n\
+           --install-root {root} \\\n\
+           --shell none \\\n\
+           --add-to-user-path false \\\n\
+           --update-shell-profile false \\\n\
+           --refresh-shims true \\\n\
+           --yes \\\n\
+           --force\n\
+         if [ -x {gui} ]; then\n\
+           nohup {gui} >/dev/null 2>&1 &\n\
+         fi\n"
+    )
+}
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 fn timestamp_suffix() -> u128 {

@@ -6,6 +6,6 @@ GenericName=Python Environment Manager
 Comment=Manage Python versions and virtual environments
 Exec=@EXEC@
 Icon=com.pyenv-native.gui
-StartupWMClass=pyenv-gui
+StartupWMClass=com.pyenv-native.gui
 Categories=Development;Utility;
 Terminal=false
