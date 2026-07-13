@@ -3,10 +3,26 @@
 //! Uses Tauri v2 IPC to communicate with the Rust backend.
 
 const invoke = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core.invoke : window.__TAURI__.invoke;
+const {
+    lockAppShell,
+    unlockAppShell,
+    getFocusableElements,
+    trapFocus,
+    appendRichMessage,
+    setRegionLoading,
+    showEmptyState,
+    createActionButton,
+    createWarningBadge,
+    sanitizeDomId,
+    fillSelectOptions,
+    createBadge,
+} = window.DomUtils;
 
 let lastFocusedBeforeOverlay = null;
 let drawerReturnFocus = null;
 let toastTimer = null;
+let lastNavInput = 'pointer';
+let openDrawerCount = 0;
 const VIEW_TITLES = {
     'view-dashboard': 'Current Environment',
     'view-installed': 'Installed Runtimes',
@@ -24,6 +40,86 @@ function announce(message) {
     requestAnimationFrame(() => { region.textContent = message; });
 }
 
+function setStepIconContent(iconEl, content) {
+    if (!iconEl) return;
+    iconEl.replaceChildren();
+    if (typeof content === 'string') {
+        iconEl.textContent = content;
+        return;
+    }
+    iconEl.appendChild(content);
+}
+
+function createStepLoader() {
+    const loader = document.createElement('div');
+    loader.className = 'loader loader-sm';
+    loader.style.width = '12px';
+    loader.style.height = '12px';
+    loader.style.borderWidth = '2px';
+    loader.style.borderTopColor = '#ffd43b';
+    loader.setAttribute('aria-hidden', 'true');
+    return loader;
+}
+
+function createStepSvg(paths, viewBox = '0 0 24 24') {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', viewBox);
+    svg.setAttribute('width', '10');
+    svg.setAttribute('height', '10');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '3');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    paths.forEach((pathData) => {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', pathData.tag);
+        Object.entries(pathData.attrs).forEach(([key, value]) => path.setAttribute(key, value));
+        svg.appendChild(path);
+    });
+    return svg;
+}
+
+function setFooterAppStatus(kind, detail = '') {
+    const statusEl = document.getElementById('footer-app-status');
+    if (!statusEl) return;
+    statusEl.replaceChildren();
+    const span = document.createElement('span');
+    if (kind === 'update') {
+        span.style.color = 'var(--danger)';
+        span.textContent = `Update Available: v${detail}`;
+    } else if (kind === 'uptodate') {
+        span.style.color = '#10b981';
+        span.textContent = '✓ Up to Date';
+    } else if (kind === 'offline') {
+        span.style.opacity = '0.5';
+        span.textContent = '(Offline)';
+    }
+    statusEl.appendChild(span);
+}
+
+function appendFooterPortableBadge() {
+    const statusEl = document.getElementById('footer-app-status');
+    if (!statusEl || statusEl.querySelector('[data-portable-badge]')) return;
+    const badge = createBadge('Portable', 'badge badge-success', 'font-size:10px; padding: 2px 6px; margin-left: 8px;');
+    badge.dataset.portableBadge = 'true';
+    statusEl.appendChild(document.createTextNode(' '));
+    statusEl.appendChild(badge);
+}
+
+function showInlineRemovingState(container) {
+    if (!container) return;
+    container.replaceChildren();
+    const loader = document.createElement('div');
+    loader.className = 'loader loader-sm';
+    loader.style.display = 'inline-block';
+    loader.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.style.fontSize = '12px';
+    label.style.marginLeft = '8px';
+    label.textContent = 'Removing…';
+    container.append(loader, label);
+}
+
 function showToast(message) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -33,53 +129,51 @@ function showToast(message) {
     toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600);
 }
 
-function getFocusableElements(container) {
-    return Array.from(container.querySelectorAll(
-        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )).filter((el) => !el.closest('[inert]') && el.offsetParent !== null);
-}
-
-function trapFocus(container, event) {
-    if (event.key !== 'Tab') return;
-    const focusable = getFocusableElements(container);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
+function getOpenDrawerOverlay() {
+    if (drawer?.classList.contains('open')) return drawer;
+    if (upgraderDrawer?.classList.contains('open')) return upgraderDrawer;
+    return null;
 }
 
 function setDrawerState(drawerEl, open, options = {}) {
     if (!drawerEl) return;
     const closeBtn = options.closeButton;
     if (open) {
+        if (openDrawerCount === 0) lockAppShell();
+        openDrawerCount += 1;
         drawerReturnFocus = options.returnFocus || document.activeElement;
         drawerEl.classList.add('open');
         drawerEl.removeAttribute('inert');
         drawerEl.setAttribute('aria-hidden', 'false');
-        (closeBtn || drawerEl.querySelector('.drawer-close'))?.focus();
+        const focusTarget = closeBtn || drawerEl.querySelector('.drawer-close');
+        focusTarget?.focus();
         announce(options.announce || 'Panel opened');
     } else {
+        openDrawerCount = Math.max(0, openDrawerCount - 1);
         drawerEl.classList.remove('open');
         drawerEl.setAttribute('inert', '');
         drawerEl.setAttribute('aria-hidden', 'true');
+        if (openDrawerCount === 0) unlockAppShell();
         const restore = options.returnFocus || drawerReturnFocus;
         if (restore && typeof restore.focus === 'function') restore.focus();
         announce(options.announce || 'Panel closed');
     }
 }
 
+function readBooleanPreference(storageKey, mediaQuery) {
+    const stored = localStorage.getItem(storageKey);
+    if (stored === null && mediaQuery) {
+        return window.matchMedia(mediaQuery).matches;
+    }
+    return stored === 'true';
+}
+
 function applyAccessibilityPreferences() {
     const prefs = {
-        highContrast: localStorage.getItem('pyenv-a11y-high-contrast') === 'true',
-        reducedMotion: localStorage.getItem('pyenv-a11y-reduced-motion') === 'true',
-        strongFocus: localStorage.getItem('pyenv-a11y-strong-focus') === 'true',
-        largeText: localStorage.getItem('pyenv-a11y-large-text') === 'true',
+        highContrast: readBooleanPreference('pyenv-a11y-high-contrast'),
+        reducedMotion: readBooleanPreference('pyenv-a11y-reduced-motion', '(prefers-reduced-motion: reduce)'),
+        strongFocus: readBooleanPreference('pyenv-a11y-strong-focus'),
+        largeText: readBooleanPreference('pyenv-a11y-large-text'),
     };
     document.documentElement.toggleAttribute('data-high-contrast', prefs.highContrast);
     document.documentElement.toggleAttribute('data-reduced-motion', prefs.reducedMotion);
@@ -96,6 +190,18 @@ function applyAccessibilityPreferences() {
         const input = document.getElementById(id);
         if (input) input.checked = checked;
     });
+}
+
+function resetAccessibilityPreferences() {
+    [
+        'pyenv-a11y-high-contrast',
+        'pyenv-a11y-reduced-motion',
+        'pyenv-a11y-strong-focus',
+        'pyenv-a11y-large-text',
+    ].forEach((key) => localStorage.removeItem(key));
+    applyAccessibilityPreferences();
+    showToast('Accessibility preferences reset');
+    announce('Accessibility preferences reset to system defaults');
 }
 
 function bindAccessibilityPreferenceControls() {
@@ -118,17 +224,71 @@ function bindAccessibilityPreferenceControls() {
 }
 
 function bindConfigControls() {
-    const bindings = [
+    const selectBindings = [
         ['config-windows.registry_mode', 'windows.registry_mode'],
         ['config-install.arch', 'install.arch'],
+    ];
+    selectBindings.forEach(([id, key]) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        select.addEventListener('change', () => updateConfig(key, select.value));
+    });
+
+    const checkboxBindings = [
         ['config-install.bootstrap_pip', 'install.bootstrap_pip'],
         ['config-venv.auto_create_base_venv', 'venv.auto_create_base_venv'],
         ['config-venv.auto_use_base_venv', 'venv.auto_use_base_venv'],
     ];
-    bindings.forEach(([id, key]) => {
-        const select = document.getElementById(id);
-        if (!select) return;
-        select.addEventListener('change', () => updateConfig(key, select.value));
+    checkboxBindings.forEach(([id, key]) => {
+        const checkbox = document.getElementById(id);
+        if (!checkbox) return;
+        checkbox.addEventListener('change', () => updateConfig(key, checkbox.checked ? 'true' : 'false'));
+    });
+}
+
+function handleDelegatedAction(event) {
+    const button = event.target.closest('[data-action]');
+    if (!button || button.disabled) return;
+
+    const { action, target, baseVersion } = button.dataset;
+    switch (action) {
+        case 'navigate':
+            navigateToView(target);
+            break;
+        case 'package-explorer':
+            openPackageExplorer(target);
+            break;
+        case 'set-global':
+            setGlobal(target);
+            break;
+        case 'set-local':
+            setLocal(target);
+            break;
+        case 'uninstall':
+            uninstallVersion(target);
+            break;
+        case 'install':
+            installTarget(target, button);
+            break;
+        case 'upgrade-venv':
+            openVenvUpgradeWizard(target, baseVersion);
+            break;
+        case 'delete-venv':
+            deleteVenv(target);
+            break;
+        default:
+            break;
+    }
+}
+
+function bindDelegatedActions() {
+    [
+        'installed-list',
+        'installed-global-summary',
+        'available-list',
+        'venvs-list',
+    ].forEach((id) => {
+        document.getElementById(id)?.addEventListener('click', handleDelegatedAction);
     });
 }
 
@@ -151,6 +311,12 @@ document.addEventListener('DOMContentLoaded', () => {
     applyAccessibilityPreferences();
     bindAccessibilityPreferenceControls();
     bindConfigControls();
+    bindDelegatedActions();
+    document.getElementById('btn-reset-a11y')?.addEventListener('click', resetAccessibilityPreferences);
+    document.getElementById('chk-latest-only')?.addEventListener('change', () => reloadAvailable());
+    document.getElementById('btn-open-github')?.addEventListener('click', () => openExternal('https://github.com/imyourboyroy/pyenv-native'));
+    document.getElementById('btn-open-pypi')?.addEventListener('click', () => openExternal('https://pypi.org/user/ImYourBoyRoy/'));
+    document.getElementById('footer-btn')?.addEventListener('click', () => checkUpdates());
     document.querySelectorAll('.view').forEach((view) => {
         if (view.id !== 'view-dashboard') {
             view.setAttribute('aria-hidden', 'true');
@@ -179,54 +345,80 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Custom Modal System ───
-function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary', primary: true}]) {
+function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary', primary: true}], options = {}) {
     return new Promise(resolve => {
         const root = document.getElementById('modal-root');
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        const dialogId = `modal-${Date.now()}`;
-        overlay.innerHTML = `
-            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="${dialogId}-title" aria-describedby="${dialogId}-message">
-                <h3 id="${dialogId}-title">${title}</h3>
-                <p id="${dialogId}-message">${message}</p>
-                <div class="modal-actions" id="modal-btns"></div>
-            </div>
-        `;
-        const dialog = overlay.querySelector('.modal-box');
-        const btnContainer = overlay.querySelector('#modal-btns');
+
+        const dialog = document.createElement('div');
+        dialog.className = 'modal-box';
+        dialog.setAttribute('role', options.alert ? 'alertdialog' : 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+
+        const heading = document.createElement('h3');
+        heading.textContent = title;
+        dialog.setAttribute('aria-labelledby', heading.id = `modal-title-${Date.now()}`);
+
+        const body = document.createElement('div');
+        body.className = 'modal-message';
+        appendRichMessage(body, message);
+        dialog.setAttribute('aria-describedby', body.id = `modal-body-${Date.now()}`);
+
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'modal-actions';
+
         const createdButtons = [];
-        buttons.forEach((b, i) => {
+        buttons.forEach((b) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `btn ${b.style || 'btn-outline'}`;
             btn.textContent = b.label;
-            btn.addEventListener('click', () => {
-                root.removeChild(overlay);
-                document.removeEventListener('keydown', onKeyDown);
-                if (lastFocusedBeforeOverlay) lastFocusedBeforeOverlay.focus();
-                resolve(i === 0);
-            });
+            createdButtons.push({ btn, config: b });
             btnContainer.appendChild(btn);
-            createdButtons.push(btn);
+        });
+
+        dialog.append(heading, body, btnContainer);
+        overlay.appendChild(dialog);
+
+        let closed = false;
+        const closeModal = (resultIndex) => {
+            if (closed) return;
+            closed = true;
+            unlockAppShell();
+            root.removeChild(overlay);
+            document.removeEventListener('keydown', onKeyDown);
+            if (lastFocusedBeforeOverlay) lastFocusedBeforeOverlay.focus();
+            resolve(resultIndex === 0);
+        };
+
+        createdButtons.forEach(({ btn }, index) => {
+            btn.addEventListener('click', () => closeModal(index));
         });
 
         const onKeyDown = (event) => {
             if (event.key === 'Escape') {
                 const cancelIndex = Math.max(buttons.length - 1, 0);
-                root.removeChild(overlay);
-                document.removeEventListener('keydown', onKeyDown);
-                if (lastFocusedBeforeOverlay) lastFocusedBeforeOverlay.focus();
-                resolve(cancelIndex === 0);
+                closeModal(cancelIndex);
                 return;
             }
-            trapFocus(dialog, event);
+            trapFocus(overlay, event);
         };
 
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                closeModal(Math.max(buttons.length - 1, 0));
+            }
+        });
+
         lastFocusedBeforeOverlay = document.activeElement;
+        lockAppShell();
         root.appendChild(overlay);
         document.addEventListener('keydown', onKeyDown);
-        const initialFocus = createdButtons.find((_, idx) => buttons[idx]?.primary) || createdButtons[createdButtons.length - 1] || createdButtons[0];
-        initialFocus?.focus();
+        const primaryIndex = createdButtons.findIndex(({ config }) => config.primary);
+        const initial = createdButtons[primaryIndex >= 0 ? primaryIndex : createdButtons.length - 1]?.btn
+            || createdButtons[0]?.btn;
+        initial?.focus();
     });
 }
 
@@ -238,7 +430,7 @@ async function showConfirm(title, message) {
     return showModal(title, message, [
         {label: 'Confirm', style: 'btn-danger'},
         {label: 'Cancel', style: 'btn-outline', primary: true}
-    ]);
+    ], { alert: true });
 }
 
 function openExternal(url) {
@@ -268,10 +460,11 @@ function showView(viewId) {
     void target.offsetWidth;
     target.classList.add('fade-in');
     const heading = target.querySelector('.page-title');
-    if (heading) {
+    if (heading && lastNavInput === 'keyboard') {
         heading.setAttribute('tabindex', '-1');
         heading.focus({ preventScroll: true });
     }
+    lastNavInput = 'pointer';
     document.title = `${VIEW_TITLES[viewId] || 'Pyenv Native'} · Pyenv Native`;
     announce(`Showing ${VIEW_TITLES[viewId] || 'view'}`);
 }
@@ -290,33 +483,33 @@ function isGlobalVersion(versionName, globalVersions) {
     return globalVersions.includes(normalized);
 }
 
-function renderGlobalButton(versionName, globalVersions) {
+function appendGlobalButton(actions, versionName, globalVersions) {
     if (isGlobalVersion(versionName, globalVersions)) {
-        return '<button class="btn btn-global-active" disabled>Global</button>';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-global-active';
+        button.disabled = true;
+        button.textContent = 'Global';
+        actions.appendChild(button);
+        return;
     }
-    return `<button class="btn btn-outline" onclick="setGlobal('${versionName}')">Make Global</button>`;
+    actions.appendChild(createActionButton('Make Global', 'set-global', versionName, 'btn btn-outline'));
 }
 
-sidebarNavItems.forEach((item, index) => {
-    item.addEventListener('click', () => {
-        if (item.classList.contains('active')) return;
-        sidebarNavItems.forEach(i => {
-            i.classList.remove('active');
-            i.removeAttribute('aria-current');
-        });
-        item.classList.add('active');
-        item.setAttribute('aria-current', 'page');
-        showView(item.dataset.view);
-        
-        if (item.dataset.view === 'view-dashboard') loadDashboard();
-        if (item.dataset.view === 'view-installed') loadInstalled();
-        if (item.dataset.view === 'view-shell') loadShellIntegration();
-        if (item.dataset.view === 'view-available') setupAvailableView();
-        if (item.dataset.view === 'view-venvs') loadVenvs();
-        if (item.dataset.view === 'view-settings') loadConfig();
-    });
+function appendBadge(parent, text, className) {
+    const badge = document.createElement('span');
+    badge.className = className;
+    badge.textContent = text;
+    parent.appendChild(document.createTextNode(' '));
+    parent.appendChild(badge);
+}
 
+sidebarNavItems.forEach((item) => {
+    item.addEventListener('pointerdown', () => { lastNavInput = 'pointer'; });
     item.addEventListener('keydown', (event) => {
+        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            lastNavInput = 'keyboard';
+        }
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
         const items = Array.from(sidebarNavItems);
@@ -327,6 +520,24 @@ sidebarNavItems.forEach((item, index) => {
         if (event.key === 'Home') nextIndex = 0;
         if (event.key === 'End') nextIndex = items.length - 1;
         items[nextIndex].focus();
+    });
+
+    item.addEventListener('click', () => {
+        if (item.classList.contains('active')) return;
+        sidebarNavItems.forEach(i => {
+            i.classList.remove('active');
+            i.removeAttribute('aria-current');
+        });
+        item.classList.add('active');
+        item.setAttribute('aria-current', 'page');
+        showView(item.dataset.view);
+
+        if (item.dataset.view === 'view-dashboard') loadDashboard();
+        if (item.dataset.view === 'view-installed') loadInstalled();
+        if (item.dataset.view === 'view-shell') loadShellIntegration();
+        if (item.dataset.view === 'view-available') setupAvailableView();
+        if (item.dataset.view === 'view-venvs') loadVenvs();
+        if (item.dataset.view === 'view-settings') loadConfig();
     });
 });
 
@@ -366,8 +577,8 @@ async function loadDashboard() {
 async function loadInstalled() {
     const list = document.getElementById('installed-list');
     const summary = document.getElementById('installed-global-summary');
-    list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
-    
+    setRegionLoading(list, true, 'Loading installed runtimes…');
+
     try {
         const [versionsJson, statusJson] = await Promise.all([
             invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() }),
@@ -385,35 +596,34 @@ async function loadInstalled() {
 
         if (summary) {
             summary.style.display = 'block';
-            summary.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
-                    <div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Current setup</div>
-                        <div style="font-size: 14px; font-weight: 600;">
-                            Active: <span style="color: #fff;">${activeLabel}</span>
-                            <span style="opacity: 0.4; margin: 0 8px;">•</span>
-                            Global: <span class="badge badge-success" style="margin-left: 0;">${globalLabel}</span>
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
-                            Origin: ${status.origin}
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="navigateToView('view-available')" style="font-size: 12px;">
-                        Install New Runtime
-                    </button>
-                </div>
-            `;
+            summary.replaceChildren();
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;';
+
+            const info = document.createElement('div');
+            const eyebrow = document.createElement('div');
+            eyebrow.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:4px;';
+            eyebrow.textContent = 'Current setup';
+            const activeLine = document.createElement('div');
+            activeLine.style.cssText = 'font-size:14px;font-weight:600;';
+            activeLine.textContent = `Active: ${activeLabel} • Global: ${globalLabel}`;
+            const originLine = document.createElement('div');
+            originLine.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:6px;';
+            originLine.textContent = `Origin: ${status.origin}`;
+            info.append(eyebrow, activeLine, originLine);
+
+            const installBtn = createActionButton('Install New Runtime', 'navigate', 'view-available', 'btn btn-primary');
+            installBtn.style.fontSize = '12px';
+            row.append(info, installBtn);
+            summary.appendChild(row);
         }
 
-        list.innerHTML = '';
-        
-        // Build the display list with system detection
+        list.replaceChildren();
+        list.setAttribute('aria-busy', 'false');
+
         const displayVersions = [];
-        
-        // Check if there's a real system Python (not just the MS Store alias)
         const hasRealSystem = await detectSystemPython();
         displayVersions.push({ name: 'system', isSystem: true, available: hasRealSystem });
-        
         versions.forEach(v => {
             if (v !== 'system') {
                 displayVersions.push({ name: v, isSystem: false, available: true });
@@ -422,15 +632,18 @@ async function loadInstalled() {
 
         const managedVersions = displayVersions.filter(entry => !entry.isSystem);
         if (managedVersions.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state" style="padding: 32px 16px;">
-                    <div style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">No managed runtimes installed yet</div>
-                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-                        Install a Python runtime from <b>Available Targets</b> to get started.
-                    </div>
-                    <button class="btn btn-primary" onclick="navigateToView('view-available')">Browse Available Targets</button>
-                </div>
-            `;
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.style.padding = '32px 16px';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size:15px;font-weight:600;margin-bottom:8px;';
+            title.textContent = 'No managed runtimes installed yet';
+            const hint = document.createElement('div');
+            hint.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:16px;';
+            hint.textContent = 'Install a Python runtime from Available Targets to get started.';
+            empty.append(title, hint, createActionButton('Browse Available Targets', 'navigate', 'view-available', 'btn btn-primary'));
+            list.appendChild(empty);
+            announce('No managed runtimes installed');
             return;
         }
 
@@ -438,49 +651,48 @@ async function loadInstalled() {
             const card = document.createElement('div');
             card.className = 'version-card';
             const isGlobal = isGlobalVersion(entry.name, globalVersions);
-            
+
+            const info = document.createElement('div');
+            const nameEl = document.createElement('div');
+            nameEl.className = 'version-name';
+            nameEl.append(document.createTextNode(entry.name));
+
+            const meta = document.createElement('div');
+            meta.className = 'version-meta';
+
             if (entry.isSystem) {
-                const badge = entry.available
-                    ? '<span class="system-badge badge-success">Detected</span>'
-                    : '<span class="system-badge badge-muted">Not Available</span>';
-                const globalBadge = isGlobal
-                    ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
-                    : '';
-                
-                card.innerHTML = `
-                    <div>
-                        <div class="version-name">system ${badge}${globalBadge}</div>
-                        <div class="version-meta">${entry.available ? 'System-wide Python installation' : 'No system Python found (Microsoft Store alias detected)'}</div>
-                    </div>
-                    <div class="version-actions">
-                        ${entry.available ? `
-                            <button class="btn btn-outline" onclick="openPackageExplorer('system')">Package Explorer</button>
-                            ${renderGlobalButton('system', globalVersions)}
-                        ` : ''}
-                    </div>
-                `;
+                appendBadge(nameEl, entry.available ? 'Detected' : 'Not Available', entry.available ? 'system-badge badge-success' : 'system-badge badge-muted');
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                meta.textContent = entry.available
+                    ? 'System-wide Python installation'
+                    : 'No system Python found (Microsoft Store alias detected)';
             } else {
-                const globalBadge = isGlobal
-                    ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
-                    : '';
-                card.innerHTML = `
-                    <div>
-                        <div class="version-name">${entry.name}${globalBadge}</div>
-                        <div class="version-meta">${isGlobal ? 'Configured as the global default runtime' : 'Installed managed runtime'}</div>
-                    </div>
-                    <div class="version-actions">
-                        <button class="btn btn-outline" onclick="openPackageExplorer('${entry.name}')">Package Explorer</button>
-                        ${renderGlobalButton(entry.name, globalVersions)}
-                        <button class="btn btn-outline" onclick="setLocal('${entry.name}')">Make Local</button>
-                        <button class="btn btn-danger" onclick="uninstallVersion('${entry.name}')">Uninstall</button>
-                    </div>
-                `;
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                meta.textContent = isGlobal ? 'Configured as the global default runtime' : 'Installed managed runtime';
             }
+            info.append(nameEl, meta);
+
+            const actions = document.createElement('div');
+            actions.className = 'version-actions';
+            if (!entry.isSystem || entry.available) {
+                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', entry.name, 'btn btn-outline'));
+            }
+            if (!entry.isSystem) {
+                appendGlobalButton(actions, entry.name, globalVersions);
+                actions.appendChild(createActionButton('Make Local', 'set-local', entry.name, 'btn btn-outline'));
+                actions.appendChild(createActionButton('Uninstall', 'uninstall', entry.name, 'btn btn-danger'));
+            } else if (entry.available) {
+                appendGlobalButton(actions, 'system', globalVersions);
+            }
+
+            card.append(info, actions);
             list.appendChild(card);
         });
+        announce(`Loaded ${managedVersions.length} managed runtime${managedVersions.length === 1 ? '' : 's'}`);
     } catch (err) {
         console.error("Failed to load installed:", err);
-        list.innerHTML = `<div class="empty-state" style="color: var(--danger)">Failed to load.</div>`;
+        showEmptyState(list, 'Failed to load installed runtimes.', { danger: true });
+        announce('Failed to load installed runtimes');
     }
 }
 
@@ -522,7 +734,7 @@ let availableLoaded = false;
 async function setupAvailableView() {
     if(availableLoaded) return;
     const list = document.getElementById('available-list');
-    list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
+    setRegionLoading(list, true, 'Loading installable runtimes…');
     try {
         const installedStr = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         installedVersionsSet = JSON.parse(installedStr);
@@ -558,41 +770,60 @@ async function setupAvailableView() {
         availableLoaded = true;
     } catch(err) {
         console.error(err);
-        list.innerHTML = '<div class="empty-state" style="color: var(--danger)">Failed to load catalog.</div>';
+        showEmptyState(list, 'Failed to load catalog.', { danger: true });
+        announce('Failed to load installable runtimes');
     }
 }
 
 function renderAvailable(items) {
     const list = document.getElementById('available-list');
-    list.innerHTML = '';
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
     if(!items || items.length === 0) {
-        list.innerHTML = '<div class="empty-state">No targets found.</div>';
+        showEmptyState(list, 'No targets found.');
+        announce('No installable runtimes found');
         return;
     }
     items.forEach(v => {
         const spec = typeof v === 'string' ? v : (v.name || v.spec || v);
         const card = document.createElement('div');
         card.className = 'version-card';
-        
+
+        const info = document.createElement('div');
+        const nameEl = document.createElement('div');
+        nameEl.className = 'version-name';
+        nameEl.textContent = spec;
         if (installedVersionsSet.includes(spec)) {
-            card.innerHTML = `
-                <div class="version-name">${spec} <span style="font-size: 11px; opacity: 0.6; font-weight: 400; margin-left: 8px;">(Installed)</span></div>
-                <div class="version-actions"><button class="btn btn-outline" disabled>Installed</button></div>
-            `;
-        } else {
-            card.innerHTML = `
-                <div class="version-name">${spec}</div>
-                <div class="version-actions"><button class="btn btn-primary" onclick="installTarget('${spec}', this)">Install</button></div>
-            `;
+            const installed = document.createElement('span');
+            installed.style.cssText = 'font-size:11px;color:var(--text-muted);font-weight:400;margin-left:8px;';
+            installed.textContent = '(Installed)';
+            nameEl.appendChild(installed);
         }
+        info.appendChild(nameEl);
+
+        const actions = document.createElement('div');
+        actions.className = 'version-actions';
+        if (installedVersionsSet.includes(spec)) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-outline';
+            button.disabled = true;
+            button.textContent = 'Installed';
+            actions.appendChild(button);
+        } else {
+            actions.appendChild(createActionButton('Install', 'install', spec, 'btn btn-primary'));
+        }
+
+        card.append(info, actions);
         list.appendChild(card);
     });
+    announce(`Showing ${items.length} installable runtime${items.length === 1 ? '' : 's'}`);
 }
 
 // ─── Virtual Environments ───
 async function loadVenvs() {
     const list = document.getElementById('venvs-list');
-    list.innerHTML = '<div class="empty-state"><div class="loader"></div></div>';
+    setRegionLoading(list, true, 'Loading virtual environments…');
     try {
         const [venvsJson, statusJson] = await Promise.all([
             invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() }),
@@ -603,42 +834,62 @@ async function loadVenvs() {
         const globalVersions = status.global_versions?.length
             ? status.global_versions
             : ['system'];
-        list.innerHTML = '';
+        list.replaceChildren();
+        list.setAttribute('aria-busy', 'false');
         if (venvs.length === 0) {
-            list.innerHTML = '<div class="empty-state">No virtual environments found.</div>';
+            showEmptyState(list, 'No virtual environments found.');
+            announce('No virtual environments found');
         } else {
-                venvs.forEach(v => {
-                    const globalKey = `venv:${v.name}`;
-                    const isGlobal = isGlobalVersion(globalKey, globalVersions);
-                    const globalBadge = isGlobal
-                        ? '<span class="badge badge-success" style="margin-left: 8px;">Global</span>'
-                        : '';
-                    const card = document.createElement('div');
-                    card.className = 'version-card';
-                    card.innerHTML = `
-                        <div>
-                            <div class="version-name">${v.name}${globalBadge}</div>
-                            <div class="version-meta">Base: ${v.base_version} • ${v.path}</div>
-                        </div>
-                        <div class="version-actions">
-                            <button class="btn btn-outline" onclick="openPackageExplorer('venv:${v.name}')">Package Explorer</button>
-                            <button class="btn btn-gold" style="border: 1px solid var(--accent-gold); color: var(--accent-gold);" onclick="openVenvUpgradeWizard('${v.name}', '${v.base_version}')">Upgrade</button>
-                            ${renderGlobalButton(globalKey, globalVersions)}
-                            <button class="btn btn-outline" onclick="setLocal('venv:${v.name}')">Local</button>
-                            <button class="btn btn-danger" onclick="deleteVenv('${v.name}')">Delete</button>
-                        </div>
-                    `;
-                    list.appendChild(card);
-                });
+            venvs.forEach(v => {
+                const globalKey = `venv:${v.name}`;
+                const isGlobal = isGlobalVersion(globalKey, globalVersions);
+                const card = document.createElement('div');
+                card.className = 'version-card';
+
+                const info = document.createElement('div');
+                const nameEl = document.createElement('div');
+                nameEl.className = 'version-name';
+                nameEl.textContent = v.name;
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                const meta = document.createElement('div');
+                meta.className = 'version-meta';
+                meta.textContent = `Base: ${v.base_version} • ${v.path}`;
+                info.append(nameEl, meta);
+
+                const actions = document.createElement('div');
+                actions.className = 'version-actions';
+                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', globalKey, 'btn btn-outline'));
+                const upgradeBtn = createActionButton('Upgrade', 'upgrade-venv', v.name, 'btn btn-gold');
+                upgradeBtn.dataset.baseVersion = v.base_version;
+                upgradeBtn.style.border = '1px solid var(--accent-gold)';
+                upgradeBtn.style.color = 'var(--accent-gold)';
+                actions.append(upgradeBtn);
+                appendGlobalButton(actions, globalKey, globalVersions);
+                actions.appendChild(createActionButton('Local', 'set-local', globalKey, 'btn btn-outline'));
+                actions.appendChild(createActionButton('Delete', 'delete-venv', v.name, 'btn btn-danger'));
+                card.append(info, actions);
+                list.appendChild(card);
+            });
+            announce(`Loaded ${venvs.length} virtual environment${venvs.length === 1 ? '' : 's'}`);
         }
         const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
         const sel = document.getElementById('venv-base-version');
-        sel.innerHTML = '<option value="">Select Base...</option>';
-        bases.forEach(b => { sel.innerHTML += '<option value="' + b + '">' + b + '</option>'; });
+        sel.replaceChildren();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select Base...';
+        sel.appendChild(placeholder);
+        bases.forEach(b => {
+            const option = document.createElement('option');
+            option.value = b;
+            option.textContent = b;
+            sel.appendChild(option);
+        });
     } catch (err) {
         console.error("Failed to load venvs:", err);
-        list.innerHTML = '<div class="empty-state" style="color: var(--danger)">Failed to load.</div>';
+        showEmptyState(list, 'Failed to load virtual environments.', { danger: true });
+        announce('Failed to load virtual environments');
     }
 }
 
@@ -655,22 +906,26 @@ document.getElementById('available-search').addEventListener('input', (e) => {
 // ─── Actions ───
 async function installTarget(v, btnEl) {
     btnEl.disabled = true;
-    const originalText = btnEl.innerText;
-    btnEl.innerHTML = 'Installing… <div class="loader loader-sm" style="display:inline-block; vertical-align:middle; margin-left:6px;"></div>';
+    const originalText = btnEl.textContent;
+    btnEl.textContent = 'Installing…';
+    btnEl.setAttribute('aria-busy', 'true');
     
     try {
         await invoke('install_version', { workspaceDir: getWorkspaceDir(), version: v });
-        btnEl.innerHTML = "Installed ✓";
+        btnEl.textContent = 'Installed ✓';
         btnEl.classList.remove('btn-primary');
         btnEl.classList.add('btn-outline');
         installedVersionsSet.push(v);
         loadDashboard();
         loadInstalled();
+        announce(`Installed ${v}`);
     } catch (err) {
         console.error("Install failed:", err);
-        btnEl.innerText = originalText;
+        btnEl.textContent = originalText;
         btnEl.disabled = false;
-        showAlert('Install Failed', err);
+        showAlert('Install Failed', String(err));
+    } finally {
+        btnEl.removeAttribute('aria-busy');
     }
 }
 
@@ -779,9 +1034,9 @@ async function loadConfig() {
         
         document.getElementById('config-windows.registry_mode').value = config.windows?.registry_mode || 'disabled';
         document.getElementById('config-install.arch').value = config.install?.arch || 'auto';
-        document.getElementById('config-install.bootstrap_pip').value = (config.install?.bootstrap_pip ?? true).toString();
-        document.getElementById('config-venv.auto_create_base_venv').value = (config.venv?.auto_create_base_venv ?? false).toString();
-        document.getElementById('config-venv.auto_use_base_venv').value = (config.venv?.auto_use_base_venv ?? false).toString();
+        document.getElementById('config-install.bootstrap_pip').checked = config.install?.bootstrap_pip ?? true;
+        document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? false;
+        document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? false;
     } catch(err) {
         console.error("Failed to load config", err);
     }
@@ -811,7 +1066,7 @@ async function uninstallVersion(v) {
     cards.forEach(c => { if (c.querySelector('.version-name')?.textContent === v) targetCard = c; });
     if (targetCard) {
         const actionsDiv = targetCard.querySelector('.version-actions');
-        if (actionsDiv) actionsDiv.innerHTML = '<div class="loader loader-sm" style="display:inline-block;"></div> <span style="font-size: 12px; margin-left: 8px;">Removing…</span>';
+        showInlineRemovingState(actionsDiv);
     }
     
     try {
@@ -856,16 +1111,14 @@ async function initAppVersion() {
             
             const statusEl = document.getElementById('footer-app-status');
             if (statusEl && latest) {
-                // Only show update if latest > current
                 if (compareVersions(latest, version) > 0) {
-                    statusEl.innerHTML = `<span style="color:var(--danger)">Update Available: v${latest}</span>`;
+                    setFooterAppStatus('update', latest);
                 } else {
-                    statusEl.innerHTML = `<span style="color:#10b981;">✓ Up to Date</span>`;
+                    setFooterAppStatus('uptodate');
                 }
             }
         } catch {
-            const statusEl = document.getElementById('footer-app-status');
-            if (statusEl) statusEl.innerHTML = `<span style="opacity:0.5">(Offline)</span>`;
+            setFooterAppStatus('offline');
         }
     } catch(err) {
         console.error("Failed to get app version:", err);
@@ -895,13 +1148,8 @@ async function checkInstallation() {
         loadDashboard();
         
         if (status.is_portable) {
-            const footerStatus = document.getElementById('footer-app-status');
             if (status.is_installed) {
-                // Already adding a "Portable" tag if it's both installed and running portably?
-                // Actually, let's just show "Portable Mode" if running next to a binary.
-                if (!footerStatus.innerHTML.includes('Portable')) {
-                   footerStatus.innerHTML += ' <span class="badge badge-success" style="font-size:10px; padding: 2px 6px; margin-left: 8px;">Portable</span>';
-                }
+                appendFooterPortableBadge();
             }
         }
     } catch (err) {
@@ -1034,7 +1282,7 @@ function resetStepRow(stepId, num, label, desc) {
         row.style.opacity = '0.5';
     }
     if (icon) {
-        icon.innerHTML = num;
+        setStepIconContent(icon, num);
         icon.style.background = 'rgba(255,255,255,0.05)';
         icon.style.color = 'var(--text-muted)';
     }
@@ -1051,7 +1299,7 @@ function markStepInProgress(stepId, label, desc) {
     
     if (row) row.style.opacity = '1';
     if (icon) {
-        icon.innerHTML = `<div class="loader loader-sm" style="width:12px; height:12px; border-width:2px; border-top-color:#ffd43b;"></div>`;
+        setStepIconContent(icon, createStepLoader());
         icon.style.background = 'rgba(255, 212, 59, 0.1)';
         icon.style.color = '#ffd43b';
     }
@@ -1066,7 +1314,9 @@ function markStepSuccess(stepId, label, desc) {
     const dsc = document.getElementById(`step-desc-${stepId}`);
     
     if (icon) {
-        icon.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        setStepIconContent(icon, createStepSvg([
+            { tag: 'polyline', attrs: { points: '20 6 9 17 4 12' } },
+        ]));
         icon.style.background = 'rgba(16, 185, 129, 0.15)';
         icon.style.color = '#10b981';
     }
@@ -1081,7 +1331,10 @@ function markStepWarning(stepId, label, desc) {
     const dsc = document.getElementById(`step-desc-${stepId}`);
     
     if (icon) {
-        icon.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+        setStepIconContent(icon, createStepSvg([
+            { tag: 'line', attrs: { x1: '18', y1: '6', x2: '6', y2: '18' } },
+            { tag: 'line', attrs: { x1: '6', y1: '6', x2: '18', y2: '18' } },
+        ]));
         icon.style.background = 'rgba(239, 68, 68, 0.15)';
         icon.style.color = '#ef4444';
     }
@@ -1115,12 +1368,11 @@ window.openVenvUpgradeWizard = async function(name, baseVersion) {
     try {
         const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
-        upgraderTargetVersionSel.innerHTML = '<option value="">Select Target...</option>';
-        bases.forEach(b => {
-            if (b !== baseVersion) {
-                upgraderTargetVersionSel.innerHTML += `<option value="${b}">${b}</option>`;
-            }
-        });
+        fillSelectOptions(
+            upgraderTargetVersionSel,
+            bases.filter((b) => b !== baseVersion),
+            { placeholder: 'Select Target...' },
+        );
     } catch (err) {
         console.error("Failed to load targets for upgrade:", err);
     }
@@ -1311,8 +1563,8 @@ window.openPackageExplorer = function(target) {
         btnScanImports.textContent = "Scan Workspace";
     }
     scannedMissingImports = [];
-    if (scanMissingBadges) scanMissingBadges.innerHTML = '';
-    if (scanInstalledBadges) scanInstalledBadges.innerHTML = '';
+    if (scanMissingBadges) scanMissingBadges.replaceChildren();
+    if (scanInstalledBadges) scanInstalledBadges.replaceChildren();
 };
 
 // Close Package Explorer Drawer
@@ -1360,6 +1612,10 @@ drawerTabBtns.forEach((btn, index) => {
 });
 
 document.addEventListener('keydown', (event) => {
+    const openDrawer = getOpenDrawerOverlay();
+    if (openDrawer && event.key === 'Tab') {
+        trapFocus(openDrawer, event);
+    }
     if (event.key !== 'Escape') return;
     if (drawer?.classList.contains('open')) {
         closePackageExplorer();
@@ -1372,25 +1628,32 @@ document.addEventListener('keydown', (event) => {
 
 // Load installed packages from Rust backend
 async function loadDrawerPackages() {
-    drawerPackageLoading.style.display = 'block';
     drawerPackageEmpty.style.display = 'none';
-    drawerPackageList.innerHTML = '';
     pipSelfUpdateCard.style.display = 'none';
+    drawerPackageList.replaceChildren();
+    drawerPackageLoading.style.display = 'block';
+    drawerPackageList.setAttribute('aria-busy', 'true');
     
     try {
         const jsonStr = await invoke('get_pip_packages', { workspaceDir: getWorkspaceDir(), target: currentExplorerTarget });
         installedPackages = JSON.parse(jsonStr);
         
         renderInstalledPackages();
-        
-        // Cozy Check if pip is installed and has updates
         checkForPipUpdatesInBackground();
-        
     } catch(err) {
         console.error("Failed to load packages:", err);
-        drawerPackageList.innerHTML = `<tr><td colspan="3" style="color: var(--danger); text-align: center;">Error loading packages: ${err}</td></tr>`;
+        drawerPackageList.replaceChildren();
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3;
+        td.style.color = 'var(--danger)';
+        td.style.textAlign = 'center';
+        td.textContent = `Error loading packages: ${err}`;
+        tr.appendChild(td);
+        drawerPackageList.appendChild(tr);
     } finally {
         drawerPackageLoading.style.display = 'none';
+        drawerPackageList.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -1440,7 +1703,7 @@ btnUpgradePip.addEventListener('click', async () => {
 
 // Render installed packages list with filtering
 function renderInstalledPackages() {
-    drawerPackageList.innerHTML = '';
+    drawerPackageList.replaceChildren();
     const query = drawerPackageSearch.value.trim().toLowerCase();
     
     const filtered = installedPackages.filter(p => p.name.toLowerCase().includes(query));
@@ -1454,18 +1717,27 @@ function renderInstalledPackages() {
     
     filtered.forEach(p => {
         const tr = document.createElement('tr');
-        
-        // Determine status tag if any
-        let statusTag = '<span style="opacity: 0.6;">OK</span>';
+        const nameTd = document.createElement('td');
+        nameTd.style.fontWeight = '500';
+        nameTd.textContent = p.name;
+
+        const versionTd = document.createElement('td');
+        versionTd.style.fontFamily = "'JetBrains Mono', monospace";
+        versionTd.style.opacity = '0.8';
+        versionTd.textContent = p.version;
+
+        const statusTd = document.createElement('td');
+        const statusSpan = document.createElement('span');
         if (p.name.toLowerCase() === 'pip') {
-            statusTag = '<span style="color: var(--accent); font-weight: 500;">System</span>';
+            statusSpan.style.color = 'var(--accent)';
+            statusSpan.style.fontWeight = '500';
+            statusSpan.textContent = 'System';
+        } else {
+            statusSpan.style.opacity = '0.6';
+            statusSpan.textContent = 'OK';
         }
-        
-        tr.innerHTML = `
-            <td style="font-weight: 500;">${p.name}</td>
-            <td style="font-family: 'JetBrains Mono', monospace; opacity: 0.8;">${p.version}</td>
-            <td>${statusTag}</td>
-        `;
+        statusTd.appendChild(statusSpan);
+        tr.append(nameTd, versionTd, statusTd);
         drawerPackageList.appendChild(tr);
     });
 }
@@ -1506,13 +1778,11 @@ btnScanOutdated.addEventListener('click', async () => {
 
 // Render the checklist of outdated packages
 function renderOutdatedChecklist() {
-    updatesChecklist.innerHTML = '';
+    updatesChecklist.replaceChildren();
     selectedOutdated.clear();
     
-    // Filter out 'pip' if it's there, as pip has a cozy dedicated self-update card
     const listToRender = outdatedPackages.filter(p => p.name.toLowerCase() !== 'pip');
     
-    // Update badge count
     if (listToRender.length > 0) {
         updatesCountBadge.style.display = 'inline-block';
         updatesCountBadge.textContent = listToRender.length;
@@ -1521,7 +1791,11 @@ function renderOutdatedChecklist() {
     }
     
     if (listToRender.length === 0) {
-        updatesChecklist.innerHTML = '<div class="empty-state" style="padding: 20px;">All libraries are up to date!</div>';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.padding = '20px';
+        empty.textContent = 'All libraries are up to date!';
+        updatesChecklist.appendChild(empty);
         updatesScanPrompt.style.display = 'none';
         updatesChecklistView.style.display = 'block';
         btnUpdateSelected.disabled = true;
@@ -1533,36 +1807,53 @@ function renderOutdatedChecklist() {
     listToRender.forEach(p => {
         const div = document.createElement('div');
         div.className = 'update-item';
-        div.innerHTML = `
-            <input type="checkbox" id="chk-pkg-${p.name}" data-pkg-name="${p.name}" />
-            <label for="chk-pkg-${p.name}" class="update-info" style="cursor: pointer; width: 100%;">
-                <span class="update-name">${p.name}</span>
-                <span class="update-versions">
-                    <span style="opacity: 0.6;">${p.version}</span>
-                    <span class="arrow-symbol">→</span>
-                    <span style="color: #ffd43b; font-weight: 600;">${p.latest_version}</span>
-                </span>
-            </label>
-        `;
-        
-        // Register event listener on checkbox
-        const chk = div.querySelector('input[type="checkbox"]');
+        const pkgId = sanitizeDomId(p.name);
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `chk-pkg-${pkgId}`;
+        chk.dataset.pkgName = p.name;
+
+        const label = document.createElement('label');
+        label.htmlFor = chk.id;
+        label.className = 'update-info';
+        label.style.cursor = 'pointer';
+        label.style.width = '100%';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'update-name';
+        nameSpan.textContent = p.name;
+
+        const versionsSpan = document.createElement('span');
+        versionsSpan.className = 'update-versions';
+
+        const currentSpan = document.createElement('span');
+        currentSpan.style.opacity = '0.6';
+        currentSpan.textContent = p.version;
+
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'arrow-symbol';
+        arrowSpan.textContent = '→';
+
+        const latestSpan = document.createElement('span');
+        latestSpan.style.color = '#ffd43b';
+        latestSpan.style.fontWeight = '600';
+        latestSpan.textContent = p.latest_version;
+
+        versionsSpan.append(currentSpan, arrowSpan, latestSpan);
+        label.append(nameSpan, versionsSpan);
+        div.append(chk, label);
+
         chk.addEventListener('change', () => {
-            if (chk.checked) {
-                selectedOutdated.add(p.name);
-            } else {
-                selectedOutdated.delete(p.name);
-            }
+            if (chk.checked) selectedOutdated.add(p.name);
+            else selectedOutdated.delete(p.name);
             updateSelectedCountText();
         });
-        
+
         updatesChecklist.appendChild(div);
     });
     
     updatesScanPrompt.style.display = 'none';
     updatesChecklistView.style.display = 'block';
-    
-    // Reset Select All state
     chkSelectAllUpdates.checked = false;
     updateSelectedCountText();
 }
@@ -1707,45 +1998,70 @@ function renderPrecheckResults(precheck) {
     }
     
     // 2. Active conflicts
-    precheckConflictsList.innerHTML = '';
+    precheckConflictsList.replaceChildren();
     if (precheck.potential_conflicts && precheck.potential_conflicts.length > 0) {
         precheckConflictsSection.style.display = 'block';
         precheck.potential_conflicts.forEach(c => {
             const div = document.createElement('div');
             div.className = 'import-issue-item';
-            div.innerHTML = `<strong>${c.package}</strong>: installed version (${c.installed}) violates requirement "${c.requirement}"`;
+            const strong = document.createElement('strong');
+            strong.textContent = c.package;
+            div.append(
+                strong,
+                document.createTextNode(`: installed version (${c.installed}) violates requirement "${c.requirement}"`),
+            );
             precheckConflictsList.appendChild(div);
         });
     } else {
         precheckConflictsSection.style.display = 'none';
     }
     
-    // 3. Resolved packages
-    precheckResolvedList.innerHTML = '';
+    precheckResolvedList.replaceChildren();
     if (precheck.resolved_packages && precheck.resolved_packages.length > 0) {
-        precheck.resolved_packages.forEach(p => {
+        precheck.resolved_packages.forEach((p, index) => {
             const tr = document.createElement('tr');
-            
-            let statusBadge = '<span style="color: var(--success); font-weight: 500;">Compatible</span>';
-            // Check if this package has a conflict
+            const nameTd = document.createElement('td');
+            nameTd.style.fontWeight = '500';
+            nameTd.textContent = p.name;
+
+            const versionTd = document.createElement('td');
+            versionTd.style.fontFamily = "'JetBrains Mono', monospace";
+            versionTd.textContent = p.version;
+
+            const statusTd = document.createElement('td');
             const hasConflict = precheck.potential_conflicts?.some(c => c.package === p.name);
             if (hasConflict) {
-                // Find matching conflict
                 const conf = precheck.potential_conflicts.find(c => c.package === p.name);
-                statusBadge = `<span class="warning-badge" data-tooltip="Installed: ${conf.installed} vs Req: ${conf.requirement}">Conflict</span>`;
+                statusTd.appendChild(createWarningBadge(
+                    'Conflict',
+                    `precheck-conflict-tip-${sanitizeDomId(p.name)}-${index}`,
+                    `Installed: ${conf.installed} vs Req: ${conf.requirement}`,
+                ));
             } else if (p.version === 'not installed') {
-                statusBadge = '<span style="color: #60a5fa;">Pending Install</span>';
+                const pending = document.createElement('span');
+                pending.style.color = '#60a5fa';
+                pending.textContent = 'Pending Install';
+                statusTd.appendChild(pending);
+            } else {
+                const compatible = document.createElement('span');
+                compatible.style.color = 'var(--success)';
+                compatible.style.fontWeight = '500';
+                compatible.textContent = 'Compatible';
+                statusTd.appendChild(compatible);
             }
-            
-            tr.innerHTML = `
-                <td style="font-weight: 500;">${p.name}</td>
-                <td style="font-family: 'JetBrains Mono', monospace;">${p.version}</td>
-                <td>${statusBadge}</td>
-            `;
+
+            tr.append(nameTd, versionTd, statusTd);
             precheckResolvedList.appendChild(tr);
         });
     } else {
-        precheckResolvedList.innerHTML = '<tr><td colspan="3" style="text-align:center; opacity:0.6;">No packages specified.</td></tr>';
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3;
+        td.style.textAlign = 'center';
+        td.style.opacity = '0.6';
+        td.textContent = 'No packages specified.';
+        tr.appendChild(td);
+        precheckResolvedList.appendChild(tr);
     }
 }
 
@@ -1794,8 +2110,8 @@ if (btnScanImports) {
         btnScanImports.textContent = "Scanning...";
         if (scanImportsResults) scanImportsResults.style.display = 'none';
         if (scanImportsLoading) scanImportsLoading.style.display = 'block';
-        if (scanMissingBadges) scanMissingBadges.innerHTML = '';
-        if (scanInstalledBadges) scanInstalledBadges.innerHTML = '';
+        if (scanMissingBadges) scanMissingBadges.replaceChildren();
+        if (scanInstalledBadges) scanInstalledBadges.replaceChildren();
         
         try {
             const jsonStr = await invoke('analyze_codebase_imports', {
@@ -1938,7 +2254,7 @@ function updateActivePipLight(isOutdated, currentVer = '', latestVer = '') {
     if (container && text) {
         if (isOutdated) {
             container.style.display = 'inline-flex';
-            text.innerHTML = `pip update available (current ${currentVer} → latest ${latestVer})`;
+            text.textContent = `pip update available (current ${currentVer} → latest ${latestVer})`;
         } else {
             container.style.display = 'none';
         }
@@ -1968,125 +2284,136 @@ loadDashboard = async function() {
 };
 
 // ─── Shell Integration & Diagnostics ───
+function createShellStatusBadge(label, style) {
+    const badge = createBadge(label, 'badge', style);
+    return badge;
+}
+
 async function loadShellIntegration() {
     const cardsContainer = document.getElementById('shell-status-cards');
     if (!cardsContainer) return;
-    
-    cardsContainer.innerHTML = '<div class="empty-state">Scanning shells and configurations...</div>';
-    
+
+    setRegionLoading(cardsContainer, true, 'Scanning shells and configurations…');
+    cardsContainer.setAttribute('aria-busy', 'true');
+
     try {
         const statuses = await invoke('get_shell_statuses', { workspaceDir: getWorkspaceDir() });
-        cardsContainer.innerHTML = '';
-        
+        cardsContainer.replaceChildren();
+
         if (!statuses || statuses.length === 0) {
-            cardsContainer.innerHTML = '<div class="empty-state">No standard shells discovered on this platform.</div>';
+            showEmptyState(cardsContainer, 'No standard shells discovered on this platform.');
             return;
         }
-        
-        statuses.forEach(status => {
+
+        statuses.forEach((status) => {
             const card = document.createElement('div');
             card.className = 'status-card glass fade-in';
             card.style.display = 'flex';
             card.style.flexDirection = 'column';
             card.style.justifyContent = 'space-between';
             card.style.minHeight = '180px';
-            
+            if (!status.is_installed) card.style.opacity = '0.55';
+
+            const top = document.createElement('div');
+            const title = document.createElement('h3');
+            title.style.margin = '0 0 8px';
+            title.style.color = '#fff';
+            title.style.fontSize = '16px';
+            title.textContent = status.name;
+
+            const badges = document.createElement('div');
+            badges.style.marginBottom = '12px';
+            badges.style.display = 'flex';
+            badges.style.flexWrap = 'wrap';
+            badges.style.gap = '4px';
+
             if (!status.is_installed) {
-                card.style.opacity = '0.55';
-            }
-            
-            // Config Badge HTML
-            let configBadge = '';
-            if (!status.is_installed) {
-                configBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.08); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15);">
-                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Not Detected
-                   </span>`;
+                badges.appendChild(createShellStatusBadge(
+                    'Not Detected',
+                    'background: rgba(148, 163, 184, 0.08); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15);',
+                ));
             } else if (status.is_configured) {
-                configBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">
-                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>Configured
-                   </span>`;
+                badges.appendChild(createShellStatusBadge(
+                    'Configured',
+                    'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);',
+                ));
             } else {
-                configBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);">
-                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Not Configured
-                   </span>`;
+                badges.appendChild(createShellStatusBadge(
+                    'Not Configured',
+                    'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);',
+                ));
             }
-                   
-            // PATH Badge HTML
-            let pathBadge = '';
+
             if (status.is_installed) {
-                pathBadge = status.active_in_path 
-                    ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;">
-                        PATH Active
-                       </span>`
-                    : `<span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;">
-                        Shims Missing from PATH
-                       </span>`;
+                badges.appendChild(createShellStatusBadge(
+                    status.active_in_path ? 'PATH Active' : 'Shims Missing from PATH',
+                    status.active_in_path
+                        ? 'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;'
+                        : 'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;',
+                ));
             }
 
-            // Button style & text
-            let btnClass = 'btn-gold';
-            let btnText = 'Auto-Configure Shell';
-            let btnDisabled = '';
-            
+            const profile = document.createElement('div');
+            profile.style.fontSize = '11px';
+            profile.style.color = 'var(--text-muted)';
+            profile.style.wordBreak = 'break-all';
+            profile.style.lineHeight = '1.4';
+            const profileLabel = document.createElement('strong');
+            profileLabel.textContent = 'Profile File:';
+            profile.append(profileLabel, document.createElement('br'), document.createTextNode(status.profile_path));
+            top.append(title, badges, profile);
+
+            const actions = document.createElement('div');
+            actions.style.marginTop = '16px';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn';
+            btn.style.width = '100%';
+            btn.style.padding = '8px';
+            btn.style.fontSize = '11px';
+            btn.style.fontWeight = '600';
+            btn.id = `btn-cfg-${sanitizeDomId(status.name)}`;
+
             if (!status.is_installed) {
-                btnClass = 'btn-outline';
-                btnText = 'Shell Not Installed';
-                btnDisabled = 'disabled';
+                btn.classList.add('btn-outline');
+                btn.textContent = 'Shell Not Installed';
+                btn.disabled = true;
             } else if (status.is_configured) {
-                btnClass = 'btn-outline';
-                btnText = 'Configured';
-                btnDisabled = 'disabled';
+                btn.classList.add('btn-outline');
+                btn.textContent = 'Configured';
+                btn.disabled = true;
+            } else {
+                btn.classList.add('btn-gold');
+                btn.textContent = 'Auto-Configure Shell';
+                btn.addEventListener('click', async () => {
+                    btn.disabled = true;
+                    btn.textContent = 'Configuring...';
+                    try {
+                        await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
+                        showAlert(
+                            'Shell Configured',
+                            `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${status.profile_path}</code><br><br>Restart your terminal shell for the changes to take effect!`,
+                        );
+                        loadShellIntegration();
+                    } catch (err) {
+                        showAlert('Configuration Failed', err);
+                        btn.disabled = false;
+                        btn.textContent = 'Auto-Configure Shell';
+                    }
+                });
             }
 
-            card.innerHTML = `
-                <div>
-                  <h3 style="margin: 0 0 8px; color: #fff; font-size: 16px;">${status.name}</h3>
-                  <div style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px;">
-                    ${configBadge}
-                    ${pathBadge}
-                  </div>
-                  <div style="font-size: 11px; color: var(--text-muted); word-break: break-all; line-height: 1.4;">
-                    <strong>Profile File:</strong><br>${status.profile_path}
-                  </div>
-                </div>
-                <div style="margin-top: 16px;">
-                  <button class="btn ${btnClass}" 
-                    style="width: 100%; padding: 8px; font-size: 11px; font-weight: 600;" 
-                    ${btnDisabled} 
-                    id="btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}">
-                    ${btnText}
-                  </button>
-                </div>
-            `;
-            
+            actions.appendChild(btn);
+            card.append(top, actions);
             cardsContainer.appendChild(card);
-            
-            // Add click listener to config button
-            if (status.is_installed && !status.is_configured) {
-                const btn = card.querySelector(`#btn-cfg-${status.name.replace(/[^a-zA-Z0-9]/g, '-')}`);
-                if (btn) {
-                    btn.addEventListener('click', async () => {
-                        btn.disabled = true;
-                        btn.textContent = "Configuring...";
-                        try {
-                            await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
-                            showAlert("Shell Configured", `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${status.profile_path}</code><br><br>Restart your terminal shell for the changes to take effect!`);
-                            loadShellIntegration();
-                        } catch(err) {
-                            showAlert("Configuration Failed", err);
-                            btn.disabled = false;
-                            btn.textContent = "Auto-Configure Shell";
-                        }
-                    });
-                }
-            }
         });
-        
-        // Proactively run diagnostics in the background
+
         runDoctorDiagnostics();
-    } catch(err) {
-        console.error("Failed to load shell statuses:", err);
-        cardsContainer.innerHTML = `<div class="empty-state" style="color: var(--danger);">Failed to scan shells: ${err}</div>`;
+    } catch (err) {
+        console.error('Failed to load shell statuses:', err);
+        showEmptyState(cardsContainer, `Failed to scan shells: ${err}`, { danger: true });
+    } finally {
+        cardsContainer.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -2114,7 +2441,7 @@ async function runDoctorDiagnostics() {
     if (doctorResults) doctorResults.style.display = 'none';
     if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
     if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
-    if (doctorIssuesList) doctorIssuesList.innerHTML = '';
+    if (doctorIssuesList) doctorIssuesList.replaceChildren();
 
     try {
         const jsonStr = await invoke('run_doctor', { workspaceDir: getWorkspaceDir() });
@@ -2136,7 +2463,10 @@ async function runDoctorDiagnostics() {
                     item.style.background = 'rgba(251, 191, 36, 0.04)';
                     item.style.borderLeft = '3px solid #fbbf24';
                     item.style.marginBottom = '6px';
-                    item.innerHTML = `<strong style="color: #fbbf24;">${issue.name}</strong>: ${issue.detail}`;
+                    const strong = document.createElement('strong');
+                    strong.style.color = '#fbbf24';
+                    strong.textContent = issue.name;
+                    item.append(strong, document.createTextNode(`: ${issue.detail}`));
                     doctorIssuesList.appendChild(item);
                 });
             }
