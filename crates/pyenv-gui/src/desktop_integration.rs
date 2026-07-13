@@ -13,12 +13,26 @@ const ICON_SIZES: &[(&str, &[u8])] = &[
     ("512x512", include_bytes!("../icons/icon.png")),
 ];
 
+/// Configure GTK/Wayland identity before Tauri creates its window.
+#[cfg(target_os = "linux")]
+pub fn prepare_linux_runtime() {
+    // SAFETY: called once at process start before any GTK threads are spawned.
+    unsafe {
+        std::env::set_var("GTK_APPLICATION_ID", APP_ID);
+    }
+    if gtk::init().is_ok() {
+        gtk::gdk::set_program_class(APP_ID);
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn prepare_linux_runtime() {}
+
 pub fn prepare_app(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     apply_window_icons(app);
 
     #[cfg(target_os = "linux")]
     {
-        configure_linux_wm_class();
         ensure_freedesktop_integration()?;
     }
 
@@ -32,13 +46,6 @@ fn apply_window_icons(app: &tauri::App) {
 
     for window in app.webview_windows().values() {
         let _ = window.set_icon(icon.clone());
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn configure_linux_wm_class() {
-    if gtk::init().is_ok() {
-        gtk::gdk::set_program_class(APP_ID);
     }
 }
 
@@ -109,9 +116,7 @@ fn install_embedded_icons(data_home: &Path) -> std::io::Result<()> {
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)?;
         }
-        if !dest.exists() || fs::metadata(&dest)?.len() != bytes.len() as u64 {
-            fs::write(&dest, bytes)?;
-        }
+        fs::write(&dest, bytes)?;
     }
     Ok(())
 }
@@ -174,12 +179,6 @@ fn write_desktop_entry(
          Terminal=false\n"
     );
 
-    if desktop_path.exists() {
-        let existing = fs::read_to_string(desktop_path)?;
-        if existing == desktop_body {
-            return Ok(());
-        }
-    }
     fs::write(desktop_path, desktop_body)
 }
 

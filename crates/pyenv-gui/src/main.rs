@@ -238,6 +238,7 @@ async fn check_for_updates(workspace_dir: Option<String>) -> Result<String, Stri
             force: false,
             github_repo: None,
             tag: None,
+            restart_gui: false,
         };
         let report = pyenv_core::cmd_self_update(&ctx, &options);
         if report.exit_code != 0 {
@@ -260,6 +261,7 @@ async fn perform_update(workspace_dir: Option<String>) -> Result<String, String>
             force: false,
             github_repo: None,
             tag: None,
+            restart_gui: true,
         };
         let report = pyenv_core::cmd_self_update(&ctx, &options);
         if report.exit_code != 0 {
@@ -909,6 +911,9 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    desktop_integration::prepare_linux_runtime();
+
     tauri::Builder::default()
         .setup(|app| desktop_integration::prepare_app(app))
         .invoke_handler(tauri::generate_handler![
