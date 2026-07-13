@@ -277,7 +277,8 @@ function Write-TextFile {
     )
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
-    Set-Content -Path $Path -Value $Contents -Encoding utf8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $Contents, $utf8NoBom)
 }
 
 function Update-PowerShellProfileBlock {
@@ -313,7 +314,8 @@ function Update-PowerShellProfileBlock {
         $updated = $existing.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $block + [Environment]::NewLine
     }
 
-    Set-Content -Path $profilePath -Value $updated -Encoding utf8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($profilePath, $updated, $utf8NoBom)
     return $profilePath
 }
 

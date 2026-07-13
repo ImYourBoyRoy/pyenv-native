@@ -22,5 +22,7 @@ if (-not (Test-Path $definitionsDir)) {
 $outputPath = Join-Path $PSScriptRoot '..\crates\pyenv-core\data\known_versions.txt'
 $definitions = Get-ChildItem $definitionsDir -File | Select-Object -ExpandProperty Name | Sort-Object
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputPath) | Out-Null
-$definitions | Set-Content -Encoding utf8 $outputPath
+$payload = ($definitions -join "`n") + "`n"
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($outputPath, $payload, $utf8NoBom)
 Write-Host "Wrote $($definitions.Count) version definitions to $outputPath"

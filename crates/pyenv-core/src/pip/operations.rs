@@ -75,7 +75,8 @@ where
     T: DeserializeOwned,
 {
     let text = String::from_utf8_lossy(stdout);
-    serde_json::from_str(extract_json_array_payload(&text))
+    let text = crate::text::strip_utf8_bom(&text);
+    serde_json::from_str(extract_json_array_payload(text))
 }
 
 /// Resolves the absolute path to the Python interpreter for a given target spec (runtime version or managed venv name).

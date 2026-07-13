@@ -19,6 +19,7 @@ mod runtime;
 mod self_update;
 mod shell;
 mod shim;
+mod text;
 mod venv;
 mod venv_compat;
 mod venv_paths;
@@ -66,6 +67,9 @@ pub use shell::{
     cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_virtualenv_init,
 };
 pub use shim::{cmd_exec, cmd_rehash};
+pub use text::{
+    append_text_block, line_ending_for, normalize_block_eol, strip_utf8_bom, trim_env_value,
+};
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
     cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use, list_managed_venvs,

@@ -42,6 +42,7 @@ pub(super) fn parse_version_file(path: &Path) -> Result<ParsedVersionFile, Vec<P
         Ok(contents) => contents,
         Err(_) => return Err(Vec::new()),
     };
+    let contents = crate::text::strip_utf8_bom(&contents);
 
     let mut versions = Vec::new();
     let mut errors = Vec::new();

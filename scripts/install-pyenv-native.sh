@@ -255,19 +255,22 @@ update_profile_block() {
   if printf '%s' "$existing" | grep -Fq "$begin_marker"; then
     updated="$(printf '%s\n' "$existing" | awk -v begin="$begin_marker" -v end="$end_marker" -v block="$block" '
       BEGIN { skipping = 0; replaced = 0 }
-      index($0, begin) == 1 && replaced == 0 {
-        print block
-        skipping = 1
-        replaced = 1
-        next
-      }
-      skipping == 1 {
-        if (index($0, end) == 1) {
-          skipping = 0
+      {
+        sub(/\r$/, "")
+        if (index($0, begin) == 1 && replaced == 0) {
+          print block
+          skipping = 1
+          replaced = 1
+          next
         }
-        next
+        if (skipping == 1) {
+          if (index($0, end) == 1) {
+            skipping = 0
+          }
+          next
+        }
+        print
       }
-      { print }
       END {
         if (replaced == 0) {
           if (NR > 0) {

@@ -32,10 +32,12 @@ impl AppContext {
         let dir = resolve_dir(env::var_os("PYENV_DIR"))?;
         let env_version = env::var("PYENV_VERSION")
             .ok()
-            .filter(|value| !value.trim().is_empty());
+            .map(crate::text::trim_env_value)
+            .filter(|value| !value.is_empty());
         let env_shell = env::var("PYENV_SHELL")
             .ok()
-            .filter(|value| !value.trim().is_empty());
+            .map(crate::text::trim_env_value)
+            .filter(|value| !value.is_empty());
         let path_env = env::var_os("PATH");
         let path_ext = env::var_os("PATHEXT");
         let config = load_config(&root)?;

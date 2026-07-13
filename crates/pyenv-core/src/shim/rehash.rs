@@ -104,7 +104,8 @@ fn expand_python_shim_commands(commands: &mut HashSet<String>) {
 fn read_shim_manifest(shims_dir: &Path) -> Option<ShimManifest> {
     let path = shims_dir.join(SHIM_MANIFEST_FILE);
     let contents = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
+    let contents = crate::text::strip_utf8_bom(&contents);
+    serde_json::from_str(contents).ok()
 }
 
 fn write_shim_manifest(shims_dir: &Path, commands: &[String]) -> Result<(), PyenvError> {

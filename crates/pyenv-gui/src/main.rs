@@ -690,11 +690,7 @@ fn configure_shell(shell_name: String, profile_path: String) -> Result<(), Strin
         ));
     };
 
-    // Add trailing newline safety
-    if !content.is_empty() && !content.ends_with('\n') {
-        content.push('\n');
-    }
-    content.push_str(init_block);
+    content = pyenv_core::append_text_block(content, init_block);
 
     std::fs::write(&path, content).map_err(|e| format!("Failed to write profile: {e}"))?;
     Ok(())
