@@ -22,7 +22,7 @@
 * { box-sizing: border-box; }
 
 html {
-  color-scheme: dark;
+  color-scheme: dark only;
 }
 
 body {
@@ -407,24 +407,35 @@ code {
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-.dropdown {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--glass-border);
-  color: #fff;
-  padding: 6px 12px;
+.dropdown,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #12151f;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23f8fafc' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+  padding: 8px 36px 8px 12px;
   border-radius: 8px;
   font-family: inherit;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  color-scheme: dark only;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.dropdown:focus {
+.dropdown:focus,
+select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
-.dropdown option {
-  background: #1e1e24;
-  color: #fff;
+.dropdown option,
+select option,
+.dropdown optgroup,
+select optgroup {
+  background-color: #12151f;
+  color: #f8fafc;
 }
 
 /* Custom Modal Overlay */
@@ -863,8 +874,7 @@ code {
 input[type="text"],
 input[type="search"],
 input[type="url"],
-textarea,
-select {
+textarea {
   background: rgba(8, 10, 16, 0.92);
   color: var(--text-primary);
   border: 1px solid var(--glass-border);

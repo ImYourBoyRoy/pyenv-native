@@ -94,7 +94,6 @@ fn maximize_app(window: tauri::Window) {
 async fn install_version(workspace_dir: Option<String>, version: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let ver_clone = version.clone();
         let options = pyenv_core::InstallCommandOptions {
             list: false,
             force: false,
@@ -107,15 +106,6 @@ async fn install_version(workspace_dir: Option<String>, version: String) -> Resu
         let report = pyenv_core::cmd_install(&ctx, &options);
         if report.exit_code != 0 {
             return Err(report.stderr.join("\n"));
-        }
-
-        // Auto-update pip after successful install
-        let py_path = ctx.versions_dir().join(&ver_clone).join("python.exe");
-        if py_path.exists() {
-            let _ = std::process::Command::new(&py_path)
-                .headless()
-                .args(["-m", "pip", "install", "-U", "pip"])
-                .output();
         }
 
         Ok(report.stdout.join("\n"))
@@ -238,6 +228,7 @@ async fn check_for_updates(workspace_dir: Option<String>) -> Result<String, Stri
             force: false,
             github_repo: None,
             tag: None,
+            restart_gui: false,
         };
         let report = pyenv_core::cmd_self_update(&ctx, &options);
         if report.exit_code != 0 {
@@ -260,6 +251,7 @@ async fn perform_update(workspace_dir: Option<String>) -> Result<String, String>
             force: false,
             github_repo: None,
             tag: None,
+            restart_gui: true,
         };
         let report = pyenv_core::cmd_self_update(&ctx, &options);
         if report.exit_code != 0 {
@@ -909,6 +901,9 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    desktop_integration::prepare_linux_runtime();
+
     tauri::Builder::default()
         .setup(|app| desktop_integration::prepare_app(app))
         .invoke_handler(tauri::generate_handler![

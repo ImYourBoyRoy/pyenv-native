@@ -5,7 +5,7 @@
 set -eu
 
 APP_ID="com.pyenv-native.gui"
-WM_CLASS="com.pyenv-native.gui"
+WM_CLASS="pyenv-gui"
 GUI_EXE="${1:-}"
 ICONS_SRC="${2:-}"
 

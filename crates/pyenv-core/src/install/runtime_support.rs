@@ -337,6 +337,11 @@ pub(super) fn ensure_pip_available(python_executable: &Path) -> Result<bool, Pye
     Ok(true)
 }
 
+/// Best-effort `python -m pip install -U pip` after a fresh interpreter or venv is created.
+pub(super) fn upgrade_pip_latest(python_executable: &Path) -> bool {
+    run_python(python_executable, &["-m", "pip", "install", "-U", "pip"]).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;

@@ -316,6 +316,22 @@ fn create_managed_venv(
 
     let info = build_managed_venv_info(resolved_version.clone(), name.to_string(), venv_path);
 
+    if let Some(python_path) = info.python_path.as_ref() {
+        progress_steps.push("pip: upgrading pip to the latest release".to_string());
+        let pip_upgrade = Command::new(python_path)
+            .headless()
+            .args(["-m", "pip", "install", "-U", "pip"])
+            .status();
+        match pip_upgrade {
+            Ok(status) if status.success() => {
+                progress_steps.push("pip: pip upgraded successfully".to_string());
+            }
+            _ => progress_steps.push(
+                "pip: pip upgrade skipped or failed; continuing with bundled pip".to_string(),
+            ),
+        }
+    }
+
     let local_written = if set_local {
         let report = cmd_local(ctx, std::slice::from_ref(&info.spec), false, true);
         if report.exit_code != 0 {
