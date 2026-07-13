@@ -12,27 +12,30 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="aria-live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="status-toast" class="status-toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="bg-gradient"></div>
 
   <div data-tauri-drag-region class="titlebar">
     <div class="titlebar-label">pyenv-native dashboard</div>
     <div class="titlebar-controls">
-      <div class="titlebar-button" id="titlebar-minimize">
-        <svg width="10" height="10" viewBox="0 0 10 10">
+      <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M0 4.5h10v1H0z" />
         </svg>
-      </div>
-      <div class="titlebar-button" id="titlebar-maximize">
-        <svg width="10" height="10" viewBox="0 0 10 10">
+      </button>
+      <button type="button" class="titlebar-button" id="titlebar-maximize" aria-label="Maximize window">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="none" stroke="currentColor" d="M1.5 1.5h7v7h-7z" />
         </svg>
-      </div>
-      <div class="titlebar-button close-btn" id="titlebar-close">
-        <svg width="10" height="10" viewBox="0 0 10 10">
+      </button>
+      <button type="button" class="titlebar-button close-btn" id="titlebar-close" aria-label="Close window">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor"
             d="M1.4 0L5 3.6 8.6 0 10 1.4 6.4 5l3.6 3.6-1.4 1.4L5 6.4 1.4 10 0 8.6 3.6 5 0 1.4z" />
         </svg>
-      </div>
+      </button>
     </div>
   </div>
 
@@ -118,75 +121,91 @@
       </div>
 
       <h2 class="nav-header">Environments</h2>
+      <nav aria-label="Primary">
       <ul class="nav">
-        <li data-view="view-dashboard" class="active">
+        <li>
+          <button type="button" class="nav-btn active" data-view="view-dashboard" aria-current="page">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
             <rect x="14" y="14" width="7" height="7"></rect>
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
           Dashboard
+          </button>
         </li>
-        <li data-view="view-installed">
+        <li>
+          <button type="button" class="nav-btn" data-view="view-installed">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
           Installed Versions
+          </button>
         </li>
-        <li data-view="view-venvs">
+        <li>
+          <button type="button" class="nav-btn" data-view="view-venvs">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="3" y1="9" x2="21" y2="9"></line>
             <line x1="9" y1="21" x2="9" y2="9"></line>
           </svg>
           Virtual Environments
+          </button>
         </li>
-        <li data-view="view-shell">
+        <li>
+          <button type="button" class="nav-btn" data-view="view-shell">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <polyline points="4 17 10 11 4 5"></polyline>
             <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
           Shell Integration
+          </button>
         </li>
-        <li data-view="view-available">
+        <li>
+          <button type="button" class="nav-btn" data-view="view-available">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           Available Targets
+          </button>
         </li>
-        <li data-view="view-settings" style="margin-top: 24px;">
+        <li style="margin-top: 24px;">
+          <button type="button" class="nav-btn" data-view="view-settings">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="3"></circle>
             <path
               d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
             </path>
           </svg>
           Settings
+          </button>
         </li>
-        <li data-view="view-about">
+        <li>
+          <button type="button" class="nav-btn" data-view="view-about">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round">
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
           About
+          </button>
         </li>
       </ul>
+      </nav>
     </aside>
 
-    <main class="content relative">
+    <main class="content relative" id="main-content" tabindex="-1">
       <!-- DASHBOARD VIEW -->
       <section id="view-dashboard" class="view fade-in">
 
@@ -201,7 +220,7 @@
               </svg>
             </div>
             <div style="min-width: 0; flex: 1;">
-              <div style="font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">Active Workspace Context</div>
+              <div class="workspace-eyebrow">Active Workspace Context</div>
               <div id="workspace-path" style="font-size: 13px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">Loading workspace...</div>
             </div>
           </div>
@@ -213,7 +232,7 @@
         <div class="status-grid">
           <div class="status-card glass highlight-card">
             <div class="stat-header">
-              <span class="status-dot active-dot"></span>
+              <span class="status-dot active-dot" aria-hidden="true"></span>
               <span class="stat-label">Active Version</span>
             </div>
             <div class="stat-value text-glow" id="active-version">Loading...</div>
@@ -304,14 +323,22 @@
             Refresh
           </button>
         </div>
-        <div class="card" style="margin-bottom: 24px;">
+        <div class="card glass" style="margin-bottom: 24px;">
           <h3 style="margin-top:0;">Create New Venv</h3>
-          <div style="display:flex; gap: 12px; margin-top: 12px;">
-            <input type="text" id="venv-name" placeholder="Name (e.g. my-env)" class="search-input" style="flex: 1;">
-            <select id="venv-base-version" class="dropdown" style="flex: 1;">
-              <option value="">Select Base...</option>
-            </select>
-            <button class="btn btn-primary" id="btn-create-venv">Create</button>
+          <div class="venv-form-row">
+            <div>
+              <label class="setting-label" for="venv-name">Environment name</label>
+              <input type="text" id="venv-name" placeholder="e.g. my-env" class="search-input" style="width: 100%; margin-top: 6px;">
+            </div>
+            <div>
+              <label class="setting-label" for="venv-base-version">Base Python version</label>
+              <select id="venv-base-version" class="dropdown" style="width: 100%; margin-top: 6px;">
+                <option value="">Select Base...</option>
+              </select>
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="btn btn-primary" id="btn-create-venv" style="width: 100%;">Create</button>
+            </div>
           </div>
         </div>
         <div id="venvs-list" class="card-list">
@@ -389,7 +416,7 @@
             Understanding Shell Shims
           </h3>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 0;">
-            When you run <code>python</code> or <code>pip</code> in your terminal, the shell calls the pyenv-native **shims** first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute <code>pyenv doctor</code> in your shell.
+            When you run <code>python</code> or <code>pip</code> in your terminal, the shell calls the pyenv-native <strong>shims</strong> first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute <code>pyenv doctor</code> in your shell.
           </p>
         </div>
       </section>
@@ -406,11 +433,12 @@
             </label>
             <div class="search-box">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
-                stroke-linecap="round" stroke-linejoin="round">
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <input type="text" id="available-search" placeholder="Search versions (e.g. 3.12)..." />
+              <label class="sr-only" for="available-search">Search installable runtimes</label>
+              <input type="search" id="available-search" placeholder="Search versions (e.g. 3.12)..." aria-label="Search installable runtimes" />
             </div>
           </div>
         </div>
@@ -420,20 +448,17 @@
       </section>
 
       <!-- SETTINGS VIEW -->
-      <section id="view-settings" class="view" style="display:none;">
-        <h1 class="page-title">Configuration</h1>
+      <section id="view-settings" class="view" style="display:none;" aria-labelledby="settings-title">
+        <h1 class="page-title" id="settings-title">Configuration</h1>
         <div class="card-list">
           <div class="version-card" style="flex-direction: column; align-items: flex-start;">
             <h3 style="margin: 0 0 16px 0;">Windows Settings</h3>
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+            <div class="setting-row">
               <div>
-                <div>Registry Mode</div>
-                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Expose installations
-                  into the Windows PEP-514 registry (helps IDEs auto-detect Python).</div>
+                <label class="setting-label" for="config-windows.registry_mode">Registry Mode</label>
+                <span class="setting-help" id="help-registry-mode">Expose installations into the Windows PEP-514 registry (helps IDEs auto-detect Python).</span>
               </div>
-              <select id="config-windows.registry_mode" class="dropdown"
-                onchange="updateConfig('windows.registry_mode', this.value)">
+              <select id="config-windows.registry_mode" class="dropdown" aria-describedby="help-registry-mode">
                 <option value="disabled">Disabled</option>
                 <option value="pep514">PEP 514</option>
               </select>
@@ -441,28 +466,23 @@
           </div>
           <div class="version-card" style="flex-direction: column; align-items: flex-start;">
             <h3 style="margin: 0 0 16px 0;">Install Settings</h3>
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+            <div class="setting-row">
               <div>
-                <div>Architecture</div>
-                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Target architecture
-                  for fetched Python packages.</div>
+                <label class="setting-label" for="config-install.arch">Architecture</label>
+                <span class="setting-help" id="help-install-arch">Target architecture for fetched Python packages.</span>
               </div>
-              <select id="config-install.arch" class="dropdown" onchange="updateConfig('install.arch', this.value)">
+              <select id="config-install.arch" class="dropdown" aria-describedby="help-install-arch">
                 <option value="auto">Auto</option>
                 <option value="x64">x64</option>
                 <option value="arm64">arm64</option>
               </select>
             </div>
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+            <div class="setting-row">
               <div>
-                <div>Bootstrap PIP</div>
-                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically inject
-                  pip into new Python installations.</div>
+                <label class="setting-label" for="config-install.bootstrap_pip">Bootstrap PIP</label>
+                <span class="setting-help" id="help-bootstrap-pip">Automatically inject pip into new Python installations.</span>
               </div>
-              <select id="config-install.bootstrap_pip" class="dropdown"
-                onchange="updateConfig('install.bootstrap_pip', this.value)">
+              <select id="config-install.bootstrap_pip" class="dropdown" aria-describedby="help-bootstrap-pip">
                 <option value="true">True</option>
                 <option value="false">False</option>
               </select>
@@ -470,34 +490,57 @@
           </div>
           <div class="version-card" style="flex-direction: column; align-items: flex-start;">
             <h3 style="margin: 0 0 16px 0;">Venv Settings</h3>
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+            <div class="setting-row">
               <div>
-                <div>Auto Create Base Venv</div>
-                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically setup a
-                  '.venv' alongside every brand new Python installation.</div>
+                <label class="setting-label" for="config-venv.auto_create_base_venv">Auto Create Base Venv</label>
+                <span class="setting-help" id="help-auto-create-venv">Automatically setup a '.venv' alongside every brand new Python installation.</span>
               </div>
-              <select id="config-venv.auto_create_base_venv" class="dropdown"
-                onchange="updateConfig('venv.auto_create_base_venv', this.value)">
+              <select id="config-venv.auto_create_base_venv" class="dropdown" aria-describedby="help-auto-create-venv">
                 <option value="true">True</option>
                 <option value="false">False</option>
               </select>
             </div>
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+            <div class="setting-row">
               <div>
-                <div>Auto Use Base Venv</div>
-                <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; padding-right: 16px;">Automatically activate
-                  the base venv instead of the bare interpreter when selected.</div>
+                <label class="setting-label" for="config-venv.auto_use_base_venv">Auto Use Base Venv</label>
+                <span class="setting-help" id="help-auto-use-venv">Automatically activate the base venv instead of the bare interpreter when selected.</span>
               </div>
-              <select id="config-venv.auto_use_base_venv" class="dropdown"
-                onchange="updateConfig('venv.auto_use_base_venv', this.value)">
+              <select id="config-venv.auto_use_base_venv" class="dropdown" aria-describedby="help-auto-use-venv">
                 <option value="true">True</option>
                 <option value="false">False</option>
               </select>
             </div>
           </div>
+          <div class="version-card" style="flex-direction: column; align-items: flex-start;">
+            <h3 style="margin: 0 0 16px 0;">Accessibility</h3>
+            <p class="setting-help" style="margin: 0 0 12px 0; padding-right: 0;">Adjust contrast, motion, and readability preferences for this dashboard.</p>
+            <div class="setting-row">
+              <label class="setting-toggle" for="a11y-high-contrast">
+                <input type="checkbox" id="a11y-high-contrast" />
+                High contrast surfaces
+              </label>
+            </div>
+            <div class="setting-row">
+              <label class="setting-toggle" for="a11y-reduced-motion">
+                <input type="checkbox" id="a11y-reduced-motion" />
+                Reduce motion and transitions
+              </label>
+            </div>
+            <div class="setting-row">
+              <label class="setting-toggle" for="a11y-strong-focus">
+                <input type="checkbox" id="a11y-strong-focus" />
+                Stronger keyboard focus rings
+              </label>
+            </div>
+            <div class="setting-row">
+              <label class="setting-toggle" for="a11y-large-text">
+                <input type="checkbox" id="a11y-large-text" />
+                Larger interface text
+              </label>
+            </div>
+          </div>
         </div>
+        <p id="config-save-status" class="setting-help" role="status" aria-live="polite" style="margin-top: 16px; min-height: 1.2em;"></p>
       </section>
       <!-- ABOUT VIEW -->
       <section id="view-about" class="view" style="display:none;">
@@ -507,27 +550,27 @@
             <div class="brand-icon" style="width: 48px; height: 48px; border-radius: 14px; font-size: 20px;">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
                 <defs>
-                  <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="aboutBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#0E121A" />
                     <stop offset="100%" stop-color="#040608" />
                   </linearGradient>
 
-                  <linearGradient id="activeYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="aboutActiveYellow" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#FFE873" />
                     <stop offset="100%" stop-color="#FFD43B" />
                   </linearGradient>
 
-                  <linearGradient id="glassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="aboutGlassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
                     <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
                   </linearGradient>
-                  <linearGradient id="glassRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="aboutGlassRight" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
                     <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
                   </linearGradient>
                 </defs>
 
-                <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad)" />
+                <rect width="512" height="512" rx="115" ry="115" fill="url(#aboutBgGrad)" />
 
                 <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
                 <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
@@ -550,8 +593,8 @@
                 <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
                   stroke-dasharray="6,4" opacity="0.3" />
 
-                <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#glassLeft)" />
-                <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#glassRight)" />
+                <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#aboutGlassLeft)" />
+                <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#aboutGlassRight)" />
 
                 <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
                   stroke="rgba(255,255,255,0.15)" stroke-width="2" />
@@ -569,7 +612,7 @@
                 <g>
                   <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
                   <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
-                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#activeYellow)" />
+                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#aboutActiveYellow)" />
                   <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF" stroke-width="2"
                     stroke-linejoin="round" />
                 </g>
@@ -609,13 +652,13 @@
   </div>
 
   <!-- Upgrade Environment Sliding Drawer -->
-  <div id="drawer-venv-upgrader" class="drawer glass">
+  <div id="drawer-venv-upgrader" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="upgrader-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
         <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Upgrade Environment</h3>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Target Environment</div>
       </div>
-      <button class="drawer-close" id="btn-close-upgrader">
+      <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -698,13 +741,13 @@
   </div>
 
   <!-- Package Explorer Sliding Drawer -->
-  <div id="drawer-package-manager" class="drawer glass">
+  <div id="drawer-package-manager" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="drawer-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
         <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title">Package Explorer</h3>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle">Target Environment</div>
       </div>
-      <button class="drawer-close" id="btn-close-drawer">
+      <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -712,15 +755,15 @@
       </button>
     </div>
 
-    <div class="drawer-tabs">
-      <button class="drawer-tab-btn active" data-drawer-tab="tab-installed">Installed</button>
-      <button class="drawer-tab-btn" data-drawer-tab="tab-updates">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
-      <button class="drawer-tab-btn" data-drawer-tab="tab-import">Import (Precheck)</button>
+    <div class="drawer-tabs" role="tablist" aria-label="Package explorer sections">
+      <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed">Installed</button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import">Import (Precheck)</button>
     </div>
 
     <div class="drawer-content-container">
       <!-- INSTALLED TAB CONTENT -->
-      <div id="tab-installed" class="drawer-tab-content active">
+      <div id="tab-installed" class="drawer-tab-content active" role="tabpanel" aria-labelledby="tab-btn-installed">
         <!-- Pip Cozy Self-Update Card -->
         <div id="pip-self-update-card" style="display: none; background: rgba(255, 212, 59, 0.1); border: 1px solid rgba(255, 212, 59, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 12px;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -739,17 +782,18 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" />
+            <label class="sr-only" for="drawer-package-search">Search installed packages</label>
+            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" />
           </div>
         </div>
 
         <div class="table-container" style="max-height: calc(100vh - 240px);">
-          <table class="package-table">
+          <table class="package-table" aria-label="Installed packages">
             <thead>
               <tr>
-                <th>Package</th>
-                <th>Version</th>
-                <th>Status</th>
+                <th scope="col">Package</th>
+                <th scope="col">Version</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody id="drawer-package-list">
@@ -765,7 +809,7 @@
       </div>
 
       <!-- UPDATES TAB CONTENT -->
-      <div id="tab-updates" class="drawer-tab-content">
+      <div id="tab-updates" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-updates" hidden>
         <div id="updates-scan-prompt" class="empty-state" style="padding: 30px 20px;">
           <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
           <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Check for Outdated Packages</div>
@@ -799,7 +843,7 @@
               <span id="pkg-update-progress-percent" style="color: var(--success); font-weight: 600;">0%</span>
             </div>
             <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
-              <div id="pkg-update-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);"></div>
+            <div id="pkg-update-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pkg-update-progress-text" style="width: 0%; height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);"></div>
             </div>
           </div>
 
@@ -810,9 +854,9 @@
       </div>
 
       <!-- IMPORT TAB CONTENT -->
-      <div id="tab-import" class="drawer-tab-content">
+      <div id="tab-import" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-import" hidden>
         <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 6px;">Requirements File or URL</label>
+          <label class="setting-label" for="import-requirements-path">Requirements File or URL</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" />
             <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;">Precheck</button>
@@ -847,12 +891,12 @@
           <div>
             <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;">Resolved Dependencies</div>
             <div class="table-container" style="max-height: 180px;">
-              <table class="package-table" style="font-size: 11px;">
+              <table class="package-table" style="font-size: 11px;" aria-label="Resolved import dependencies">
                 <thead>
                   <tr>
-                    <th>Package</th>
-                    <th>Target Version</th>
-                    <th>Current Status</th>
+                    <th scope="col">Package</th>
+                    <th scope="col">Target Version</th>
+                    <th scope="col">Current Status</th>
                   </tr>
                 </thead>
                 <tbody id="precheck-resolved-list">
@@ -924,7 +968,7 @@
       <span id="footer-app-status" style="color: var(--text-muted);"></span>
     </div>
     <div class="footer-right">
-      <button class="footer-update-btn" onclick="checkUpdates()" id="footer-btn">Check for Updates</button>
+      <button type="button" class="footer-update-btn" onclick="checkUpdates()" id="footer-btn">Check for Updates</button>
     </div>
   </div>
 

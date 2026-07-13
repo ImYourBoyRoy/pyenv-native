@@ -4,6 +4,134 @@
 
 const invoke = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core.invoke : window.__TAURI__.invoke;
 
+let lastFocusedBeforeOverlay = null;
+let drawerReturnFocus = null;
+let toastTimer = null;
+const VIEW_TITLES = {
+    'view-dashboard': 'Current Environment',
+    'view-installed': 'Installed Runtimes',
+    'view-venvs': 'Virtual Environments',
+    'view-shell': 'Shell Integration',
+    'view-available': 'Installable Runtimes',
+    'view-settings': 'Configuration',
+    'view-about': 'About Pyenv-Native',
+};
+
+function announce(message) {
+    const region = document.getElementById('aria-live-status');
+    if (!region) return;
+    region.textContent = '';
+    requestAnimationFrame(() => { region.textContent = message; });
+}
+
+function showToast(message) {
+    const toast = document.getElementById('status-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600);
+}
+
+function getFocusableElements(container) {
+    return Array.from(container.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((el) => !el.closest('[inert]') && el.offsetParent !== null);
+}
+
+function trapFocus(container, event) {
+    if (event.key !== 'Tab') return;
+    const focusable = getFocusableElements(container);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+function setDrawerState(drawerEl, open, options = {}) {
+    if (!drawerEl) return;
+    const closeBtn = options.closeButton;
+    if (open) {
+        drawerReturnFocus = options.returnFocus || document.activeElement;
+        drawerEl.classList.add('open');
+        drawerEl.removeAttribute('inert');
+        drawerEl.setAttribute('aria-hidden', 'false');
+        (closeBtn || drawerEl.querySelector('.drawer-close'))?.focus();
+        announce(options.announce || 'Panel opened');
+    } else {
+        drawerEl.classList.remove('open');
+        drawerEl.setAttribute('inert', '');
+        drawerEl.setAttribute('aria-hidden', 'true');
+        const restore = options.returnFocus || drawerReturnFocus;
+        if (restore && typeof restore.focus === 'function') restore.focus();
+        announce(options.announce || 'Panel closed');
+    }
+}
+
+function applyAccessibilityPreferences() {
+    const prefs = {
+        highContrast: localStorage.getItem('pyenv-a11y-high-contrast') === 'true',
+        reducedMotion: localStorage.getItem('pyenv-a11y-reduced-motion') === 'true',
+        strongFocus: localStorage.getItem('pyenv-a11y-strong-focus') === 'true',
+        largeText: localStorage.getItem('pyenv-a11y-large-text') === 'true',
+    };
+    document.documentElement.toggleAttribute('data-high-contrast', prefs.highContrast);
+    document.documentElement.toggleAttribute('data-reduced-motion', prefs.reducedMotion);
+    document.documentElement.toggleAttribute('data-strong-focus', prefs.strongFocus);
+    document.documentElement.toggleAttribute('data-large-text', prefs.largeText);
+
+    const map = {
+        'a11y-high-contrast': prefs.highContrast,
+        'a11y-reduced-motion': prefs.reducedMotion,
+        'a11y-strong-focus': prefs.strongFocus,
+        'a11y-large-text': prefs.largeText,
+    };
+    Object.entries(map).forEach(([id, checked]) => {
+        const input = document.getElementById(id);
+        if (input) input.checked = checked;
+    });
+}
+
+function bindAccessibilityPreferenceControls() {
+    const bindings = [
+        ['a11y-high-contrast', 'pyenv-a11y-high-contrast'],
+        ['a11y-reduced-motion', 'pyenv-a11y-reduced-motion'],
+        ['a11y-strong-focus', 'pyenv-a11y-strong-focus'],
+        ['a11y-large-text', 'pyenv-a11y-large-text'],
+    ];
+    bindings.forEach(([id, key]) => {
+        const input = document.getElementById(id);
+        if (!input) return;
+        input.addEventListener('change', () => {
+            localStorage.setItem(key, input.checked ? 'true' : 'false');
+            applyAccessibilityPreferences();
+            showToast('Accessibility preference saved');
+            announce('Accessibility preference saved');
+        });
+    });
+}
+
+function bindConfigControls() {
+    const bindings = [
+        ['config-windows.registry_mode', 'windows.registry_mode'],
+        ['config-install.arch', 'install.arch'],
+        ['config-install.bootstrap_pip', 'install.bootstrap_pip'],
+        ['config-venv.auto_create_base_venv', 'venv.auto_create_base_venv'],
+        ['config-venv.auto_use_base_venv', 'venv.auto_use_base_venv'],
+    ];
+    bindings.forEach(([id, key]) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        select.addEventListener('change', () => updateConfig(key, select.value));
+    });
+}
+
 // Workspace context logic
 let currentWorkspaceDir = localStorage.getItem('pyenv-workspace-dir') || '';
 
@@ -20,6 +148,14 @@ function updateWorkspaceUI() {
 
 // Bind Change Workspace Button
 document.addEventListener('DOMContentLoaded', () => {
+    applyAccessibilityPreferences();
+    bindAccessibilityPreferenceControls();
+    bindConfigControls();
+    document.querySelectorAll('.view').forEach((view) => {
+        if (view.id !== 'view-dashboard') {
+            view.setAttribute('aria-hidden', 'true');
+        }
+    });
     updateWorkspaceUI();
     document.getElementById('btn-change-workspace')?.addEventListener('click', async () => {
         try {
@@ -43,38 +179,65 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Custom Modal System ───
-function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary'}]) {
+function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary', primary: true}]) {
     return new Promise(resolve => {
         const root = document.getElementById('modal-root');
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
+        const dialogId = `modal-${Date.now()}`;
         overlay.innerHTML = `
-            <div class="modal-box">
-                <h3>${title}</h3>
-                <p>${message}</p>
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="${dialogId}-title" aria-describedby="${dialogId}-message">
+                <h3 id="${dialogId}-title">${title}</h3>
+                <p id="${dialogId}-message">${message}</p>
                 <div class="modal-actions" id="modal-btns"></div>
             </div>
         `;
+        const dialog = overlay.querySelector('.modal-box');
         const btnContainer = overlay.querySelector('#modal-btns');
+        const createdButtons = [];
         buttons.forEach((b, i) => {
             const btn = document.createElement('button');
+            btn.type = 'button';
             btn.className = `btn ${b.style || 'btn-outline'}`;
             btn.textContent = b.label;
-            btn.onclick = () => { root.removeChild(overlay); resolve(i === 0); };
+            btn.addEventListener('click', () => {
+                root.removeChild(overlay);
+                document.removeEventListener('keydown', onKeyDown);
+                if (lastFocusedBeforeOverlay) lastFocusedBeforeOverlay.focus();
+                resolve(i === 0);
+            });
             btnContainer.appendChild(btn);
+            createdButtons.push(btn);
         });
+
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                const cancelIndex = Math.max(buttons.length - 1, 0);
+                root.removeChild(overlay);
+                document.removeEventListener('keydown', onKeyDown);
+                if (lastFocusedBeforeOverlay) lastFocusedBeforeOverlay.focus();
+                resolve(cancelIndex === 0);
+                return;
+            }
+            trapFocus(dialog, event);
+        };
+
+        lastFocusedBeforeOverlay = document.activeElement;
         root.appendChild(overlay);
+        document.addEventListener('keydown', onKeyDown);
+        const initialFocus = createdButtons.find((_, idx) => buttons[idx]?.primary) || createdButtons[createdButtons.length - 1] || createdButtons[0];
+        initialFocus?.focus();
     });
 }
 
 async function showAlert(title, message) {
-    return showModal(title, message, [{label: 'OK', style: 'btn-primary'}]);
+    return showModal(title, message, [{label: 'OK', style: 'btn-primary', primary: true}]);
 }
 
 async function showConfirm(title, message) {
     return showModal(title, message, [
         {label: 'Confirm', style: 'btn-danger'},
-        {label: 'Cancel', style: 'btn-outline'}
+        {label: 'Cancel', style: 'btn-outline', primary: true}
     ]);
 }
 
@@ -90,22 +253,31 @@ document.getElementById('titlebar-maximize').addEventListener('click', () => inv
 document.getElementById('titlebar-close').addEventListener('click', () => invoke('close_app'));
 
 // DOM Elements
-const sidebarNavItems = document.querySelectorAll('.nav li');
+const sidebarNavItems = document.querySelectorAll('.nav-btn');
 const views = document.querySelectorAll('.view');
 
 function showView(viewId) {
     views.forEach(v => {
         v.style.display = 'none';
         v.classList.remove('fade-in');
+        v.setAttribute('aria-hidden', 'true');
     });
     const target = document.getElementById(viewId);
     target.style.display = 'block';
+    target.setAttribute('aria-hidden', 'false');
     void target.offsetWidth;
     target.classList.add('fade-in');
+    const heading = target.querySelector('.page-title');
+    if (heading) {
+        heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+    }
+    document.title = `${VIEW_TITLES[viewId] || 'Pyenv Native'} · Pyenv Native`;
+    announce(`Showing ${VIEW_TITLES[viewId] || 'view'}`);
 }
 
 function navigateToView(viewId) {
-    const navItem = document.querySelector(`.nav li[data-view="${viewId}"]`);
+    const navItem = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
     if (!navItem) return;
     navItem.click();
 }
@@ -125,11 +297,15 @@ function renderGlobalButton(versionName, globalVersions) {
     return `<button class="btn btn-outline" onclick="setGlobal('${versionName}')">Make Global</button>`;
 }
 
-sidebarNavItems.forEach(item => {
+sidebarNavItems.forEach((item, index) => {
     item.addEventListener('click', () => {
-        if(item.classList.contains('active')) return;
-        sidebarNavItems.forEach(i => i.classList.remove('active'));
+        if (item.classList.contains('active')) return;
+        sidebarNavItems.forEach(i => {
+            i.classList.remove('active');
+            i.removeAttribute('aria-current');
+        });
         item.classList.add('active');
+        item.setAttribute('aria-current', 'page');
         showView(item.dataset.view);
         
         if (item.dataset.view === 'view-dashboard') loadDashboard();
@@ -139,7 +315,22 @@ sidebarNavItems.forEach(item => {
         if (item.dataset.view === 'view-venvs') loadVenvs();
         if (item.dataset.view === 'view-settings') loadConfig();
     });
+
+    item.addEventListener('keydown', (event) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const items = Array.from(sidebarNavItems);
+        const currentIndex = items.indexOf(item);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+        if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = items.length - 1;
+        items[nextIndex].focus();
+    });
 });
+
+// Escape-to-close is registered after drawer elements are defined below.
 
 // ─── Dashboard ───
 async function loadDashboard() {
@@ -597,10 +788,14 @@ async function loadConfig() {
 }
 
 async function updateConfig(key, value) {
+    const status = document.getElementById('config-save-status');
     try {
         await invoke('set_config', { workspaceDir: getWorkspaceDir(), key, value });
-        console.log(`Saved config ${key}=${value}`);
+        if (status) status.textContent = `Saved ${key} = ${value}`;
+        showToast(`Saved ${key}`);
+        announce(`Configuration saved: ${key}`);
     } catch(err) {
+        if (status) status.textContent = `Failed to save ${key}`;
         showAlert('Config Error', 'Failed to save config:\n' + err);
     }
 }
@@ -931,13 +1126,16 @@ window.openVenvUpgradeWizard = async function(name, baseVersion) {
     }
     
     // Open drawer
-    upgraderDrawer.classList.add('open');
+    setDrawerState(upgraderDrawer, true, {
+        closeButton: upgraderCloseBtn,
+        announce: `Opened upgrade panel for ${name}`,
+    });
 };
 
 // Close button listener
 if (upgraderCloseBtn) {
     upgraderCloseBtn.addEventListener('click', () => {
-        upgraderDrawer.classList.remove('open');
+        setDrawerState(upgraderDrawer, false, { closeButton: upgraderCloseBtn });
     });
 }
 
@@ -1086,7 +1284,10 @@ window.openPackageExplorer = function(target) {
     drawerPackageSearch.value = '';
     
     // Open the drawer
-    drawer.classList.add('open');
+    setDrawerState(drawer, true, {
+        closeButton: drawerCloseBtn,
+        announce: `Opened package explorer for ${target}`,
+    });
     
     // Load installed packages
     loadDrawerPackages();
@@ -1116,7 +1317,7 @@ window.openPackageExplorer = function(target) {
 
 // Close Package Explorer Drawer
 function closePackageExplorer() {
-    drawer.classList.remove('open');
+    setDrawerState(drawer, false, { closeButton: drawerCloseBtn });
     currentExplorerTarget = '';
 }
 
@@ -1125,26 +1326,48 @@ drawerCloseBtn.addEventListener('click', closePackageExplorer);
 // Tab switching logic inside the drawer
 function switchDrawerTab(tabId) {
     drawerTabBtns.forEach(btn => {
-        if (btn.dataset.drawerTab === tabId) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
+        const isActive = btn.dataset.drawerTab === tabId;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        btn.tabIndex = isActive ? 0 : -1;
     });
     
     drawerTabContents.forEach(content => {
-        if (content.id === tabId) {
-            content.classList.add('active');
-        } else {
-            content.classList.remove('active');
-        }
+        const isActive = content.id === tabId;
+        content.classList.toggle('active', isActive);
+        content.hidden = !isActive;
     });
 }
 
-drawerTabBtns.forEach(btn => {
+drawerTabBtns.forEach((btn, index) => {
     btn.addEventListener('click', () => {
         switchDrawerTab(btn.dataset.drawerTab);
     });
+    btn.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = Array.from(drawerTabBtns);
+        const currentIndex = tabs.indexOf(btn);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = tabs.length - 1;
+        tabs[nextIndex].focus();
+        switchDrawerTab(tabs[nextIndex].dataset.drawerTab);
+    });
+    btn.tabIndex = index === 0 ? 0 : -1;
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (drawer?.classList.contains('open')) {
+        closePackageExplorer();
+        return;
+    }
+    if (upgraderDrawer?.classList.contains('open')) {
+        setDrawerState(upgraderDrawer, false, { closeButton: upgraderCloseBtn });
+    }
 });
 
 // Load installed packages from Rust backend
@@ -1385,6 +1608,7 @@ btnUpdateSelected.addEventListener('click', async () => {
     btnUpdateSelected.textContent = "Updating Packages...";
     progressContainer.style.display = 'block';
     progressBar.style.width = '0%';
+    progressBar.setAttribute('aria-valuenow', '0');
     progressPercent.textContent = '0%';
     
     try {
@@ -1396,6 +1620,7 @@ btnUpdateSelected.addEventListener('click', async () => {
             progressText.textContent = `Upgrading ${pkg} (${currentNum}/${pkgs.length})...`;
             progressPercent.textContent = `${percent}%`;
             progressBar.style.width = `${percent}%`;
+            progressBar.setAttribute('aria-valuenow', String(percent));
             
             await invoke('update_pip_packages', {
                 workspaceDir: getWorkspaceDir(),
@@ -1408,6 +1633,7 @@ btnUpdateSelected.addEventListener('click', async () => {
         progressText.textContent = `All updates completed!`;
         progressPercent.textContent = `100%`;
         progressBar.style.width = `100%`;
+        progressBar.setAttribute('aria-valuenow', '100');
         
         setTimeout(() => {
             progressContainer.style.display = 'none';
