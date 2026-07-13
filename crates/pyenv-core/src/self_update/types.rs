@@ -12,6 +12,8 @@ pub struct SelfUpdateOptions {
     pub force: bool,
     pub github_repo: Option<String>,
     pub tag: Option<String>,
+    /// When true, POSIX self-update spawns a background updater and relaunches the GUI.
+    pub restart_gui: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
