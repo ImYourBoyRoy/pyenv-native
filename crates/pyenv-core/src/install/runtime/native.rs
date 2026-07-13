@@ -7,19 +7,18 @@ use crate::context::AppContext;
 use crate::error::PyenvError;
 
 use super::super::archive::{
-    download_package, ensure_pip_wrappers, extract_archive, move_directory, validate_python,
+    download_package, extract_archive, move_directory, validate_python,
 };
 use super::super::report::io_error;
-use super::super::runtime_support::ensure_pip_available;
 #[cfg(unix)]
 use super::super::runtime_support::ensure_unix_runtime_aliases;
 #[cfg(windows)]
 use super::super::runtime_support::ensure_windows_runtime_aliases;
 use super::super::types::{InstallOutcome, InstallPlan};
 use super::shared::{
-    ProgressTracker, cleanup_paths, create_base_venv_if_requested, finalize_install,
-    remove_existing_install_dir, run_before_install_hooks, seed_progress, staging_dir,
-    versions_dir,
+    ProgressTracker, bootstrap_pip_with_upgrade, cleanup_paths, create_base_venv_if_requested,
+    finalize_install, remove_existing_install_dir, run_before_install_hooks, seed_progress,
+    staging_dir, versions_dir,
 };
 
 pub(super) fn install_runtime_via_archive(
@@ -67,16 +66,7 @@ pub(super) fn install_runtime_via_archive(
         #[cfg(windows)]
         ensure_windows_runtime_aliases(&plan.install_dir)?;
 
-        let pip_bootstrapped = if plan.bootstrap_pip {
-            progress.push("pip", "ensuring pip is available");
-            let pip_available = ensure_pip_available(&plan.python_executable)?;
-            if plan.provider.starts_with("windows-") {
-                ensure_pip_wrappers(plan)?;
-            }
-            pip_available
-        } else {
-            false
-        };
+        let pip_bootstrapped = bootstrap_pip_with_upgrade(plan, &mut progress)?;
 
         let base_venv_created = create_base_venv_if_requested(plan, &mut progress)?;
         finalize_install(ctx, plan, pip_bootstrapped, base_venv_created, progress)
