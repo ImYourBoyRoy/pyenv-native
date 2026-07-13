@@ -29,7 +29,7 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
         .github_repo
         .clone()
         .unwrap_or_else(|| DEFAULT_GITHUB_REPO.to_string());
-    ensure_portable_install(ctx)?;
+    ensure_portable_install(ctx, options.restart_gui)?;
 
     let target = resolve_release_target(&repo, options.tag.as_deref())?;
     if options.check {
@@ -59,7 +59,7 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
     } else {
         let current_exe = env::current_exe().unwrap_or_default();
         let bin_dir = ctx.root.join("bin");
-        let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
+        let is_gui = is_gui_launch(&current_exe, &bin_dir) || options.restart_gui;
         if is_gui {
             spawn_posix_update(ctx, &target, &installer_path)?;
             Ok(vec![
@@ -82,7 +82,7 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
     }
 }
 
-fn ensure_portable_install(ctx: &AppContext) -> Result<(), String> {
+fn ensure_portable_install(ctx: &AppContext, allow_gui_launcher: bool) -> Result<(), String> {
     let current_exe = env::current_exe()
         .map_err(|error| format!("pyenv: failed to resolve current executable path: {error}"))?;
 
@@ -91,9 +91,9 @@ fn ensure_portable_install(ctx: &AppContext) -> Result<(), String> {
     let bin_dir = ctx.root.join("bin");
 
     let is_pyenv = same_path(&current_exe, &portable_executable_path(&ctx.root));
-    let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
+    let is_gui = is_gui_launch(&current_exe, &bin_dir);
 
-    if is_pyenv || is_gui {
+    if is_pyenv || is_gui || allow_gui_launcher {
         return Ok(());
     }
 
@@ -125,6 +125,21 @@ fn same_path(left: &Path, right: &Path) -> bool {
         (Ok(a), Ok(b)) => a == b,
         _ => left == right,
     }
+}
+
+fn is_gui_launch(current_exe: &Path, bin_dir: &Path) -> bool {
+    if same_path(current_exe, &gui_executable_path(bin_dir)) {
+        return true;
+    }
+
+    current_exe
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| {
+            let lowered = name.to_ascii_lowercase();
+            lowered == "pyenv-gui" || lowered == "pyenv-gui.exe"
+        })
+        .unwrap_or(false)
 }
 
 fn render_check_lines(target: &ReleaseTarget) -> Vec<String> {
@@ -427,18 +442,34 @@ fn render_posix_launcher(
     let root = shell_single_quote(&ctx.root.display().to_string());
     let repo = shell_single_quote(&target.repo);
     let tag = shell_single_quote(&target.target_tag);
+    let log_file = shell_single_quote(
+        &ctx
+            .root
+            .join("logs")
+            .join("gui-relaunch.log")
+            .display()
+            .to_string(),
+    );
+    let app_id = shell_single_quote("com.pyenv-native.gui");
 
     format!(
         "#!/bin/sh\n\
          set -eu\n\
          PARENT_PID=\"$1\"\n\
-         for attempt in $(seq 1 240); do\n\
+         LOG_FILE={log_file}\n\
+         mkdir -p \"$(dirname \"$LOG_FILE\")\"\n\
+         {{\n\
+           printf '%%s pyenv-native GUI updater started (parent pid %%s)\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"$PARENT_PID\"\n\
+         }} >>\"$LOG_FILE\" 2>&1\n\
+         attempt=0\n\
+         while [ \"$attempt\" -lt 240 ]; do\n\
            if ! kill -0 \"$PARENT_PID\" 2>/dev/null; then\n\
              break\n\
            fi\n\
+           attempt=$((attempt + 1))\n\
            sleep 0.5\n\
          done\n\
-         sh {installer} \\\n\
+         if sh {installer} \\\n\
            --github-repo {repo} \\\n\
            --tag {tag} \\\n\
            --install-root {root} \\\n\
@@ -447,10 +478,28 @@ fn render_posix_launcher(
            --update-shell-profile false \\\n\
            --refresh-shims true \\\n\
            --yes \\\n\
-           --force\n\
-         if [ -x {gui} ]; then\n\
-           nohup {gui} >/dev/null 2>&1 &\n\
-         fi\n"
+           --force >>\"$LOG_FILE\" 2>&1; then\n\
+           printf '%%s installer finished successfully\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
+         else\n\
+           status=$?\n\
+           printf '%%s installer failed with exit code %%s\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"$status\" >>\"$LOG_FILE\" 2>&1\n\
+           exit \"$status\"\n\
+         fi\n\
+         relaunch_gui() {{\n\
+           if [ ! -x {gui} ]; then\n\
+             printf '%%s GUI binary missing or not executable: {gui}\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
+             return 1\n\
+           fi\n\
+           if command -v gtk-launch >/dev/null 2>&1; then\n\
+             if DISPLAY=\"${{DISPLAY:-}}\" WAYLAND_DISPLAY=\"${{WAYLAND_DISPLAY:-}}\" XDG_RUNTIME_DIR=\"${{XDG_RUNTIME_DIR:-}}\" DBUS_SESSION_BUS_ADDRESS=\"${{DBUS_SESSION_BUS_ADDRESS:-}}\" gtk-launch {app_id} >>\"$LOG_FILE\" 2>&1 & then\n\
+               printf '%%s relaunched GUI via gtk-launch\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
+               return 0\n\
+             fi\n\
+           fi\n\
+           DISPLAY=\"${{DISPLAY:-}}\" WAYLAND_DISPLAY=\"${{WAYLAND_DISPLAY:-}}\" XDG_RUNTIME_DIR=\"${{XDG_RUNTIME_DIR:-}}\" DBUS_SESSION_BUS_ADDRESS=\"${{DBUS_SESSION_BUS_ADDRESS:-}}\" nohup {gui} >>\"$LOG_FILE\" 2>&1 &\n\
+           printf '%%s relaunched GUI via nohup\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
+         }}\n\
+         relaunch_gui\n"
     )
 }
 
