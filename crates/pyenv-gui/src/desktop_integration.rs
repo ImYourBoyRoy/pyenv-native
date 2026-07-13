@@ -91,10 +91,7 @@ fn xdg_data_home() -> PathBuf {
 #[cfg(target_os = "linux")]
 fn locate_bundled_share_root(exe: &Path) -> Option<PathBuf> {
     let exe_dir = exe.parent()?;
-    let mut candidates = vec![
-        exe_dir.join("share"),
-        exe_dir.join("../share"),
-    ];
+    let mut candidates = vec![exe_dir.join("share"), exe_dir.join("../share")];
     if let Some(parent) = exe_dir.parent() {
         candidates.push(parent.join("share"));
     }
@@ -150,11 +147,7 @@ fn install_icons_from_share(share_root: &Path, data_home: &Path) -> std::io::Res
 }
 
 #[cfg(target_os = "linux")]
-fn write_desktop_entry(
-    desktop_path: &Path,
-    exe: &Path,
-    icon_path: &Path,
-) -> std::io::Result<()> {
+fn write_desktop_entry(desktop_path: &Path, exe: &Path, icon_path: &Path) -> std::io::Result<()> {
     if let Some(parent) = desktop_path.parent() {
         fs::create_dir_all(parent)?;
     }

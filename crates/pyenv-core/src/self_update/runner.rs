@@ -443,8 +443,7 @@ fn render_posix_launcher(
     let repo = shell_single_quote(&target.repo);
     let tag = shell_single_quote(&target.target_tag);
     let log_file = shell_single_quote(
-        &ctx
-            .root
+        &ctx.root
             .join("logs")
             .join("gui-relaunch.log")
             .display()

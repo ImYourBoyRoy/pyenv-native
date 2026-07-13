@@ -8,9 +8,7 @@ use crate::error::PyenvError;
 
 use super::super::archive::{download_package, extract_archive, validate_python};
 use super::super::report::io_error;
-use super::super::runtime_support::{
-    build_cpython_source_install, ensure_unix_runtime_aliases,
-};
+use super::super::runtime_support::{build_cpython_source_install, ensure_unix_runtime_aliases};
 use super::super::types::{InstallOutcome, InstallPlan};
 use super::shared::{
     ProgressTracker, bootstrap_pip_with_upgrade, cleanup_paths, create_base_venv_if_requested,
