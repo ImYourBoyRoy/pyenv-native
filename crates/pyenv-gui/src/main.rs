@@ -8,6 +8,8 @@
 //! self-update confirmation) use force/yes flags since the GUI provides
 //! its own confirmation modals.
 
+mod desktop_integration;
+
 use pyenv_core::PyenvCommandExt;
 
 fn get_context_with_dir(workspace_dir: Option<String>) -> Result<pyenv_core::AppContext, String> {
@@ -908,7 +910,7 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
 
 fn main() {
     tauri::Builder::default()
-        .setup(|_app| Ok(()))
+        .setup(|app| desktop_integration::prepare_app(app))
         .invoke_handler(tauri::generate_handler![
             get_status,
             get_available_versions,
