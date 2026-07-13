@@ -42,6 +42,10 @@ jobs:
         shell: bash
         run: cargo fmt --check
 
+      - name: Shell script line-ending check
+        shell: bash
+        run: sh ./scripts/check-shell-eol.sh
+
       - name: Clippy
         shell: bash
         run: cargo clippy --workspace --exclude pyenv-gui -- -D warnings

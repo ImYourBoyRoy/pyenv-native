@@ -19,7 +19,8 @@ pub fn load_config(root: &Path) -> Result<AppConfig, PyenvError> {
     }
 
     let contents = fs::read_to_string(&path).map_err(io_error)?;
-    toml::from_str::<AppConfig>(&contents).map_err(|error| {
+    let contents = crate::text::strip_utf8_bom(&contents);
+    toml::from_str::<AppConfig>(contents).map_err(|error| {
         PyenvError::Io(format!(
             "pyenv: failed to parse {}: {error}",
             path.display()

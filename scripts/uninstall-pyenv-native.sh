@@ -55,9 +55,20 @@ remove_profile_block() {
   end_marker="# <<< pyenv-native init <<<"
   updated="$(awk -v begin="$begin_marker" -v end="$end_marker" '
     BEGIN { skipping = 0 }
-    index($0, begin) == 1 { skipping = 1; next }
-    index($0, end) == 1 { skipping = 0; next }
-    skipping == 0 { print }
+    {
+      sub(/\r$/, "")
+      if (index($0, begin) == 1) {
+        skipping = 1
+        next
+      }
+      if (index($0, end) == 1) {
+        skipping = 0
+        next
+      }
+      if (skipping == 0) {
+        print
+      }
+    }
   ' "$profile_path")"
   if [ -n "$updated" ]; then
     printf '%s\n' "$updated" > "$profile_path"

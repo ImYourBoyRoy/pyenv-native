@@ -72,4 +72,19 @@ mod tests {
         );
         assert_eq!(config_path(&root), root.join("config.toml"));
     }
+
+    #[test]
+    fn load_config_tolerates_utf8_bom() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        fs::create_dir_all(&root).expect("root");
+        fs::write(
+            config_path(&root),
+            "\u{feff}[install]\nbootstrap_pip = false\n",
+        )
+        .expect("write bom config");
+
+        let loaded = load_config(&root).expect("load bom config");
+        assert!(!loaded.install.bootstrap_pip);
+    }
 }
