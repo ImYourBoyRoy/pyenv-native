@@ -532,6 +532,7 @@ if [ -z "$SHELL_KIND" ]; then
 fi
 
 normalize_install_root
+script_dir="$(resolve_script_dir)"
 INSTALL_BIN="${INSTALL_ROOT}/bin"
 INSTALLED_EXE="${INSTALL_BIN}/pyenv"
 INSTALLED_MCP_EXE="${INSTALL_BIN}/pyenv-mcp"
@@ -568,6 +569,13 @@ if [ -n "$RESOLVED_GUI_SOURCE" ] && [ -f "$RESOLVED_GUI_SOURCE" ]; then
   cp -f "$RESOLVED_GUI_SOURCE" "$INSTALLED_GUI_EXE"
   chmod +x "$INSTALLED_GUI_EXE"
   write_step "Installed GUI companion binary into ${INSTALLED_GUI_EXE}"
+  if [ "$(uname -s)" = "Linux" ]; then
+    if sh "$script_dir/install-gui-desktop.sh" "$INSTALLED_GUI_EXE"; then
+      write_step "Installed GUI desktop launcher and icons for Linux"
+    else
+      write_warn 'Failed to install GUI desktop launcher; dock icon may be missing until install-gui-desktop.sh is run manually.'
+    fi
+  fi
 fi
 
 PROFILE_PATH=""

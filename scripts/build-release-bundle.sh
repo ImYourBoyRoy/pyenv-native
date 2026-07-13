@@ -215,6 +215,25 @@ cp "$RELEASE_MCP_BIN" "${BUNDLE_DIR}/pyenv-mcp"
 if [ -f "$RELEASE_GUI_BIN" ]; then
   cp "$RELEASE_GUI_BIN" "${BUNDLE_DIR}/pyenv-gui"
   chmod +x "${BUNDLE_DIR}/pyenv-gui"
+  if [ "$BUNDLE_PLATFORM" = "linux" ]; then
+    ICONS_SRC="${REPO_ROOT}/crates/pyenv-gui/icons"
+    SHARE_ICONS="${BUNDLE_DIR}/share/icons/hicolor"
+    mkdir -p \
+      "${SHARE_ICONS}/32x32/apps" \
+      "${SHARE_ICONS}/128x128/apps" \
+      "${SHARE_ICONS}/256x256/apps" \
+      "${SHARE_ICONS}/512x512/apps" \
+      "${BUNDLE_DIR}/share/applications"
+    cp "$ICONS_SRC/32x32.png" "${SHARE_ICONS}/32x32/apps/com.pyenv-native.gui.png"
+    cp "$ICONS_SRC/128x128.png" "${SHARE_ICONS}/128x128/apps/com.pyenv-native.gui.png"
+    cp "$ICONS_SRC/128x128@2x.png" "${SHARE_ICONS}/256x256/apps/com.pyenv-native.gui.png"
+    cp "$ICONS_SRC/icon.png" "${SHARE_ICONS}/512x512/apps/com.pyenv-native.gui.png"
+    sed "s|@EXEC@|./pyenv-gui|g" \
+      "${REPO_ROOT}/crates/pyenv-gui/desktop/com.pyenv-native.gui.desktop" \
+      > "${BUNDLE_DIR}/share/applications/com.pyenv-native.gui.desktop"
+    cp "${SCRIPT_DIR}/install-gui-desktop.sh" "${BUNDLE_DIR}/install-gui-desktop.sh"
+    chmod +x "${BUNDLE_DIR}/install-gui-desktop.sh"
+  fi
 fi
 cp "${REPO_ROOT}/README.md" "${BUNDLE_DIR}/README.md"
 cp "${REPO_ROOT}/docs/INSTRUCTIONS.md" "${BUNDLE_DIR}/INSTRUCTIONS.md"
