@@ -94,7 +94,6 @@ fn maximize_app(window: tauri::Window) {
 async fn install_version(workspace_dir: Option<String>, version: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let ver_clone = version.clone();
         let options = pyenv_core::InstallCommandOptions {
             list: false,
             force: false,
@@ -107,15 +106,6 @@ async fn install_version(workspace_dir: Option<String>, version: String) -> Resu
         let report = pyenv_core::cmd_install(&ctx, &options);
         if report.exit_code != 0 {
             return Err(report.stderr.join("\n"));
-        }
-
-        // Auto-update pip after successful install
-        let py_path = ctx.versions_dir().join(&ver_clone).join("python.exe");
-        if py_path.exists() {
-            let _ = std::process::Command::new(&py_path)
-                .headless()
-                .args(["-m", "pip", "install", "-U", "pip"])
-                .output();
         }
 
         Ok(report.stdout.join("\n"))

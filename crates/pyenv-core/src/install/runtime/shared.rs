@@ -9,8 +9,9 @@ use crate::error::PyenvError;
 use crate::plugin::run_hook_scripts;
 use crate::shim::rehash_shims;
 
-use super::super::archive::{run_python, write_install_receipt};
+use super::super::archive::{ensure_pip_wrappers, run_python, write_install_receipt};
 use super::super::report::{io_error, progress_step, sanitize_for_fs, unique_suffix};
+use super::super::runtime_support::{ensure_pip_available, upgrade_pip_latest};
 use super::super::types::{InstallOutcome, InstallPlan};
 
 pub(super) struct ProgressTracker<'a> {
@@ -122,6 +123,33 @@ pub(super) fn create_base_venv_if_requested(
         base_venv_created = true;
     }
     Ok(base_venv_created)
+}
+
+pub(super) fn bootstrap_pip_with_upgrade(
+    plan: &InstallPlan,
+    progress: &mut ProgressTracker<'_>,
+) -> Result<bool, PyenvError> {
+    if !plan.bootstrap_pip {
+        return Ok(false);
+    }
+
+    progress.push("pip", "ensuring pip is available");
+    let pip_available = ensure_pip_available(&plan.python_executable)?;
+    if plan.provider.starts_with("windows-") {
+        ensure_pip_wrappers(plan)?;
+    }
+    if pip_available {
+        progress.push("pip", "upgrading pip to the latest release");
+        if upgrade_pip_latest(&plan.python_executable) {
+            progress.push("pip", "pip upgraded successfully");
+        } else {
+            progress.push(
+                "pip",
+                "pip upgrade skipped or failed; continuing with bundled pip",
+            );
+        }
+    }
+    Ok(pip_available)
 }
 
 pub(super) fn finalize_install(

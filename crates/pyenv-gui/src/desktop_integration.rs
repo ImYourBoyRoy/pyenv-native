@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 const APP_ID: &str = "com.pyenv-native.gui";
+/// GNOME dock grouping matches this WM class / app identity (binary name on Linux).
+const STARTUP_WM_CLASS: &str = "pyenv-gui";
 const ICON_SIZES: &[(&str, &[u8])] = &[
     ("32x32", include_bytes!("../icons/32x32.png")),
     ("128x128", include_bytes!("../icons/128x128.png")),
@@ -16,12 +18,11 @@ const ICON_SIZES: &[(&str, &[u8])] = &[
 /// Configure GTK/Wayland identity before Tauri creates its window.
 #[cfg(target_os = "linux")]
 pub fn prepare_linux_runtime() {
+    // Let Tauri own GTK initialization. Only set the app id env var early so the
+    // runtime and desktop entry agree on identity before the event loop starts.
     // SAFETY: called once at process start before any GTK threads are spawned.
     unsafe {
         std::env::set_var("GTK_APPLICATION_ID", APP_ID);
-    }
-    if gtk::init().is_ok() {
-        gtk::gdk::set_program_class(APP_ID);
     }
 }
 
@@ -174,7 +175,7 @@ fn write_desktop_entry(
          Comment=Manage Python versions and virtual environments\n\
          Exec={exec_path}\n\
          Icon={icon_value}\n\
-         StartupWMClass={APP_ID}\n\
+         StartupWMClass={STARTUP_WM_CLASS}\n\
          Categories=Development;Utility;\n\
          Terminal=false\n"
     );

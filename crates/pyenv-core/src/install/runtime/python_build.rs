@@ -9,11 +9,11 @@ use crate::error::PyenvError;
 use super::super::archive::validate_python;
 use super::super::providers::resolve_python_build_path;
 use super::super::report::io_error;
-use super::super::runtime_support::{ensure_pip_available, run_python_build_install};
+use super::super::runtime_support::run_python_build_install;
 use super::super::types::{InstallOutcome, InstallPlan};
 use super::shared::{
-    ProgressTracker, cleanup_paths, create_base_venv_if_requested, finalize_install,
-    remove_existing_install_dir, run_before_install_hooks,
+    ProgressTracker, bootstrap_pip_with_upgrade, cleanup_paths, create_base_venv_if_requested,
+    finalize_install, remove_existing_install_dir, run_before_install_hooks,
 };
 
 pub(super) fn install_runtime_via_python_build(
@@ -68,12 +68,7 @@ pub(super) fn install_runtime_via_python_build(
             ),
         );
 
-        let pip_bootstrapped = if plan.bootstrap_pip {
-            progress.push("pip", "ensuring pip is available");
-            ensure_pip_available(&plan.python_executable)?
-        } else {
-            false
-        };
+        let pip_bootstrapped = bootstrap_pip_with_upgrade(plan, &mut progress)?;
 
         let base_venv_created = create_base_venv_if_requested(plan, &mut progress)?;
         finalize_install(ctx, plan, pip_bootstrapped, base_venv_created, progress)
