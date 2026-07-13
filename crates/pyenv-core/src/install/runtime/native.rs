@@ -6,9 +6,7 @@ use std::fs;
 use crate::context::AppContext;
 use crate::error::PyenvError;
 
-use super::super::archive::{
-    download_package, extract_archive, move_directory, validate_python,
-};
+use super::super::archive::{download_package, extract_archive, move_directory, validate_python};
 use super::super::report::io_error;
 #[cfg(unix)]
 use super::super::runtime_support::ensure_unix_runtime_aliases;
