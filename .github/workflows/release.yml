@@ -35,6 +35,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Version sync check
+        shell: pwsh
+        run: |
+          $expected = ''
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -match '^v(.+)$') {
+            $expected = $Matches[1]
+          }
+          powershell -ExecutionPolicy Bypass -File .\scripts\check-version-sync.ps1 -ExpectedVersion $expected
+
       - name: Test Rust workspace
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
@@ -426,3 +435,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          # Fail loudly if a stale package version is re-uploaded; never silently keep PyPI behind the Git tag.
+          skip-existing: false
