@@ -102,26 +102,29 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
     } else {
         fixes.extend(non_windows_manual_dependency_fixes(ctx, platform));
 
+        if platform == "macos" {
+            fixes.extend(macos_toolchain_fixes());
+        }
+
         // Add Termux automated repair if compile dependencies are missing
         if is_termux_environment() {
-            let termux_usr = Path::new("/data/data/com.termux/files/usr");
-            let required = [
-                termux_usr.join("bin/clang"),
-                termux_usr.join("bin/make"),
-                termux_usr.join("bin/pkg-config"),
-                termux_usr.join("include/ffi.h"),
-                termux_usr.join("include/openssl/ssl.h"),
-                termux_usr.join("include/readline/readline.h"),
-                termux_usr.join("include/ncurses.h"),
-            ];
+            use crate::preflight::{inspect_android_toolchain, termux_required_pkg_packages};
 
-            let missing = required.iter().any(|p| !p.exists());
-            if missing {
+            let state = inspect_android_toolchain();
+            if !state.ready {
+                let packages = termux_required_pkg_packages().join(" ");
                 fixes.push(DoctorFix {
                     key: "termux-compile-deps".to_string(),
                     automated: true,
-                    description: "Install missing Termux compilation tools and system library headers (clang, make, pkg-config, libffi, openssl, readline, ncurses)".to_string(),
-                    command_hint: Some("pkg install clang make pkg-config libffi openssl readline ncurses -y".to_string()),
+                    description: format!(
+                        "Install missing Termux compilation tools and headers ({})",
+                        if state.missing.is_empty() {
+                            packages.clone()
+                        } else {
+                            state.missing.join(", ")
+                        }
+                    ),
+                    command_hint: Some(format!("pkg install {packages} -y")),
                 });
             }
         }
@@ -130,30 +133,107 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
     fixes
 }
 
+fn macos_toolchain_fixes() -> Vec<DoctorFix> {
+    use crate::preflight::inspect_macos_toolchain;
+
+    let state = inspect_macos_toolchain();
+    let mut fixes = Vec::new();
+    if !state.clt_ok {
+        fixes.push(DoctorFix {
+            key: "macos-xcode-clt".to_string(),
+            automated: true,
+            description: "Install or update Xcode Command Line Tools required for CPython source builds".to_string(),
+            command_hint: Some(
+                "Prefer automated `softwareupdate` CLT install; falls back to `xcode-select --install` (may show a system dialog). Full Xcode.app still requires the App Store.".to_string(),
+            ),
+        });
+    }
+    if state.openssl_prefix.is_none() {
+        fixes.push(DoctorFix {
+            key: "macos-openssl-brew".to_string(),
+            automated: true,
+            description: "Install Homebrew OpenSSL headers required for TLS-capable CPython builds"
+                .to_string(),
+            command_hint: Some(
+                if state.brew_available {
+                    "brew install openssl@3 pkg-config readline sqlite3 xz zlib bzip2".to_string()
+                } else {
+                    "Install Homebrew from https://brew.sh then run: brew install openssl@3 pkg-config readline sqlite3 xz zlib bzip2".to_string()
+                },
+            ),
+        });
+    }
+    fixes
+}
+
 pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, PyenvError> {
     let plan = doctor_fix_plan(ctx);
     let has_termux_fix = plan.iter().any(|f| f.key == "termux-compile-deps");
+    let has_macos_clt_fix = plan.iter().any(|f| f.key == "macos-xcode-clt");
+    let has_macos_openssl_fix = plan.iter().any(|f| f.key == "macos-openssl-brew");
     let manual = plan
         .into_iter()
         .filter(|item| !item.automated)
         .collect::<Vec<_>>();
     let mut applied = Vec::new();
 
-    // Execute Termux automated repair if planned
-    if has_termux_fix {
-        let output = std::process::Command::new("pkg")
+    if has_macos_clt_fix {
+        match crate::preflight::try_install_or_update_macos_clt() {
+            Ok(message) => applied.push(message),
+            Err(error) => {
+                return Err(PyenvError::Io(format!(
+                    "pyenv: failed to install/update Xcode Command Line Tools: {error}"
+                )));
+            }
+        }
+    }
+
+    if has_macos_openssl_fix {
+        let brew = std::process::Command::new("brew")
             .args([
                 "install",
-                "clang",
-                "make",
+                "openssl@3",
                 "pkg-config",
-                "libffi",
-                "openssl",
                 "readline",
-                "ncurses",
-                "-y",
+                "sqlite3",
+                "xz",
+                "zlib",
+                "bzip2",
             ])
             .output();
+        match brew {
+            Ok(out) if out.status.success() => {
+                applied.push(
+                    "Installed Homebrew OpenSSL and related CPython build libraries.".to_string(),
+                );
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                return Err(PyenvError::Io(format!(
+                    "pyenv: failed to install Homebrew OpenSSL deps (exit {}): {stderr}",
+                    out.status
+                )));
+            }
+            Err(error) => {
+                return Err(PyenvError::Io(format!(
+                    "pyenv: Homebrew is required for automated OpenSSL setup on macOS: {error}"
+                )));
+            }
+        }
+    }
+
+    // Execute Termux automated repair if planned
+    if has_termux_fix {
+        use crate::preflight::termux_required_pkg_packages;
+
+        let mut args = vec!["install".to_string()];
+        args.extend(
+            termux_required_pkg_packages()
+                .iter()
+                .map(|package| (*package).to_string()),
+        );
+        args.push("-y".to_string());
+        let output = std::process::Command::new("pkg").args(&args).output();
         match output {
             Ok(out) if out.status.success() => {
                 applied.push("Successfully auto-installed missing Termux compilation tools and system libraries via pkg.".to_string());
@@ -232,9 +312,10 @@ fn non_windows_manual_dependency_fixes(ctx: &AppContext, platform: &str) -> Vec<
     }
 
     let command_hint = if is_termux_environment() {
-        "pkg install clang make pkg-config libffi openssl readline sqlite zlib bzip2 xz".to_string()
+        "pkg install clang make pkg-config libffi openssl readline ncurses sqlite zlib bzip2 xz -y"
+            .to_string()
     } else if platform == "macos" {
-        "xcode-select --install && brew install pkg-config openssl readline sqlite3 xz zlib"
+        "pyenv doctor --fix  # installs/updates CLT when possible, then: brew install openssl@3 pkg-config readline sqlite3 xz zlib bzip2"
             .to_string()
     } else {
         "Install a POSIX shell, make, compiler toolchain, and development headers for OpenSSL/readline/sqlite/zlib".to_string()

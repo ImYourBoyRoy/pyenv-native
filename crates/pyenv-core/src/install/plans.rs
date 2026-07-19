@@ -77,18 +77,30 @@ pub fn cmd_install(ctx: &AppContext, options: &InstallCommandOptions) -> Command
                 if options.dry_run {
                     plans.push(plan);
                 } else {
+                    let log_path = ctx.root.join("logs").join("install-progress.jsonl");
+                    let _ = std::fs::create_dir_all(ctx.root.join("logs"));
+                    let _ = std::fs::write(&log_path, "");
                     let mut progress_started = false;
+                    let json_mode = options.json;
                     let mut live_progress = |step: &str| {
-                        if !progress_started {
-                            let _ = writeln!(io::stdout(), "Progress:");
-                            progress_started = true;
+                        append_install_progress_log(&log_path, step);
+                        if json_mode {
+                            let payload = serde_json::json!({
+                                "event": "progress",
+                                "step": step,
+                            });
+                            let _ = writeln!(io::stderr(), "{payload}");
+                            let _ = io::stderr().flush();
+                        } else {
+                            if !progress_started {
+                                let _ = writeln!(io::stdout(), "Progress:");
+                                progress_started = true;
+                            }
+                            let _ = writeln!(io::stdout(), "  - {step}");
+                            let _ = io::stdout().flush();
                         }
-                        let _ = writeln!(io::stdout(), "  - {step}");
-                        let _ = io::stdout().flush();
                     };
-                    let on_progress =
-                        (!options.json).then_some(&mut live_progress as &mut dyn FnMut(&str));
-                    match install_runtime(ctx, &plan, options.force, on_progress) {
+                    match install_runtime(ctx, &plan, options.force, Some(&mut live_progress)) {
                         Ok(outcome) => outcomes.push(outcome),
                         Err(error) => stderr.extend(render_install_error_lines(&error, requested)),
                     }
@@ -125,6 +137,26 @@ fn is_split_help_request(versions: &[String]) -> bool {
 
     let joined = versions.concat().to_ascii_lowercase();
     matches!(joined.as_str(), "-help" | "--help" | "/?")
+}
+
+fn append_install_progress_log(path: &std::path::Path, step: &str) {
+    use std::io::Write as _;
+
+    let payload = serde_json::json!({
+        "event": "progress",
+        "step": step,
+        "ts_unix": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|value| value.as_secs())
+            .unwrap_or(0),
+    });
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = writeln!(file, "{payload}");
+    }
 }
 
 pub fn cmd_available(

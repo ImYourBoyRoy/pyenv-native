@@ -107,6 +107,25 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
             example_input: Some(json!({})),
         },
         ToolSummary {
+            tool_name: "doctor_fix".to_string(),
+            use_when: "Doctor reported automated repairs such as missing Termux packages, broken shims, or macOS CLT/OpenSSL gaps.".to_string(),
+            returns: "Applied automated fix messages plus remaining manual fixes.".to_string(),
+            side_effects: "May create directories, rehash shims, install Termux packages, and attempt macOS CLT/OpenSSL setup.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory for context.".to_string() },
+                ToolArgument { name: "force".to_string(), required: false, data_type: "boolean".to_string(), description: "Reserved for non-interactive agent flows; fixes are applied immediately.".to_string() },
+            ],
+            example_input: Some(json!({ "force": true })),
+        },
+        ToolSummary {
+            tool_name: "preflight".to_string(),
+            use_when: "Before ensure_runtime on macOS/Linux/Android, or whenever you need OS/toolchain intelligence for this utility.".to_string(),
+            returns: "Platform facts (OS pretty name, arch, install strategy, Xcode/CLT/OpenSSL or Termux readiness), verdict, blocking issues, and recommended actions.".to_string(),
+            side_effects: "Read-only.".to_string(),
+            arguments: vec![ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory for context.".to_string() }],
+            example_input: Some(json!({})),
+        },
+        ToolSummary {
             tool_name: "pip_list".to_string(),
             use_when: "You need to see which third-party libraries are installed inside a target environment.".to_string(),
             returns: "Structured list of installed package names and versions.".to_string(),
