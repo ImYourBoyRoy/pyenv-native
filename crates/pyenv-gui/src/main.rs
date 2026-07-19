@@ -14,12 +14,12 @@ use pyenv_core::PyenvCommandExt;
 
 fn get_context_with_dir(workspace_dir: Option<String>) -> Result<pyenv_core::AppContext, String> {
     let mut ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
-    if let Some(dir_str) = workspace_dir {
-        if !dir_str.trim().is_empty() {
-            let path = std::path::PathBuf::from(dir_str);
-            if path.exists() && path.is_dir() {
-                ctx.dir = path;
-            }
+    if let Some(dir_str) = workspace_dir
+        && !dir_str.trim().is_empty()
+    {
+        let path = std::path::PathBuf::from(dir_str);
+        if path.exists() && path.is_dir() {
+            ctx.dir = path;
         }
     }
     Ok(ctx)
@@ -289,12 +289,11 @@ async fn get_venv_upgrade_info(
             .headless()
             .args(["-m", "pip", "list", "--format=json"])
             .output()
+            && output.status.success()
         {
-            if output.status.success() {
-                let stdout_str = String::from_utf8_lossy(&output.stdout);
-                if let Ok(pkgs) = serde_json::from_str::<Vec<pyenv_core::PipPackage>>(&stdout_str) {
-                    packages = pkgs;
-                }
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            if let Ok(pkgs) = serde_json::from_str::<Vec<pyenv_core::PipPackage>>(&stdout_str) {
+                packages = pkgs;
             }
         }
 
@@ -714,9 +713,18 @@ struct InstallStatus {
     is_portable: bool,
     /// `pyenv` resolves on the GUI process PATH (often false for desktop launches).
     cli_on_path: bool,
-    /// Shell profiles still need pyenv init / a new terminal session.
+    /// At least one shell profile already contains `pyenv init`.
+    profiles_configured: bool,
+    /// Shims appear on this GUI process PATH (desktop launches usually lack them even when setup is done).
+    shims_on_gui_path: bool,
+    /// True only when binaries exist but no shell profile has been configured yet.
+    /// Desktop apps not inheriting shell PATH must NOT trigger this.
     needs_shell_setup: bool,
     platform: String,
+}
+
+fn needs_shell_setup(binaries_installed: bool, profiles_configured: bool) -> bool {
+    binaries_installed && !profiles_configured
 }
 
 fn path_has_entry(path_env: &str, target: &std::path::Path) -> bool {
@@ -741,7 +749,10 @@ fn managed_binaries_present(root: &std::path::Path) -> bool {
 fn any_shell_profile_configured(home: &std::path::Path) -> bool {
     let candidates = [
         home.join(".bashrc"),
+        home.join(".bash_profile"),
+        home.join(".profile"),
         home.join(".zshrc"),
+        home.join(".zprofile"),
         home.join(".config").join("fish").join("config.fish"),
         home.join(".config")
             .join("powershell")
@@ -756,7 +767,12 @@ fn any_shell_profile_configured(home: &std::path::Path) -> bool {
     candidates.into_iter().any(|path| {
         path.is_file()
             && std::fs::read_to_string(&path)
-                .map(|content| content.contains("pyenv init"))
+                .map(|content| {
+                    let lower = content.to_ascii_lowercase();
+                    lower.contains("pyenv init")
+                        || lower.contains("pyenv-native")
+                        || (lower.contains("pyenv_root") && lower.contains("shims"))
+                })
                 .unwrap_or(false)
     })
 }
@@ -899,8 +915,8 @@ fn check_install_status() -> InstallStatus {
             let binaries = managed_binaries_present(&c.root) || is_portable;
             let shims_dir = c.shims_dir();
             let path_val = std::env::var("PATH").unwrap_or_default();
-            let shims_active = path_has_entry(&path_val, &shims_dir);
-            let profile_ok = home
+            let shims_on_gui_path = path_has_entry(&path_val, &shims_dir);
+            let profiles_configured = home
                 .as_ref()
                 .map(|h| any_shell_profile_configured(h))
                 .unwrap_or(false);
@@ -909,22 +925,35 @@ fn check_install_status() -> InstallStatus {
                 root: Some(c.root.to_string_lossy().to_string()),
                 is_portable,
                 cli_on_path,
-                needs_shell_setup: binaries && (!profile_ok || !shims_active),
+                profiles_configured,
+                shims_on_gui_path,
+                // GUI PATH is intentionally ignored: .desktop / dock launches rarely inherit
+                // shell-profile PATH even when pyenv is fully configured for terminals.
+                needs_shell_setup: needs_shell_setup(binaries, profiles_configured),
                 platform,
             }
         }
-        Err(_) => InstallStatus {
-            is_installed: is_portable || cli_on_path,
-            root: if is_portable {
-                Some(parent.to_string_lossy().to_string())
-            } else {
-                None
-            },
-            is_portable,
-            cli_on_path,
-            needs_shell_setup: is_portable,
-            platform,
-        },
+        Err(_) => {
+            let profiles_configured = home
+                .as_ref()
+                .map(|h| any_shell_profile_configured(h))
+                .unwrap_or(false);
+            let binaries = is_portable || cli_on_path;
+            InstallStatus {
+                is_installed: binaries,
+                root: if is_portable {
+                    Some(parent.to_string_lossy().to_string())
+                } else {
+                    None
+                },
+                is_portable,
+                cli_on_path,
+                profiles_configured,
+                shims_on_gui_path: false,
+                needs_shell_setup: needs_shell_setup(binaries, profiles_configured),
+                platform,
+            }
+        }
     }
 }
 
@@ -935,10 +964,10 @@ async fn install_local_pyenv() -> Result<String, String> {
         let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
 
         // Prefer finalizing an already-managed install (typical after network install).
-        if let Ok(ctx) = pyenv_core::AppContext::from_system() {
-            if managed_binaries_present(&ctx.root) {
-                return finalize_managed_install(&ctx);
-            }
+        if let Ok(ctx) = pyenv_core::AppContext::from_system()
+            && managed_binaries_present(&ctx.root)
+        {
+            return finalize_managed_install(&ctx);
         }
 
         #[cfg(target_os = "windows")]
@@ -1181,25 +1210,21 @@ fn get_cache_stats(workspace_dir: Option<String>) -> Result<CacheStatsGui, Strin
     ];
 
     // Best-effort pip cache via `pip cache dir` for the active global interpreter.
-    if let Ok(names) = pyenv_core::installed_version_names(&ctx) {
-        if let Some(version) = names.first() {
-            if let Ok(py) = pyenv_core::resolve_interpreter_path(&ctx, version) {
-                if let Ok(output) = std::process::Command::new(&py)
-                    .headless()
-                    .args(["-m", "pip", "cache", "dir"])
-                    .output()
-                {
-                    if output.status.success() {
-                        let pip_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                        if !pip_dir.is_empty() {
-                            entries.push(cache_entry(
-                                "Pip cache (active runtime)",
-                                std::path::PathBuf::from(pip_dir),
-                            ));
-                        }
-                    }
-                }
-            }
+    if let Ok(names) = pyenv_core::installed_version_names(&ctx)
+        && let Some(version) = names.first()
+        && let Ok(py) = pyenv_core::resolve_interpreter_path(&ctx, version)
+        && let Ok(output) = std::process::Command::new(&py)
+            .headless()
+            .args(["-m", "pip", "cache", "dir"])
+            .output()
+        && output.status.success()
+    {
+        let pip_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !pip_dir.is_empty() {
+            entries.push(cache_entry(
+                "Pip cache (active runtime)",
+                std::path::PathBuf::from(pip_dir),
+            ));
         }
     }
 

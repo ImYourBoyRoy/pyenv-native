@@ -1216,7 +1216,7 @@ async function checkInstallation() {
             } else {
                 if (title) title.textContent = 'Activate shell integration';
                 if (body) {
-                    body.textContent = 'Core binaries are installed. Finish setup so new terminals get pyenv on PATH (desktop apps often do not inherit shell-profile PATH).';
+                    body.textContent = 'Core binaries are installed, but no shell profile has pyenv init yet. Finish setup so new terminals get shims on PATH.';
                 }
                 if (actionBtn) actionBtn.textContent = 'Finish Setup';
             }
