@@ -1,0 +1,6 @@
+# ./rust-toolchain.toml
+# Pin the workspace to current Rust stable so local + CI builds stay aligned.
+[toolchain]
+channel = "stable"
+profile = "default"
+components = ["rustfmt", "clippy"]

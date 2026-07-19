@@ -24,7 +24,16 @@ pub fn install_runtime_plan(
     plan: &InstallPlan,
     force: bool,
 ) -> Result<InstallOutcome, PyenvError> {
-    install_runtime(ctx, plan, force, None)
+    install_runtime_plan_with_progress(ctx, plan, force, None)
+}
+
+pub fn install_runtime_plan_with_progress(
+    ctx: &AppContext,
+    plan: &InstallPlan,
+    force: bool,
+    on_progress: Option<&mut dyn FnMut(&str)>,
+) -> Result<InstallOutcome, PyenvError> {
+    install_runtime(ctx, plan, force, on_progress)
 }
 
 pub(crate) use providers::resolve_python_build_path;

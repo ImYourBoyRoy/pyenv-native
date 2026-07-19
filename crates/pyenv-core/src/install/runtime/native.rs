@@ -27,8 +27,6 @@ pub(super) fn install_runtime_via_archive(
 ) -> Result<InstallOutcome, PyenvError> {
     remove_existing_install_dir(plan, force)?;
     run_before_install_hooks(ctx, plan)?;
-    download_package(plan)?;
-
     let versions_dir = versions_dir(plan)?;
     fs::create_dir_all(versions_dir).map_err(io_error)?;
     let staging_dir = staging_dir(versions_dir, plan, "installing");
@@ -38,6 +36,7 @@ pub(super) fn install_runtime_via_archive(
         plan,
         format!("fetching package from {}", plan.download_url),
     );
+    download_package(plan, Some(&mut |step| progress.push("download", step)))?;
 
     let outcome = (|| {
         extract_archive(plan, &staging_dir)?;

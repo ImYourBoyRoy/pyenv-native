@@ -89,6 +89,12 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     } else {
         checks.extend(non_windows_source_build_checks(ctx, platform));
         checks.extend(termux_compile_environment_checks(ctx));
+        if platform == "macos" {
+            checks.extend(macos_toolchain_checks());
+        }
+        if platform == "android" || super::helpers::is_termux_environment() {
+            checks.extend(android_termux_readiness_checks());
+        }
     }
 
     checks.extend(selected_env_checks(&selected));
@@ -96,6 +102,62 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     checks.push(functional_shim_check(ctx, &selected));
 
     checks
+}
+
+fn macos_toolchain_checks() -> Vec<DoctorCheck> {
+    use crate::preflight::inspect_macos_toolchain;
+
+    let state = inspect_macos_toolchain();
+    vec![
+        DoctorCheck {
+            name: "macos-xcode-clt".to_string(),
+            status: if state.clt_ok {
+                DoctorStatus::Ok
+            } else {
+                DoctorStatus::Warn
+            },
+            detail: state.clt_detail,
+        },
+        DoctorCheck {
+            name: "macos-openssl".to_string(),
+            status: if state.openssl_prefix.is_some() {
+                DoctorStatus::Ok
+            } else {
+                DoctorStatus::Warn
+            },
+            detail: state.openssl_detail,
+        },
+    ]
+}
+
+fn android_termux_readiness_checks() -> Vec<DoctorCheck> {
+    use crate::preflight::inspect_android_toolchain;
+
+    let state = inspect_android_toolchain();
+    vec![
+        DoctorCheck {
+            name: "android-termux-prefix".to_string(),
+            status: if state.prefix.is_some() {
+                DoctorStatus::Ok
+            } else {
+                DoctorStatus::Warn
+            },
+            detail: state
+                .prefix
+                .as_ref()
+                .map(|path| format!("Termux PREFIX at {}", path.display()))
+                .unwrap_or_else(|| state.detail.clone()),
+        },
+        DoctorCheck {
+            name: "android-source-build-readiness".to_string(),
+            status: if state.ready {
+                DoctorStatus::Ok
+            } else {
+                DoctorStatus::Warn
+            },
+            detail: state.detail,
+        },
+    ]
 }
 
 fn termux_compile_environment_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
@@ -144,6 +206,10 @@ fn termux_compile_environment_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
                 "lib/libncurses.so",
             ],
         ),
+        ("sqlite", vec!["include/sqlite3.h", "lib/libsqlite3.so"]),
+        ("zlib", vec!["include/zlib.h", "lib/libz.so"]),
+        ("bzip2", vec!["include/bzlib.h", "lib/libbz2.so"]),
+        ("xz", vec!["include/lzma.h", "lib/liblzma.so"]),
     ];
 
     for (lib, paths) in libraries {

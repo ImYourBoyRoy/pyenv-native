@@ -48,6 +48,8 @@ INTERFACE:
 
 DIAGNOSTICS & CONFIG:
   doctor             Verify pyenv installation and environment health
+  preflight          Platform intelligence and install readiness preflight
+  environment        Alias for preflight (OS/toolchain facts for agents and users)
   status             Show the comprehensive environment status (versions, origins, venvs)
   config             Display or modify pyenv-native configuration
   root               Display the root directory where versions and shims are kept
@@ -303,6 +305,20 @@ pub(crate) enum Commands {
             help = "Skip the confirmation prompt when used with --fix"
         )]
         force: bool,
+    },
+    #[command(
+        about = "Platform intelligence and install-readiness preflight (OS, toolchain, TLS/Xcode/Termux)"
+    )]
+    Preflight {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(
+        about = "Alias for `preflight`: show OS/toolchain facts relevant to pyenv-native installs"
+    )]
+    Environment {
+        #[arg(long = "json")]
+        json: bool,
     },
     #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
     Status {

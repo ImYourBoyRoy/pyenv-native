@@ -25,10 +25,7 @@ pub(super) fn shell_init_hint(ctx: &AppContext, platform: &str) -> String {
 }
 
 pub(super) fn is_termux_environment() -> bool {
-    env::var_os("TERMUX_VERSION").is_some()
-        || env::var_os("PREFIX")
-            .map(|value| value.to_string_lossy().contains("/data/data/com.termux"))
-            .unwrap_or(false)
+    crate::preflight::is_termux_environment()
 }
 
 pub(super) fn path_ext_for_platform<'a>(ctx: &'a AppContext, platform: &str) -> Option<&'a OsStr> {

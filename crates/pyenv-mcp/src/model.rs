@@ -99,6 +99,12 @@ pub struct ProjectPathParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct DoctorFixParams {
+    pub project_dir: Option<PathBuf>,
+    pub force: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct InstallInstructionParams {
     pub github_repo: Option<String>,
     pub install_root: Option<PathBuf>,

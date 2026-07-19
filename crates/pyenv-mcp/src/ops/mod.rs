@@ -18,6 +18,6 @@ pub(crate) use project::{
     set_local_versions_response,
 };
 pub(crate) use runtime::{
-    doctor_response, ensure_runtime_response, list_available_versions_response,
-    resolve_runtime_inventory,
+    doctor_fix_response, doctor_response, ensure_runtime_response,
+    list_available_versions_response, preflight_response, resolve_runtime_inventory,
 };
