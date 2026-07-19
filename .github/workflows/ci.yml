@@ -46,6 +46,10 @@ jobs:
         shell: bash
         run: sh ./scripts/check-shell-eol.sh
 
+      - name: Version sync check
+        shell: bash
+        run: sh ./scripts/check-version-sync.sh
+
       - name: GUI pattern guardrails
         shell: bash
         run: sh ./scripts/check-gui-patterns.sh

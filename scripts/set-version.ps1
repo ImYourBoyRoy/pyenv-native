@@ -5,6 +5,7 @@ How to run: powershell -ExecutionPolicy Bypass -File ./scripts/set-version.ps1 -
 Inputs: Target semantic version string.
 Outputs/side effects: Rewrites version fields in Cargo.toml, python-package/pyproject.toml, and python-package/src/pyenv_native_bootstrap/__init__.py.
 Notes: Intended for release preparation so native and Python install-package artifacts stay aligned.
+      Pair with scripts/check-version-sync.ps1 / check-version-sync.sh before tagging.
 #>
 
 param(
