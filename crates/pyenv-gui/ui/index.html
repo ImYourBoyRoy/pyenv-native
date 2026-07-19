@@ -261,19 +261,19 @@
           </div>
         </div>
 
-        <!-- SETUP BANNER (shown at bottom if pyenv is not globally installed) -->
+        <!-- SETUP BANNER (shell PATH / finalize install) -->
         <div id="setup-banner" class="glass"
           style="display:none; margin-top: 32px; padding: 20px; border: 1px solid var(--accent-glow); border-radius: 12px; background: rgba(75, 139, 190, 0.05);">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
             <div style="flex: 1;">
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">For CLI & MCP use, Install Core Features</div>
-              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
-                Pyenv-native is currently running in portable mode. Install the core engine to enable system-wide CLI, Shims, and MCP server features.
+              <div id="setup-banner-title" style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Activate shell integration</div>
+              <div id="setup-banner-body" style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+                Core binaries are installed. Finish shell setup so <code>pyenv</code>, shims, and MCP work in new terminals.
               </div>
             </div>
             <div id="banner-actions" style="display: flex; gap: 12px; align-items: center;">
               <button class="btn btn-primary" id="btn-run-setup-banner" style="font-size: 12px; padding: 8px 16px;">
-                Install Now
+                Finish Setup
               </button>
               <button class="btn btn-outline" id="btn-dismiss-banner" style="font-size: 12px; padding: 8px 16px;">
                 Maybe Later
@@ -281,7 +281,7 @@
             </div>
             <div id="banner-progress" style="display:none; align-items: center; gap: 12px;">
               <div class="loader loader-sm"></div>
-              <span id="banner-status-text" style="font-size: 12px;">Initializing core features...</span>
+              <span id="banner-status-text" style="font-size: 12px;">Configuring shell integration…</span>
             </div>
           </div>
         </div>
@@ -448,23 +448,25 @@
 
       <!-- SETTINGS VIEW -->
       <section id="view-settings" class="view" style="display:none;" aria-labelledby="settings-title">
-        <h1 class="page-title" id="settings-title">Configuration</h1>
-        <div class="card-list">
-          <fieldset class="version-card settings-fieldset">
-            <legend>Windows Settings</legend>
+        <h1 class="page-title" id="settings-title">Settings</h1>
+        <p class="settings-page-intro">Tune install defaults, virtual environments, cache, and accessibility. Platform-only options appear when relevant.</p>
+        <div class="card-list settings-grid">
+          <fieldset id="settings-windows" class="version-card settings-fieldset" hidden>
+            <legend>Windows</legend>
+            <p class="setting-help settings-intro">IDE discovery for managed interpreters on Windows.</p>
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-windows.registry_mode">Registry Mode</label>
-                <span class="setting-help" id="help-registry-mode">Expose installations into the Windows PEP-514 registry (helps IDEs auto-detect Python).</span>
+                <span class="setting-help" id="help-registry-mode">Expose installations into the Windows PEP-514 registry so IDEs can auto-detect Python.</span>
               </div>
               <select id="config-windows.registry_mode" class="dropdown" aria-describedby="help-registry-mode">
                 <option value="disabled">Disabled</option>
-                <option value="pep514">PEP 514</option>
+                <option value="pep514">PEP 514 (recommended)</option>
               </select>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Install Settings</legend>
+            <legend>Install Defaults</legend>
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-install.arch">Architecture</label>
@@ -480,20 +482,20 @@
               <label class="setting-toggle" for="config-install.bootstrap_pip">
                 <input type="checkbox" id="config-install.bootstrap_pip" aria-describedby="help-bootstrap-pip" />
                 <span>
-                  <span class="setting-label">Bootstrap PIP</span>
-                  <span class="setting-help" id="help-bootstrap-pip">Automatically inject pip into new Python installations.</span>
+                  <span class="setting-label">Bootstrap &amp; upgrade pip</span>
+                  <span class="setting-help" id="help-bootstrap-pip">Ensure pip exists on new installs and upgrade it to the latest release.</span>
                 </span>
               </label>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Venv Settings</legend>
+            <legend>Virtual Environments</legend>
             <div class="setting-row">
               <label class="setting-toggle" for="config-venv.auto_create_base_venv">
                 <input type="checkbox" id="config-venv.auto_create_base_venv" aria-describedby="help-auto-create-venv" />
                 <span>
-                  <span class="setting-label">Auto Create Base Venv</span>
-                  <span class="setting-help" id="help-auto-create-venv">Automatically setup a '.venv' alongside every brand new Python installation.</span>
+                  <span class="setting-label">Auto-create base venv</span>
+                  <span class="setting-help" id="help-auto-create-venv">Create a dedicated base virtual environment for every new Python install so packages are never added to the public runtime.</span>
                 </span>
               </label>
             </div>
@@ -501,15 +503,28 @@
               <label class="setting-toggle" for="config-venv.auto_use_base_venv">
                 <input type="checkbox" id="config-venv.auto_use_base_venv" aria-describedby="help-auto-use-venv" />
                 <span>
-                  <span class="setting-label">Auto Use Base Venv</span>
-                  <span class="setting-help" id="help-auto-use-venv">Automatically activate the base venv instead of the bare interpreter when selected.</span>
+                  <span class="setting-label">Prefer base venv when selected</span>
+                  <span class="setting-help" id="help-auto-use-venv">When a version is selected, activate its base venv instead of the bare interpreter.</span>
                 </span>
               </label>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
+            <legend>Cache</legend>
+            <p class="setting-help settings-intro">Monitor download and build caches. Purge only removes cache files — installed runtimes and venvs are kept.</p>
+            <div id="cache-stats" class="cache-stats" aria-live="polite">
+              <div class="empty-state" style="padding: 12px;">Loading cache usage…</div>
+            </div>
+            <div class="setting-row cache-actions">
+              <button type="button" class="btn btn-outline" id="btn-refresh-cache">Refresh</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-packages-cache">Purge downloads</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-build-cache">Purge build cache</button>
+              <button type="button" class="btn btn-danger" id="btn-purge-all-cache">Purge all cache</button>
+            </div>
+          </fieldset>
+          <fieldset class="version-card settings-fieldset">
             <legend>Accessibility</legend>
-            <p class="setting-help settings-intro">Adjust contrast, motion, and readability preferences for this dashboard. System reduced-motion is honored until you override it here.</p>
+            <p class="setting-help settings-intro">Adjust contrast, motion, and readability. System reduced-motion is honored until you override it here.</p>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-high-contrast">
                 <input type="checkbox" id="a11y-high-contrast" />
@@ -625,20 +640,21 @@
             </div>
           </div>
           <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 16px 0; font-size: 14px;">
-            A specialized, zero-dependency <b style="color: var(--text-main);">Windows native</b> engine designed to
-            bring the incredible workflow of pyenv to Windows cleanly — without shim lag.
+            A specialized, zero-dependency <b style="color: var(--text-main);">cross-platform</b> engine that brings the
+            pyenv workflow to Linux, macOS, and Windows — fast shims, managed virtual environments, and a unified GUI.
           </p>
           <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;">
-            Written entirely in pure, deeply typed Rust, pyenv-native seamlessly bridges legacy pyenv implementations
-            with Windows environment bindings and PEP-514 architecture. Manage Python versions, virtual environments,
+            Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging,
+            shell integration, and (on Windows) PEP-514 IDE discovery. Manage Python versions, virtual environments,
             and system configurations — all from one place.
           </p>
           <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 8px;">
             <div
               style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
               Created by Roy Dawson IV</div>
-            <div style="display: flex; gap: 12px;">
-              <button type="button" class="btn btn-primary" id="btn-open-github">GitHub Repository</button>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-primary" id="btn-open-website">Website</button>
+              <button type="button" class="btn btn-outline" id="btn-open-github">GitHub Repository</button>
               <button type="button" class="btn btn-outline" id="btn-open-pypi">PyPI Profile</button>
             </div>
           </div>
@@ -652,8 +668,8 @@
   <div id="drawer-venv-upgrader" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="upgrader-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Upgrade Environment</h3>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Target Environment</div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Migrate Environment</h3>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Move this venv to another installed Python runtime</div>
       </div>
       <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -910,12 +926,15 @@
 
         <!-- CODEBASE SCANNER SECTION -->
         <div style="margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
             <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin: 0;">Codebase Import Analyzer</label>
-            <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;">Scan Workspace</button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;">Select Folder</button>
+              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;">Scan</button>
+            </div>
           </div>
-          <p style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 12px;">
-            Statically parses all `.py` files inside the active workspace directory to identify imported libraries and detect missing third-party dependencies.
+          <p id="scan-folder-label" style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 8px; word-break: break-all;">
+            Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.
           </p>
 
           <div id="scan-imports-loading" class="empty-state" style="display: none; padding: 20px;">
