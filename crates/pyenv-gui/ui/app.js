@@ -2407,7 +2407,75 @@ function createShellStatusBadge(label, style) {
     return badge;
 }
 
+async function loadPlatformIntelligence() {
+    const summaryEl = document.getElementById('platform-intel-summary');
+    const verdictEl = document.getElementById('platform-intel-verdict');
+    const factsEl = document.getElementById('platform-intel-facts');
+    const blockersEl = document.getElementById('platform-intel-blockers');
+    if (!summaryEl || !verdictEl || !factsEl) return;
+
+    try {
+        const intel = await invoke('get_platform_intelligence', {
+            workspaceDir: getWorkspaceDir(),
+        });
+        summaryEl.textContent = intel.summary || 'Platform intelligence unavailable.';
+        const verdict = (intel.verdict || 'needs-attention').toLowerCase();
+        verdictEl.className = 'platform-intel-verdict';
+        if (verdict === 'ready') {
+            verdictEl.classList.add('ready');
+            verdictEl.textContent = 'Ready';
+        } else if (verdict === 'blocked') {
+            verdictEl.classList.add('blocked');
+            verdictEl.textContent = 'Blocked';
+        } else {
+            verdictEl.classList.add('attention');
+            verdictEl.textContent = 'Needs attention';
+        }
+
+        factsEl.replaceChildren();
+        (intel.facts || []).slice(0, 8).forEach((fact) => {
+            const item = document.createElement('div');
+            item.className = 'platform-intel-fact';
+            const label = document.createElement('span');
+            label.className = 'label';
+            label.textContent = fact.label || fact.key || 'Fact';
+            const value = document.createElement('span');
+            value.className = 'value';
+            value.textContent = fact.value || '';
+            item.append(label, value);
+            factsEl.appendChild(item);
+        });
+
+        if (blockersEl) {
+            const blockers = intel.blocking_issues || [];
+            if (blockers.length) {
+                blockersEl.style.display = 'block';
+                blockersEl.replaceChildren();
+                const title = document.createElement('div');
+                title.style.cssText = 'font-size: 11px; font-weight: 600; color: #f87171; margin-bottom: 6px;';
+                title.textContent = 'Blocking before install';
+                blockersEl.appendChild(title);
+                blockers.forEach((issue) => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
+                    row.textContent = `• ${issue}`;
+                    blockersEl.appendChild(row);
+                });
+            } else {
+                blockersEl.style.display = 'none';
+                blockersEl.replaceChildren();
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load platform intelligence:', err);
+        summaryEl.textContent = 'Unable to load platform intelligence for this host.';
+        verdictEl.className = 'platform-intel-verdict attention';
+        verdictEl.textContent = 'Unavailable';
+    }
+}
+
 async function loadShellIntegration() {
+    await loadPlatformIntelligence();
     const cardsContainer = document.getElementById('shell-status-cards');
     if (!cardsContainer) return;
 
@@ -2547,6 +2615,10 @@ async function loadShellIntegration() {
 const btnRefreshShells = document.getElementById('btn-refresh-shells');
 if (btnRefreshShells) {
     btnRefreshShells.addEventListener('click', loadShellIntegration);
+}
+const btnRefreshPlatformIntel = document.getElementById('btn-refresh-platform-intel');
+if (btnRefreshPlatformIntel) {
+    btnRefreshPlatformIntel.addEventListener('click', loadPlatformIntelligence);
 }
 
 // Doctor Diagnostics & Self-Healing Repairs Logic

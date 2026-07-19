@@ -7,8 +7,9 @@ use anyhow::{Context, Result, anyhow, bail};
 use serde_json::Value;
 
 use pyenv_core::{
-    AppContext, BASE_VENV_DIR_NAME, InstallCommandOptions, InstallOutcome, InstallPlan, cmd_doctor,
-    cmd_install, install_runtime_plan, installed_version_dir, installed_version_names,
+    AppContext, BASE_VENV_DIR_NAME, InstallCommandOptions, InstallOutcome, InstallPlan,
+    apply_doctor_fixes, build_platform_intelligence, cmd_doctor, cmd_install,
+    install_runtime_plan_with_progress, installed_version_dir, installed_version_names,
     resolve_install_plan, resolve_selected_versions, version_file_path,
 };
 
@@ -74,6 +75,21 @@ pub fn doctor_response(ctx: &AppContext) -> Result<JsonForwardResponse> {
     Ok(JsonForwardResponse { payload })
 }
 
+pub fn doctor_fix_response(ctx: &AppContext) -> Result<JsonForwardResponse> {
+    let outcome = apply_doctor_fixes(ctx).map_err(|error| anyhow!(error.to_string()))?;
+    Ok(JsonForwardResponse {
+        payload: serde_json::to_value(outcome).context("failed to serialize doctor fix outcome")?,
+    })
+}
+
+pub fn preflight_response(ctx: &AppContext) -> Result<JsonForwardResponse> {
+    let intel = build_platform_intelligence(ctx);
+    Ok(JsonForwardResponse {
+        payload: serde_json::to_value(intel)
+            .context("failed to serialize platform intelligence")?,
+    })
+}
+
 pub fn ensure_runtime_response(
     ctx: &AppContext,
     requested_version: &str,
@@ -91,8 +107,30 @@ pub fn ensure_runtime_response(
         ));
     }
 
-    let outcome =
-        install_runtime_plan(ctx, &plan, force).map_err(|error| anyhow!(error.to_string()))?;
+    let log_path = ctx.root.join("logs").join("install-progress.jsonl");
+    let _ = std::fs::create_dir_all(ctx.root.join("logs"));
+    let _ = std::fs::write(&log_path, "");
+    let mut live_progress = |step: &str| {
+        let payload = serde_json::json!({
+            "event": "progress",
+            "step": step,
+            "ts_unix": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|value| value.as_secs())
+                .unwrap_or(0),
+        });
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            use std::io::Write as _;
+            let _ = writeln!(file, "{payload}");
+        }
+    };
+
+    let outcome = install_runtime_plan_with_progress(ctx, &plan, force, Some(&mut live_progress))
+        .map_err(|error| anyhow!(error.to_string()))?;
     Ok(build_ensure_runtime_response(
         requested_version,
         &outcome.plan,

@@ -24,7 +24,6 @@ pub(super) fn install_runtime_via_cpython_source(
 ) -> Result<InstallOutcome, PyenvError> {
     remove_existing_install_dir(plan, force)?;
     run_before_install_hooks(ctx, plan)?;
-    download_package(plan)?;
 
     let versions_dir = versions_dir(plan)?;
     fs::create_dir_all(versions_dir).map_err(io_error)?;
@@ -38,6 +37,7 @@ pub(super) fn install_runtime_via_cpython_source(
     );
 
     let outcome = (|| {
+        download_package(plan, Some(&mut |step| progress.push("download", step)))?;
         extract_archive(plan, &source_dir)?;
         progress.push(
             "extract",
@@ -49,13 +49,21 @@ pub(super) fn install_runtime_via_cpython_source(
             format!("created build workspace at {}", build_dir.display()),
         );
         progress.push(
-            "build",
+            "preflight",
             format!(
-                "configuring and compiling source for {} (this can take several minutes on macOS/Linux/Android)",
-                plan.resolved_version
+                "verifying {} source-build prerequisites before compile",
+                std::env::consts::OS
             ),
         );
-        build_cpython_source_install(plan, &source_dir, &build_dir)?;
+        let mut build_progress = |step: &str| {
+            // Steps from the builder already include a phase prefix.
+            if let Some((phase, detail)) = step.split_once(':') {
+                progress.push(phase.trim(), detail.trim());
+            } else {
+                progress.push("build", step);
+            }
+        };
+        build_cpython_source_install(plan, &source_dir, &build_dir, Some(&mut build_progress))?;
         progress.push(
             "install",
             format!(

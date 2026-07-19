@@ -28,13 +28,23 @@ pub(super) fn build_common_workflows() -> Vec<WorkflowRecipe> {
             goal: "Install a CPython runtime like 3.12 or 3.13 using provider-backed resolution.".to_string(),
             steps: vec![
                 WorkflowStep {
+                    tool_name: Some("preflight".to_string()),
+                    description: "Verify host toolchain readiness (especially macOS Xcode/OpenSSL and Android Termux packages) before compiling.".to_string(),
+                    example_input: Some(json!({})),
+                },
+                WorkflowStep {
+                    tool_name: Some("doctor_fix".to_string()),
+                    description: "Optional: apply automated prerequisite repairs when preflight reports blockers.".to_string(),
+                    example_input: Some(json!({ "force": true })),
+                },
+                WorkflowStep {
                     tool_name: Some("list_available_versions".to_string()),
                     description: "Optional: inspect installable CPython choices before selecting one.".to_string(),
                     example_input: Some(json!({ "family": "cpython", "pattern": "3.13" })),
                 },
                 WorkflowStep {
                     tool_name: Some("ensure_runtime".to_string()),
-                    description: "Install or reuse the selected CPython version.".to_string(),
+                    description: "Install or reuse the selected CPython version. Watch progress_steps and ~/.pyenv/logs/install-progress.jsonl during long source builds.".to_string(),
                     example_input: Some(json!({ "version": "3.13" })),
                 },
             ],

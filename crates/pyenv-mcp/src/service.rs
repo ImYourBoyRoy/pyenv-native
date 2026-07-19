@@ -10,7 +10,7 @@ use rmcp::{
 };
 
 use crate::model::{
-    AvailableVersionsParams, EnsureProjectVenvParams, EnsureRuntimeParams,
+    AvailableVersionsParams, DoctorFixParams, EnsureProjectVenvParams, EnsureRuntimeParams,
     InstallInstructionParams, JsonForwardResponse, PipAnalyzeParams, PipInstallParams,
     PipListParams, PipPrecheckParams, PipUpdateParams, ProjectPathParams, ProjectVenvResponse,
     RuntimeInventory, SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide,
@@ -18,11 +18,11 @@ use crate::model::{
 };
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
-    build_toolkit_guide, doctor_response, ensure_project_venv_response, ensure_runtime_response,
-    inspect_environment_response, list_available_versions_response, pip_analyze_imports_response,
-    pip_check_response, pip_install_response, pip_list_response, pip_outdated_response,
-    pip_precheck_response, pip_update_response, resolve_runtime_inventory,
-    set_global_versions_response, set_local_versions_response,
+    build_toolkit_guide, doctor_fix_response, doctor_response, ensure_project_venv_response,
+    ensure_runtime_response, inspect_environment_response, list_available_versions_response,
+    pip_analyze_imports_response, pip_check_response, pip_install_response, pip_list_response,
+    pip_outdated_response, pip_precheck_response, pip_update_response, preflight_response,
+    resolve_runtime_inventory, set_global_versions_response, set_local_versions_response,
 };
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl PyenvNativeMcpServer {
 impl ServerHandler for PyenvNativeMcpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
-            "Use resolve_project_environment before making changes. Prefer ensure_runtime and ensure_project_venv over shelling out. When unsure, call get_toolkit_guide first. Prefer project-local .venv environments for agent work.",
+            "Use preflight before ensure_runtime on macOS/Android/Linux source builds. Use resolve_project_environment before making changes. Prefer ensure_runtime and ensure_project_venv over shelling out. When unsure, call get_toolkit_guide first. Prefer project-local .venv environments for agent work. Install progress is streamed to ~/.pyenv/logs/install-progress.jsonl and returned in progress_steps.",
         )
     }
 }
@@ -127,6 +127,35 @@ impl PyenvNativeMcpServer {
     ) -> Result<Json<JsonForwardResponse>, String> {
         let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
         doctor_response(&ctx)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "doctor_fix",
+        description = "Apply safe automated doctor repairs (shims/layout, Termux packages, best-effort macOS CLT/OpenSSL). Returns applied actions plus remaining manual fixes."
+    )]
+    pub async fn doctor_fix(
+        &self,
+        Parameters(params): Parameters<DoctorFixParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let _ = params.force;
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        doctor_fix_response(&ctx)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "preflight",
+        description = "Return platform intelligence and install-readiness: OS/arch, install strategy, Xcode/CLT/OpenSSL on macOS, Termux readiness on Android, blocking issues, and recommended actions. Call this before ensure_runtime on source-build platforms."
+    )]
+    pub async fn preflight(
+        &self,
+        Parameters(params): Parameters<ProjectPathParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        preflight_response(&ctx)
             .map(Json)
             .map_err(|error| error.to_string())
     }

@@ -1065,6 +1065,63 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
 }
 
 #[derive(serde::Serialize)]
+struct PlatformFactGui {
+    key: String,
+    label: String,
+    value: String,
+}
+
+#[derive(serde::Serialize)]
+struct PlatformIntelligenceGui {
+    os: String,
+    arch: String,
+    os_pretty_name: String,
+    install_strategy: String,
+    ready_to_install: bool,
+    verdict: String,
+    summary: String,
+    facts: Vec<PlatformFactGui>,
+    blocking_issues: Vec<String>,
+    warnings: Vec<String>,
+}
+
+#[tauri::command]
+async fn get_platform_intelligence(
+    workspace_dir: Option<String>,
+) -> Result<PlatformIntelligenceGui, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let intel = pyenv_core::build_platform_intelligence(&ctx);
+        Ok(PlatformIntelligenceGui {
+            os: intel.os,
+            arch: intel.arch,
+            os_pretty_name: intel.os_pretty_name,
+            install_strategy: intel.install_strategy,
+            ready_to_install: intel.ready_to_install,
+            verdict: match intel.verdict {
+                pyenv_core::PreflightVerdict::Ready => "ready".to_string(),
+                pyenv_core::PreflightVerdict::NeedsAttention => "needs-attention".to_string(),
+                pyenv_core::PreflightVerdict::Blocked => "blocked".to_string(),
+            },
+            summary: intel.summary,
+            facts: intel
+                .facts
+                .into_iter()
+                .map(|fact| PlatformFactGui {
+                    key: fact.key,
+                    label: fact.label,
+                    value: fact.value,
+                })
+                .collect(),
+            blocking_issues: intel.blocking_issues,
+            warnings: intel.warnings,
+        })
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[derive(serde::Serialize)]
 struct CacheEntryGui {
     name: String,
     path: String,
@@ -1240,6 +1297,7 @@ fn main() {
             analyze_codebase_imports,
             run_doctor,
             run_doctor_fix,
+            get_platform_intelligence,
             get_venv_upgrade_info,
             install_pip_packages,
             get_cache_stats,

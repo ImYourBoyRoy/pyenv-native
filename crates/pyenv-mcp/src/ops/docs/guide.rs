@@ -21,10 +21,11 @@ pub(crate) fn build_toolkit_guide(
         purpose: "Manage pyenv-native, discover project Python requirements, install runtimes, and create project-local virtual environments with structured JSON responses.".to_string(),
         recommended_sequence: vec![
             GuideStep { step: "Call get_toolkit_guide first when the model does not already understand pyenv-native".to_string(), reason: "It returns install commands, MCP client config, tool summaries, and recommended workflows in one JSON blob.".to_string() },
+            GuideStep { step: "Call preflight before ensure_runtime on macOS, Linux, or Android".to_string(), reason: "It reports OS/toolchain readiness (Xcode CLT + OpenSSL on macOS, Termux packages on Android) so installs fail early with actionable fixes instead of opaque compile errors.".to_string() },
             GuideStep { step: "Call resolve_project_environment before making changes".to_string(), reason: "It tells the agent what Python version is active, where it came from, and whether it is missing.".to_string() },
-            GuideStep { step: "Call ensure_runtime when the project version is missing or when you need a specific runtime".to_string(), reason: "This is the idempotent runtime installer for managed Python versions.".to_string() },
+            GuideStep { step: "Call ensure_runtime when the project version is missing or when you need a specific runtime".to_string(), reason: "This is the idempotent runtime installer for managed Python versions. Progress steps are returned and also written to ~/.pyenv/logs/install-progress.jsonl.".to_string() },
             GuideStep { step: "Call ensure_project_venv for project work".to_string(), reason: "It creates or reuses a predictable project-local .venv and returns concrete python/pip paths.".to_string() },
-            GuideStep { step: "Use doctor when anything looks odd".to_string(), reason: "It returns machine-readable diagnostics about path issues, roots, shims, and host readiness.".to_string() },
+            GuideStep { step: "Use doctor / doctor_fix when anything looks odd".to_string(), reason: "doctor returns machine-readable diagnostics; doctor_fix applies safe automated repairs including Termux packages and best-effort macOS CLT/OpenSSL setup.".to_string() },
         ],
         install: build_install_instructions(github_repo, install_root, server_name, mcp_command, pyenv_root),
         tool_summaries: build_tool_summaries(),

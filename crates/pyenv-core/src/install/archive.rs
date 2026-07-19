@@ -3,7 +3,7 @@
 
 use std::ffi::OsStr;
 use std::fs;
-use std::io::{BufReader, Write};
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -20,8 +20,17 @@ use crate::process::PyenvCommandExt;
 use super::report::{io_error, pip_wrapper_names, sanitize_for_fs};
 use super::types::{INSTALL_RECEIPT_FILE, InstallPlan, InstallReceipt};
 
-pub(super) fn download_package(plan: &InstallPlan) -> Result<(), PyenvError> {
+pub(super) fn download_package(
+    plan: &InstallPlan,
+    mut on_progress: Option<&mut dyn FnMut(String)>,
+) -> Result<(), PyenvError> {
     if plan.cache_path.is_file() {
+        if let Some(callback) = on_progress.as_mut() {
+            callback(format!(
+                "using cached package at {}",
+                plan.cache_path.display()
+            ));
+        }
         return Ok(());
     }
 
@@ -48,6 +57,10 @@ pub(super) fn download_package(plan: &InstallPlan) -> Result<(), PyenvError> {
     let client = build_blocking_client()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
 
+    if let Some(callback) = on_progress.as_mut() {
+        callback(format!("starting download from {}", plan.download_url));
+    }
+
     let response = client.get(&plan.download_url).send().map_err(|error| {
         PyenvError::Io(format!(
             "pyenv: failed to download {}: {error}",
@@ -62,15 +75,45 @@ pub(super) fn download_package(plan: &InstallPlan) -> Result<(), PyenvError> {
         ))
     })?;
 
+    let total = response.content_length();
     let mut file = fs::File::create(&partial_path).map_err(io_error)?;
-    response.copy_to(&mut file).map_err(|error| {
-        PyenvError::Io(format!(
-            "pyenv: failed to write {}: {error}",
-            partial_path.display()
-        ))
-    })?;
+    let mut downloaded: u64 = 0;
+    let mut last_reported_pct: u64 = 0;
+    let mut buffer = [0u8; 64 * 1024];
+
+    loop {
+        let bytes_read = response.read(&mut buffer).map_err(|error| {
+            PyenvError::Io(format!(
+                "pyenv: failed to download {}: {error}",
+                plan.download_url
+            ))
+        })?;
+        if bytes_read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..bytes_read]).map_err(io_error)?;
+        downloaded = downloaded.saturating_add(bytes_read as u64);
+
+        if let (Some(callback), Some(total)) = (on_progress.as_mut(), total)
+            && total > 0
+        {
+            let pct = (downloaded.saturating_mul(100)) / total;
+            if pct >= last_reported_pct.saturating_add(10) || downloaded == total {
+                last_reported_pct = pct;
+                callback(format!(
+                    "downloaded {downloaded}/{total} bytes ({pct}%) for {}",
+                    plan.package_name
+                ));
+            }
+        }
+    }
+
     file.flush().map_err(io_error)?;
-    fs::rename(&partial_path, &plan.cache_path).map_err(io_error)
+    fs::rename(&partial_path, &plan.cache_path).map_err(io_error)?;
+    if let Some(callback) = on_progress.as_mut() {
+        callback(format!("download complete → {}", plan.cache_path.display()));
+    }
+    Ok(())
 }
 
 pub(super) fn extract_archive(plan: &InstallPlan, destination: &Path) -> Result<(), PyenvError> {

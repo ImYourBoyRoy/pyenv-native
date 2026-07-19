@@ -151,10 +151,12 @@ Current high-value tools include:
 
 - `get_toolkit_guide`
 - `get_install_instructions`
+- `preflight` (OS/toolchain intelligence and install readiness)
 - `doctor`
+- `doctor_fix` (safe automated repairs: shims/layout, Termux pkgs, best-effort macOS CLT/OpenSSL)
 - `resolve_project_environment`
 - `list_available_versions`
-- `ensure_runtime`
+- `ensure_runtime` (streams progress to `~/.pyenv/logs/install-progress.jsonl` and returns `progress_steps`)
 - `set_local_version`
 - `set_global_version`
 - `ensure_project_venv`
@@ -175,15 +177,17 @@ These are intentionally higher-level than raw shell commands.
 When possible, use this order:
 
 1. `get_toolkit_guide`
-2. `resolve_project_environment`
-3. `list_available_versions` if a runtime decision is needed
-4. `ensure_runtime`
-5. `ensure_project_venv`
-6. `pip_analyze_imports` to check which libraries the codebase actually uses and find missing ones
-7. `pip_precheck` if importing dependency files
-8. `pip_install` or `pip_update` to manage libraries
-9. `pip_check` to audit constraints
-10. `doctor` when something looks wrong
+2. `preflight` before source installs on macOS / Linux / Android
+3. `doctor_fix` when preflight reports automated blockers
+4. `resolve_project_environment`
+5. `list_available_versions` if a runtime decision is needed
+6. `ensure_runtime`
+7. `ensure_project_venv`
+8. `pip_analyze_imports` to check which libraries the codebase actually uses and find missing ones
+9. `pip_precheck` if importing dependency files
+10. `pip_install` or `pip_update` to manage libraries
+11. `pip_check` to audit constraints
+12. `doctor` when something looks wrong
 
 This keeps the workflow structured and predictable.
 
