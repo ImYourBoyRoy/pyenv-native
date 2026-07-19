@@ -506,6 +506,8 @@ struct ShellStatus {
     is_configured: bool,
     active_in_path: bool,
     is_installed: bool,
+    /// Human-readable PATH status for the GUI badges.
+    path_label: String,
 }
 
 fn is_executable_in_path(name: &str) -> bool {
@@ -544,15 +546,24 @@ fn get_home_dir() -> Result<std::path::PathBuf, String> {
     }
 }
 
+fn shell_path_label(is_configured: bool, shims_in_path: bool) -> String {
+    if shims_in_path {
+        "PATH Active".to_string()
+    } else if is_configured {
+        // Desktop apps often don't inherit shell-profile PATH; profiles can still be correct.
+        "Restart terminal to activate".to_string()
+    } else {
+        "Shims not on PATH".to_string()
+    }
+}
+
 #[tauri::command]
 fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>, String> {
     let ctx = get_context_with_dir(workspace_dir)?;
     let mut statuses = Vec::new();
-    let shims_str = ctx.shims_dir().to_string_lossy().to_string().to_lowercase();
-
-    // Check if shims are currently present in PATH
-    let path_val = std::env::var("PATH").unwrap_or_default().to_lowercase();
-    let shims_in_path = path_val.contains(&shims_str);
+    let shims_dir = ctx.shims_dir();
+    let path_val = std::env::var("PATH").unwrap_or_default();
+    let shims_in_path = path_has_entry(&path_val, &shims_dir);
 
     // Resolve home directory
     let home = get_home_dir()?;
@@ -577,6 +588,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         is_configured: pwsh_configured,
         active_in_path: shims_in_path,
         is_installed: is_executable_in_path("pwsh"),
+        path_label: shell_path_label(pwsh_configured, shims_in_path),
     });
 
     // 2. Windows PowerShell 5.1 Profile (Windows only)
@@ -595,6 +607,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
             is_configured: win_ps_configured,
             active_in_path: shims_in_path,
             is_installed: true, // Always true on Windows
+            path_label: shell_path_label(win_ps_configured, shims_in_path),
         });
     }
 
@@ -614,6 +627,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         } else {
             is_executable_in_path("zsh")
         },
+        path_label: shell_path_label(zsh_configured, shims_in_path),
     });
 
     // 4. Bash Profile
@@ -632,6 +646,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         } else {
             is_executable_in_path("bash")
         },
+        path_label: shell_path_label(bash_configured, shims_in_path),
     });
 
     // 5. Fish Profile
@@ -646,6 +661,7 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
         is_configured: fish_configured,
         active_in_path: shims_in_path,
         is_installed: is_executable_in_path("fish"),
+        path_label: shell_path_label(fish_configured, shims_in_path),
     });
 
     Ok(statuses)
@@ -692,15 +708,169 @@ fn configure_shell(shell_name: String, profile_path: String) -> Result<(), Strin
 
 #[derive(serde::Serialize)]
 struct InstallStatus {
+    /// Managed binaries exist under PYENV_ROOT/bin (or a portable sibling layout).
     is_installed: bool,
     root: Option<String>,
     is_portable: bool,
+    /// `pyenv` resolves on the GUI process PATH (often false for desktop launches).
+    cli_on_path: bool,
+    /// Shell profiles still need pyenv init / a new terminal session.
+    needs_shell_setup: bool,
+    platform: String,
+}
+
+fn path_has_entry(path_env: &str, target: &std::path::Path) -> bool {
+    std::env::split_paths(path_env).any(|entry| {
+        if cfg!(windows) {
+            entry
+                .to_string_lossy()
+                .replace('/', "\\")
+                .eq_ignore_ascii_case(&target.to_string_lossy().replace('/', "\\"))
+        } else {
+            entry == target
+        }
+    })
+}
+
+fn managed_binaries_present(root: &std::path::Path) -> bool {
+    let bin = root.join("bin");
+    let pyenv_name = if cfg!(windows) { "pyenv.exe" } else { "pyenv" };
+    bin.join(pyenv_name).is_file()
+}
+
+fn any_shell_profile_configured(home: &std::path::Path) -> bool {
+    let candidates = [
+        home.join(".bashrc"),
+        home.join(".zshrc"),
+        home.join(".config").join("fish").join("config.fish"),
+        home.join(".config")
+            .join("powershell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+        home.join("Documents")
+            .join("PowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+        home.join("Documents")
+            .join("WindowsPowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+    ];
+    candidates.into_iter().any(|path| {
+        path.is_file()
+            && std::fs::read_to_string(&path)
+                .map(|content| content.contains("pyenv init"))
+                .unwrap_or(false)
+    })
+}
+
+fn find_installer_script(parent: &std::path::Path, names: &[&str]) -> Option<std::path::PathBuf> {
+    let mut curr = parent.to_path_buf();
+    for _ in 0..8 {
+        for name in names {
+            let test = curr.join(name);
+            if test.is_file() {
+                return Some(test);
+            }
+        }
+        // Also check install root share / sibling layouts from a managed install
+        if let Some(root) = curr.parent() {
+            for name in names {
+                let test = root.join(name);
+                if test.is_file() {
+                    return Some(test);
+                }
+            }
+        }
+        if let Some(p) = curr.parent() {
+            curr = p.to_path_buf();
+        } else {
+            break;
+        }
+    }
+    None
+}
+
+fn finalize_managed_install(ctx: &pyenv_core::AppContext) -> Result<String, String> {
+    let rehash = pyenv_core::cmd_rehash(ctx);
+    if rehash.exit_code != 0 {
+        return Err(rehash.stderr.join("\n"));
+    }
+
+    let home = get_home_dir()?;
+    let mut configured = Vec::new();
+
+    #[cfg(windows)]
+    let shells = [
+        (
+            "PowerShell 7 (pwsh)",
+            home.join("Documents")
+                .join("PowerShell")
+                .join("Microsoft.PowerShell_profile.ps1"),
+            true,
+        ),
+        (
+            "Windows PowerShell 5.1",
+            home.join("Documents")
+                .join("WindowsPowerShell")
+                .join("Microsoft.PowerShell_profile.ps1"),
+            true,
+        ),
+    ];
+    #[cfg(not(windows))]
+    let shells = [
+        ("Bash", home.join(".bashrc"), true),
+        ("Zsh", home.join(".zshrc"), is_executable_in_path("zsh")),
+        (
+            "Fish",
+            home.join(".config").join("fish").join("config.fish"),
+            is_executable_in_path("fish"),
+        ),
+    ];
+
+    for (name, profile, present) in shells {
+        if !present {
+            continue;
+        }
+        let already = profile.is_file()
+            && std::fs::read_to_string(&profile)
+                .map(|c| c.contains("pyenv init"))
+                .unwrap_or(false);
+        if already {
+            continue;
+        }
+        if let Ok(()) = configure_shell(name.to_string(), profile.to_string_lossy().to_string()) {
+            configured.push(name.to_string());
+        }
+    }
+
+    let mut lines = vec![
+        format!("Core binaries are ready under {}.", ctx.root.display()),
+        "Shim directory refreshed.".to_string(),
+    ];
+    if configured.is_empty() {
+        lines.push(
+            "Shell profiles already include pyenv init. Open a new terminal so shims appear on PATH."
+                .to_string(),
+        );
+    } else {
+        lines.push(format!(
+            "Configured shell profile(s): {}. Open a new terminal to activate shims.",
+            configured.join(", ")
+        ));
+    }
+    Ok(lines.join("\n"))
 }
 
 #[tauri::command]
 fn check_install_status() -> InstallStatus {
-    // Check if pyenv is in the system PATH
-    let pyenv_in_path = if cfg!(windows) {
+    let platform = if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
+    }
+    .to_string();
+
+    let cli_on_path = if cfg!(windows) {
         std::process::Command::new("where.exe")
             .headless()
             .arg("pyenv")
@@ -715,30 +885,45 @@ fn check_install_status() -> InstallStatus {
             .unwrap_or(false)
     };
 
-    let ctx = pyenv_core::AppContext::from_system();
-
-    // Check if we are in a portable bundle (pyenv executable next to us)
     let exe_path = std::env::current_exe().unwrap_or_default();
     let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
-
     let pyenv_name = if cfg!(windows) { "pyenv.exe" } else { "pyenv" };
     let local_pyenv = parent.join(pyenv_name);
     let is_portable = local_pyenv.exists();
 
+    let ctx = pyenv_core::AppContext::from_system();
+    let home = get_home_dir().ok();
+
     match ctx {
-        Ok(c) => InstallStatus {
-            is_installed: pyenv_in_path,
-            root: Some(c.root.to_string_lossy().to_string()),
-            is_portable,
-        },
+        Ok(c) => {
+            let binaries = managed_binaries_present(&c.root) || is_portable;
+            let shims_dir = c.shims_dir();
+            let path_val = std::env::var("PATH").unwrap_or_default();
+            let shims_active = path_has_entry(&path_val, &shims_dir);
+            let profile_ok = home
+                .as_ref()
+                .map(|h| any_shell_profile_configured(h))
+                .unwrap_or(false);
+            InstallStatus {
+                is_installed: binaries,
+                root: Some(c.root.to_string_lossy().to_string()),
+                is_portable,
+                cli_on_path,
+                needs_shell_setup: binaries && (!profile_ok || !shims_active),
+                platform,
+            }
+        }
         Err(_) => InstallStatus {
-            is_installed: pyenv_in_path,
+            is_installed: is_portable || cli_on_path,
             root: if is_portable {
                 Some(parent.to_string_lossy().to_string())
             } else {
                 None
             },
             is_portable,
+            cli_on_path,
+            needs_shell_setup: is_portable,
+            platform,
         },
     }
 }
@@ -749,40 +934,26 @@ async fn install_local_pyenv() -> Result<String, String> {
         let exe_path = std::env::current_exe().unwrap_or_default();
         let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
 
+        // Prefer finalizing an already-managed install (typical after network install).
+        if let Ok(ctx) = pyenv_core::AppContext::from_system() {
+            if managed_binaries_present(&ctx.root) {
+                return finalize_managed_install(&ctx);
+            }
+        }
+
         #[cfg(target_os = "windows")]
         {
             let script_names = [
                 "install-pyenv-native.ps1",
                 "scripts/install-pyenv-native.ps1",
             ];
-            let mut script_path = None;
+            let script = find_installer_script(parent, &script_names).ok_or_else(|| {
+                "Installer script not found. Your install is incomplete — re-run the network installer from https://github.com/ImYourBoyRoy/pyenv-native/releases/latest/download/install.ps1".to_string()
+            })?;
 
-            // Search up the tree for scripts/ (useful for dev builds in target/debug)
-            let mut curr = parent.to_path_buf();
-            for _ in 0..5 {
-                for name in script_names {
-                    let test = curr.join(name);
-                    if test.exists() {
-                        script_path = Some(test);
-                        break;
-                    }
-                }
-                if script_path.is_some() {
-                    break;
-                }
-                if let Some(p) = curr.parent() {
-                    curr = p.to_path_buf();
-                } else {
-                    break;
-                }
-            }
-
-            let script = script_path
-                .ok_or_else(|| "Installer script not found in bundle or workspace.".to_string())?;
-
-            // Detect if we have bundled binaries near the EXE for offline install
             let pyenv_bin = parent.join("pyenv.exe");
             let mcp_bin = parent.join("pyenv-mcp.exe");
+            let gui_bin = parent.join("pyenv-gui.exe");
 
             let mut args = vec![
                 "-ExecutionPolicy".to_string(),
@@ -800,6 +971,10 @@ async fn install_local_pyenv() -> Result<String, String> {
                 args.push("-SourceMcpPath".to_string());
                 args.push(mcp_bin.to_string_lossy().to_string());
             }
+            if gui_bin.exists() {
+                args.push("-SourceGuiPath".to_string());
+                args.push(gui_bin.to_string_lossy().to_string());
+            }
 
             let output = std::process::Command::new("powershell")
                 .headless()
@@ -815,37 +990,26 @@ async fn install_local_pyenv() -> Result<String, String> {
         #[cfg(not(target_os = "windows"))]
         {
             let script_names = ["install-pyenv-native.sh", "scripts/install-pyenv-native.sh"];
-            let mut script_path = None;
+            let script = find_installer_script(parent, &script_names).ok_or_else(|| {
+                "Installer script not found. Your install is incomplete — re-run:\ncurl -fsSL https://github.com/ImYourBoyRoy/pyenv-native/releases/latest/download/install.sh | sh".to_string()
+            })?;
 
-            let mut curr = parent.to_path_buf();
-            for _ in 0..5 {
-                for name in script_names {
-                    let test = curr.join(name);
-                    if test.exists() {
-                        script_path = Some(test);
-                        break;
-                    }
-                }
-                if script_path.is_some() {
-                    break;
-                }
-                if let Some(p) = curr.parent() {
-                    curr = p.to_path_buf();
-                } else {
-                    break;
-                }
-            }
-
-            let script = script_path
-                .ok_or_else(|| "Installer script not found in bundle or workspace.".to_string())?;
-
-            // Offline install for POSIX (assuming script handles it or we pass env/args)
             let mut args = vec![script.to_string_lossy().to_string(), "--yes".to_string()];
 
             let pyenv_bin = parent.join("pyenv");
             if pyenv_bin.exists() {
                 args.push("--source-path".to_string());
                 args.push(pyenv_bin.to_string_lossy().to_string());
+            }
+            let mcp_bin = parent.join("pyenv-mcp");
+            if mcp_bin.exists() {
+                args.push("--source-mcp-path".to_string());
+                args.push(mcp_bin.to_string_lossy().to_string());
+            }
+            let gui_bin = parent.join("pyenv-gui");
+            if gui_bin.exists() {
+                args.push("--source-gui-path".to_string());
+                args.push(gui_bin.to_string_lossy().to_string());
             }
 
             let output = std::process::Command::new("sh")
@@ -900,6 +1064,142 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+#[derive(serde::Serialize)]
+struct CacheEntryGui {
+    name: String,
+    path: String,
+    bytes: u64,
+    exists: bool,
+}
+
+#[derive(serde::Serialize)]
+struct CacheStatsGui {
+    total_bytes: u64,
+    entries: Vec<CacheEntryGui>,
+}
+
+fn dir_size_bytes(path: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            total = total.saturating_add(dir_size_bytes(&path));
+        } else if let Ok(meta) = entry.metadata() {
+            total = total.saturating_add(meta.len());
+        }
+    }
+    total
+}
+
+fn cache_entry(name: &str, path: std::path::PathBuf) -> CacheEntryGui {
+    let exists = path.exists();
+    let bytes = if exists {
+        if path.is_dir() {
+            dir_size_bytes(&path)
+        } else {
+            std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+        }
+    } else {
+        0
+    };
+    CacheEntryGui {
+        name: name.to_string(),
+        path: path.to_string_lossy().to_string(),
+        bytes,
+        exists,
+    }
+}
+
+#[tauri::command]
+fn get_cache_stats(workspace_dir: Option<String>) -> Result<CacheStatsGui, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
+    let cache_root = ctx.cache_dir();
+    let mut entries = vec![
+        cache_entry("Python downloads / packages", cache_root.join("packages")),
+        cache_entry("python-build cache", cache_root.join("python-build")),
+        cache_entry("Metadata cache", cache_root.join("metadata")),
+    ];
+
+    // Best-effort pip cache via `pip cache dir` for the active global interpreter.
+    if let Ok(names) = pyenv_core::installed_version_names(&ctx) {
+        if let Some(version) = names.first() {
+            if let Ok(py) = pyenv_core::resolve_interpreter_path(&ctx, version) {
+                if let Ok(output) = std::process::Command::new(&py)
+                    .headless()
+                    .args(["-m", "pip", "cache", "dir"])
+                    .output()
+                {
+                    if output.status.success() {
+                        let pip_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        if !pip_dir.is_empty() {
+                            entries.push(cache_entry(
+                                "Pip cache (active runtime)",
+                                std::path::PathBuf::from(pip_dir),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let total_bytes = entries.iter().map(|e| e.bytes).sum();
+    entries.insert(0, cache_entry("All pyenv cache", cache_root.clone()));
+    Ok(CacheStatsGui {
+        total_bytes,
+        entries,
+    })
+}
+
+#[tauri::command]
+fn purge_cache(workspace_dir: Option<String>, target: String) -> Result<String, String> {
+    let ctx = get_context_with_dir(workspace_dir)?;
+    let cache_root = ctx.cache_dir();
+    let allowed = [
+        ("packages", cache_root.join("packages")),
+        ("python-build", cache_root.join("python-build")),
+        ("metadata", cache_root.join("metadata")),
+        ("all", cache_root.clone()),
+    ];
+    let (_, path) = allowed
+        .into_iter()
+        .find(|(name, _)| *name == target.as_str())
+        .ok_or_else(|| format!("Unknown cache target `{target}`"))?;
+
+    if !path.exists() {
+        return Ok(format!("Nothing to purge at {}", path.display()));
+    }
+    // Safety: never delete outside the resolved cache root.
+    let canon_root = cache_root
+        .canonicalize()
+        .unwrap_or_else(|_| cache_root.clone());
+    let canon_path = path.canonicalize().map_err(|e| e.to_string())?;
+    if !canon_path.starts_with(&canon_root) {
+        return Err("Refusing to purge a path outside the pyenv cache root.".to_string());
+    }
+
+    if canon_path == canon_root {
+        for child in std::fs::read_dir(&canon_path).map_err(|e| e.to_string())? {
+            let child = child.map_err(|e| e.to_string())?.path();
+            if child.is_dir() {
+                std::fs::remove_dir_all(&child).map_err(|e| e.to_string())?;
+            } else {
+                std::fs::remove_file(&child).map_err(|e| e.to_string())?;
+            }
+        }
+    } else if canon_path.is_dir() {
+        std::fs::remove_dir_all(&canon_path).map_err(|e| e.to_string())?;
+        let _ = std::fs::create_dir_all(&canon_path);
+    } else {
+        std::fs::remove_file(&canon_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok(format!("Purged cache: {target} ({})", path.display()))
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     desktop_integration::prepare_linux_runtime();
@@ -941,7 +1241,9 @@ fn main() {
             run_doctor,
             run_doctor_fix,
             get_venv_upgrade_info,
-            install_pip_packages
+            install_pip_packages,
+            get_cache_stats,
+            purge_cache
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

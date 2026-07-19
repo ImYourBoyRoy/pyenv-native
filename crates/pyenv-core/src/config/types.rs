@@ -102,7 +102,9 @@ pub struct WindowsConfig {
 impl Default for WindowsConfig {
     fn default() -> Self {
         Self {
-            registry_mode: RegistryMode::Disabled,
+            // Helps IDEs discover managed interpreters on Windows via PEP-514.
+            // The GUI hides this section on non-Windows platforms.
+            registry_mode: RegistryMode::Pep514,
         }
     }
 }
@@ -130,12 +132,21 @@ impl Default for InstallConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VenvConfig {
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub auto_create_base_venv: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub auto_use_base_venv: bool,
+}
+
+impl Default for VenvConfig {
+    fn default() -> Self {
+        Self {
+            auto_create_base_venv: true,
+            auto_use_base_venv: true,
+        }
+    }
 }
 
 fn default_true() -> bool {
