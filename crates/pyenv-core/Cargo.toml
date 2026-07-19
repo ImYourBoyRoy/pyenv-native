@@ -8,7 +8,7 @@ license.workspace = true
 anyhow = "1.0.104"
 bzip2 = "0.6.1"
 flate2 = "1.1.9"
-reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "rustls"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.150"
 tar = "0.4.46"
