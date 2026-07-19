@@ -7,9 +7,9 @@
 //! is needed.
 //! Inputs: none; the helper derives the user agent from Cargo package metadata.
 //! Outputs/side effects: returns a ready-to-build blocking HTTP client using
-//! reqwest's built-in rustls-tls configuration (webpki root store).
-//! Notes: reqwest with the `rustls-tls` feature bundles webpki roots and handles
-//! TLS correctly on all platforms including Android/Termux.
+//! reqwest's rustls configuration (platform verifier + webpki roots).
+//! Notes: reqwest 0.13+ with the `rustls` feature handles TLS correctly on all
+//! platforms including Android/Termux.
 
 use reqwest::blocking::{Client, ClientBuilder};
 
