@@ -88,61 +88,89 @@ def get_requirements(path_or_url):
             parsed.append(p)
     return parsed
 
-# Helper list of standard library modules to skip immediately
-STD_LIBS = {
-    'abc', 'argparse', 'ast', 'asyncio', 'base64', 'bisect', 'builtins', 'calendar', 'cmath',
-    'cmd', 'code', 'codecs', 'collections', 'colorsys', 'compileall', 'concurrent', 'configparser',
-    'contextlib', 'contextvars', 'copy', 'copyreg', 'crypt', 'csv', 'ctypes', 'curses', 'dataclasses',
-    'datetime', 'dbm', 'decimal', 'difflib', 'dis', 'distutils', 'doctest', 'email', 'encodings',
-    'ensurepip', 'enum', 'errno', 'faulthandler', 'filecmp', 'fileinput', 'fnmatch', 'fractions',
-    'ftplib', 'functools', 'gc', 'getopt', 'getpass', 'gettext', 'glob', 'grp', 'gzip',
-    'hashlib', 'hmac', 'html', 'http', 'imaplib', 'imghdr', 'importlib', 'inspect', 'io', 'ipaddress',
-    'itertools', 'json', 'keyword', 'lib2to3', 'linecache', 'locale', 'logging', 'lzma', 'mailbox',
-    'mailcap', 'marshal', 'math', 'mimetypes', 'mmap', 'modulefinder', 'multiprocessing', 'netrc',
-    'nis', 'nntplib', 'numbers', 'operator', 'optparse', 'os', 'pathlib', 'pdb', 'pickle', 'pickletools',
-    'pipes', 'pkgutil', 'platform', 'plistlib', 'poplib', 'posix', 'pprint', 'profile', 'pstats',
-    'pty', 'pwd', 'py_compile', 'pyclbr', 'pydoc', 'queue', 'quopri', 'random', 're', 'readline',
-    'reprlib', 'resource', 'rlcompleter', 'runpy', 'sched', 'secrets', 'select', 'selectors', 'shelve',
-    'shlex', 'shutil', 'signal', 'site', 'smtpd', 'smtplib', 'sndhdr', 'socket', 'socketserver',
-    'spwd', 'sqlite3', 'ssl', 'stat', 'statistics', 'string', 'stringprep', 'struct', 'subprocess',
-    'sunau', 'symtable', 'sys', 'sysconfig', 'syslog', 'tabnanny', 'tarfile', 'telnetlib', 'tempfile',
-    'termios', 'test', 'textwrap', 'threading', 'time', 'timeit', 'tkinter', 'token', 'tokenize',
-    'tomllib', 'trace', 'traceback', 'tracemalloc', 'tty', 'types', 'typing', 'unicodedata', 'unittest',
-    'urllib', 'uu', 'uuid', 'warnings', 'wave', 'weakref', 'webbrowser', 'wsgiref', 'xdrlib', 'xml',
-    'xmlrpc', 'zipfile', 'zipimport', 'zlib', 'zoneinfo'
-}
+def stdlib_module_names():
+    """Return stdlib/builtin names, preferring sys.stdlib_module_names when available."""
+    names = set(n.lower() for n in getattr(sys, 'stdlib_module_names', ()))
+    names.update(n.lower() for n in sys.builtin_module_names)
+    # Fallback coverage for older interpreters / incomplete platform lists
+    names.update({
+        'abc', 'argparse', 'ast', 'asyncio', 'base64', 'bisect', 'builtins', 'calendar', 'cmath',
+        'cmd', 'code', 'codecs', 'collections', 'colorsys', 'compileall', 'concurrent', 'configparser',
+        'contextlib', 'contextvars', 'copy', 'copyreg', 'crypt', 'csv', 'ctypes', 'curses', 'dataclasses',
+        'datetime', 'dbm', 'decimal', 'difflib', 'dis', 'distutils', 'doctest', 'email', 'encodings',
+        'ensurepip', 'enum', 'errno', 'faulthandler', 'filecmp', 'fileinput', 'fnmatch', 'fractions',
+        'ftplib', 'functools', 'gc', 'getopt', 'getpass', 'gettext', 'glob', 'grp', 'gzip',
+        'hashlib', 'hmac', 'html', 'http', 'imaplib', 'imghdr', 'importlib', 'inspect', 'io', 'ipaddress',
+        'itertools', 'json', 'keyword', 'lib2to3', 'linecache', 'locale', 'logging', 'lzma', 'mailbox',
+        'mailcap', 'marshal', 'math', 'mimetypes', 'mmap', 'modulefinder', 'multiprocessing', 'netrc',
+        'nis', 'nntplib', 'numbers', 'operator', 'optparse', 'os', 'pathlib', 'pdb', 'pickle', 'pickletools',
+        'pipes', 'pkgutil', 'platform', 'plistlib', 'poplib', 'posix', 'pprint', 'profile', 'pstats',
+        'pty', 'pwd', 'py_compile', 'pyclbr', 'pydoc', 'queue', 'quopri', 'random', 're', 'readline',
+        'reprlib', 'resource', 'rlcompleter', 'runpy', 'sched', 'secrets', 'select', 'selectors', 'shelve',
+        'shlex', 'shutil', 'signal', 'site', 'smtpd', 'smtplib', 'sndhdr', 'socket', 'socketserver',
+        'spwd', 'sqlite3', 'ssl', 'stat', 'statistics', 'string', 'stringprep', 'struct', 'subprocess',
+        'sunau', 'symtable', 'sys', 'sysconfig', 'syslog', 'tabnanny', 'tarfile', 'telnetlib', 'tempfile',
+        'termios', 'test', 'textwrap', 'threading', 'time', 'timeit', 'tkinter', 'token', 'tokenize',
+        'tomllib', 'trace', 'traceback', 'tracemalloc', 'tty', 'types', 'typing', 'unicodedata', 'unittest',
+        'urllib', 'uu', 'uuid', 'warnings', 'wave', 'weakref', 'webbrowser', 'wsgiref', 'xdrlib', 'xml',
+        'xmlrpc', 'zipfile', 'zipimport', 'zlib', 'zoneinfo',
+    })
+    return names
+
+
+def is_non_pip_import(name):
+    """Skip stdlib, dunder modules, and private/C-extension stubs that cannot be pip-installed."""
+    if not name:
+        return True
+    lowered = name.lower()
+    if lowered in stdlib_module_names():
+        return True
+    if lowered.startswith('__') and lowered.endswith('__'):
+        return True
+    if lowered in {'__main__', '__pypy__', '__mp_main__'}:
+        return True
+    # Private CPython internals (_ssl, _io, _pickle, …) are never pip packages
+    if lowered.startswith('_'):
+        return True
+    return False
+
 
 def scan_workspace_imports(dir_path):
     import os
     import ast
     import importlib.util
-    
+
     imported = set()
+    ignored_dirs = {
+        '.git', '.venv', 'venv', '__pycache__', 'build', 'dist', 'target',
+        '.gemini', 'node_modules', '.tox', '.mypy_cache', '.pytest_cache', '.ruff_cache',
+    }
     for root, dirs, files in os.walk(dir_path):
-        if any(ignored in root for ignored in ['.git', '.venv', 'venv', '__pycache__', 'build', 'dist', 'target', '.gemini']):
+        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        if any(part in ignored_dirs for part in root.split(os.sep)):
             continue
         for file in files:
-            if file.endswith('.py'):
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        tree = ast.parse(f.read(), filename=file_path)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Import):
-                            for name in node.names:
-                                imported.add(name.name.split('.')[0])
-                        elif isinstance(node, ast.ImportFrom):
-                            if node.module:
-                                imported.add(node.module.split('.')[0])
-                except Exception:
-                    pass
-                    
+            if not file.endswith('.py'):
+                continue
+            file_path = os.path.join(root, file)
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    tree = ast.parse(f.read(), filename=file_path)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            imported.add(alias.name.split('.')[0])
+                    elif isinstance(node, ast.ImportFrom):
+                        if getattr(node, 'level', 0):
+                            continue  # relative import
+                        if node.module:
+                            imported.add(node.module.split('.')[0])
+            except Exception:
+                pass
+
     third_party = set()
     for name in imported:
-        if not name:
-            continue
-        name_lower = name.lower()
-        if name_lower in STD_LIBS:
+        if is_non_pip_import(name):
             continue
         try:
             spec = importlib.util.find_spec(name)
@@ -153,25 +181,27 @@ def scan_workspace_imports(dir_path):
                 if 'site-packages' in origin or 'dist-packages' in origin:
                     third_party.add(name)
         except Exception:
-            third_party.add(name)
-            
+            if not is_non_pip_import(name):
+                third_party.add(name)
+
     installed = get_installed()
     detected = sorted(list(third_party))
-    
+
     missing = []
     installed_imports = []
-    
+
     for name in detected:
         name_lower = name.lower()
         if name_lower in installed:
             installed_imports.append({"name": name, "version": installed[name_lower]})
         else:
             missing.append(name)
-            
+
     return {
         "detected_imports": detected,
         "missing_imports": missing,
-        "installed_imports": installed_imports
+        "installed_imports": installed_imports,
+        "skipped_non_pip": True,
     }
 
 def main():

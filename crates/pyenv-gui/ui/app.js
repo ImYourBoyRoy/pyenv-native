@@ -314,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindDelegatedActions();
     document.getElementById('btn-reset-a11y')?.addEventListener('click', resetAccessibilityPreferences);
     document.getElementById('chk-latest-only')?.addEventListener('change', () => reloadAvailable());
+    document.getElementById('btn-open-website')?.addEventListener('click', () => openExternal('https://imyourboyroy.com'));
     document.getElementById('btn-open-github')?.addEventListener('click', () => openExternal('https://github.com/imyourboyroy/pyenv-native'));
     document.getElementById('btn-open-pypi')?.addEventListener('click', () => openExternal('https://pypi.org/user/ImYourBoyRoy/'));
     document.getElementById('footer-btn')?.addEventListener('click', () => checkUpdates());
@@ -859,10 +860,9 @@ async function loadVenvs() {
                 const actions = document.createElement('div');
                 actions.className = 'version-actions';
                 actions.appendChild(createActionButton('Package Explorer', 'package-explorer', globalKey, 'btn btn-outline'));
-                const upgradeBtn = createActionButton('Upgrade', 'upgrade-venv', v.name, 'btn btn-gold');
+                const upgradeBtn = createActionButton('Migrate Runtime', 'upgrade-venv', v.name, 'btn btn-outline');
                 upgradeBtn.dataset.baseVersion = v.base_version;
-                upgradeBtn.style.border = '1px solid var(--accent-gold)';
-                upgradeBtn.style.color = 'var(--accent-gold)';
+                upgradeBtn.title = `Recreate this venv on a different installed Python (currently base ${v.base_version})`;
                 actions.append(upgradeBtn);
                 appendGlobalButton(actions, globalKey, globalVersions);
                 actions.appendChild(createActionButton('Local', 'set-local', globalKey, 'btn btn-outline'));
@@ -1025,16 +1025,87 @@ async function setLocal(v) {
 }
 
 // ─── Config ───
+function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+async function loadCacheStats() {
+    const host = document.getElementById('cache-stats');
+    if (!host) return;
+    try {
+        const stats = await invoke('get_cache_stats', { workspaceDir: getWorkspaceDir() });
+        host.replaceChildren();
+        const total = document.createElement('div');
+        total.className = 'cache-total';
+        total.textContent = `Total tracked: ${formatBytes(stats.total_bytes)}`;
+        host.appendChild(total);
+        (stats.entries || []).forEach((entry) => {
+            const row = document.createElement('div');
+            row.className = 'cache-row';
+            const label = document.createElement('div');
+            label.className = 'cache-row-label';
+            label.textContent = entry.name;
+            const meta = document.createElement('div');
+            meta.className = 'cache-row-meta';
+            meta.textContent = `${formatBytes(entry.bytes)} · ${entry.exists ? entry.path : 'not present'}`;
+            row.append(label, meta);
+            host.appendChild(row);
+        });
+    } catch (err) {
+        host.replaceChildren();
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.padding = '12px';
+        empty.textContent = `Could not read cache stats: ${err}`;
+        host.appendChild(empty);
+    }
+}
+
+async function purgeCacheTarget(target, label) {
+    const yes = await showConfirm(
+        'Purge Cache',
+        `Safely purge <b>${label}</b>?<br><br>Installed Python versions and virtual environments are <b>not</b> deleted.`,
+    );
+    if (!yes) return;
+    try {
+        const result = await invoke('purge_cache', { workspaceDir: getWorkspaceDir(), target });
+        showAlert('Cache Purged', result);
+        loadCacheStats();
+    } catch (err) {
+        showAlert('Purge Failed', err);
+    }
+}
+
 async function loadConfig() {
     try {
         const jsonStr = await invoke('get_config', { workspaceDir: getWorkspaceDir() });
         const config = JSON.parse(jsonStr);
-        
-        document.getElementById('config-windows.registry_mode').value = config.windows?.registry_mode || 'disabled';
+        const platform = window.__installPlatform
+            || (await invoke('check_install_status').then((s) => s.platform).catch(() => 'linux'));
+        window.__installPlatform = platform;
+
+        const windowsBlock = document.getElementById('settings-windows');
+        if (windowsBlock) {
+            windowsBlock.hidden = platform !== 'windows';
+        }
+
+        const registry = document.getElementById('config-windows.registry_mode');
+        if (registry) {
+            registry.value = config.windows?.registry_mode || (platform === 'windows' ? 'pep514' : 'disabled');
+        }
         document.getElementById('config-install.arch').value = config.install?.arch || 'auto';
         document.getElementById('config-install.bootstrap_pip').checked = config.install?.bootstrap_pip ?? true;
-        document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? false;
-        document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? false;
+        document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? true;
+        document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? true;
+        loadCacheStats();
     } catch(err) {
         console.error("Failed to load config", err);
     }
@@ -1128,27 +1199,40 @@ async function checkInstallation() {
     try {
         const status = await invoke('check_install_status');
         const banner = document.getElementById('setup-banner');
-        
-        if (!status.is_installed) {
-            if (banner) banner.style.display = 'block';
-        } else {
-            if (banner) banner.style.display = 'none';
+        const title = document.getElementById('setup-banner-title');
+        const body = document.getElementById('setup-banner-body');
+        const actionBtn = document.getElementById('btn-run-setup-banner');
+        window.__installPlatform = status.platform || 'linux';
+
+        const showBanner = !status.is_installed || status.needs_shell_setup;
+        if (banner) banner.style.display = showBanner ? 'block' : 'none';
+        if (showBanner) {
+            if (!status.is_installed) {
+                if (title) title.textContent = 'Install core features';
+                if (body) {
+                    body.textContent = 'Pyenv-native binaries were not found under the install root. Run setup to install the CLI, shims, and MCP companion.';
+                }
+                if (actionBtn) actionBtn.textContent = 'Install Now';
+            } else {
+                if (title) title.textContent = 'Activate shell integration';
+                if (body) {
+                    body.textContent = 'Core binaries are installed. Finish setup so new terminals get pyenv on PATH (desktop apps often do not inherit shell-profile PATH).';
+                }
+                if (actionBtn) actionBtn.textContent = 'Finish Setup';
+            }
         }
-        
+
         if (!currentWorkspaceDir && status.root) {
             currentWorkspaceDir = status.root;
             localStorage.setItem('pyenv-workspace-dir', status.root);
             updateWorkspaceUI();
         }
-        
-        // Ensure sidebar is always visible in the new workflow
+
         document.querySelector('.sidebar').style.display = 'flex';
         loadDashboard();
-        
-        if (status.is_portable) {
-            if (status.is_installed) {
-                appendFooterPortableBadge();
-            }
+
+        if (status.is_portable && status.is_installed) {
+            appendFooterPortableBadge();
         }
     } catch (err) {
         console.error("Installation check failed", err);
@@ -1170,11 +1254,15 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
     if (progress) progress.style.display = 'flex';
 
     try {
-        await invoke('install_local_pyenv');
+        const result = await invoke('install_local_pyenv');
         if (statusText) statusText.textContent = "Done! Environment refreshed.";
+        showAlert(
+            'Setup Complete',
+            `${result}<br><br>Open a <b>new terminal</b> so shims appear on PATH. This GUI process keeps its original PATH until restarted.`,
+        );
         setTimeout(() => {
             location.reload();
-        }, 1500);
+        }, 1200);
     } catch (err) {
         if (progress) progress.style.display = 'none';
         if (actions) actions.style.display = 'flex';
@@ -1346,7 +1434,7 @@ window.openVenvUpgradeWizard = async function(name, baseVersion) {
     upgraderSourceName = name;
     upgraderSourceBase = baseVersion;
     
-    upgraderTargetTitle.textContent = `Upgrade ${name}`;
+    upgraderTargetTitle.textContent = `Migrate ${name}`;
     upgraderTargetSubtitle.textContent = `Current Base: ${baseVersion}`;
     
     // Reset wizard view
@@ -1558,7 +1646,7 @@ window.openPackageExplorer = function(target) {
     if (scanImportsLoading) scanImportsLoading.style.display = 'none';
     if (btnScanImports) {
         btnScanImports.disabled = false;
-        btnScanImports.textContent = "Scan Workspace";
+        btnScanImports.textContent = "Scan";
     }
     scannedMissingImports = [];
     if (scanMissingBadges) scanMissingBadges.replaceChildren();
@@ -2096,11 +2184,38 @@ btnInstallImported.addEventListener('click', async () => {
 });
 
 // Codebase Import Analyzer Logic
+let scanTargetDir = '';
+const btnSelectScanFolder = document.getElementById('btn-select-scan-folder');
+const scanFolderLabel = document.getElementById('scan-folder-label');
+
+function updateScanFolderLabel() {
+    if (!scanFolderLabel) return;
+    if (scanTargetDir) {
+        scanFolderLabel.textContent = `Scan folder: ${scanTargetDir}`;
+    } else {
+        scanFolderLabel.textContent = 'Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.';
+    }
+}
+
+if (btnSelectScanFolder) {
+    btnSelectScanFolder.addEventListener('click', async () => {
+        try {
+            const selected = await invoke('select_directory');
+            if (selected) {
+                scanTargetDir = selected;
+                updateScanFolderLabel();
+            }
+        } catch (err) {
+            showAlert('Folder Selection Failed', err);
+        }
+    });
+}
+
 if (btnScanImports) {
     btnScanImports.addEventListener('click', async () => {
-        const wsDir = currentWorkspaceDir || '';
-        if (!wsDir) {
-            showAlert("Workspace Required", "Please select a workspace directory first using the Workspace Selector in the sidebar.");
+        const scanDir = scanTargetDir || currentWorkspaceDir || '';
+        if (!scanDir) {
+            showAlert("Folder Required", "Select a project folder with <b>Select Folder</b>, or set a workspace directory first.");
             return;
         }
         
@@ -2115,7 +2230,7 @@ if (btnScanImports) {
             const jsonStr = await invoke('analyze_codebase_imports', {
                 workspaceDir: getWorkspaceDir(),
                 target: currentExplorerTarget,
-                dirPath: wsDir
+                dirPath: scanDir
             });
             
             const scan = JSON.parse(jsonStr);
@@ -2183,10 +2298,15 @@ if (btnScanImports) {
         } finally {
             if (scanImportsLoading) scanImportsLoading.style.display = 'none';
             btnScanImports.disabled = false;
-            btnScanImports.textContent = "Scan Workspace";
+            btnScanImports.textContent = "Scan";
         }
     });
 }
+
+document.getElementById('btn-refresh-cache')?.addEventListener('click', () => loadCacheStats());
+document.getElementById('btn-purge-packages-cache')?.addEventListener('click', () => purgeCacheTarget('packages', 'download / package cache'));
+document.getElementById('btn-purge-build-cache')?.addEventListener('click', () => purgeCacheTarget('python-build', 'python-build cache'));
+document.getElementById('btn-purge-all-cache')?.addEventListener('click', () => purgeCacheTarget('all', 'all pyenv caches'));
 
 if (btnInstallMissingImports) {
     btnInstallMissingImports.addEventListener('click', async () => {
@@ -2343,11 +2463,19 @@ async function loadShellIntegration() {
             }
 
             if (status.is_installed) {
+                const pathLabel = status.path_label
+                    || (status.active_in_path
+                        ? 'PATH Active'
+                        : (status.is_configured ? 'Restart terminal to activate' : 'Shims not on PATH'));
+                const pathOk = status.active_in_path;
+                const pathSoft = !pathOk && status.is_configured;
                 badges.appendChild(createShellStatusBadge(
-                    status.active_in_path ? 'PATH Active' : 'Shims Missing from PATH',
-                    status.active_in_path
+                    pathLabel,
+                    pathOk
                         ? 'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;'
-                        : 'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;',
+                        : pathSoft
+                            ? 'background: rgba(59, 130, 246, 0.1); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.2); margin-left: 8px;'
+                            : 'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;',
                 ));
             }
 

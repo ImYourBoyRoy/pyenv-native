@@ -366,7 +366,9 @@ code {
 }
 .card-list { display: flex; flex-direction: column; gap: 12px; }
 .version-card {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   padding: 16px 24px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
@@ -386,8 +388,19 @@ code {
   font-family: 'JetBrains Mono', monospace;
   color: var(--text-primary);
 }
-.version-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-.version-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.version-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 55%;
+}
+.version-actions .btn {
+  white-space: nowrap;
+}
+.version-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; word-break: break-all; }
 
 /* Loaders/States */
 .empty-state {
@@ -837,25 +850,74 @@ select optgroup {
   padding-right: 16px;
   line-height: 1.45;
 }
+.settings-page-intro {
+  margin: -8px 0 20px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 62ch;
+}
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 .settings-fieldset {
   border: none;
   margin: 0;
-  padding: 16px 24px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   width: 100%;
+  background: rgba(12, 16, 24, 0.72);
 }
 .settings-fieldset legend {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-heading);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   padding: 0;
+  letter-spacing: 0.01em;
 }
 .settings-intro {
-  margin: 0 0 12px 0;
+  margin: 0 0 14px 0;
   padding-right: 0;
+}
+.cache-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.cache-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cache-row {
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.cache-row-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.cache-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  word-break: break-all;
+}
+.cache-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 .setting-toggle {
   display: flex;
