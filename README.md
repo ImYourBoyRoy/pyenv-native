@@ -264,7 +264,7 @@ SELECTION:      global, local, shell, latest, version, version-name, prefix
 PROVISIONING:   install, available, versions, uninstall
 ENVIRONMENT:    venv (managed virtual environments)
 INTERFACE:      init, gui, rehash, shims, prompt, exec, completions
-DIAGNOSTICS:    doctor, status, config, root, which, whence
+DIAGNOSTICS:    doctor, preflight, environment, status, config, root, which, whence
 MAINTENANCE:    self-update, self-uninstall
 ```
 
@@ -285,7 +285,7 @@ If you encounter an issue, please [open a GitHub Issue](https://github.com/imyou
 - **Problematic Output** (the full command and any error messages)
 
 > [!TIP]
-> Run `pyenv doctor` to get a quick summary of your environment health if the CLI is already installed.
+> Run `pyenv preflight` before source installs (macOS/Android/Linux) to verify toolchain readiness, or `pyenv doctor` for a full health summary if the CLI is already installed.
 
 ---
 

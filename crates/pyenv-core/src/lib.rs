@@ -14,6 +14,7 @@ mod manage;
 mod meta;
 mod pip;
 mod plugin;
+mod preflight;
 mod process;
 mod runtime;
 mod self_update;
@@ -47,7 +48,7 @@ pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
 pub use install::{
     InstallCommandOptions, InstallOutcome, InstallPlan, cmd_available, cmd_install,
-    install_runtime_plan, resolve_install_plan,
+    install_runtime_plan, install_runtime_plan_with_progress, resolve_install_plan,
 };
 pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
 pub use meta::{
@@ -60,6 +61,10 @@ pub use pip::{
     cmd_pip_update, resolve_interpreter_path,
 };
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
+pub use preflight::{
+    PlatformFact, PlatformIntelligence, PreflightVerdict, build_platform_intelligence,
+    cmd_environment, cmd_preflight,
+};
 pub use runtime::BASE_VENV_DIR_NAME;
 pub use self_update::{SelfUpdateOptions, cmd_self_uninstall, cmd_self_update};
 pub use shell::{

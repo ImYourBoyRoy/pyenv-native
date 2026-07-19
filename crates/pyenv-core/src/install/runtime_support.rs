@@ -6,11 +6,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[cfg(any(target_os = "android", test))]
-use std::env;
-
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::preflight::{
+    android_source_build_env, detect_android_api_level, ensure_source_build_ready,
+    is_termux_environment, macos_source_build_env, resolve_termux_prefix,
+};
 
 use super::archive::run_python;
 use super::report::{format_command_output_suffix, io_error};
@@ -55,7 +56,10 @@ pub(super) fn build_cpython_source_install(
     plan: &InstallPlan,
     source_dir: &Path,
     build_dir: &Path,
+    on_progress: Option<&mut dyn FnMut(&str)>,
 ) -> Result<(), PyenvError> {
+    ensure_source_build_ready(std::env::consts::OS)?;
+
     let configure_script = source_dir.join("configure");
     if !configure_script.is_file() {
         return Err(PyenvError::Io(format!(
@@ -64,18 +68,33 @@ pub(super) fn build_cpython_source_install(
         )));
     }
 
+    let emit = |on_progress: &mut Option<&mut dyn FnMut(&str)>, phase: &str, detail: String| {
+        if let Some(callback) = on_progress.as_mut() {
+            callback(&format!("{phase}: {detail}"));
+        }
+    };
+
+    let mut on_progress = on_progress;
     let prefix_arg = format!("--prefix={}", plan.install_dir.display());
     let mut configure = Command::new("sh");
     configure
         .headless()
         .current_dir(build_dir)
-        .arg(configure_script)
-        .arg(prefix_arg)
+        .arg(&configure_script)
+        .arg(&prefix_arg)
         .arg("--with-ensurepip=install");
     if plan.free_threaded {
         configure.arg("--disable-gil");
     }
-    apply_android_source_build_env(&mut configure);
+    apply_source_build_env(&mut configure);
+    emit(
+        &mut on_progress,
+        "configure",
+        format!(
+            "running configure for {} (OpenSSL/toolchain flags applied when available)",
+            plan.resolved_version
+        ),
+    );
     run_checked_process(
         configure,
         format!("configure source build for `{}`", plan.resolved_version),
@@ -88,12 +107,29 @@ pub(super) fn build_cpython_source_install(
     make.headless()
         .current_dir(build_dir)
         .arg(format!("-j{jobs}"));
-    apply_android_source_build_env(&mut make);
+    apply_source_build_env(&mut make);
+    emit(
+        &mut on_progress,
+        "compile",
+        format!(
+            "compiling {} with make -j{jobs} (this can take several minutes)",
+            plan.resolved_version
+        ),
+    );
     run_checked_process(make, format!("build `{}`", plan.resolved_version))?;
 
     let mut install = Command::new("make");
     install.headless().current_dir(build_dir).arg("install");
-    apply_android_source_build_env(&mut install);
+    apply_source_build_env(&mut install);
+    emit(
+        &mut on_progress,
+        "install",
+        format!(
+            "installing compiled {} into {}",
+            plan.resolved_version,
+            plan.install_dir.display()
+        ),
+    );
     run_checked_process(
         install,
         format!(
@@ -120,106 +156,22 @@ fn run_checked_process(mut command: Command, description: String) -> Result<(), 
     )))
 }
 
-fn apply_android_source_build_env(command: &mut Command) {
-    #[cfg(target_os = "android")]
-    {
-        let prefix = env::var_os("PREFIX").map(PathBuf::from);
+fn apply_source_build_env(command: &mut Command) {
+    // Runtime OS checks keep macOS OpenSSL env helpers compiled on all hosts (CI/Linux)
+    // while still applying them only when installing on macOS.
+    if std::env::consts::OS == "macos" {
+        for (key, value) in macos_source_build_env() {
+            command.env(key, value);
+        }
+    }
+
+    if cfg!(target_os = "android") || is_termux_environment() {
+        let prefix = resolve_termux_prefix();
         for (key, value) in android_source_build_env(prefix.as_deref(), detect_android_api_level())
         {
             command.env(key, value);
         }
     }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = command;
-    }
-}
-
-#[cfg(any(target_os = "android", test))]
-fn android_source_build_env(
-    prefix: Option<&Path>,
-    api_level: Option<u32>,
-) -> Vec<(String, String)> {
-    let mut env_pairs = Vec::new();
-
-    if let Some(prefix) = prefix {
-        let include_dir = prefix.join("include");
-        let lib_dir = prefix.join("lib");
-        env_pairs.push((
-            "CPPFLAGS".to_string(),
-            append_shell_flag(
-                env::var("CPPFLAGS").ok().as_deref(),
-                &format!("-I{}", include_dir.display()),
-            ),
-        ));
-        env_pairs.push((
-            "LDFLAGS".to_string(),
-            append_shell_flag(
-                env::var("LDFLAGS").ok().as_deref(),
-                &format!("-L{} -Wl,-rpath,{}", lib_dir.display(), lib_dir.display()),
-            ),
-        ));
-        env_pairs.push(("LIBCRYPT_LIBS".to_string(), "-lcrypt".to_string()));
-    }
-
-    if let Some(api_level) = api_level {
-        if api_level < 28 {
-            env_pairs.push(("ac_cv_func_fexecve".to_string(), "no".to_string()));
-            env_pairs.push(("ac_cv_func_getlogin_r".to_string(), "no".to_string()));
-        }
-        if api_level < 29 {
-            env_pairs.push(("ac_cv_func_getloadavg".to_string(), "no".to_string()));
-        }
-        if api_level < 30 {
-            env_pairs.push(("ac_cv_func_sem_clockwait".to_string(), "no".to_string()));
-        }
-        if api_level < 33 {
-            env_pairs.push(("ac_cv_func_preadv2".to_string(), "no".to_string()));
-            env_pairs.push(("ac_cv_func_pwritev2".to_string(), "no".to_string()));
-        }
-        if api_level < 34 {
-            env_pairs.push(("ac_cv_func_close_range".to_string(), "no".to_string()));
-            env_pairs.push(("ac_cv_func_copy_file_range".to_string(), "no".to_string()));
-        }
-    }
-
-    env_pairs
-}
-
-#[cfg(any(target_os = "android", test))]
-fn append_shell_flag(existing: Option<&str>, addition: &str) -> String {
-    match existing.map(str::trim).filter(|value| !value.is_empty()) {
-        Some(existing) => format!("{existing} {addition}"),
-        None => addition.to_string(),
-    }
-}
-
-#[cfg(any(target_os = "android", test))]
-#[cfg_attr(test, allow(dead_code))]
-fn detect_android_api_level() -> Option<u32> {
-    for key in [
-        "TERMUX_PKG_API_LEVEL",
-        "ANDROID_API_LEVEL",
-        "TERMUX_API_LEVEL",
-    ] {
-        if let Ok(value) = env::var(key)
-            && let Ok(parsed) = value.trim().parse::<u32>()
-        {
-            return Some(parsed);
-        }
-    }
-
-    let output = Command::new("getprop")
-        .headless()
-        .arg("ro.build.version.sdk")
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-
-    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
 pub(super) fn ensure_unix_runtime_aliases(
@@ -346,7 +298,7 @@ pub(super) fn upgrade_pip_latest(python_executable: &Path) -> bool {
 mod tests {
     use std::path::Path;
 
-    use super::android_source_build_env;
+    use crate::preflight::android_source_build_env;
 
     #[test]
     fn android_source_build_env_includes_termux_prefix_flags() {
