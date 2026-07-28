@@ -26,10 +26,16 @@ pub(super) struct ExecTarget {
 #[derive(Debug)]
 pub(super) struct RehashLockGuard {
     pub path: PathBuf,
+    pub pid: u32,
 }
 
 impl Drop for RehashLockGuard {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        if let Ok(contents) = fs::read_to_string(&self.path) {
+            let pid_pattern = format!("pid={}", self.pid);
+            if contents.contains(&pid_pattern) {
+                let _ = fs::remove_file(&self.path);
+            }
+        }
     }
 }

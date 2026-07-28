@@ -326,6 +326,21 @@ mod tests {
     }
 
     #[test]
+    fn rehash_replaces_empty_lock_file() {
+        let (_temp, ctx) = test_context();
+        let version_dir = ctx.versions_dir().join("3.12.6");
+        fs::create_dir_all(&version_dir).expect("version");
+        fs::write(version_dir.join("python.exe"), "").expect("python");
+        fs::create_dir_all(ctx.shims_dir()).expect("shims dir");
+        fs::write(ctx.shims_dir().join(SHIM_LOCK_FILE), "").expect("empty lock");
+        std::thread::sleep(std::time::Duration::from_millis(1050));
+
+        let count = rehash_shims(&ctx).expect("rehash");
+        assert_eq!(count, 2);
+        assert!(!ctx.shims_dir().join(SHIM_LOCK_FILE).exists());
+    }
+
+    #[test]
     fn adjusted_path_deduplicates_prefix_and_existing_entries() {
         let (_temp, mut ctx) = test_context();
         let first = ctx.root.join("versions").join("3.12.6").join("Scripts");
