@@ -125,11 +125,12 @@ fn write_shim_manifest(shims_dir: &Path, commands: &[String]) -> Result<(), Pyen
 
 fn acquire_rehash_lock(shims_dir: &Path) -> Result<RehashLockGuard, PyenvError> {
     let path = shims_dir.join(SHIM_LOCK_FILE);
+    let pid = process::id();
     let created_at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let payload = format!("pid={}\ncreated_at={created_at}\n", process::id());
+    let payload = format!("pid={pid}\ncreated_at={created_at}\n");
 
     for _ in 0..2 {
         match OpenOptions::new().write(true).create_new(true).open(&path) {
@@ -138,7 +139,7 @@ fn acquire_rehash_lock(shims_dir: &Path) -> Result<RehashLockGuard, PyenvError> 
 
                 file.write_all(payload.as_bytes()).map_err(io_error)?;
                 file.flush().map_err(io_error)?;
-                return Ok(RehashLockGuard { path });
+                return Ok(RehashLockGuard { path, pid });
             }
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
                 if lock_file_is_stale(&path) {
@@ -161,8 +162,15 @@ fn acquire_rehash_lock(shims_dir: &Path) -> Result<RehashLockGuard, PyenvError> 
 }
 
 fn lock_file_is_stale(path: &Path) -> bool {
-    let Ok(contents) = fs::read_to_string(path) else {
+    let Ok(metadata) = fs::metadata(path) else {
         return false;
+    };
+
+    let Ok(contents) = fs::read_to_string(path) else {
+        if let Some(elapsed) = metadata.modified().ok().and_then(|m| m.elapsed().ok()) {
+            return elapsed.as_secs() > SHIM_LOCK_STALE_SECS;
+        }
+        return true;
     };
 
     let pid = contents
@@ -174,18 +182,33 @@ fn lock_file_is_stale(path: &Path) -> bool {
         return true;
     }
 
-    let Some(created_at) = contents
+    let created_at = contents
         .lines()
         .find_map(|line| line.strip_prefix("created_at="))
-        .and_then(|value| value.parse::<u64>().ok())
-    else {
-        return false;
-    };
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    now.saturating_sub(created_at) > SHIM_LOCK_STALE_SECS
+        .and_then(|value| value.parse::<u64>().ok());
+
+    if let Some(created_at) = created_at {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if now.saturating_sub(created_at) > SHIM_LOCK_STALE_SECS {
+            return true;
+        }
+    } else {
+        if contents.trim().is_empty() {
+            if let Some(elapsed) = metadata.modified().ok().and_then(|m| m.elapsed().ok()) {
+                return elapsed.as_millis() >= 1000;
+            }
+            return true;
+        }
+        if let Some(elapsed) = metadata.modified().ok().and_then(|m| m.elapsed().ok()) {
+            return elapsed.as_secs() > SHIM_LOCK_STALE_SECS;
+        }
+        return true;
+    }
+
+    false
 }
 
 #[cfg(windows)]

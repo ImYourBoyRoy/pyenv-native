@@ -5,8 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = "1.0.104"
-clap = { version = "4.6.2", features = ["derive"] }
+anyhow = "^1.0.104"
+clap = { version = "^4.6.4", features = ["derive"] }
 pyenv-core = { path = "../pyenv-core" }
 
 [[bin]]

@@ -1,6 +1,6 @@
 {
   "productName": "Pyenv Native",
-  "version": "0.0.0",
+  "version": "0.2.35",
   "identifier": "com.pyenv-native.gui",
   "build": {
     "frontendDist": "ui"
