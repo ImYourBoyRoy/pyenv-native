@@ -1,13 +1,23 @@
 // ./crates/pyenv-gui/src/desktop_integration.rs
 //! Platform desktop integration helpers (dock/taskbar icons, Freedesktop launchers).
+//!
+//! Linux gets Freedesktop `.desktop` + icon install. Windows/macOS only apply the
+//! Tauri window icon — keep Linux-only symbols behind `cfg(target_os = "linux")`
+//! so other targets stay warning-clean.
 
-use std::fs;
-use std::path::{Path, PathBuf};
 use tauri::Manager;
 
+#[cfg(target_os = "linux")]
+use std::fs;
+#[cfg(target_os = "linux")]
+use std::path::{Path, PathBuf};
+
+#[cfg(target_os = "linux")]
 const APP_ID: &str = "com.pyenv-native.gui";
 /// GNOME dock grouping matches this WM class / app identity (binary name on Linux).
+#[cfg(target_os = "linux")]
 const STARTUP_WM_CLASS: &str = "pyenv-gui";
+#[cfg(target_os = "linux")]
 const ICON_SIZES: &[(&str, &[u8])] = &[
     ("32x32", include_bytes!("../icons/32x32.png")),
     ("128x128", include_bytes!("../icons/128x128.png")),
@@ -25,9 +35,6 @@ pub fn prepare_linux_runtime() {
         std::env::set_var("GTK_APPLICATION_ID", APP_ID);
     }
 }
-
-#[cfg(not(target_os = "linux"))]
-pub fn prepare_linux_runtime() {}
 
 pub fn prepare_app(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     apply_window_icons(app);
@@ -69,11 +76,6 @@ fn ensure_freedesktop_integration() -> Result<(), Box<dyn std::error::Error>> {
 
     write_desktop_entry(&desktop_path, &exe, &icon_path)?;
     refresh_desktop_cache(&data_home);
-    Ok(())
-}
-
-#[cfg(not(target_os = "linux"))]
-fn ensure_freedesktop_integration() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
