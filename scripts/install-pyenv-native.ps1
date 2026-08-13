@@ -293,7 +293,8 @@ function Update-PowerShellProfileBlock {
     $block = @(
         $beginMarker,
         "if (Test-Path '$escapedInstalledExePath') {",
-        "  iex ((& '$escapedInstalledExePath' init - pwsh) -join ""`n"")",
+        "  `$__pyenv_init = (& '$escapedInstalledExePath' init - pwsh) -join ""`n""",
+        '  if ($__pyenv_init) { Invoke-Expression $__pyenv_init }',
         '}',
         $endMarker
     ) -join [Environment]::NewLine
@@ -308,6 +309,11 @@ function Update-PowerShellProfileBlock {
     $pattern = [regex]::Escape($beginMarker) + '.*?' + [regex]::Escape($endMarker)
     if ($existing -match $pattern) {
         $updated = [regex]::Replace($existing, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $block }, 'Singleline')
+    } elseif ($existing -match 'pyenv init') {
+        # Profile already evaluates pyenv init (GUI or manual snippet). Do not append a
+        # second block — double init made `(pyenv init - pwsh)` hit the shell function,
+        # which previously discarded stdout and broke Invoke-Expression with an empty string.
+        return $profilePath
     } elseif ([string]::IsNullOrWhiteSpace($existing)) {
         $updated = $block + [Environment]::NewLine
     } else {

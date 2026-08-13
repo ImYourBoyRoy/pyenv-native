@@ -14,8 +14,10 @@ mod tests {
     use super::super::{
         BASE_VENV_DIR_NAME, collect_shim_names_from_prefix, find_command_in_prefix,
         inventory_roots_for_version, managed_search_roots_for_version, prefix_bin_dirs,
-        search_path_entries,
     };
+
+    #[cfg(windows)]
+    use super::super::search_path_entries;
 
     fn test_path_ext() -> Option<OsString> {
         if cfg!(windows) {

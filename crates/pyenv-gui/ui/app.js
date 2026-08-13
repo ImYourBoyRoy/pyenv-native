@@ -2448,19 +2448,34 @@ async function loadPlatformIntelligence() {
 
         if (blockersEl) {
             const blockers = intel.blocking_issues || [];
-            if (blockers.length) {
+            const warnings = intel.warnings || [];
+            if (blockers.length || warnings.length) {
                 blockersEl.style.display = 'block';
                 blockersEl.replaceChildren();
-                const title = document.createElement('div');
-                title.style.cssText = 'font-size: 11px; font-weight: 600; color: #f87171; margin-bottom: 6px;';
-                title.textContent = 'Blocking before install';
-                blockersEl.appendChild(title);
-                blockers.forEach((issue) => {
-                    const row = document.createElement('div');
-                    row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
-                    row.textContent = `• ${issue}`;
-                    blockersEl.appendChild(row);
-                });
+                if (blockers.length) {
+                    const title = document.createElement('div');
+                    title.style.cssText = 'font-size: 11px; font-weight: 600; color: #f87171; margin-bottom: 6px;';
+                    title.textContent = 'Blocking before install';
+                    blockersEl.appendChild(title);
+                    blockers.forEach((issue) => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
+                        row.textContent = `• ${issue}`;
+                        blockersEl.appendChild(row);
+                    });
+                }
+                if (warnings.length) {
+                    const warnTitle = document.createElement('div');
+                    warnTitle.style.cssText = `font-size: 11px; font-weight: 600; color: #fbbf24; margin-bottom: 6px;${blockers.length ? ' margin-top: 10px;' : ''}`;
+                    warnTitle.textContent = 'Install prerequisites needing attention';
+                    blockersEl.appendChild(warnTitle);
+                    warnings.forEach((issue) => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
+                        row.textContent = `• ${issue}`;
+                        blockersEl.appendChild(row);
+                    });
+                }
             } else {
                 blockersEl.style.display = 'none';
                 blockersEl.replaceChildren();

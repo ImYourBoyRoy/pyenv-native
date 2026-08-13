@@ -61,17 +61,21 @@ impl PlatformIntelligence {
         {
             return PreflightVerdict::Blocked;
         }
-        if checks
-            .iter()
-            .any(|check| check.status == DoctorStatus::Warn)
-        {
+        // Host Environment is install-readiness, not live shell/shim health.
+        // PATH / shim / selected-version warnings belong in doctor + shell cards —
+        // they must not mark a healthy Windows NuGet host as "Needs attention"
+        // merely because a desktop GUI process did not inherit User PATH.
+        if checks.iter().any(|check| {
+            check.status == DoctorStatus::Warn && affects_install_readiness(&check.name)
+        }) {
             return PreflightVerdict::NeedsAttention;
         }
         PreflightVerdict::Ready
     }
 }
 
-fn is_blocking_check(name: &str) -> bool {
+/// Checks that hard-block runtime installs when Warn.
+pub(crate) fn is_blocking_check(name: &str) -> bool {
     matches!(
         name,
         "source-build-shell"
@@ -88,4 +92,14 @@ fn is_blocking_check(name: &str) -> bool {
             | "android-termux-prefix"
             | "android-source-build-readiness"
     )
+}
+
+/// Soft install/toolchain prerequisites and install conflicts.
+/// Excludes shell PATH, shim function, and selection health (shown elsewhere).
+pub(crate) fn affects_install_readiness(name: &str) -> bool {
+    is_blocking_check(name)
+        || matches!(
+            name,
+            "root-directory" | "pyenv-win-root" | "pyenv-win-path-conflict"
+        )
 }

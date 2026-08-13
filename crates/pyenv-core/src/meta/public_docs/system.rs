@@ -77,7 +77,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "Supported shells: pwsh (PowerShell), cmd, bash, zsh, fish, sh",
             "",
             "Setup (add to your shell profile):",
-            "  PowerShell:   iex ((pyenv init - pwsh) -join \"`n\")",
+            "  PowerShell:   $__pyenv_init = (pyenv init - pwsh) -join \"`n\"; if ($__pyenv_init) { Invoke-Expression $__pyenv_init }",
             "  Bash:         eval \"$(pyenv init - bash)\"",
             "  Zsh:          eval \"$(pyenv init - zsh)\"",
             "  Fish:         pyenv init - fish | source",

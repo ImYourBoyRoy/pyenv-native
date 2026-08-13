@@ -69,4 +69,54 @@ mod tests {
                     || check.status == DoctorStatus::Info)
         );
     }
+
+    #[test]
+    fn host_environment_ignores_shell_path_warns_for_verdict() {
+        use crate::doctor::{DoctorCheck, DoctorStatus};
+        use crate::preflight::{PlatformIntelligence, PreflightVerdict};
+
+        let checks = vec![
+            DoctorCheck {
+                name: "pyenv-bin-on-path".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "bin missing from process PATH".to_string(),
+            },
+            DoctorCheck {
+                name: "shims-on-path".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "shims missing from process PATH".to_string(),
+            },
+            DoctorCheck {
+                name: "functional-shim-check".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "python shim not found".to_string(),
+            },
+            DoctorCheck {
+                name: "selected-version".to_string(),
+                status: DoctorStatus::Warn,
+                detail: "missing version".to_string(),
+            },
+        ];
+        assert_eq!(
+            PlatformIntelligence::derive_verdict(&checks, &[]),
+            PreflightVerdict::Ready,
+            "shell/shim/selection warns must not mark Host Environment Needs Attention"
+        );
+    }
+
+    #[test]
+    fn host_environment_marks_attention_for_install_conflicts() {
+        use crate::doctor::{DoctorCheck, DoctorStatus};
+        use crate::preflight::{PlatformIntelligence, PreflightVerdict};
+
+        let checks = vec![DoctorCheck {
+            name: "pyenv-win-path-conflict".to_string(),
+            status: DoctorStatus::Warn,
+            detail: "legacy pyenv-win shadows native bin".to_string(),
+        }];
+        assert_eq!(
+            PlatformIntelligence::derive_verdict(&checks, &[]),
+            PreflightVerdict::NeedsAttention
+        );
+    }
 }

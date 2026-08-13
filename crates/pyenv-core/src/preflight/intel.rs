@@ -11,7 +11,10 @@ use crate::install::resolve_install_plan;
 
 use super::android::inspect_android_toolchain;
 use super::macos::inspect_macos_toolchain;
-use super::types::{PlatformFact, PlatformIntelligence, PreflightVerdict};
+use super::types::{
+    PlatformFact, PlatformIntelligence, PreflightVerdict, affects_install_readiness,
+    is_blocking_check,
+};
 
 pub fn build_platform_intelligence(ctx: &AppContext) -> PlatformIntelligence {
     let os = env::consts::OS.to_string();
@@ -33,12 +36,15 @@ pub fn build_platform_intelligence(ctx: &AppContext) -> PlatformIntelligence {
     let mut warnings = Vec::new();
     for check in &checks {
         match check.status {
-            DoctorStatus::Warn if is_install_blocker(&check.name) => {
+            DoctorStatus::Warn if is_blocking_check(&check.name) => {
                 blocking_issues.push(format!("{}: {}", check.name, check.detail));
             }
-            DoctorStatus::Warn => {
+            DoctorStatus::Warn if affects_install_readiness(&check.name) => {
                 warnings.push(format!("{}: {}", check.name, check.detail));
             }
+            // Shell PATH / shim / selection health stay in doctor output; they do not
+            // dilute Host Environment install-readiness.
+            DoctorStatus::Warn => {}
             _ => {}
         }
     }
@@ -63,10 +69,10 @@ pub fn build_platform_intelligence(ctx: &AppContext) -> PlatformIntelligence {
 
     let summary = match verdict {
         PreflightVerdict::Ready => format!(
-            "{os_pretty_name} looks ready for pyenv-native runtime installs via {install_strategy}."
+            "{os_pretty_name} looks ready for pyenv-native runtime installs via {install_strategy}. Shell PATH and shim health are reported in the shell cards and doctor section below."
         ),
         PreflightVerdict::NeedsAttention => format!(
-            "{os_pretty_name} can mostly install runtimes via {install_strategy}, but some optional prerequisites need attention."
+            "{os_pretty_name} can mostly install runtimes via {install_strategy}, but some install prerequisites need attention."
         ),
         PreflightVerdict::Blocked => format!(
             "{os_pretty_name} is not ready for a successful source/runtime install yet. Resolve blocking prerequisites first."
@@ -196,25 +202,6 @@ pub fn build_platform_intelligence(ctx: &AppContext) -> PlatformIntelligence {
     }
 }
 
-fn is_install_blocker(name: &str) -> bool {
-    matches!(
-        name,
-        "source-build-shell"
-            | "source-build-make"
-            | "source-build-compiler"
-            | "source-build-readiness"
-            | "macos-xcode-clt"
-            | "macos-openssl"
-            | "termux-tool-clang"
-            | "termux-tool-make"
-            | "termux-tool-pkg-config"
-            | "termux-lib-openssl"
-            | "termux-lib-libffi"
-            | "android-termux-prefix"
-            | "android-source-build-readiness"
-    )
-}
-
 fn describe_install_strategy(os: &str) -> String {
     match os {
         "windows" => "windows NuGet / embeddable packages (no local CPython compile)".to_string(),
@@ -241,7 +228,15 @@ fn detect_os_pretty_name(os: &str) -> String {
                 format!("{product} {version}")
             }
         }
-        "windows" => env::var("OS").unwrap_or_else(|_| "Windows".to_string()),
+        "windows" => {
+            // %OS% is usually the opaque "Windows_NT"; prefer a human host label.
+            let product = env::var("OS").unwrap_or_else(|_| "Windows".to_string());
+            if product.eq_ignore_ascii_case("Windows_NT") || product.is_empty() {
+                format!("Windows ({})", env::consts::ARCH)
+            } else {
+                product
+            }
+        }
         "android" => {
             let release = read_command_line(&["getprop", "ro.build.version.release"])
                 .unwrap_or_else(|| "Android".to_string());
@@ -293,5 +288,13 @@ mod tests {
         let strategy = describe_install_strategy("macos");
         assert!(strategy.contains("source"));
         assert!(strategy.to_ascii_lowercase().contains("openssl"));
+    }
+
+    #[test]
+    fn windows_strategy_is_prebuilt_not_source() {
+        let strategy = describe_install_strategy("windows");
+        let lower = strategy.to_ascii_lowercase();
+        assert!(lower.contains("nuget") || lower.contains("embeddable"));
+        assert!(lower.contains("no local cpython compile") || !lower.contains("source build"));
     }
 }

@@ -57,7 +57,13 @@ $cmdLayout = New-SmokeLayout -Name 'cmd'
 $pwshCommand = @"
 `$env:PYENV_ROOT = '$($pwshLayout.PyenvRoot.Replace("'", "''"))'
 Set-Location '$($pwshLayout.WorkDir.Replace("'", "''"))'
-iex ((& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine)
+`$__pyenv_init = (& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__pyenv_init) { throw 'Expected non-empty pyenv init output' }
+Invoke-Expression `$__pyenv_init
+# Regression: init must still return capturable stdout after the pyenv function shadows the exe.
+`$__pyenv_init2 = (pyenv init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__pyenv_init2) { throw 'pyenv init returned empty after function load (stdout not pipelined)' }
+if (`$__pyenv_init2 -notmatch 'function pyenv') { throw 'Captured init output missing pyenv function' }
 pyenv shell 3.13.12
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 `$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
@@ -68,7 +74,12 @@ if ((`$result | Select-Object -Last 1).Trim() -ne '3.13.12') { throw 'Expected v
 $ps5Command = @"
 `$env:PYENV_ROOT = '$($ps5Layout.PyenvRoot.Replace("'", "''"))'
 Set-Location '$($ps5Layout.WorkDir.Replace("'", "''"))'
-iex ((& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine)
+`$__pyenv_init = (& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__pyenv_init) { throw 'Expected non-empty pyenv init output' }
+Invoke-Expression `$__pyenv_init
+`$__pyenv_init2 = (pyenv init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__pyenv_init2) { throw 'pyenv init returned empty after function load (stdout not pipelined)' }
+if (`$__pyenv_init2 -notmatch 'function pyenv') { throw 'Captured init output missing pyenv function' }
 pyenv shell 3.13.12
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 `$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
