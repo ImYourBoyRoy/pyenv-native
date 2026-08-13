@@ -13,7 +13,7 @@ pub(super) fn shell_init_hint(ctx: &AppContext, platform: &str) -> String {
             Some("cmd") => {
                 "Add `for /f \"delims=\" %i in ('pyenv init - cmd') do %i` to your shell startup or rerun the Windows installer".to_string()
             }
-            _ => "Add `iex ((pyenv init - pwsh) -join \"`n\")` to your PowerShell profile or rerun the Windows installer".to_string(),
+            _ => "Add `$__pyenv_init = (pyenv init - pwsh) -join \"`n\"; if ($__pyenv_init) { Invoke-Expression $__pyenv_init }` to your PowerShell profile or rerun the Windows installer".to_string(),
         },
         _ => match ctx.env_shell.as_deref() {
             Some("zsh") => "Add `eval \"$(pyenv init - zsh)\"` to ~/.zshrc".to_string(),

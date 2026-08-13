@@ -126,7 +126,7 @@ pub(super) const COMPATIBILITY_COMMAND_DOCS: &[CommandDoc] = &[
             "",
             "Examples:",
             "  eval \"$(pyenv virtualenv-init - bash)\"",
-            "  iex ((pyenv virtualenv-init - pwsh) -join \"`n\")",
+            "  $__pyenv_init = (pyenv virtualenv-init - pwsh) -join \"`n\"; if ($__pyenv_init) { Invoke-Expression $__pyenv_init }",
             "",
             "Preferred native command: `pyenv init - <shell>`.",
         ],

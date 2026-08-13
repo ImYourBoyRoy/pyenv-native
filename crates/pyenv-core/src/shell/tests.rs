@@ -211,6 +211,12 @@ fn init_print_for_pwsh_sets_path_env_and_function() {
         report
             .stdout
             .iter()
+            .any(|line| line.contains("function Invoke-PyenvExpression"))
+    );
+    assert!(
+        report
+            .stdout
+            .iter()
             .any(|line| line.contains("ArgumentList.Add"))
     );
     assert!(
@@ -229,8 +235,15 @@ fn init_print_for_pwsh_sets_path_env_and_function() {
         line.contains("Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + @($arguments))")
     }));
     assert!(report.stdout.iter().any(|line| {
+        line.contains("$_ -in @('init', 'virtualenv-init')")
+    }));
+    assert!(report.stdout.iter().any(|line| {
+        line.contains("if ($output.Count -gt 0) { $output }")
+    }));
+    assert!(report.stdout.iter().any(|line| {
         line.contains("Invoke-PyenvCaptured $pyenvExe (@('sh-shell', '--') + @($arguments))")
     }));
+    assert!(report.stdout.iter().any(|line| line.contains("Invoke-PyenvExpression")));
     assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     assert!(
         report
@@ -243,6 +256,28 @@ fn init_print_for_pwsh_sets_path_env_and_function() {
             .stdout
             .iter()
             .any(|line| line.contains("sh-deactivate"))
+    );
+}
+
+#[test]
+fn init_help_for_pwsh_guards_empty_invoke_expression() {
+    let (_temp, ctx) = test_context();
+    let help = cmd_init(&ctx, &[String::from("pwsh")]);
+    assert_eq!(help.exit_code, 1);
+    assert!(
+        help.stderr
+            .iter()
+            .any(|line| line.contains("$__pyenv_init = (pyenv init - pwsh)"))
+    );
+    assert!(
+        help.stderr
+            .iter()
+            .any(|line| line.contains("if ($__pyenv_init) { Invoke-Expression $__pyenv_init }"))
+    );
+    assert!(
+        help.stderr
+            .iter()
+            .all(|line| !line.contains("iex ((pyenv init - pwsh)"))
     );
 }
 

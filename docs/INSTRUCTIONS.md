@@ -280,7 +280,8 @@ After installation, initialize your shell so shim resolution and shell-scoped ve
 ### PowerShell shell init
 
 ```powershell
-iex ((pyenv init - pwsh) -join "`n")
+$__pyenv_init = (pyenv init - pwsh) -join "`n"
+if ($__pyenv_init) { Invoke-Expression $__pyenv_init }
 ```
 
 ### CMD shell init

@@ -686,7 +686,7 @@ fn configure_shell(shell_name: String, profile_path: String) -> Result<(), Strin
 
     // Format the initialization block to append
     let init_block = if shell_name.contains("PowerShell") {
-        "\n# pyenv-native shell initialization\niex ((pyenv init - pwsh) -join \"`n\")\n"
+        "\n# pyenv-native shell initialization\n$__pyenv_init = (pyenv init - pwsh) -join \"`n\"\nif ($__pyenv_init) { Invoke-Expression $__pyenv_init }\n"
     } else if shell_name.contains("Zsh") {
         "\n# pyenv-native shell initialization\neval \"$(pyenv init - zsh)\"\n"
     } else if shell_name.contains("Bash") {

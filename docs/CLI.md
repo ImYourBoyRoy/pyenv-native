@@ -115,7 +115,8 @@ To enable shims and the `pyenv` shell function, add the following to your shell 
 ### Windows (PowerShell Profile)
 
 ```powershell
-iex ((pyenv init - pwsh) -join "`n")
+$__pyenv_init = (pyenv init - pwsh) -join "`n"
+if ($__pyenv_init) { Invoke-Expression $__pyenv_init }
 ```
 
 ### Bash (`~/.bashrc`)
