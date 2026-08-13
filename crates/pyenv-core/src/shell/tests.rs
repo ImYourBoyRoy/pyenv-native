@@ -234,16 +234,27 @@ fn init_print_for_pwsh_sets_path_env_and_function() {
     assert!(report.stdout.iter().any(|line| {
         line.contains("Invoke-PyenvPassthrough $pyenvExe (@([string]$command) + @($arguments))")
     }));
-    assert!(report.stdout.iter().any(|line| {
-        line.contains("$_ -in @('init', 'virtualenv-init')")
-    }));
-    assert!(report.stdout.iter().any(|line| {
-        line.contains("if ($output.Count -gt 0) { $output }")
-    }));
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| { line.contains("$_ -in @('init', 'virtualenv-init')") })
+    );
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| { line.contains("if ($output.Count -gt 0) { $output }") })
+    );
     assert!(report.stdout.iter().any(|line| {
         line.contains("Invoke-PyenvCaptured $pyenvExe (@('sh-shell', '--') + @($arguments))")
     }));
-    assert!(report.stdout.iter().any(|line| line.contains("Invoke-PyenvExpression")));
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.contains("Invoke-PyenvExpression"))
+    );
     assert!(report.stdout.iter().any(|line| line.contains("sh-shell")));
     assert!(
         report

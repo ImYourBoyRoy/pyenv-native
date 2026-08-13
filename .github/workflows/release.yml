@@ -30,10 +30,13 @@ jobs:
           targets: x86_64-pc-windows-msvc
           components: rustfmt
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Version sync check
         shell: pwsh
@@ -97,6 +100,9 @@ jobs:
           toolchain: stable-x86_64-pc-windows-msvc
           targets: aarch64-pc-windows-msvc
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Build Windows ARM64 release bundle
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
@@ -119,10 +125,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           
       - name: Install dependencies (Linux)
         run: |
@@ -168,6 +177,9 @@ jobs:
         with:
           targets: aarch64-unknown-linux-musl
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Install Cross
         run: cargo install cross --locked
 
@@ -203,6 +215,9 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
@@ -234,10 +249,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Test Rust workspace
         shell: bash
@@ -276,10 +294,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Test Rust workspace
         shell: bash
