@@ -1,0 +1,22 @@
+/* ./crates/pyenv-gui/ui/styles/tokens.css — design tokens */
+:root {
+  --bg-color: #0b0c10; 
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  --text-main: #f8fafc;
+  --text-primary: #f8fafc;
+  --text-heading: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.5);
+  --accent-gold: #ffd43b;
+  --success: #10b981;
+  --danger: #ef4444;
+  --titlebar-height: 32px;
+  --sidebar-width: 260px;
+  --footer-height: 36px;
+  --focus-ring: 2px solid var(--accent);
+  --focus-offset: 2px;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", "Menlo", Consolas, monospace;
+}

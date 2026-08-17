@@ -5,9 +5,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <title>Pyenv Native</title>
 </head>
 
@@ -20,17 +17,17 @@
   <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar">
     <div class="titlebar-label">pyenv-native dashboard</div>
     <div class="titlebar-controls">
-      <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window">
+      <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window" title="Minimize">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M0 4.5h10v1H0z" />
         </svg>
       </button>
-      <button type="button" class="titlebar-button" id="titlebar-maximize" aria-label="Maximize window">
+      <button type="button" class="titlebar-button" id="titlebar-maximize" aria-label="Maximize window" title="Maximize">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="none" stroke="currentColor" d="M1.5 1.5h7v7h-7z" />
         </svg>
       </button>
-      <button type="button" class="titlebar-button close-btn" id="titlebar-close" aria-label="Close window">
+      <button type="button" class="titlebar-button close-btn" id="titlebar-close" aria-label="Close window" title="Close">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor"
             d="M1.4 0L5 3.6 8.6 0 10 1.4 6.4 5l3.6 3.6-1.4 1.4L5 6.4 1.4 10 0 8.6 3.6 5 0 1.4z" />
@@ -136,12 +133,23 @@
           </button>
         </li>
         <li>
-          <button type="button" class="nav-btn" data-view="view-installed">
+          <button type="button" class="nav-btn" data-view="view-available">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Install Runtimes
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-view="view-installed">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
           </svg>
           Installed Versions
           </button>
@@ -157,6 +165,9 @@
           Virtual Environments
           </button>
         </li>
+      </ul>
+      <h2 class="nav-header nav-header-spaced">System</h2>
+      <ul class="nav">
         <li>
           <button type="button" class="nav-btn" data-view="view-shell">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
@@ -168,23 +179,12 @@
           </button>
         </li>
         <li>
-          <button type="button" class="nav-btn" data-view="view-available">
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          Available Targets
-          </button>
-        </li>
-        <li style="margin-top: 24px;">
           <button type="button" class="nav-btn" data-view="view-settings">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="3"></circle>
             <path
-              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0 .33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
             </path>
           </svg>
           Settings
@@ -206,82 +206,89 @@
     </aside>
 
     <main class="content relative" id="main-content" tabindex="-1">
+      <div id="workspace-bar" class="glass workspace-bar" role="region" aria-label="Project folder">
+        <div class="workspace-bar-main">
+          <div class="brand-icon workspace-folder-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="workspace-copy">
+            <span class="workspace-eyebrow">Project folder</span>
+            <span id="workspace-path" class="workspace-path">No project folder selected</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline btn-compact" id="btn-change-workspace">
+          Choose Folder
+        </button>
+      </div>
+
       <!-- DASHBOARD VIEW -->
       <section id="view-dashboard" class="view fade-in">
 
         <h1 class="page-title">Current Environment</h1>
 
-        <!-- WORKSPACE SELECTOR -->
-        <div class="glass" style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.02);">
-          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
-            <div class="brand-icon" style="width: 32px; height: 32px; border-radius: 8px; font-size: 14px; background: rgba(75, 139, 190, 0.1); flex-shrink: 0; box-shadow: none;">
-              <svg viewBox="0 0 24 24" width="16" height="16" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </div>
-            <div style="min-width: 0; flex: 1;">
-              <div class="workspace-eyebrow">Active Workspace Context</div>
-              <div id="workspace-path" style="font-size: 13px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">Loading workspace...</div>
-            </div>
+        <div id="dashboard-health" class="glass dashboard-health" hidden>
+          <div class="dashboard-health-copy">
+            <div id="dashboard-health-title" class="dashboard-health-title">System health</div>
+            <div id="dashboard-health-body" class="dashboard-health-body">Checking diagnostics…</div>
           </div>
-          <button class="btn btn-outline" id="btn-change-workspace" style="font-size: 11px; padding: 6px 12px; height: auto;">
-            Change Directory
+          <button type="button" class="btn btn-outline btn-compact" data-action="navigate" data-target="view-shell" data-scroll="doctor-section" title="Open doctor checks.">
+            View diagnostics
           </button>
         </div>
 
         <div class="status-grid">
-          <div class="status-card glass highlight-card">
+          <button type="button" class="status-card glass highlight-card" data-action="navigate" data-target="view-installed" aria-label="Open installed runtimes" title="Open installed runtimes.">
             <div class="stat-header">
               <span class="status-dot active-dot" aria-hidden="true"></span>
               <span class="stat-label">Active Version</span>
             </div>
             <div class="stat-value text-glow" id="active-version">Loading...</div>
             <div class="stat-sub" id="active-origin">Determining origin...</div>
-            <!-- Glow dot for Pip self update indicator -->
-            <div id="active-pip-status-container" style="display: none; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; background: rgba(255,255,255,0.03); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--glass-border);">
-              <span class="status-dot status-light-glow gold" id="active-pip-glow" style="width: 6px; height: 6px; border-radius: 50%;"></span>
-              <span id="active-pip-status-text" style="color: #ffd43b; font-weight: 500;">pip update available</span>
+            <div id="active-pip-status-container" class="pip-status-chip">
+              <span class="status-dot status-light-glow gold pip-status-dot" id="active-pip-glow"></span>
+              <span id="active-pip-status-text" class="pip-status-text">pip update available</span>
             </div>
-          </div>
-          <div class="status-card glass">
+          </button>
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-venvs" aria-label="Open virtual environments" title="Open virtual environments.">
             <div class="stat-header">
-              <span class="status-dot"></span>
+              <span class="status-dot" aria-hidden="true"></span>
               <span class="stat-label">Managed Virtual Env</span>
             </div>
             <div class="stat-value" id="active-venv">Checking...</div>
             <div class="stat-sub" id="active-venv-base">Integrated Project Env</div>
-          </div>
-          <div class="status-card glass">
+          </button>
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-settings" aria-label="Open settings for pyenv root and cache" title="Open settings.">
             <div class="stat-header">
-              <span class="status-dot"></span>
+              <span class="status-dot" aria-hidden="true"></span>
               <span class="stat-label">Pyenv Root</span>
             </div>
             <div class="stat-value small-path" id="sys-root">Checking...</div>
-            <div class="stat-sub">Storage & Cache</div>
-          </div>
+            <div class="stat-sub">Storage &amp; Cache</div>
+          </button>
         </div>
 
         <!-- SETUP BANNER (shell PATH / finalize install) -->
-        <div id="setup-banner" class="glass"
-          style="display:none; margin-top: 32px; padding: 20px; border: 1px solid var(--accent-glow); border-radius: 12px; background: rgba(75, 139, 190, 0.05);">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-            <div style="flex: 1;">
-              <div id="setup-banner-title" style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Activate shell integration</div>
-              <div id="setup-banner-body" style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+        <div id="setup-banner" class="glass setup-banner">
+          <div class="setup-banner-row">
+            <div class="setup-banner-copy">
+              <div id="setup-banner-title" class="setup-banner-title">Activate shell integration</div>
+              <div id="setup-banner-body" class="setup-banner-body">
                 Core binaries are installed. Finish shell setup so <code>pyenv</code>, shims, and MCP work in new terminals.
               </div>
             </div>
-            <div id="banner-actions" style="display: flex; gap: 12px; align-items: center;">
-              <button class="btn btn-primary" id="btn-run-setup-banner" style="font-size: 12px; padding: 8px 16px;">
+            <div id="banner-actions" class="banner-actions">
+              <button class="btn btn-primary" id="btn-run-setup-banner" title="Install shims and shell init.">
                 Finish Setup
               </button>
-              <button class="btn btn-outline" id="btn-dismiss-banner" style="font-size: 12px; padding: 8px 16px;">
+              <button class="btn btn-outline" id="btn-dismiss-banner" title="Hide this banner until next launch.">
                 Maybe Later
               </button>
             </div>
-            <div id="banner-progress" style="display:none; align-items: center; gap: 12px;">
+            <div id="banner-progress" class="banner-progress">
               <div class="loader loader-sm"></div>
-              <span id="banner-status-text" style="font-size: 12px;">Configuring shell integration…</span>
+              <span id="banner-status-text" class="banner-status-text">Configuring shell integration…</span>
             </div>
           </div>
         </div>
@@ -291,7 +298,7 @@
       <section id="view-installed" class="view" style="display:none;">
         <div class="header-row">
           <h1 class="page-title">Installed Runtimes</h1>
-          <button class="btn btn-primary" id="btn-refresh-installed">
+          <button class="btn btn-primary" id="btn-refresh-installed" title="Reload installed runtimes.">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
               stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
               <polyline points="23 4 23 10 17 10"></polyline>
@@ -313,9 +320,9 @@
       <section id="view-venvs" class="view" style="display:none;">
         <div class="header-row">
           <h1 class="page-title">Virtual Environments</h1>
-          <button class="btn btn-primary" id="btn-refresh-venvs">
+          <button type="button" class="btn btn-outline btn-compact" id="btn-refresh-venvs" title="Reload virtual environments.">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
-              stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
@@ -323,23 +330,14 @@
             Refresh
           </button>
         </div>
-        <div class="card glass" style="margin-bottom: 24px;">
-          <h3 style="margin-top:0;">Create New Venv</h3>
-          <div class="venv-form-row">
-            <div>
-              <label class="setting-label" for="venv-name">Environment name</label>
-              <input type="text" id="venv-name" placeholder="e.g. my-env" class="search-input" style="width: 100%; margin-top: 6px;">
-            </div>
-            <div>
-              <label class="setting-label" for="venv-base-version">Base Python version</label>
-              <select id="venv-base-version" class="dropdown" style="width: 100%; margin-top: 6px;">
-                <option value="">Select Base...</option>
-              </select>
-            </div>
-            <div style="display:flex; align-items:flex-end;">
-              <button class="btn btn-primary" id="btn-create-venv" style="width: 100%;">Create</button>
-            </div>
-          </div>
+        <div class="venv-create-row">
+          <label class="sr-only" for="venv-name">Environment name</label>
+          <input type="text" id="venv-name" placeholder="New environment name" class="search-input" autocomplete="off" title="Name for the new virtual environment.">
+          <label class="sr-only" for="venv-base-version">Base Python version</label>
+          <select id="venv-base-version" class="dropdown" title="Installed Python this venv will use.">
+            <option value="">Select base runtime…</option>
+          </select>
+          <button type="button" class="btn btn-primary" id="btn-create-venv" title="Create a managed venv under the selected runtime.">Create</button>
         </div>
         <div id="venvs-list" class="card-list">
           <div class="empty-state">
@@ -352,7 +350,7 @@
       <section id="view-shell" class="view" style="display:none;">
         <div class="header-row">
           <h1 class="page-title">Shell Integration & Diagnostics</h1>
-          <button class="btn btn-outline" id="btn-refresh-shells" style="font-size: 12px; padding: 6px 12px;">Refresh Status</button>
+          <button class="btn btn-outline" id="btn-refresh-shells" style="font-size: 12px; padding: 6px 12px;" title="Reload shell and doctor status.">Refresh Status</button>
         </div>
         
         <p style="color: var(--text-muted); font-size: 14px; margin-top: -16px; margin-bottom: 24px; max-width: 600px;">
@@ -369,7 +367,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span id="platform-intel-verdict" class="platform-intel-verdict">…</span>
-              <button class="btn btn-outline" id="btn-refresh-platform-intel" style="font-size: 11px; padding: 4px 10px;">Refresh</button>
+              <button class="btn btn-outline" id="btn-refresh-platform-intel" style="font-size: 11px; padding: 4px 10px;" title="Reload host preflight.">Refresh</button>
             </div>
           </div>
           <div id="platform-intel-facts" class="platform-intel-facts"></div>
@@ -381,7 +379,7 @@
         </div>
 
         <!-- DOCTOR DIAGNOSTICS & SELF-HEALING -->
-        <div class="glass" style="margin-top: 32px; padding: 24px; border-radius: 16px; max-width: 800px;">
+        <div id="doctor-section" class="glass" style="margin-top: 32px; padding: 24px; border-radius: 16px; max-width: 800px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="margin: 0; color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
               <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24;">
@@ -389,7 +387,7 @@
               </svg>
               System Health & Self-Healing Diagnostics
             </h3>
-            <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;">Run Diagnostics</button>
+            <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks.">Run Diagnostics</button>
           </div>
           
           <div id="doctor-loading" class="empty-state" style="display: none; padding: 20px;">
@@ -406,7 +404,7 @@
               <div id="doctor-issues-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
                 <!-- Dynamically populated issues -->
               </div>
-              <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;">
+              <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor.">
                 Attempt Self-Healing Repair
               </button>
             </div>
@@ -442,10 +440,10 @@
       <section id="view-available" class="view" style="display:none;">
         <div class="header-row">
           <h1 class="page-title">Installable Runtimes</h1>
-          <div style="display: flex; align-items: center; gap: 16px;">
-            <label
-              style="font-size: 13px; color: var(--text-muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
-              <input type="checkbox" id="chk-latest-only" checked /> Latest Major/Minor Only
+          <div class="catalog-toolbar">
+            <label class="catalog-latest-toggle" for="chk-latest-only" title="Show only the newest patch of each 2.x, 3.x, and PyPy line.">
+              <input type="checkbox" id="chk-latest-only" checked />
+              Latest patch per line
             </label>
             <div class="search-box">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
@@ -454,10 +452,17 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
               <label class="sr-only" for="available-search">Search installable runtimes</label>
-              <input type="search" id="available-search" placeholder="Search versions (e.g. 3.12)..." aria-label="Search installable runtimes" />
+              <input type="search" id="available-search" placeholder="Search 2.7, 3.12, pypy…" aria-label="Search installable runtimes" title="Filter by version prefix, such as 3.12 or pypy3.11." />
             </div>
           </div>
         </div>
+        <div class="catalog-filters" role="radiogroup" aria-label="Runtime family">
+          <button type="button" class="filter-chip" data-family="all" role="radio" aria-checked="true" title="Show every installable family.">All</button>
+          <button type="button" class="filter-chip" data-family="cpython3" role="radio" aria-checked="false" title="CPython 3.x.">Python 3</button>
+          <button type="button" class="filter-chip" data-family="cpython2" role="radio" aria-checked="false" title="CPython 2.x for legacy projects.">Python 2</button>
+          <button type="button" class="filter-chip" data-family="pypy" role="radio" aria-checked="false" title="PyPy JIT runtimes. Newest language line is 3.11.">PyPy</button>
+        </div>
+        <p id="available-count" class="catalog-count">Python 2 and 3 are both listed. Latest patch keeps one version per 2.x / 3.x line.</p>
         <div id="available-list" class="card-list">
           <div class="empty-state">Ready to fetch upstream catalog...</div>
         </div>
@@ -474,11 +479,11 @@
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-windows.registry_mode">Registry Mode</label>
-                <span class="setting-help" id="help-registry-mode">Expose installations into the Windows PEP-514 registry so IDEs can auto-detect Python.</span>
+                <span class="setting-help" id="help-registry-mode">When enabled, pyenv-native writes HKCU PEP-514 keys under Software\Python\PyenvNative so IDEs can find managed interpreters. Official python.org PythonCore keys are not modified. No effect on Linux or macOS.</span>
               </div>
               <select id="config-windows.registry_mode" class="dropdown" aria-describedby="help-registry-mode">
-                <option value="disabled">Disabled</option>
-                <option value="pep514">PEP 514 (recommended)</option>
+                <option value="disabled">Disabled (default)</option>
+                <option value="pep514">PEP 514 (HKCU, this user)</option>
               </select>
             </div>
           </fieldset>
@@ -512,7 +517,7 @@
                 <input type="checkbox" id="config-venv.auto_create_base_venv" aria-describedby="help-auto-create-venv" />
                 <span>
                   <span class="setting-label">Auto-create base venv</span>
-                  <span class="setting-help" id="help-auto-create-venv">Create a dedicated base virtual environment for every new Python install so packages are never added to the public runtime.</span>
+                  <span class="setting-help" id="help-auto-create-venv">Off by default. When enabled, create a dedicated base virtual environment for every new Python install so packages are never added to the public runtime.</span>
                 </span>
               </label>
             </div>
@@ -521,7 +526,7 @@
                 <input type="checkbox" id="config-venv.auto_use_base_venv" aria-describedby="help-auto-use-venv" />
                 <span>
                   <span class="setting-label">Prefer base venv when selected</span>
-                  <span class="setting-help" id="help-auto-use-venv">When a version is selected, activate its base venv instead of the bare interpreter.</span>
+                  <span class="setting-help" id="help-auto-use-venv">Off by default. When enabled, selecting a version activates its base venv instead of the bare interpreter.</span>
                 </span>
               </label>
             </div>
@@ -533,10 +538,10 @@
               <div class="empty-state" style="padding: 12px;">Loading cache usage…</div>
             </div>
             <div class="setting-row cache-actions">
-              <button type="button" class="btn btn-outline" id="btn-refresh-cache">Refresh</button>
-              <button type="button" class="btn btn-outline" id="btn-purge-packages-cache">Purge downloads</button>
-              <button type="button" class="btn btn-outline" id="btn-purge-build-cache">Purge build cache</button>
-              <button type="button" class="btn btn-danger" id="btn-purge-all-cache">Purge all cache</button>
+              <button type="button" class="btn btn-outline" id="btn-refresh-cache" title="Reload cache sizes.">Refresh</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-packages-cache" title="Delete cached downloads. Installed runtimes stay.">Purge downloads</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-build-cache" title="Delete build cache. Installed runtimes stay.">Purge build cache</button>
+              <button type="button" class="btn btn-danger" id="btn-purge-all-cache" title="Delete all tracked cache. Installed runtimes stay.">Purge all cache</button>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
@@ -567,7 +572,7 @@
               </label>
             </div>
             <div class="setting-row">
-              <button type="button" class="btn btn-outline" id="btn-reset-a11y">Reset accessibility preferences</button>
+              <button type="button" class="btn btn-outline" id="btn-reset-a11y" title="Restore default accessibility settings.">Reset accessibility preferences</button>
             </div>
           </fieldset>
         </div>
@@ -662,7 +667,7 @@
           </p>
           <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;">
             Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging,
-            shell integration, and (on Windows) PEP-514 IDE discovery. Manage Python versions, virtual environments,
+            shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments,
             and system configurations — all from one place.
           </p>
           <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 8px;">
@@ -670,9 +675,9 @@
               style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
               Created by Roy Dawson IV</div>
             <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-primary" id="btn-open-website">Website</button>
-              <button type="button" class="btn btn-outline" id="btn-open-github">GitHub Repository</button>
-              <button type="button" class="btn btn-outline" id="btn-open-pypi">PyPI Profile</button>
+              <button type="button" class="btn btn-primary" id="btn-open-website" title="Open imyourboyroy.com in your browser.">Website</button>
+              <button type="button" class="btn btn-outline" id="btn-open-github" title="Open the GitHub repository.">GitHub Repository</button>
+              <button type="button" class="btn btn-outline" id="btn-open-pypi" title="Open the PyPI profile.">PyPI Profile</button>
             </div>
           </div>
         </div>
@@ -688,7 +693,7 @@
         <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Migrate Environment</h3>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Move this venv to another installed Python runtime</div>
       </div>
-      <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel">
+      <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel" title="Close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -701,10 +706,10 @@
       <div id="upgrader-setup-card" class="glass" style="padding: 16px; border-radius: 8px;">
         <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--text-heading); font-size: 13px;">Select Target Runtime</h4>
         <div style="display: flex; flex-direction: column; gap: 12px;">
-          <select id="upgrader-target-version" class="dropdown" style="width: 100%;">
+          <select id="upgrader-target-version" class="dropdown" style="width: 100%;" title="Installed Python to migrate this venv onto.">
             <option value="">Select Target...</option>
           </select>
-          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;">
+          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;" title="Recreate this venv on the selected runtime.">
             Start Migration Wizard
           </button>
         </div>
@@ -777,7 +782,7 @@
         <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title">Package Explorer</h3>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle">Target Environment</div>
       </div>
-      <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer">
+      <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer" title="Close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -786,9 +791,9 @@
     </div>
 
     <div class="drawer-tabs" role="tablist" aria-label="Package explorer sections">
-      <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed">Installed</button>
-      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
-      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import">Import (Precheck)</button>
+      <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed" title="Packages already in this environment.">Installed</button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates" title="Outdated packages that can be upgraded.">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import" title="Precheck a requirements file or scan a codebase.">Import (Precheck)</button>
     </div>
 
     <div class="drawer-content-container">
@@ -803,7 +808,7 @@
               <div style="font-size: 11px; color: var(--text-muted);" id="pip-self-update-versions">Upgrading pip enhances resolver stability.</div>
             </div>
           </div>
-          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;">Update</button>
+          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;" title="Upgrade pip in this environment.">Update</button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
@@ -813,7 +818,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <label class="sr-only" for="drawer-package-search">Search installed packages</label>
-            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" />
+            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" title="Filter installed packages by name." />
           </div>
         </div>
 
@@ -844,7 +849,7 @@
           <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
           <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Check for Outdated Packages</div>
           <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
-          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;">Scan Environment</button>
+          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;" title="Check PyPI for newer package versions.">Scan Environment</button>
         </div>
 
         <div id="updates-scanning" class="empty-state" style="display: none; padding: 40px 20px;">
@@ -877,7 +882,7 @@
             </div>
           </div>
 
-          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled>
+          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled title="Upgrade the packages you checked.">
             Update Selected Packages
           </button>
         </div>
@@ -888,8 +893,8 @@
         <div style="margin-bottom: 16px;">
           <label class="setting-label" for="import-requirements-path">Requirements File or URL</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" />
-            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;">Precheck</button>
+            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" title="Local requirements file or GitHub URL." />
+            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;" title="Check requirements for conflicts before install.">Precheck</button>
           </div>
           <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
             GitHub URLs are auto-translated (e.g. <code>github.com/.../blob/...</code> → <code>raw.githubusercontent.com</code>) for static conflict checking before install.
@@ -937,7 +942,7 @@
           </div>
         </div>
 
-        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled>
+        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled title="Install the prechecked requirements.">
           Install Dependencies
         </button>
 
@@ -946,8 +951,8 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
             <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin: 0;">Codebase Import Analyzer</label>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;">Select Folder</button>
-              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;">Scan</button>
+              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;" title="Choose a project folder to scan.">Select Folder</button>
+              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;" title="Find third-party imports missing from this environment.">Scan</button>
             </div>
           </div>
           <p id="scan-folder-label" style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 8px; word-break: break-all;">
@@ -972,7 +977,7 @@
               <div id="scan-missing-badges" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
                 <!-- Missing package badges -->
               </div>
-              <button class="btn btn-gold" id="btn-install-missing-imports" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;">
+              <button class="btn btn-gold" id="btn-install-missing-imports" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;" title="Install the missing third-party imports.">
                 Install Missing Dependencies
               </button>
             </div>
@@ -1001,7 +1006,7 @@
       <span id="footer-app-status" style="color: var(--text-muted);"></span>
     </div>
     <div class="footer-right">
-      <button type="button" class="footer-update-btn" id="footer-btn">Check for Updates</button>
+      <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer pyenv-native.">Check for Updates</button>
     </div>
   </footer>
   <script src="dom-utils.js"></script>

@@ -54,19 +54,19 @@ $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest h
 ##### Bash
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"
 ```
 
 ##### Zsh
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh && export PATH="$HOME/.pyenv/bin:$PATH" && eval "$("$HOME/.pyenv/bin/pyenv" init - zsh)"
 ```
 
 ##### Fish
 
 ```fish
-curl -fsSL https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/install.sh | sh; and if not contains -- "$HOME/.pyenv/bin" $PATH; set -gx PATH "$HOME/.pyenv/bin" $PATH; end; and "$HOME/.pyenv/bin/pyenv" init - fish | source
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh; and if not contains -- "$HOME/.pyenv/bin" $PATH; set -gx PATH "$HOME/.pyenv/bin" $PATH; end; and "$HOME/.pyenv/bin/pyenv" init - fish | source
 ```
 
 #### Linux / macOS latest-release install only
@@ -101,13 +101,13 @@ These entrypoints are interactive by default. They print a preflight summary, sh
 #### Windows PowerShell pinned install
 
 ```powershell
-$tag = 'vX.Y.Z'; $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/$tag/install.ps1" -OutFile $installer; & $installer -Tag $tag -InstallRoot "$HOME\.pyenv" -Force
+$tag = 'vX.Y.Z'; $installer = Join-Path $env:TEMP 'pyenv-native-install.ps1'; Invoke-WebRequest "https://github.com/imyourboyroy/pyenv-native/releases/download/$tag/install.ps1" -OutFile $installer; & $installer -Tag $tag -InstallRoot "$HOME\.pyenv" -Force
 ```
 
 #### Linux / macOS pinned install
 
 ```sh
-tag='vX.Y.Z'; curl -fsSL "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/${tag}/install.sh" | sh -s -- --tag "$tag" --install-root ~/.pyenv
+tag='vX.Y.Z'; curl -fsSL "https://github.com/imyourboyroy/pyenv-native/releases/download/${tag}/install.sh" | sh -s -- --tag "$tag" --install-root ~/.pyenv
 ```
 
 ### Option 3: use the PyPI / `pipx` install package
@@ -163,8 +163,9 @@ The install path is intentionally explicit rather than magical. Whether you star
 3. print a preflight summary showing source, install root, shell integration, and log path,
 4. prompt for confirmation unless `-Yes` / `--yes` was supplied,
 5. verify the bundle checksum,
-6. install into a portable root,
-7. run basic sanity checks like `pyenv --version`, `pyenv root`, and `pyenv commands`.
+6. on Windows, offer PowerShell 7 via `winget install --id Microsoft.PowerShell` when `pwsh` is missing (`-InstallPowerShell7 auto|true|false`),
+7. install into a portable root,
+8. run basic sanity checks like `pyenv --version`, `pyenv root`, and `pyenv commands`.
 
 ### Logs
 
@@ -252,7 +253,7 @@ curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download
 ### Windows local uninstall helper
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\uninstall-pyenv-native.ps1 -InstallRoot .\portable-pyenv -RemoveRoot
+pwsh -NoLogo -NoProfile -File .\scripts\uninstall-pyenv-native.ps1 -InstallRoot .\portable-pyenv -RemoveRoot
 ```
 
 ### Linux / macOS local uninstall helper
@@ -372,8 +373,16 @@ For the full MCP-specific guide, see [`MCP.md`](./MCP.md).
 
 ### Launching the GUI
 
+After a native Windows x64, Linux x64, or macOS install:
+
+```text
+pyenv gui
+```
+
+Windows development:
+
 ```powershell
-.\scripts\launch_gui.ps1
+pwsh -NoLogo -NoProfile -File .\scripts\launch_gui.ps1
 ```
 
 Or build and run directly:
@@ -387,10 +396,11 @@ cargo build -p pyenv-gui
 
 | View | Purpose |
 | ------ | --------- |
-| **Dashboard** | Live overview of active Python version, managed venv, and pyenv root |
-| **Installed Runtimes** | List installed versions with global/local/uninstall actions |
+| **Dashboard** | Live overview of active Python version, managed venv, pyenv root, and doctor warnings with a jump to diagnostics |
+| **Install Runtimes** | Search the CPython 2/3 and PyPy catalog and install new runtimes |
+| **Installed Versions** | List installed versions; Package Explorer plus a More menu for global, local, and uninstall |
 | **Virtual Environments** | Create, manage, and delete named managed venvs |
-| **Available Targets** | Search upstream catalog and install new runtimes |
+| **Shell Integration** | Shell profiles, host preflight, and doctor/self-heal |
 | **Settings** | Configure registry mode, architecture, pip bootstrap, and venv policies |
 | **About** | Version info, links, and update status |
 
@@ -400,9 +410,9 @@ Click **Check for Updates** in the footer. The GUI uses the same self-update API
 
 ### Platform availability
 
-The GUI companion is currently packaged as a **Windows desktop application**.
-macOS and Linux users can build from source with `cargo build -p pyenv-gui`.
-Cross-platform release artifacts for the GUI may be added in a future release.
+Native release bundles include `pyenv-gui` on **Windows x64**, **Linux x64**, and **macOS** (arm64 and Intel). Cross-compiled Windows ARM64, Linux ARM64, and Android bundles do not include the GUI. Linux/macOS GUI builds are experimental.
+
+Standalone GUI binaries and matching `.sha256` files are attached to GitHub Releases.
 
 ---
 
@@ -422,10 +432,14 @@ pyenv available 3.12
 ### Install a runtime
 
 ```powershell
-pyenv install 3.13.12
+pyenv install 3.14.7
 pyenv install 3.12
 pyenv install pypy3.11
 ```
+
+Runtime archives from native providers are checksum-verified against **publisher metadata fetched at install time** (NuGet SHA-512 from `api.nuget.org` registration first, python.org release-file SHA-256, pypy.org checksums page). Download-URL `.sha512` sidecars are used for NuGet only when the nupkg host is `nuget.org` and the catalog cannot be reached. Hashes are not hardcoded per version. A failed verify deletes the cached download and aborts.
+
+Linux/macOS **python-build** fallbacks prefetch the official CPython source tarball into `PYTHON_BUILD_CACHE_PATH`, verify the publisher SHA-256, then invoke `python-build`. CPython installs fail closed if prefetch or verify fails. Non-CPython python-build definitions still warn when no tarball is present.
 
 ### Preview an install plan before downloading or building
 
@@ -437,7 +451,7 @@ pyenv install --dry-run --json 3.13
 ### Set versions
 
 ```powershell
-pyenv global 3.13.12
+pyenv global 3.14.7
 pyenv local 3.12.10
 pyenv shell 3.12.10
 ```
@@ -449,13 +463,15 @@ pyenv venv create 3.13 api
 pyenv venv list
 pyenv venv info api
 pyenv venv use api
-pyenv local 3.13.12/envs/api
+pyenv local 3.14.7/envs/api
 pyenv venv upgrade api 3.14
 ```
 
+`venv upgrade` inventories packages first and stops if that scan cannot run, so the original env is not deleted on a failed migrate.
+
 Managed envs live under `PYENV_ROOT/venvs/<runtime>/<name>`.
 That gives you predictable names, avoids hidden project-specific duplication, and lets
-`.python-version` point directly at a managed env spec such as `3.13.12/envs/api`.
+`.python-version` point directly at a managed env spec such as `3.14.7/envs/api`.
 
 Compatibility aliases from upstream pyenv workflows are also supported:
 
@@ -555,7 +571,8 @@ pyenv config set storage.versions_dir D:\PythonRuntimes
 | --- | --- | --- |
 | `storage.versions_dir` | `<PYENV_ROOT>/versions` | Managed runtimes directory |
 | `storage.cache_dir` | `<PYENV_ROOT>/cache` | Download and metadata cache |
-| `windows.registry_mode` | `disabled` | Registry integration policy |
+| `windows.registry_mode` | `disabled` | On Windows, `pep514` writes HKCU PEP-514 keys under `Software\Python\PyenvNative` so IDEs can discover managed interpreters. Official `PythonCore` keys are not modified. No-op on Linux/macOS. |
+| `plugins.search_path` | `true` | When true, plugin discovery also walks PATH (pyenv-compatible). Set `false` to limit to `PYENV_ROOT/plugins` and `PYENV_PLUGIN_PATH`. |
 | `install.arch` | `auto` | Requested install architecture |
 | `install.source_base_url` | provider default | Override provider source URL |
 | `install.python_build_path` | unset | Optional non-Windows fallback path |
@@ -648,28 +665,42 @@ pyenv completions install --family
 
 ## Development workflows
 
+Run the full local quality gate (format, clippy, tests including GUI, Python package, a11y, optional `cargo audit`) before pushing:
+
+```sh
+sh ./scripts/check-all.sh
+# Windows:
+pwsh -NoLogo -NoProfile -File .\scripts\check-all.ps1
+```
+
+Enable the repo pre-push hook so that gate runs automatically:
+
+```sh
+sh ./scripts/install-git-hooks.sh
+```
+
 ### Build the native CLI
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 build
+pwsh -NoLogo -NoProfile -File .\scripts\dev-cargo.ps1 build
 ```
 
 ### Test the native workspace
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
+pwsh -NoLogo -NoProfile -File .\scripts\dev-cargo.ps1 test
 ```
 
 On Windows, you can override the Rust ABI target when needed:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 -TargetTriple x86_64-pc-windows-msvc test
+pwsh -NoLogo -NoProfile -File .\scripts\dev-cargo.ps1 -TargetTriple x86_64-pc-windows-msvc test
 ```
 
 ### Build the Windows release bundle
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -OutputRoot .\dist
+pwsh -NoLogo -NoProfile -File .\scripts\build-release-bundle.ps1 -OutputRoot .\dist
 ```
 
 ### Build the Linux/macOS release bundle
@@ -681,7 +712,7 @@ sh ./scripts/build-release-bundle.sh --output-root ./dist
 ### Build the Python install package
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
+pwsh -NoLogo -NoProfile -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
 ```
 
 ### Preview the MCP guide and client config
@@ -694,13 +725,13 @@ cargo run -q -p pyenv-mcp -- print-config
 ### Generate Winget packaging artifacts
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -Validate
+pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -Validate
 ```
 
 ### Generate Homebrew packaging artifacts
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-homebrew-formula.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -AssetRoots .\dist\linux, .\dist\macos
+pwsh -NoLogo -NoProfile -File .\scripts\build-homebrew-formula.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -AssetRoots .\dist\linux, .\dist\macos
 ```
 
 ---
@@ -720,7 +751,7 @@ pyenv version [--bare]
 pyenv global [--unset] [versions...]
 pyenv local [-f] [--unset] [versions...]
 pyenv shell [versions...]
-pyenv latest [-k|--known] [-b|--bare] [-f|--family <family>] <prefix>
+pyenv latest [-k|--known] [-b|--bypass] [-f|--force] <prefix>
 pyenv prefix [versions...]
 pyenv versions [--bare] [--skip-aliases] [--skip-envs] [--executables]
 ```
@@ -746,11 +777,30 @@ pyenv init [-|--path] [--no-push-path] [--no-rehash] [pwsh|cmd|bash|zsh|fish|sh]
 ```text
 pyenv help [--usage] [command]
 pyenv commands [--sh|--no-sh]
-pyenv hooks [--complete] <hook>
+pyenv hooks <hook|--complete>
 pyenv completions <command> [arg1 arg2...]
 pyenv doctor [--json] [--fix] [-f|--force]
+pyenv preflight [--json]
+pyenv environment [--json]
+pyenv status [--json]
+pyenv gui
+pyenv prompt
+pyenv self-update [--check] [--yes] [--force]
+pyenv self-uninstall [--yes]
+pyenv pip list|outdated|check|precheck|analyze|install|update ...
 pyenv config path|show|get|set
 ```
+
+Query and apply pip upgrades:
+
+```text
+pyenv pip outdated 3.14.7/envs/api --json
+pyenv pip update 3.14.7/envs/api certifi cryptography
+pyenv pip update 3.14.7/envs/api certifi==2026.7.22
+pyenv pip update --all 3.14.7/envs/api
+```
+
+`--all` fails if the outdated scan cannot run. Outdated `pip` is upgraded first.
 
 ### Python install package commands
 

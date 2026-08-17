@@ -59,7 +59,10 @@
         }
 
         const template = document.createElement('template');
-        template.innerHTML = text;
+        const parsed = new DOMParser().parseFromString(text, 'text/html');
+        parsed.body.childNodes.forEach((node) => {
+            template.content.appendChild(node.cloneNode(true));
+        });
 
         function copyNode(node, parent) {
             node.childNodes.forEach((child) => {
@@ -124,6 +127,10 @@
         button.dataset.action = action;
         if (target !== undefined && target !== null) button.dataset.target = target;
         Object.entries(extraDataset).forEach(([key, value]) => {
+            if (key === 'title') {
+                if (value) button.title = String(value);
+                return;
+            }
             button.dataset[key] = value;
         });
         return button;

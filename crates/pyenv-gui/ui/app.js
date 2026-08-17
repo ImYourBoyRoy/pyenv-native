@@ -2,13 +2,20 @@
 //! Frontend logic for pyenv-native GUI.
 //! Uses Tauri v2 IPC to communicate with the Rust backend.
 
-const invoke = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core.invoke : window.__TAURI__.invoke;
+function invoke(cmd, args) {
+    const fn = window.__TAURI__?.core?.invoke || window.__TAURI__?.invoke;
+    if (typeof fn !== 'function') {
+        return Promise.reject(new Error('Pyenv Native GUI backend is not connected. Launch with `pyenv gui`.'));
+    }
+    return fn(cmd, args);
+}
 const {
     lockAppShell,
     unlockAppShell,
     getFocusableElements,
     trapFocus,
     appendRichMessage,
+    escapeHtml,
     setRegionLoading,
     showEmptyState,
     createActionButton,
@@ -250,10 +257,16 @@ function handleDelegatedAction(event) {
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
 
+    closeCardMenus();
     const { action, target, baseVersion } = button.dataset;
     switch (action) {
         case 'navigate':
             navigateToView(target);
+            if (button.dataset.scroll) {
+                requestAnimationFrame(() => {
+                    document.getElementById(button.dataset.scroll)?.scrollIntoView({ block: 'start' });
+                });
+            }
             break;
         case 'package-explorer':
             openPackageExplorer(target);
@@ -262,7 +275,10 @@ function handleDelegatedAction(event) {
             setGlobal(target);
             break;
         case 'set-local':
-            setLocal(target);
+            setLocal(target, { pickFolder: false });
+            break;
+        case 'set-local-pick':
+            setLocal(target, { pickFolder: true });
             break;
         case 'uninstall':
             uninstallVersion(target);
@@ -282,14 +298,7 @@ function handleDelegatedAction(event) {
 }
 
 function bindDelegatedActions() {
-    [
-        'installed-list',
-        'installed-global-summary',
-        'available-list',
-        'venvs-list',
-    ].forEach((id) => {
-        document.getElementById(id)?.addEventListener('click', handleDelegatedAction);
-    });
+    document.getElementById('main-content')?.addEventListener('click', handleDelegatedAction);
 }
 
 // Workspace context logic
@@ -301,8 +310,18 @@ function getWorkspaceDir() {
 
 function updateWorkspaceUI() {
     const el = document.getElementById('workspace-path');
+    const btn = document.getElementById('btn-change-workspace');
     if (el) {
-        el.textContent = currentWorkspaceDir || 'Default System Root';
+        el.textContent = currentWorkspaceDir || 'No project folder selected';
+        el.title = currentWorkspaceDir
+            ? currentWorkspaceDir
+            : 'Choose a folder so Make Local knows where to write .python-version.';
+    }
+    if (btn) {
+        btn.textContent = currentWorkspaceDir ? 'Change Folder' : 'Choose Folder';
+        btn.title = currentWorkspaceDir
+            ? 'Switch the project folder used for Make Local.'
+            : 'Select the project folder used for Make Local.';
     }
 }
 
@@ -313,7 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindConfigControls();
     bindDelegatedActions();
     document.getElementById('btn-reset-a11y')?.addEventListener('click', resetAccessibilityPreferences);
-    document.getElementById('chk-latest-only')?.addEventListener('change', () => reloadAvailable());
+    document.getElementById('chk-latest-only')?.addEventListener('change', () => applyAvailableFilters());
+    bindCatalogFamilyFilters();
     document.getElementById('btn-open-website')?.addEventListener('click', () => openExternal('https://imyourboyroy.com'));
     document.getElementById('btn-open-github')?.addEventListener('click', () => openExternal('https://github.com/imyourboyroy/pyenv-native'));
     document.getElementById('btn-open-pypi')?.addEventListener('click', () => openExternal('https://pypi.org/user/ImYourBoyRoy/'));
@@ -324,6 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     updateWorkspaceUI();
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.card-menu')) closeCardMenus();
+    });
     document.getElementById('btn-change-workspace')?.addEventListener('click', async () => {
         try {
             const selectedDir = await invoke('select_directory');
@@ -337,10 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 availableLoaded = false;
                 loadVenvs();
                 loadConfig();
-                showAlert('Workspace Changed', `Active workspace switched to:<br><code style="font-size: 12px; opacity: 0.8;">${selectedDir}</code>`);
+                showAlert('Project Folder', `Now using:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
             }
         } catch (err) {
-            showAlert('Error', 'Failed to change workspace directory:\n' + err);
+            showAlert('Error', 'Failed to change workspace directory:\n' + escapeHtml(err));
         }
     });
 });
@@ -435,8 +458,10 @@ async function showConfirm(title, message) {
 }
 
 function openExternal(url) {
-    invoke('open_url', { url }).catch(() => {
-        window.open(url, '_blank');
+    invoke('open_url', { url }).catch((err) => {
+        const detail = err ? String(err) : 'unknown error';
+        showToast(`Could not open link: ${detail}`);
+        showAlert('Open Link Failed', `Could not open <code>${escapeHtml(url)}</code>:\n${escapeHtml(detail)}`);
     });
 }
 
@@ -450,6 +475,7 @@ const sidebarNavItems = document.querySelectorAll('.nav-btn');
 const views = document.querySelectorAll('.view');
 
 function showView(viewId) {
+    closeCardMenus();
     views.forEach(v => {
         v.style.display = 'none';
         v.classList.remove('fade-in');
@@ -476,31 +502,191 @@ function navigateToView(viewId) {
     navItem.click();
 }
 
+function versionKeyAliases(value) {
+    const normalized = String(value ?? '').trim().replace(/\\/g, '/');
+    const aliases = new Set([normalized]);
+    if (!normalized) return aliases;
+    const withoutPrefix = normalized.replace(/^venv:/i, '');
+    aliases.add(withoutPrefix);
+    const marker = '/envs/';
+    const idx = withoutPrefix.indexOf(marker);
+    if (idx >= 0) {
+        const name = withoutPrefix.slice(idx + marker.length);
+        if (name && !name.includes('/')) {
+            aliases.add(`venv:${name}`);
+            aliases.add(name);
+        }
+    } else if (withoutPrefix && withoutPrefix !== normalized) {
+        aliases.add(`venv:${withoutPrefix}`);
+    }
+    return aliases;
+}
+
 function isGlobalVersion(versionName, globalVersions) {
-    const normalized = versionName.trim();
+    const aliases = versionKeyAliases(versionName);
     if (!globalVersions?.length) {
-        return normalized === 'system';
+        return aliases.has('system');
     }
-    return globalVersions.includes(normalized);
+    return globalVersions.some((entry) => {
+        const other = versionKeyAliases(entry);
+        for (const alias of aliases) {
+            if (other.has(alias)) return true;
+        }
+        return false;
+    });
 }
 
-function appendGlobalButton(actions, versionName, globalVersions) {
-    if (isGlobalVersion(versionName, globalVersions)) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-global-active';
-        button.disabled = true;
-        button.textContent = 'Global';
-        actions.appendChild(button);
-        return;
-    }
-    actions.appendChild(createActionButton('Make Global', 'set-global', versionName, 'btn btn-outline'));
+function venvSpec(v) {
+    return String(v.spec || `${v.base_version}/envs/${v.name}`).replace(/\\/g, '/');
 }
 
-function appendBadge(parent, text, className) {
+function venvDisplayName(specOrName) {
+    const value = String(specOrName ?? '').trim().replace(/\\/g, '/');
+    const marker = '/envs/';
+    const idx = value.indexOf(marker);
+    if (idx >= 0) return value.slice(idx + marker.length);
+    return value.replace(/^venv:/i, '');
+}
+
+function pushGlobalMenuItem(items, versionName, globalVersions) {
+    if (isGlobalVersion(versionName, globalVersions)) return;
+    items.push({
+        label: 'Make Global',
+        action: 'set-global',
+        target: versionName,
+        title: 'Use this as the default for new shells.',
+    });
+}
+
+function localMenuItems(target) {
+    return [
+        {
+            label: 'Make Local',
+            action: 'set-local',
+            target,
+            title: 'Write .python-version in the current project folder.',
+        },
+        {
+            label: 'Pin to another folder…',
+            action: 'set-local-pick',
+            target,
+            title: 'Write .python-version in a folder you pick.',
+        },
+    ];
+}
+
+function appendMenuGroup(items, group) {
+    if (!group.length) return;
+    if (items.length) items.push({ separator: true });
+    items.push(...group);
+}
+
+let cardMenuSeq = 0;
+
+function closeCardMenus(exceptWrap = null) {
+    document.querySelectorAll('.card-menu').forEach((wrap) => {
+        if (wrap === exceptWrap) return;
+        wrap.classList.remove('is-open');
+        wrap.closest('.version-card')?.classList.remove('is-menu-open');
+        const toggle = wrap.querySelector('.card-menu-toggle');
+        const menu = wrap.querySelector('.card-menu-list');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        if (menu) {
+            menu.hidden = true;
+            menu.classList.remove('opens-up');
+        }
+    });
+}
+
+function positionCardMenu(menu) {
+    menu.classList.remove('opens-up');
+    const host = document.getElementById('main-content');
+    if (!host) return;
+    const menuRect = menu.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    if (menuRect.bottom > hostRect.bottom - 8) {
+        menu.classList.add('opens-up');
+    }
+}
+
+function createOverflowMenu(items) {
+    if (!items.length) return null;
+    const menuId = `card-menu-${++cardMenuSeq}`;
+    const wrap = document.createElement('div');
+    wrap.className = 'card-menu';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn btn-outline card-menu-toggle';
+    toggle.setAttribute('aria-haspopup', 'menu');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', menuId);
+    toggle.setAttribute('aria-label', 'More actions');
+    toggle.title = 'More actions for this item.';
+    toggle.textContent = 'More';
+    const menu = document.createElement('div');
+    menu.id = menuId;
+    menu.className = 'card-menu-list';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+    items.forEach((item) => {
+        if (item.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'card-menu-sep';
+            sep.setAttribute('role', 'separator');
+            menu.appendChild(sep);
+            return;
+        }
+        const className = item.danger ? 'card-menu-item is-danger' : 'card-menu-item';
+        const btn = createActionButton(item.label, item.action, item.target, className, item.extra || {});
+        btn.setAttribute('role', 'menuitem');
+        if (item.title) btn.title = item.title;
+        menu.appendChild(btn);
+    });
+    toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const willOpen = menu.hidden;
+        closeCardMenus(willOpen ? wrap : null);
+        wrap.classList.toggle('is-open', willOpen);
+        wrap.closest('.version-card')?.classList.toggle('is-menu-open', willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        menu.hidden = !willOpen;
+        if (willOpen) {
+            positionCardMenu(menu);
+            menu.querySelector('[role="menuitem"]')?.focus();
+        }
+    });
+    wrap.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            closeCardMenus();
+            toggle.focus();
+            return;
+        }
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const itemEls = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+        if (!itemEls.length) return;
+        event.preventDefault();
+        const idx = itemEls.indexOf(document.activeElement);
+        let next = 0;
+        if (event.key === 'ArrowDown') next = idx < 0 ? 0 : (idx + 1) % itemEls.length;
+        else if (event.key === 'ArrowUp') next = idx <= 0 ? itemEls.length - 1 : idx - 1;
+        else if (event.key === 'End') next = itemEls.length - 1;
+        itemEls[next].focus();
+    });
+    wrap.append(toggle, menu);
+    return wrap;
+}
+
+function appendCardOverflow(actions, items) {
+    const menu = createOverflowMenu(items);
+    if (menu) actions.appendChild(menu);
+}
+
+function appendBadge(parent, text, className, title) {
     const badge = document.createElement('span');
     badge.className = className;
     badge.textContent = text;
+    if (title) badge.title = title;
     parent.appendChild(document.createTextNode(' '));
     parent.appendChild(badge);
 }
@@ -545,6 +731,64 @@ sidebarNavItems.forEach((item) => {
 // Escape-to-close is registered after drawer elements are defined below.
 
 // ─── Dashboard ───
+function setDashboardHealth(kind, title, body) {
+    const banner = document.getElementById('dashboard-health');
+    const titleEl = document.getElementById('dashboard-health-title');
+    const bodyEl = document.getElementById('dashboard-health-body');
+    if (!banner || !titleEl || !bodyEl) return;
+    titleEl.textContent = title;
+    bodyEl.textContent = body;
+    banner.hidden = kind === 'ok';
+    banner.dataset.kind = kind;
+}
+
+function doctorIssueStatus(status) {
+    const normalized = String(status || '').toUpperCase();
+    return normalized === 'WARN' || normalized === 'WARNING' || normalized === 'FAIL' || normalized === 'ERROR' || normalized === 'BLOCKED';
+}
+
+function normalizeDoctorCheck(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const name = String(raw.name || raw.id || raw.title || '').trim();
+    const detail = String(raw.detail || raw.message || raw.reason || '').trim();
+    const status = String(raw.status || '').toUpperCase();
+    if (!name && !detail) return null;
+    return {
+        name: name || 'Health check',
+        detail,
+        status,
+    };
+}
+
+async function refreshDashboardHealth() {
+    const banner = document.getElementById('dashboard-health');
+    if (!banner) return;
+    try {
+        const jsonStr = await invoke('run_doctor', { workspaceDir: getWorkspaceDir() });
+        const checks = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        if (!Array.isArray(checks)) {
+            setDashboardHealth('error', 'Diagnostics unavailable', 'Doctor did not return a usable report.');
+            return;
+        }
+        const issues = checks
+            .map(normalizeDoctorCheck)
+            .filter((check) => check && doctorIssueStatus(check.status))
+            .map((check) => ({
+                ...check,
+                detail: check.detail || 'No additional detail was reported for this check.',
+            }));
+        if (issues.length === 0) {
+            setDashboardHealth('ok', 'System health', 'No doctor warnings.');
+            return;
+        }
+        const preview = issues.slice(0, 2).map((issue) => `${issue.name}: ${issue.detail}`).join(' · ');
+        const extra = issues.length > 2 ? ` · +${issues.length - 2} more` : '';
+        setDashboardHealth('warn', `${issues.length} health issue${issues.length === 1 ? '' : 's'}`, preview + extra);
+    } catch (err) {
+        setDashboardHealth('error', 'Diagnostics unavailable', String(err));
+    }
+}
+
 async function loadDashboard() {
     try {
         const jsonStr = await invoke('get_status', { workspaceDir: getWorkspaceDir() });
@@ -552,25 +796,35 @@ async function loadDashboard() {
         
         const activeVersionEl = document.getElementById('active-version');
         activeVersionEl.textContent = status.active_versions.length ? status.active_versions.join(', ') : 'None';
+        activeVersionEl.title = activeVersionEl.textContent;
         const globalLabel = status.global_versions?.length
             ? status.global_versions.join(', ')
             : 'system';
-        document.getElementById('active-origin').textContent =
+        const originEl = document.getElementById('active-origin');
+        originEl.textContent =
             `Origin: ${status.origin} • Global: ${globalLabel}`;
+        originEl.title = originEl.textContent;
         
         if (status.managed_venv) {
-            document.getElementById('active-venv').textContent = status.managed_venv.name;
+            const venvEl = document.getElementById('active-venv');
+            venvEl.textContent = status.managed_venv.name;
+            venvEl.title = status.managed_venv.spec || status.managed_venv.name;
             document.getElementById('active-venv-base').textContent = `Base: ${status.managed_venv.base_version}`;
         } else {
             document.getElementById('active-venv').textContent = 'None';
+            document.getElementById('active-venv').title = 'No managed venv is currently selected.';
             document.getElementById('active-venv-base').textContent = 'Integrated Project Env';
         }
 
         document.getElementById('sys-root').textContent = status.root;
+        document.getElementById('sys-root').title = String(status.root || '');
+        refreshDashboardHealth();
 
     } catch (err) {
         console.error("Failed to load status:", err);
         document.getElementById('active-version').textContent = "Error";
+        document.getElementById('active-origin').textContent = String(err);
+        setDashboardHealth('error', 'Could not load environment status.', String(err));
     }
 }
 
@@ -613,7 +867,9 @@ async function loadInstalled() {
             originLine.textContent = `Origin: ${status.origin}`;
             info.append(eyebrow, activeLine, originLine);
 
-            const installBtn = createActionButton('Install New Runtime', 'navigate', 'view-available', 'btn btn-primary');
+            const installBtn = createActionButton('Install New Runtime', 'navigate', 'view-available', 'btn btn-primary', {
+                title: 'Open the install catalog.',
+            });
             installBtn.style.fontSize = '12px';
             row.append(info, installBtn);
             summary.appendChild(row);
@@ -641,8 +897,10 @@ async function loadInstalled() {
             title.textContent = 'No managed runtimes installed yet';
             const hint = document.createElement('div');
             hint.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:16px;';
-            hint.textContent = 'Install a Python runtime from Available Targets to get started.';
-            empty.append(title, hint, createActionButton('Browse Available Targets', 'navigate', 'view-available', 'btn btn-primary'));
+            hint.textContent = 'Install a Python 2 or 3 runtime to get started.';
+            empty.append(title, hint, createActionButton('Install Runtimes', 'navigate', 'view-available', 'btn btn-primary', {
+                title: 'Open the install catalog.',
+            }));
             list.appendChild(empty);
             announce('No managed runtimes installed');
             return;
@@ -651,9 +909,11 @@ async function loadInstalled() {
         displayVersions.forEach(entry => {
             const card = document.createElement('div');
             card.className = 'version-card';
+            card.dataset.version = entry.name;
             const isGlobal = isGlobalVersion(entry.name, globalVersions);
 
             const info = document.createElement('div');
+            info.className = 'version-info';
             const nameEl = document.createElement('div');
             nameEl.className = 'version-name';
             nameEl.append(document.createTextNode(entry.name));
@@ -662,13 +922,13 @@ async function loadInstalled() {
             meta.className = 'version-meta';
 
             if (entry.isSystem) {
-                appendBadge(nameEl, entry.available ? 'Detected' : 'Not Available', entry.available ? 'system-badge badge-success' : 'system-badge badge-muted');
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                appendBadge(nameEl, entry.available ? 'Detected' : 'Not Available', entry.available ? 'system-badge badge-success' : 'system-badge badge-muted', entry.available ? 'A system Python was found on PATH.' : 'No usable system Python (Store alias only).');
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
                 meta.textContent = entry.available
                     ? 'System-wide Python installation'
                     : 'No system Python found (Microsoft Store alias detected)';
             } else {
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
                 meta.textContent = isGlobal ? 'Configured as the global default runtime' : 'Installed managed runtime';
             }
             info.append(nameEl, meta);
@@ -676,14 +936,27 @@ async function loadInstalled() {
             const actions = document.createElement('div');
             actions.className = 'version-actions';
             if (!entry.isSystem || entry.available) {
-                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', entry.name, 'btn btn-outline'));
+                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', entry.name, 'btn btn-outline', {
+                    title: 'Browse and update packages in this runtime.',
+                }));
             }
+            const menuItems = [];
             if (!entry.isSystem) {
-                appendGlobalButton(actions, entry.name, globalVersions);
-                actions.appendChild(createActionButton('Make Local', 'set-local', entry.name, 'btn btn-outline'));
-                actions.appendChild(createActionButton('Uninstall', 'uninstall', entry.name, 'btn btn-danger'));
+                const globalItems = [];
+                pushGlobalMenuItem(globalItems, entry.name, globalVersions);
+                appendMenuGroup(menuItems, globalItems);
+                appendMenuGroup(menuItems, localMenuItems(entry.name));
+                appendMenuGroup(menuItems, [{
+                    label: 'Uninstall',
+                    action: 'uninstall',
+                    target: entry.name,
+                    danger: true,
+                    title: 'Remove this runtime from pyenv.',
+                }]);
+                appendCardOverflow(actions, menuItems);
             } else if (entry.available) {
-                appendGlobalButton(actions, 'system', globalVersions);
+                pushGlobalMenuItem(menuItems, 'system', globalVersions);
+                appendCardOverflow(actions, menuItems);
             }
 
             card.append(info, actions);
@@ -731,9 +1004,104 @@ window.reloadAvailable = function() {
     setupAvailableView();
 };
 
+function runtimeSpec(entry) {
+    return typeof entry === 'string' ? entry : (entry.name || entry.spec || String(entry));
+}
+
+function runtimeFamily(spec) {
+    const name = String(spec || '').toLowerCase();
+    if (name.startsWith('pypy')) return 'pypy';
+    const match = name.match(/^(\d+)/);
+    if (match) return match[1] === '2' ? 'cpython2' : 'cpython3';
+    return 'other';
+}
+
+function runtimeFamilyLabel(family) {
+    switch (family) {
+        case 'cpython3': return 'Python 3';
+        case 'cpython2': return 'Python 2';
+        case 'pypy': return 'PyPy';
+        default: return 'Other';
+    }
+}
+
+function versionNumericParts(name) {
+    return String(name).split(/[^\d]+/).filter(Boolean).map((part) => Number.parseInt(part, 10));
+}
+
+function compareVersionsDesc(left, right) {
+    const leftParts = versionNumericParts(left);
+    const rightParts = versionNumericParts(right);
+    const length = Math.max(leftParts.length, rightParts.length);
+    for (let i = 0; i < length; i += 1) {
+        const delta = (rightParts[i] || 0) - (leftParts[i] || 0);
+        if (delta) return delta;
+    }
+    return String(right).localeCompare(String(left));
+}
+
+function latestPatchPerLine(versions) {
+    const best = new Map();
+    versions.forEach((entry) => {
+        const spec = runtimeSpec(entry);
+        if (/^\d/.test(spec) && spec.endsWith('t')) return;
+        let key = spec.toLowerCase();
+        const cpython = spec.match(/^(\d+)\.(\d+)/);
+        const pypy = spec.match(/^(pypy\d+(?:\.\d+)?)/i);
+        if (cpython) key = `cpython:${cpython[1]}.${cpython[2]}`;
+        else if (pypy) key = pypy[1].toLowerCase();
+        const previous = best.get(key);
+        if (!previous || compareVersionsDesc(spec, previous) < 0) {
+            best.set(key, spec);
+        }
+    });
+    return [...best.values()];
+}
+
+function bindCatalogFamilyFilters() {
+    const chips = document.querySelectorAll('.filter-chip[data-family]');
+    chips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+            chips.forEach((other) => other.setAttribute('aria-checked', other === chip ? 'true' : 'false'));
+            applyAvailableFilters();
+        });
+    });
+}
+
+function applyAvailableFilters() {
+    const list = document.getElementById('available-list');
+    const countEl = document.getElementById('available-count');
+    const query = (document.getElementById('available-search')?.value || '').trim().toLowerCase();
+    const family = document.querySelector('.filter-chip[aria-checked="true"]')?.dataset.family || 'all';
+    const latestOnly = Boolean(document.getElementById('chk-latest-only')?.checked);
+    let displayList = [...fullAvailableCache];
+    if (latestOnly) displayList = latestPatchPerLine(displayList);
+    if (family !== 'all') {
+        displayList = displayList.filter((entry) => runtimeFamily(runtimeSpec(entry)) === family);
+    }
+    if (query) {
+        displayList = displayList.filter((entry) => runtimeSpec(entry).toLowerCase().includes(query));
+    }
+    displayList.sort((left, right) => {
+        const leftFamily = runtimeFamily(runtimeSpec(left));
+        const rightFamily = runtimeFamily(runtimeSpec(right));
+        const order = { cpython3: 0, cpython2: 1, pypy: 2, other: 3 };
+        const familyDelta = (order[leftFamily] ?? 9) - (order[rightFamily] ?? 9);
+        if (familyDelta) return familyDelta;
+        return compareVersionsDesc(runtimeSpec(left), runtimeSpec(right));
+    });
+    window.availableVersionsCache = displayList;
+    if (countEl) {
+        const python2 = displayList.filter((entry) => runtimeFamily(runtimeSpec(entry)) === 'cpython2').length;
+        const total = fullAvailableCache.length;
+        countEl.textContent = `Showing ${displayList.length} of ${total} runtimes${python2 ? ` · ${python2} Python 2` : ''}. Uncheck latest patch to see every release.`;
+    }
+    if (list) renderAvailable(displayList);
+}
+
 let availableLoaded = false;
 async function setupAvailableView() {
-    if(availableLoaded) return;
+    if (availableLoaded) return;
     const list = document.getElementById('available-list');
     setRegionLoading(list, true, 'Loading installable runtimes…');
     try {
@@ -744,34 +1112,17 @@ async function setupAvailableView() {
             const jsonStr = await invoke('get_available_versions', { workspaceDir: getWorkspaceDir(), family: null, pattern: null });
             const data = JSON.parse(jsonStr);
             const groups = (data.results || data);
-            groups.forEach(g => {
-                if (g.versions) g.versions.forEach(v => fullAvailableCache.push(v));
-                else fullAvailableCache.push(g.name || g.spec || g);
+            groups.forEach((group) => {
+                if (group.versions) group.versions.forEach((version) => fullAvailableCache.push(version));
+                else fullAvailableCache.push(group.name || group.spec || group);
             });
         }
-        
-        let displayList = fullAvailableCache;
-        const showLatestOnly = document.getElementById('chk-latest-only')?.checked;
-        if (showLatestOnly) {
-           const seen = new Set();
-           displayList = fullAvailableCache.filter(v => {
-               if (typeof v === 'string' && v.endsWith('t')) return false;
-               const match = typeof v === 'string' ? v.match(/^(\d+\.\d+)/) : null;
-               if (match) {
-                   const prefix = match[1];
-                   if (!seen.has(prefix)) { seen.add(prefix); return true; }
-                   return false;
-               }
-               return true;
-           });
-        }
-        
-        window.availableVersionsCache = displayList; 
-        renderAvailable(displayList);
+
+        applyAvailableFilters();
         availableLoaded = true;
-    } catch(err) {
+    } catch (err) {
         console.error(err);
-        showEmptyState(list, 'Failed to load catalog.', { danger: true });
+        showEmptyState(list, 'Failed to load catalog. Launch this window with `pyenv gui` to talk to the backend.', { danger: true });
         announce('Failed to load installable runtimes');
     }
 }
@@ -780,25 +1131,34 @@ function renderAvailable(items) {
     const list = document.getElementById('available-list');
     list.replaceChildren();
     list.setAttribute('aria-busy', 'false');
-    if(!items || items.length === 0) {
-        showEmptyState(list, 'No targets found.');
+    if (!items || items.length === 0) {
+        showEmptyState(list, 'No runtimes match these filters.');
         announce('No installable runtimes found');
         return;
     }
-    items.forEach(v => {
-        const spec = typeof v === 'string' ? v : (v.name || v.spec || v);
+
+    let lastFamily = null;
+    items.forEach((entry) => {
+        const spec = runtimeSpec(entry);
+        const family = runtimeFamily(spec);
+        if (family !== lastFamily) {
+            const heading = document.createElement('h2');
+            heading.className = 'catalog-group-title';
+            heading.textContent = runtimeFamilyLabel(family);
+            list.appendChild(heading);
+            lastFamily = family;
+        }
+
         const card = document.createElement('div');
         card.className = 'version-card';
 
         const info = document.createElement('div');
+        info.className = 'version-info';
         const nameEl = document.createElement('div');
         nameEl.className = 'version-name';
         nameEl.textContent = spec;
         if (installedVersionsSet.includes(spec)) {
-            const installed = document.createElement('span');
-            installed.style.cssText = 'font-size:11px;color:var(--text-muted);font-weight:400;margin-left:8px;';
-            installed.textContent = '(Installed)';
-            nameEl.appendChild(installed);
+            appendBadge(nameEl, 'Installed', 'badge badge-success', 'Already installed on this machine.');
         }
         info.appendChild(nameEl);
 
@@ -810,9 +1170,12 @@ function renderAvailable(items) {
             button.className = 'btn btn-outline';
             button.disabled = true;
             button.textContent = 'Installed';
+            button.title = `${spec} is already installed.`;
             actions.appendChild(button);
         } else {
-            actions.appendChild(createActionButton('Install', 'install', spec, 'btn btn-primary'));
+            actions.appendChild(createActionButton('Install', 'install', spec, 'btn btn-primary', {
+                title: `Download and install ${spec}.`,
+            }));
         }
 
         card.append(info, actions);
@@ -842,31 +1205,52 @@ async function loadVenvs() {
             announce('No virtual environments found');
         } else {
             venvs.forEach(v => {
-                const globalKey = `venv:${v.name}`;
-                const isGlobal = isGlobalVersion(globalKey, globalVersions);
+                const spec = venvSpec(v);
+                const isGlobal = isGlobalVersion(spec, globalVersions);
+                const isActive = isGlobalVersion(spec, status.active_versions)
+                    || (status.managed_venv && isGlobalVersion(spec, [status.managed_venv.spec]));
                 const card = document.createElement('div');
-                card.className = 'version-card';
+                card.className = isActive ? 'version-card is-active' : 'version-card';
+                card.dataset.version = spec;
 
                 const info = document.createElement('div');
+                info.className = 'version-info';
                 const nameEl = document.createElement('div');
                 nameEl.className = 'version-name';
                 nameEl.textContent = v.name;
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success');
+                if (isActive) appendBadge(nameEl, 'Active', 'badge badge-success', 'Currently selected environment.');
+                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
                 const meta = document.createElement('div');
                 meta.className = 'version-meta';
-                meta.textContent = `Base: ${v.base_version} • ${v.path}`;
+                meta.textContent = `Base ${v.base_version} · ${v.path}`;
+                meta.title = v.path;
                 info.append(nameEl, meta);
 
                 const actions = document.createElement('div');
                 actions.className = 'version-actions';
-                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', globalKey, 'btn btn-outline'));
-                const upgradeBtn = createActionButton('Migrate Runtime', 'upgrade-venv', v.name, 'btn btn-outline');
-                upgradeBtn.dataset.baseVersion = v.base_version;
-                upgradeBtn.title = `Recreate this venv on a different installed Python (currently base ${v.base_version})`;
-                actions.append(upgradeBtn);
-                appendGlobalButton(actions, globalKey, globalVersions);
-                actions.appendChild(createActionButton('Local', 'set-local', globalKey, 'btn btn-outline'));
-                actions.appendChild(createActionButton('Delete', 'delete-venv', v.name, 'btn btn-danger'));
+                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', spec, 'btn btn-outline', {
+                    title: 'Browse and update packages in this venv.',
+                }));
+                const menuItems = [];
+                const globalItems = [];
+                pushGlobalMenuItem(globalItems, spec, globalVersions);
+                appendMenuGroup(menuItems, globalItems);
+                appendMenuGroup(menuItems, localMenuItems(spec));
+                appendMenuGroup(menuItems, [{
+                    label: 'Migrate Runtime',
+                    action: 'upgrade-venv',
+                    target: spec,
+                    extra: { baseVersion: v.base_version },
+                    title: `Recreate this venv on another installed Python (now ${v.base_version}).`,
+                }]);
+                appendMenuGroup(menuItems, [{
+                    label: 'Delete',
+                    action: 'delete-venv',
+                    target: spec,
+                    danger: true,
+                    title: 'Permanently delete this virtual environment.',
+                }]);
+                appendCardOverflow(actions, menuItems);
                 card.append(info, actions);
                 list.appendChild(card);
             });
@@ -878,7 +1262,7 @@ async function loadVenvs() {
         sel.replaceChildren();
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = 'Select Base...';
+        placeholder.textContent = 'Select base runtime…';
         sel.appendChild(placeholder);
         bases.forEach(b => {
             const option = document.createElement('option');
@@ -893,14 +1277,8 @@ async function loadVenvs() {
     }
 }
 
-document.getElementById('available-search').addEventListener('input', (e) => {
-    const val = e.target.value.toLowerCase();
-    if(!window.availableVersionsCache) return;
-    const filtered = window.availableVersionsCache.filter(item => {
-        const spec = item.name || item.spec || item;
-        return typeof spec === 'string' && spec.toLowerCase().includes(val);
-    });
-    renderAvailable(filtered);
+document.getElementById('available-search').addEventListener('input', () => {
+    applyAvailableFilters();
 });
 
 // ─── Actions ───
@@ -923,7 +1301,7 @@ async function installTarget(v, btnEl) {
         console.error("Install failed:", err);
         btnEl.textContent = originalText;
         btnEl.disabled = false;
-        showAlert('Install Failed', String(err));
+        showAlert('Install Failed', escapeHtml(String(err)));
     } finally {
         btnEl.removeAttribute('aria-busy');
     }
@@ -935,9 +1313,9 @@ async function setGlobal(v) {
         loadDashboard();
         loadInstalled();
         loadVenvs();
-        showAlert('Global Version Set', `Python <b>${v}</b> is now the global default.`);
+        showAlert('Global Version Set', `Python <b>${escapeHtml(v)}</b> is now the global default.`);
     } catch(err) {
-        showAlert('Error', 'Failed to set global version:\n' + err);
+        showAlert('Error', 'Failed to set global version:\n' + escapeHtml(err));
     }
 }
 
@@ -959,7 +1337,7 @@ document.getElementById('btn-create-venv')?.addEventListener('click', async () =
         loadVenvs();
         loadDashboard();
     } catch(err) {
-        showAlert('Venv Creation Failed', err);
+        showAlert('Venv Creation Failed', escapeHtml(err));
     } finally {
         btn.disabled = false;
         btn.innerText = "Create";
@@ -974,7 +1352,7 @@ async function deleteVenv(name) {
         loadVenvs();
         loadDashboard();
     } catch(err) {
-        showAlert('Delete Failed', err);
+        showAlert('Delete Failed', escapeHtml(err));
     }
 }
 
@@ -987,9 +1365,9 @@ async function checkUpdates() {
         const result = await invoke('check_for_updates', { workspaceDir: getWorkspaceDir() });
         // Parse whether an update is available from the result text
         if (result.includes('up to date') || result.includes('Up to date') || result.includes('already up to date')) {
-            showAlert('Up to Date', result);
+            showAlert('Up to Date', escapeHtml(result));
         } else if (result.includes('Update available') || result.includes('newer')) {
-            const yes = await showConfirm('Update Available', result + '<br><br>Would you like to update now?');
+            const yes = await showConfirm('Update Available', escapeHtml(result) + '<br><br>Would you like to update now?');
             if (yes) {
                 if(btn) btn.innerText = "Updating…";
                 try {
@@ -997,30 +1375,48 @@ async function checkUpdates() {
                     // Close immediately so the background updater can finish and relaunch.
                     await invoke('close_app');
                 } catch(updateErr) {
-                    showAlert('Update Failed', updateErr);
+                    showAlert('Update Failed', escapeHtml(updateErr));
                 }
             }
         } else {
             // Generic result
-            showAlert('Update Check', result);
+            showAlert('Update Check', escapeHtml(result));
         }
     } catch(err) {
-        showAlert('Update Check Failed', err);
+        showAlert('Update Check Failed', escapeHtml(err));
     } finally {
         if(btn) { btn.innerText = "Check for Updates"; btn.disabled = false; }
     }
 }
 
-async function setLocal(v) {
+async function setLocal(v, { pickFolder = false } = {}) {
     try {
-        const selectedDir = await invoke('select_directory');
-        if (selectedDir) {
-            await invoke('set_local', { version: v, path: selectedDir });
-            loadDashboard();
-            showAlert('Local Version Set', `Python <b>${v}</b> pinned to:<br><code style="font-size: 12px; opacity: 0.8;">${selectedDir}</code>`);
+        let selectedDir = null;
+        if (!pickFolder && currentWorkspaceDir) {
+            const yes = await showConfirm(
+                'Make Local',
+                `Pin <b>${escapeHtml(v)}</b> to the current project folder?<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(currentWorkspaceDir)}</code>`,
+            );
+            if (!yes) return;
+            selectedDir = currentWorkspaceDir;
+        } else {
+            selectedDir = await invoke('select_directory');
         }
-    } catch(err) {
-        showAlert('Error', 'Failed to set local version:\n' + err);
+        if (!selectedDir) {
+            if (!pickFolder && !currentWorkspaceDir) {
+                showAlert(
+                    'No project folder',
+                    'Choose a project folder in the bar above, or use <b>Pin to another folder</b> from More.',
+                );
+            }
+            return;
+        }
+        await invoke('set_local', { version: v, path: selectedDir });
+        loadDashboard();
+        loadInstalled();
+        showAlert('Local Version Set', `Python <b>${escapeHtml(v)}</b> pinned to:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
+    } catch (err) {
+        showAlert('Error', 'Failed to set local version:\n' + escapeHtml(err));
     }
 }
 
@@ -1077,10 +1473,10 @@ async function purgeCacheTarget(target, label) {
     if (!yes) return;
     try {
         const result = await invoke('purge_cache', { workspaceDir: getWorkspaceDir(), target });
-        showAlert('Cache Purged', result);
+        showAlert('Cache Purged', escapeHtml(result));
         loadCacheStats();
     } catch (err) {
-        showAlert('Purge Failed', err);
+        showAlert('Purge Failed', escapeHtml(err));
     }
 }
 
@@ -1099,12 +1495,12 @@ async function loadConfig() {
 
         const registry = document.getElementById('config-windows.registry_mode');
         if (registry) {
-            registry.value = config.windows?.registry_mode || (platform === 'windows' ? 'pep514' : 'disabled');
+            registry.value = config.windows?.registry_mode || 'disabled';
         }
         document.getElementById('config-install.arch').value = config.install?.arch || 'auto';
         document.getElementById('config-install.bootstrap_pip').checked = config.install?.bootstrap_pip ?? true;
-        document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? true;
-        document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? true;
+        document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? false;
+        document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? false;
         loadCacheStats();
     } catch(err) {
         console.error("Failed to load config", err);
@@ -1120,19 +1516,18 @@ async function updateConfig(key, value) {
         announce(`Configuration saved: ${key}`);
     } catch(err) {
         if (status) status.textContent = `Failed to save ${key}`;
-        showAlert('Config Error', 'Failed to save config:\n' + err);
+        showAlert('Config Error', 'Failed to save config:\n' + escapeHtml(err));
     }
 }
 
 // ─── Uninstall ───
 async function uninstallVersion(v) {
-    const yes = await showConfirm('Uninstall Python', `Are you sure you want to completely remove Python <b>${v}</b>? This will delete all files for this version.`);
+    const yes = await showConfirm('Uninstall Python', `Are you sure you want to completely remove Python <b>${escapeHtml(v)}</b>? This will delete all files for this version.`);
     if (!yes) return;
     
     // Show inline progress
-    const cards = document.querySelectorAll('.version-card');
-    let targetCard = null;
-    cards.forEach(c => { if (c.querySelector('.version-name')?.textContent === v) targetCard = c; });
+    const targetCard = Array.from(document.querySelectorAll('#installed-list .version-card'))
+        .find((card) => card.dataset.version === v);
     if (targetCard) {
         const actionsDiv = targetCard.querySelector('.version-actions');
         showInlineRemovingState(actionsDiv);
@@ -1141,11 +1536,11 @@ async function uninstallVersion(v) {
     try {
         await invoke('uninstall_version', { workspaceDir: getWorkspaceDir(), version: v });
         installedVersionsSet = installedVersionsSet.filter(x => x !== v);
-        showAlert('Uninstalled', `Python <b>${v}</b> has been removed.`);
+        showAlert('Uninstalled', `Python <b>${escapeHtml(v)}</b> has been removed.`);
         loadInstalled();
         loadDashboard();
     } catch(err) {
-        showAlert('Uninstall Failed', err);
+        showAlert('Uninstall Failed', escapeHtml(err));
         loadInstalled();
     }
 }
@@ -1222,10 +1617,13 @@ async function checkInstallation() {
             }
         }
 
-        if (!currentWorkspaceDir && status.root) {
-            currentWorkspaceDir = status.root;
-            localStorage.setItem('pyenv-workspace-dir', status.root);
-            updateWorkspaceUI();
+        if (currentWorkspaceDir && status.root) {
+            const normalize = (value) => String(value).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+            if (normalize(currentWorkspaceDir) === normalize(status.root)) {
+                currentWorkspaceDir = '';
+                localStorage.removeItem('pyenv-workspace-dir');
+                updateWorkspaceUI();
+            }
         }
 
         document.querySelector('.sidebar').style.display = 'flex';
@@ -1258,7 +1656,7 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
         if (statusText) statusText.textContent = "Done! Environment refreshed.";
         showAlert(
             'Setup Complete',
-            `${result}<br><br>Open a <b>new terminal</b> so shims appear on PATH. This GUI process keeps its original PATH until restarted.`,
+            `${escapeHtml(result)}<br><br>Open a <b>new terminal</b> so shims appear on PATH. This GUI process keeps its original PATH until restarted.`,
         );
         setTimeout(() => {
             location.reload();
@@ -1266,7 +1664,7 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
     } catch (err) {
         if (progress) progress.style.display = 'none';
         if (actions) actions.style.display = 'flex';
-        showAlert('Setup Failed', err);
+        showAlert('Setup Failed', escapeHtml(err));
     }
 });
 
@@ -1335,7 +1733,6 @@ let upgraderSourceSpec = '';
 let upgraderSourceName = '';
 let upgraderSourceBase = '';
 let upgraderTargetVersion = '';
-let upgraderPackages = [];
 
 const upgraderDrawer = document.getElementById('drawer-venv-upgrader');
 const upgraderCloseBtn = document.getElementById('btn-close-upgrader');
@@ -1428,13 +1825,49 @@ function markStepWarning(stepId, label, desc) {
     if (dsc) dsc.textContent = desc;
 }
 
+function applyUpgradeProgressLog(log, success) {
+    const lines = String(log || '').split(/\r?\n/);
+    lines.forEach((line) => {
+        if (line.trim()) appendUpgraderLog(line);
+    });
+
+    const joined = lines.join('\n');
+    const hasBackup = joined.includes('backup:');
+    const hasCreate = joined.includes('venv:') || joined.includes('plan:');
+    const hasRestore = joined.includes('restore:');
+    const hasVerify = joined.includes('verify:');
+    const hasCleanup = joined.includes('cleanup:') || joined.includes('Renamed managed venv');
+
+    if (hasBackup) markStepSuccess('backup', 'Inventory complete', 'Captured source packages');
+    if (hasCreate) markStepSuccess('recreate', 'Environment recreated', 'Created migration venv');
+    if (hasRestore) markStepSuccess('restore', 'Packages restored', 'Reinstalled custom packages');
+    if (hasVerify) {
+        if (joined.includes('[WARNING] dependency conflicts')) {
+            markStepWarning('verify', 'Conflicts discovered', 'pip check reported warnings');
+        } else {
+            markStepSuccess('verify', 'Verification complete', 'Dependency check finished');
+        }
+    }
+    if (hasCleanup) markStepSuccess('cleanup', 'Cleanup complete', 'Old environment removed');
+
+    if (!success) {
+        if (!hasBackup) markStepWarning('backup', 'Inventory failed', 'Could not list packages in the source venv');
+        else if (!hasCreate) markStepWarning('recreate', 'Create failed', 'Could not create the migration venv');
+        else if (!hasRestore) markStepWarning('restore', 'Restore failed', 'Package reinstall stopped; source venv left unchanged');
+        else if (!hasCleanup) markStepWarning('cleanup', 'Cleanup failed', 'New venv exists; source may still be present');
+        appendUpgraderLog('\n[FATAL ERROR] Migration failed.');
+    } else {
+        appendUpgraderLog('\n[FINISH] Venv migration completed successfully!');
+    }
+}
+
 // Function to open the wizard drawer
-window.openVenvUpgradeWizard = async function(name, baseVersion) {
-    upgraderSourceSpec = `venv:${name}`;
-    upgraderSourceName = name;
+window.openVenvUpgradeWizard = async function(spec, baseVersion) {
+    upgraderSourceSpec = spec;
+    upgraderSourceName = venvDisplayName(spec);
     upgraderSourceBase = baseVersion;
     
-    upgraderTargetTitle.textContent = `Migrate ${name}`;
+    upgraderTargetTitle.textContent = `Migrate ${upgraderSourceName}`;
     upgraderTargetSubtitle.textContent = `Current Base: ${baseVersion}`;
     
     // Reset wizard view
@@ -1490,119 +1923,26 @@ if (btnStartUpgrade) {
         upgraderSetupCard.style.display = 'none';
         upgraderProgressCard.style.display = 'block';
         clearUpgraderLog();
-        appendUpgraderLog(`Initializing migration wizard for venv:${upgraderSourceName} -> ${targetVer}...`);
-        
+        appendUpgraderLog(`Initializing migration for venv:${upgraderSourceName} -> ${targetVer}...`);
+        markStepInProgress('backup', 'Inventory old environment', 'Capturing installed packages...');
+        markStepInProgress('recreate', 'Create fresh environment', 'Waiting for core migrate...');
+        markStepInProgress('restore', 'Restore packages', 'Waiting for core migrate...');
+        markStepInProgress('verify', 'Dependency diagnostics', 'Waiting for core migrate...');
+        markStepInProgress('cleanup', 'Cleanup old environment', 'Waiting for core migrate...');
+
         try {
-            // Step 1: Inventory old environment packages
-            markStepInProgress('backup', 'Inventory old environment', 'Gathering package details...');
-            appendUpgraderLog("\n[STEP 1] Discovery: Reading currently installed packages...");
-            
-            const upgradeInfo = await invoke('get_venv_upgrade_info', {
+            const log = await invoke('upgrade_venv', {
                 workspaceDir: getWorkspaceDir(),
-                spec: upgraderSourceSpec
+                spec: upgraderSourceSpec,
+                newRuntime: targetVer,
             });
-            
-            upgraderPackages = upgradeInfo.packages;
-            appendUpgraderLog(`Captured ${upgraderPackages.length} custom packages to migrate:`);
-            upgraderPackages.forEach(p => appendUpgraderLog(`  - ${p}`));
-            markStepSuccess('backup', 'Inventory complete', `Captured ${upgraderPackages.length} custom packages`);
-            
-            // Step 2: Create new virtual environment under target version
-            markStepInProgress('recreate', 'Create fresh environment', 'Invoking backend creator...');
-            appendUpgraderLog(`\n[STEP 2] Environment: Recreating venv '${upgraderSourceName}' under runtime ${targetVer}...`);
-            
-            const createResult = await invoke('create_venv', {
-                workspaceDir: getWorkspaceDir(),
-                baseVersion: targetVer,
-                name: upgraderSourceName
-            });
-            
-            appendUpgraderLog(createResult);
-            markStepSuccess('recreate', 'Environment recreated', `Venv is now running Python ${targetVer}`);
-            
-            // Step 3: Reinstall packages progressively
-            markStepInProgress('restore', 'Restore packages', `Reinstalling custom libraries (0/${upgraderPackages.length})...`);
-            appendUpgraderLog("\n[STEP 3] Pip Restoration: Reinstalling custom libraries...");
-            
-            if (upgraderPackages.length > 0) {
-                for (let i = 0; i < upgraderPackages.length; i++) {
-                    const pkg = upgraderPackages[i];
-                    markStepInProgress('restore', 'Restore packages', `Reinstalling ${pkg} (${i + 1}/${upgraderPackages.length})...`);
-                    appendUpgraderLog(`  - Installing ${pkg}...`);
-                    
-                    try {
-                        await invoke('install_pip_packages', {
-                            workspaceDir: getWorkspaceDir(),
-                            target: `venv:${upgraderSourceName}`,
-                            packages: [pkg]
-                        });
-                        appendUpgraderLog(`    ✓ ${pkg} installed successfully.`);
-                    } catch (e) {
-                        appendUpgraderLog(`    [WARNING] Failed to install ${pkg}: ${e}`);
-                    }
-                }
-                markStepSuccess('restore', 'Packages restored', `Restored custom dependencies`);
-            } else {
-                appendUpgraderLog("  - No custom packages to reinstall.");
-                markStepSuccess('restore', 'Packages restored', 'No packages to restore');
-            }
-            
-            // Step 4: Run diagnostic verification
-            markStepInProgress('verify', 'Dependency diagnostics', 'Running pip check...');
-            appendUpgraderLog("\n[STEP 4] Diagnostics: Running pip check conflict verification...");
-            
-            try {
-                const checkRes = await invoke('check_pip_conflicts', {
-                    workspaceDir: getWorkspaceDir(),
-                    target: `venv:${upgraderSourceName}`
-                });
-                appendUpgraderLog(checkRes);
-                const conflicts = JSON.parse(checkRes);
-                if (conflicts.length === 0) {
-                    appendUpgraderLog("  ✓ All package dependencies are fully satisfied and healthy!");
-                    markStepSuccess('verify', 'Verification success', 'No dependency conflicts detected');
-                } else {
-                    appendUpgraderLog(`  [WARNING] Discovered ${conflicts.length} package dependency conflicts!`);
-                    conflicts.forEach(c => appendUpgraderLog(`    ! ${c.message}`));
-                    markStepWarning('verify', 'Conflicts discovered', `Found ${conflicts.length} package warning(s)`);
-                }
-            } catch (e) {
-                appendUpgraderLog(`  - pip check verification complete.`);
-                markStepSuccess('verify', 'Verification complete', 'Dependency verification complete');
-            }
-            
-            // Step 5: Clean up old environment
-            markStepInProgress('cleanup', 'Cleanup old environment', 'Purging old files...');
-            appendUpgraderLog("\n[STEP 5] Cleanup: Purging old virtual environment files...");
-            
-            const oldSpec = `${upgraderSourceBase}/envs/${upgraderSourceName}`;
-            const newSpecPath = `${targetVer}/envs/${upgraderSourceName}`;
-            
-            if (oldSpec !== newSpecPath) {
-                try {
-                    await invoke('delete_venv', {
-                        workspaceDir: getWorkspaceDir(),
-                        spec: oldSpec
-                    });
-                    appendUpgraderLog(`  ✓ Safely purged old environment directory: ${oldSpec}`);
-                    markStepSuccess('cleanup', 'Cleanup complete', 'Old environment purged successfully');
-                } catch (e) {
-                    appendUpgraderLog(`  - [WARNING] Could not delete old environment: ${e}`);
-                    markStepWarning('cleanup', 'Cleanup warning', 'Could not purge old files');
-                }
-            } else {
-                appendUpgraderLog("  - Same runtime, skipped directory cleanup.");
-                markStepSuccess('cleanup', 'Cleanup complete', 'Same version recreation, skipped purge');
-            }
-            
-            appendUpgraderLog("\n[FINISH] Venv migration completed successfully!");
-            showAlert("Migration Success", `Managed virtual environment '${upgraderSourceName}' has been fully migrated to Python ${targetVer}.`);
+            applyUpgradeProgressLog(String(log || ''), true);
+            showAlert("Migration Success", `Managed virtual environment '${escapeHtml(upgraderSourceName)}' has been fully migrated to Python ${escapeHtml(targetVer)}.`);
             loadVenvs();
-            
         } catch (error) {
             console.error("Migration failed:", error);
-            appendUpgraderLog(`\n[FATAL ERROR] Migration failed: ${error}`);
-            showAlert("Migration Failed", error);
+            applyUpgradeProgressLog(String(error || ''), false);
+            showAlert("Migration Failed", escapeHtml(error));
         }
     });
 }
@@ -1612,7 +1952,9 @@ window.openPackageExplorer = function(target) {
     currentExplorerTarget = target;
     
     // Set Target Title/Subtitle
-    drawerTargetTitle.textContent = target.startsWith('venv:') ? `Venv: ${target.substring(5)}` : `Runtime: ${target}`;
+    const envName = venvDisplayName(target);
+    const isVenv = target.includes('/envs/') || target.startsWith('venv:');
+    drawerTargetTitle.textContent = isVenv ? `Venv: ${envName}` : `Runtime: ${target}`;
     drawerTargetSubtitle.textContent = `Package Explorer Target Context`;
     
     // Switch to first tab (Installed)
@@ -1640,6 +1982,7 @@ window.openPackageExplorer = function(target) {
     importPrecheckDashboard.style.display = 'none';
     importPrecheckLoading.style.display = 'none';
     btnInstallImported.disabled = true;
+    btnInstallImported.textContent = "Install Dependencies";
     
     // Clear import scanner results
     if (scanImportsResults) scanImportsResults.style.display = 'none';
@@ -1703,6 +2046,10 @@ document.addEventListener('keydown', (event) => {
         trapFocus(openDrawer, event);
     }
     if (event.key !== 'Escape') return;
+    if (document.querySelector('.card-menu.is-open')) {
+        closeCardMenus();
+        return;
+    }
     if (drawer?.classList.contains('open')) {
         closePackageExplorer();
         return;
@@ -1780,7 +2127,7 @@ btnUpgradePip.addEventListener('click', async () => {
         showAlert("Pip Upgraded", "pip self-update completed successfully.");
         loadDrawerPackages();
     } catch(err) {
-        showAlert("Upgrade Failed", err);
+        showAlert("Upgrade Failed", escapeHtml(err));
     } finally {
         btnUpgradePip.disabled = false;
         btnUpgradePip.textContent = "Update";
@@ -1808,7 +2155,7 @@ function renderInstalledPackages() {
         nameTd.textContent = p.name;
 
         const versionTd = document.createElement('td');
-        versionTd.style.fontFamily = "'JetBrains Mono', monospace";
+        versionTd.style.fontFamily = "var(--font-mono)";
         versionTd.style.opacity = '0.8';
         versionTd.textContent = p.version;
 
@@ -1855,7 +2202,7 @@ btnScanOutdated.addEventListener('click', async () => {
         
         renderOutdatedChecklist();
     } catch(err) {
-        showAlert("Scan Failed", err);
+        showAlert("Scan Failed", escapeHtml(err));
         updatesScanPrompt.style.display = 'block';
     } finally {
         updatesScanning.style.display = 'none';
@@ -2005,6 +2352,7 @@ btnUpdateSelected.addEventListener('click', async () => {
                 packages: [pkg],
                 all: false
             });
+            selectedOutdated.delete(pkg);
         }
         
         progressText.textContent = `All updates completed!`;
@@ -2017,7 +2365,7 @@ btnUpdateSelected.addEventListener('click', async () => {
             btnUpdateSelected.textContent = "Update Selected Packages";
         }, 1500);
         
-        showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${pkgs.join(', ')}</code>`);
+        showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${escapeHtml(pkgs.join(', '))}</code>`);
         
         // Refresh installed packages table
         loadDrawerPackages();
@@ -2025,10 +2373,12 @@ btnUpdateSelected.addEventListener('click', async () => {
         // Reset outdated check since updates were performed
         resetOutdatedScanView();
     } catch(err) {
-        showAlert("Update Failed", err);
+        showAlert("Update Failed", escapeHtml(err));
         progressContainer.style.display = 'none';
         btnUpdateSelected.disabled = false;
         btnUpdateSelected.textContent = "Update Selected Packages";
+        loadDrawerPackages();
+        updateSelectedCountText();
     }
 });
 
@@ -2036,7 +2386,7 @@ btnUpdateSelected.addEventListener('click', async () => {
 btnPrecheckImport.addEventListener('click', async () => {
     const pathOrUrl = importRequirementsPath.value.trim();
     if (!pathOrUrl) {
-        showAlert("Input Required", "Please paste a requirements.txt local path or remote URL.");
+        showAlert("Input Required", "Please paste a requirements.txt local path or HTTPS URL.");
         return;
     }
     
@@ -2055,7 +2405,7 @@ btnPrecheckImport.addEventListener('click', async () => {
         const precheck = JSON.parse(jsonStr);
         renderPrecheckResults(precheck);
     } catch(err) {
-        showAlert("Precheck Failed", err);
+        showAlert("Precheck Failed", escapeHtml(err));
     } finally {
         btnPrecheckImport.disabled = false;
         importPrecheckLoading.style.display = 'none';
@@ -2111,7 +2461,7 @@ function renderPrecheckResults(precheck) {
             nameTd.textContent = p.name;
 
             const versionTd = document.createElement('td');
-            versionTd.style.fontFamily = "'JetBrains Mono', monospace";
+            versionTd.style.fontFamily = "var(--font-mono)";
             versionTd.textContent = p.version;
 
             const statusTd = document.createElement('td');
@@ -2177,7 +2527,8 @@ btnInstallImported.addEventListener('click', async () => {
         // Switch to installed tab to see them
         switchDrawerTab('tab-installed');
     } catch(err) {
-        showAlert("Installation Failed", err);
+        showAlert("Installation Failed", escapeHtml(err));
+    } finally {
         btnInstallImported.disabled = false;
         btnInstallImported.textContent = "Install Dependencies";
     }
@@ -2206,7 +2557,7 @@ if (btnSelectScanFolder) {
                 updateScanFolderLabel();
             }
         } catch (err) {
-            showAlert('Folder Selection Failed', err);
+            showAlert('Folder Selection Failed', escapeHtml(err));
         }
     });
 }
@@ -2294,7 +2645,7 @@ if (btnScanImports) {
             if (scanImportsResults) scanImportsResults.style.display = 'block';
             
         } catch (err) {
-            showAlert("Scan Failed", `Failed to statically scan workspace codebase imports:<br><code style="font-size: 11px;">${err}</code>`);
+            showAlert("Scan Failed", `Failed to statically scan workspace codebase imports:<br><code style="font-size: 11px;">${escapeHtml(err)}</code>`);
         } finally {
             if (scanImportsLoading) scanImportsLoading.style.display = 'none';
             btnScanImports.disabled = false;
@@ -2327,7 +2678,7 @@ if (btnInstallMissingImports) {
                 });
                 installedCount++;
             } catch (err) {
-                showAlert("Installation Failed", `Failed to install dependency <b>${pkg}</b>:<br><code style="font-size:11px;">${err}</code>`);
+                showAlert("Installation Failed", `Failed to install dependency <b>${escapeHtml(pkg)}</b>:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
                 btnInstallMissingImports.disabled = false;
                 btnInstallMissingImports.textContent = "Install Missing Dependencies";
                 return;
@@ -2391,7 +2742,7 @@ loadDashboard = async function() {
         if (status.active_versions && status.active_versions.length > 0) {
             checkActivePipStatus(status.active_versions[0]);
         } else if (status.managed_venv) {
-            checkActivePipStatus(`venv:${status.managed_venv.name}`);
+            checkActivePipStatus(status.managed_venv.spec || `venv:${status.managed_venv.name}`);
         } else {
             updateActivePipLight(false);
         }
@@ -2418,8 +2769,11 @@ async function loadPlatformIntelligence() {
         const intel = await invoke('get_platform_intelligence', {
             workspaceDir: getWorkspaceDir(),
         });
-        summaryEl.textContent = intel.summary || 'Platform intelligence unavailable.';
-        const verdict = (intel.verdict || 'needs-attention').toLowerCase();
+        if (!intel || typeof intel !== 'object' || Array.isArray(intel)) {
+            throw new Error('Platform intelligence payload was empty.');
+        }
+        summaryEl.textContent = intel.summary || 'Host environment details loaded.';
+        const verdict = String(intel.verdict || '').toLowerCase();
         verdictEl.className = 'platform-intel-verdict';
         if (verdict === 'ready') {
             verdictEl.classList.add('ready');
@@ -2427,9 +2781,11 @@ async function loadPlatformIntelligence() {
         } else if (verdict === 'blocked') {
             verdictEl.classList.add('blocked');
             verdictEl.textContent = 'Blocked';
-        } else {
+        } else if (verdict === 'needs-attention' || verdict === 'attention') {
             verdictEl.classList.add('attention');
             verdictEl.textContent = 'Needs attention';
+        } else {
+            verdictEl.textContent = 'Unavailable';
         }
 
         factsEl.replaceChildren();
@@ -2484,7 +2840,7 @@ async function loadPlatformIntelligence() {
     } catch (err) {
         console.error('Failed to load platform intelligence:', err);
         summaryEl.textContent = 'Unable to load platform intelligence for this host.';
-        verdictEl.className = 'platform-intel-verdict attention';
+        verdictEl.className = 'platform-intel-verdict';
         verdictEl.textContent = 'Unavailable';
     }
 }
@@ -2584,9 +2940,29 @@ async function loadShellIntegration() {
             btn.id = `btn-cfg-${sanitizeDomId(status.name)}`;
 
             if (!status.is_installed) {
-                btn.classList.add('btn-outline');
-                btn.textContent = 'Shell Not Installed';
-                btn.disabled = true;
+                const wantsPwsh = status.name.toLowerCase().includes('powershell 7');
+                if (wantsPwsh) {
+                    btn.classList.add('btn-gold');
+                    btn.textContent = 'Install PowerShell 7';
+                    btn.disabled = false;
+                    btn.addEventListener('click', async () => {
+                        btn.disabled = true;
+                        btn.textContent = 'Installing...';
+                        try {
+                            const result = await invoke('install_powershell_7');
+                            showAlert('PowerShell 7', escapeHtml(result));
+                            loadShellIntegration();
+                        } catch (err) {
+                            showAlert('PowerShell 7 Install Failed', escapeHtml(err));
+                            btn.disabled = false;
+                            btn.textContent = 'Install PowerShell 7';
+                        }
+                    });
+                } else {
+                    btn.classList.add('btn-outline');
+                    btn.textContent = 'Shell Not Installed';
+                    btn.disabled = true;
+                }
             } else if (status.is_configured) {
                 btn.classList.add('btn-outline');
                 btn.textContent = 'Configured';
@@ -2601,11 +2977,11 @@ async function loadShellIntegration() {
                         await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
                         showAlert(
                             'Shell Configured',
-                            `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${status.profile_path}</code><br><br>Restart your terminal shell for the changes to take effect!`,
+                            `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
                         );
                         loadShellIntegration();
                     } catch (err) {
-                        showAlert('Configuration Failed', err);
+                        showAlert('Configuration Failed', escapeHtml(err));
                         btn.disabled = false;
                         btn.textContent = 'Auto-Configure Shell';
                     }
@@ -2660,24 +3036,41 @@ async function runDoctorDiagnostics() {
         const jsonStr = await invoke('run_doctor', { workspaceDir: getWorkspaceDir() });
         // FFI command returns Vec<DoctorCheckGui> direct serialization
         const checks = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-        
-        // Filter out Ok/Info checks to locate Warn/issues
-        const issues = checks.filter(c => c.status === 'Warn');
-        
-        if (issues.length === 0) {
+        if (!Array.isArray(checks)) {
+            throw new Error('Doctor did not return a check list.');
+        }
+
+        const parsed = checks.map(normalizeDoctorCheck).filter(Boolean);
+        const issues = parsed
+            .filter((check) => doctorIssueStatus(check.status))
+            .map((check) => ({
+                ...check,
+                detail: check.detail || 'No additional detail was reported for this check.',
+            }));
+
+        if (checks.length > 0 && parsed.length === 0) {
+            if (doctorIssuesCard) doctorIssuesCard.style.display = 'block';
+            if (doctorIssuesList) {
+                const item = document.createElement('div');
+                item.className = 'doctor-issue';
+                const strong = document.createElement('strong');
+                strong.textContent = 'Incomplete diagnostics';
+                item.append(strong, document.createTextNode(': the health report did not include names and reasons, so no warning is shown.'));
+                doctorIssuesList.appendChild(item);
+            }
+            if (btnDoctorFix) {
+                btnDoctorFix.disabled = true;
+                btnDoctorFix.textContent = 'Repair unavailable';
+            }
+        } else if (issues.length === 0) {
             if (doctorHealthyCard) doctorHealthyCard.style.display = 'block';
         } else {
             if (doctorIssuesCard) doctorIssuesCard.style.display = 'block';
             if (doctorIssuesList) {
-                issues.forEach(issue => {
+                issues.forEach((issue) => {
                     const item = document.createElement('div');
-                    item.style.padding = '8px 12px';
-                    item.style.borderRadius = '6px';
-                    item.style.background = 'rgba(251, 191, 36, 0.04)';
-                    item.style.borderLeft = '3px solid #fbbf24';
-                    item.style.marginBottom = '6px';
+                    item.className = 'doctor-issue';
                     const strong = document.createElement('strong');
-                    strong.style.color = '#fbbf24';
                     strong.textContent = issue.name;
                     item.append(strong, document.createTextNode(`: ${issue.detail}`));
                     doctorIssuesList.appendChild(item);
@@ -2685,13 +3078,16 @@ async function runDoctorDiagnostics() {
             }
             if (btnDoctorFix) {
                 btnDoctorFix.disabled = false;
-                btnDoctorFix.textContent = "Attempt Self-Healing Repair";
+                btnDoctorFix.textContent = 'Attempt Self-Healing Repair';
             }
         }
         
         if (doctorResults) doctorResults.style.display = 'block';
     } catch(err) {
         console.error("Doctor failed:", err);
+        showAlert("Diagnostics Failed", `Doctor could not complete:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+        if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
+        if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
     } finally {
         if (doctorLoading) doctorLoading.style.display = 'none';
         btnRunDoctor.disabled = false;
@@ -2711,7 +3107,7 @@ async function attemptDoctorFix() {
         
         let message = "Applied the following automated repairs:<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>";
         applied.forEach(act => {
-            message += `<li>${act}</li>`;
+            message += `<li>${escapeHtml(act)}</li>`;
         });
         message += "</ul><br>Diagnostics will now be re-run.";
         
@@ -2720,7 +3116,7 @@ async function attemptDoctorFix() {
         // Re-run diagnostics
         runDoctorDiagnostics();
     } catch(err) {
-        showAlert("Self-Healing Failed", `Failed to automatically repair system environment:<br><code style="font-size:11px;">${err}</code>`);
+        showAlert("Self-Healing Failed", `Failed to automatically repair system environment:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
         btnDoctorFix.disabled = false;
         btnDoctorFix.textContent = "Attempt Self-Healing Repair";
     }

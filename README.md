@@ -5,294 +5,136 @@
 ![PyPI](https://img.shields.io/badge/PyPI-pip%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
-**A native-first, cross-platform Python version manager inspired by `pyenv`. Built for speed and reliability on Windows, Linux, and macOS.**
+Native Rust Python version manager inspired by `pyenv`. Ships **`pyenv`** (CLI), **`pyenv-mcp`** (agents), and **`pyenv gui`**.
 
-`pyenv-native` is a native Rust reimplementation of the `pyenv` experience. It provides familiar workflows for version selection while removing shell and platform limitations, especially on Windows.
+Windows is the primary platform. Linux and macOS are tested. Android/Termux is experimental (source builds).
 
----
-
-## Current Status: Actively Maturing
-
-`pyenv-native` is currently in active development. While it is used daily by its creators, it should be considered "production-intended" but still subject to community validation.
-
-- **Windows**: Stable (Primary platform)
-- **Linux/macOS**: Tested
-- **Android/Termux**: **Experimental** (Requires manual setup for compilation)
-
-<details>
-<summary><b>Android / Termux Build Prerequisites</b></summary>
-<br />
-
-Since Android/Termux does not ship with pre-built CPython binaries, `pyenv-native` automatically fetches and compiles Python from source. To prevent compilation failures, you **must** install the required compiler tools and system development libraries inside Termux first:
-
-```bash
-# 1. Update Termux package repositories
-pkg update && pkg upgrade -y
-
-# 2. Install required compilers, builders, and standard libraries
-pkg install clang make pkg-config libffi openssl readline ncurses -y
-```
-
-After installing these prerequisites, running `pyenv install <version>` will compile and build your chosen Python runtime flawlessly on Android.
-</details>
+![Pyenv-Native GUI](docs/screenshots/animated_gui.webp)
 
 ---
 
-## The Ecosystem
+## Install
 
-`pyenv-native` is more than a CLI; it is a native foundation for Python development.
+Pick the block for the machine you are on. Coding agents: run that block, then `pyenv doctor`. Do not guess a classic bash-pyenv install.
 
-### 💻 [The CLI (Core Product)](./docs/CLI.md)
+### Windows (PowerShell 7+)
 
-The high-performance core. Manages Python installations, shims, and shell integration.
-
-- **Native-First**: No Bash dependency.
-- **Opinionated Power**: Built-in managed `venv` support (replaces `pyenv-virtualenv`).
-- **Validated Performance**: Reliable version selection on Windows, Linux, and macOS.
-
-- **Dashboard**: Live view of your managed environments.
-- **Visual Control**: Install versions and manage venvs with one click.
-- **Status**: Stable on Windows; Experimental on Linux/macOS.
-
-#### GUI Standalone (Latest)
-
-- **Windows**: [Download .exe](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-windows-x64.exe)
-  - *Note: You may need to Right-click -> Properties -> **Unblock** if Windows SmartScreen blocks execution.*
-- **Linux**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-linux-x64)
-- **macOS (Apple Silicon)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-arm64)
-- **macOS (Intel)**: [Download Binary](https://github.com/imyourboyroy/pyenv-native/releases/latest/download/pyenv-gui-macos-x64)
-  - *Note: On Linux/macOS, run `chmod +x <binary>` in your terminal before launching.*
-
-### 🤖 [Agentic / MCP Support](./docs/MCP.md)
-
-A structured bridge for AI models like Claude or Gemini.
-
-- **Standardized**: Built-in MCP server support.
-- **Model-Friendly**: Allows AI agents to inspect, configure, and manage Python environments safely.
-
----
-
-## Installation
-
-`pyenv-native` can be installed using modern package managers or standard interactive terminal scripts.
-
-### 1. Package Managers (Recommended)
-
-| Platform | Command | Description |
-| :--- | :--- | :--- |
-| **Windows (winget)** | `winget install pyenv-native` | Direct, system-wide Windows installation |
-| **macOS / Linux (Homebrew)** | `brew install imyourboyroy/pyenv-native/pyenv-native` | Universal Unix taps management |
-| **Universal (pipx)** | `pipx install pyenv-native` | Isolated Python application bootstrap |
-
-> [!NOTE]
-> When installing via `pipx`, you will run the self-installer command immediately after package installation:
-> ```bash
-> pyenv-native install --install-root ~/.pyenv
-> ```
-
----
-
-### 2. Interactive Shell Scripts (Fastest)
-
-For single-line boots directly from standard terminal shells:
-
-#### Windows (PowerShell)
 ```powershell
 irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 | iex
+pyenv doctor
 ```
 
-#### macOS / Linux / Android (Bash/Zsh)
-
-**Fresh install** (defaults to `$HOME/.pyenv`):
+### Linux / macOS / Termux
 
 ```bash
-curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"   # use zsh or fish if that is your shell
+pyenv doctor
 ```
 
-**Upgrade an existing install** — re-run the same command. The installer detects an existing `pyenv` at the install root and upgrades in place. You do **not** need `--force` for normal upgrades.
+Open a **new terminal** after install so shims are on PATH. On Termux, install compilers first: `pkg install clang make pkg-config libffi openssl readline ncurses`.
+
+### pipx (any OS with Python)
 
 ```bash
-curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
+pipx install pyenv-native
+pyenv-native install --install-root "$HOME/.pyenv"
 ```
 
-Non-interactive upgrade (no prompts):
+Winget and Homebrew manifests are generated on each release (`dist/winget/`, `dist/homebrew/`) but are **not published** yet. Do not run `winget install` or `brew install` for pyenv-native.
 
-```bash
-curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh -s -- --yes
-```
-
-If `pyenv` is already on your PATH, you can also use:
-
-```bash
-pyenv self-update --yes
-```
-
-**Install root notes**
-
-- The default install root is `$HOME/.pyenv`. You usually do **not** need `--install-root`.
-- If you set a custom root, prefer `$HOME/.pyenv` over `~/.pyenv` in scripts. The installer expands `~/path` forms, but omitting `--install-root` is the most reliable option.
-- Use `--force` only when installing into a non-empty directory that does **not** already contain a `pyenv-native` install.
+Full handbook (shells, tags, custom roots): [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md)
 
 ---
 
-## Upgrading
-
-| Method | Command |
-| :--- | :--- |
-| **Web installer (macOS/Linux)** | Re-run the `curl ... install.sh` command above |
-| **CLI self-update** | `pyenv self-update --yes` |
-| **Windows (PowerShell)** | Re-run `irm ... install.ps1 \| iex` |
-| **winget** | `winget upgrade pyenv-native` |
-| **Homebrew** | `brew upgrade imyourboyroy/pyenv-native/pyenv-native` |
-| **pipx** | `pipx upgrade pyenv-native` then `pyenv-native install --install-root "$HOME/.pyenv"` |
-
-After upgrading, refresh shims if `python` or `python3` behave unexpectedly:
+## After install
 
 ```bash
-pyenv rehash
+pyenv install 3.14          # latest matching 3.14.x
+pyenv global 3.14
+pyenv venv create 3.14 app
+pyenv local 3.14/envs/app
+pyenv which python
+pyenv gui                   # optional desktop UI
 ```
+
+Managed venvs live under `PYENV_ROOT/venvs/<runtime>/<name>`. Version selection is **shell → local `.python-version` → parents → global → system**.
 
 ---
 
-## Uninstallation
+## Upgrade / uninstall
 
-If you need to remove `pyenv-native` and its shims, you can use the native CLI or standard web scripts:
+| | Windows | Linux / macOS |
+| :--- | :--- | :--- |
+| **Upgrade** | Re-run `install.ps1`, or `pyenv self-update --yes` | Re-run `install.sh`, or `pyenv self-update --yes` |
+| **Uninstall** | `pyenv self-uninstall`, or `irm …/uninstall.ps1 \| iex` | `pyenv self-uninstall`, or `curl …/uninstall.sh \| sh -s -- --remove-root` |
 
-### 1. Native CLI (Self-Contained)
-If `pyenv` is already in your PATH, simply run:
-```bash
-pyenv self-uninstall
-```
-
-### 2. Interactive Shell Scripts
-
-#### Windows (PowerShell)
-```powershell
-irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.ps1 | iex
-```
-
-#### macOS / Linux (Bash/Zsh)
-```bash
-curl -LsSf https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.sh | sh -s -- --remove-root
-```
+pipx: `pipx upgrade pyenv-native` then `pyenv-native install --install-root "$HOME/.pyenv"`.
 
 ---
 
-## Agent skills (Cursor, Claude Code, Gemini, Copilot, and more)
+## For coding agents
 
-This repo ships **agent skills** so coding agents follow pyenv-native / pyenv-mcp workflows instead of guessing Python setup.
+1. If **pyenv-mcp** is connected: `get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`. Details: [docs/MCP.md](./docs/MCP.md).
+2. If MCP is missing: install with the OS command above, then CLI (`pyenv local`, `pyenv install`, `pyenv venv create`, `pyenv which python`).
+3. Never `pip install` into an unknown global Python. Resolve the interpreter first.
 
-### Tell your agent (copy-paste)
+Register MCP: `pyenv-mcp print-config` (paste into Cursor MCP settings). Quick JSON: `pyenv-mcp guide`.
+
+**Install agent skills** (Cursor, Claude Code, Gemini CLI, Copilot, and more):
 
 ```text
-Install the agent skills from https://github.com/imyourboyroy/pyenv-native. Clone the repo, then run scripts/install-agent-skills.ps1 -Agent all on Windows (PowerShell 7+) or scripts/install-agent-skills.sh --agent all on macOS/Linux. Install for Cursor, Claude Code, Gemini CLI, Antigravity, GitHub Copilot, Windsurf, OpenCode, and Kiro.
+Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 ```
-
-### One-shot (no manual cd)
-
-**Windows (PowerShell 7+):**
 
 ```powershell
-$repo = "https://github.com/imyourboyroy/pyenv-native"
-$dir = Join-Path $env:TEMP "agent-skills-$(Get-Random)"
-git clone --depth 1 $repo $dir
-& (Join-Path $dir "scripts/install-agent-skills.ps1") -RepoRoot $dir -Agent all
-```
-
-**macOS / Linux:**
-
-```bash
-repo="https://github.com/imyourboyroy/pyenv-native"
-dir="$(mktemp -d)"
-git clone --depth 1 "$repo" "$dir"
-chmod +x "$dir/scripts/install-agent-skills.sh"
-"$dir/scripts/install-agent-skills.sh" --repo-root "$dir" --agent all
-```
-
-### Quick install
-
-**Windows (PowerShell 7+):**
-
-```powershell
+# Windows (PowerShell 7+)
 git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
 cd pyenv-native
 ./scripts/install-agent-skills.ps1 -Agent all
 ```
 
-**macOS / Linux:**
-
 ```bash
+# macOS / Linux
 git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
 cd pyenv-native
 chmod +x ./scripts/install-agent-skills.sh
 ./scripts/install-agent-skills.sh --agent all
 ```
 
-Full guides for every supported agent: **[docs/agent-skills/README.md](./docs/agent-skills/README.md)** · **[Getting started](./docs/agent-skills/getting-started.md)**
+Guides: [docs/agent-skills/README.md](./docs/agent-skills/README.md) · [getting-started.md](./docs/agent-skills/getting-started.md)
 
 ---
 
-## Documentation Registry
+## GUI
 
-Detailed technical guides and instructions:
+Launch with `pyenv gui` after a native install. Stable on Windows; experimental on Linux/macOS. Native bundles ship `pyenv-gui` next to `pyenv`. Standalone binaries and `.sha256` files are on [GitHub Releases](https://github.com/imyourboyroy/pyenv-native/releases/latest).
 
-- 📖 **[CLI Usage Guide](./docs/CLI.md)** — Core commands, `venv` management, and shell setup.
-- 🎨 **[GUI Dashboard Guide](./docs/GUI.md)** — Features, screenshots, and visual management.
-- 🔗 **[MCP / Agent Guide](./docs/MCP.md)** — Integration for AI models and IDEs.
-- 🤖 **[Agent Skills Install](./docs/agent-skills/README.md)** — Cursor, Claude Code, Gemini CLI, Antigravity, Copilot, Windsurf, OpenCode, Kiro.
-- 🏗️ **[Architecture](./docs/ARCHITECTURE.md)** — Native shims, version resolution, and design philosophy.
-- 🗑️ **[Uninstallation Guide](./docs/INSTRUCTIONS.md#uninstallation)** — Safely removing `pyenv-native`.
+| Dashboard | Install Runtimes | Installed | Venvs |
+| :---: | :---: | :---: | :---: |
+| ![Dashboard](docs/screenshots/Dashboard.webp) | ![Install Runtimes](docs/screenshots/Available.webp) | ![Installed](docs/screenshots/Installed_Versions.webp) | ![Venvs](docs/screenshots/VENVs.webp) |
 
----
-
-## Visual Previews
-
-### CLI Environment
-
-```bash
-$ pyenv versions
-  system
-* 3.13.1 (set by C:\Users\Roy\.pyenv\version)
-  3.12.8
-  3.12.8/envs/api  (managed venv)
-```
-
-### Categorized Help Reference
-
-```text
-SELECTION:      global, local, shell, latest, version, version-name, prefix
-PROVISIONING:   install, available, versions, uninstall
-ENVIRONMENT:    venv (managed virtual environments)
-INTERFACE:      init, gui, rehash, shims, prompt, exec, completions
-DIAGNOSTICS:    doctor, preflight, environment, status, config, root, which, whence
-MAINTENANCE:    self-update, self-uninstall
-```
-
-### GUI Dashboard
-
-![Pyenv-Native GUI Animation](docs/screenshots/animated_gui.webp)
+More views and feature notes: [docs/GUI.md](./docs/GUI.md)
 
 ---
 
-## Reporting Issues
+## Docs
 
-If you encounter an issue, please [open a GitHub Issue](https://github.com/imyourboyroy/pyenv-native/issues). To help us troubleshoot, please include:
-
-- **OS Version** (e.g., Windows 11, macOS Sequoia, Ubuntu 24.04)
-- **Processor Architecture** (e.g., x64, ARM64/Apple Silicon)
-- **Shell** (e.g., PowerShell 7, Bash, Zsh, Fish)
-- **Relevant Logs** (found in your `.pyenv/logs/` directory)
-- **Problematic Output** (the full command and any error messages)
-
-> [!TIP]
-> Run `pyenv preflight` before source installs (macOS/Android/Linux) to verify toolchain readiness, or `pyenv doctor` for a full health summary if the CLI is already installed.
+| | |
+| :--- | :--- |
+| [INSTRUCTIONS](./docs/INSTRUCTIONS.md) | Install, shell init, workflows, troubleshooting |
+| [CLI](./docs/CLI.md) | Command reference |
+| [MCP](./docs/MCP.md) | Agent tools and recommended order |
+| [GUI](./docs/GUI.md) | Desktop companion |
+| [ARCHITECTURE](./docs/ARCHITECTURE.md) | Crate layout |
 
 ---
 
-## Relationship to pyenv
+## Issues
 
-`pyenv-native` is an independent reimplementation inspired by the `pyenv` experience. It is not affiliated with or endorsed by the official `pyenv` project. We thank the `pyenv` maintainers for shaping the standard for Python version management.
+[Open an issue](https://github.com/imyourboyroy/pyenv-native/issues) with OS, architecture, shell, `pyenv doctor` output, and logs from `.pyenv/logs/`. Run `pyenv preflight` before source installs on macOS, Linux, or Android.
 
----
+`pyenv-native` is an independent reimplementation inspired by `pyenv`. It is not affiliated with or endorsed by the official pyenv project.
 
 Created by: **Roy Dawson IV** | [GitHub](https://github.com/imyourboyroy) | [PyPI](https://pypi.org/user/ImYourBoyRoy/) | License: **MIT**

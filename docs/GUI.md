@@ -1,23 +1,23 @@
 # Pyenv Native GUI Companion
 
-The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, providing a visual interface for managing your Python environments.
+The **Pyenv Native GUI** is a desktop dashboard built with Tauri v2 for managing Python environments visually.
 
 > [!IMPORTANT]
-> **Status: Experimental / Preview**
-> The GUI is currently most stable on **Windows**. While macOS and Linux builds are possible from source, they are not yet fully validated or provided as pre-compiled bundles.
+> **Status:** Most stable on **Windows**. Native Linux x64 and macOS (arm64/x64) binaries ship on GitHub Releases and are experimental. Cross-compiled bundles (Windows ARM64, Linux ARM64, Android) do **not** include the GUI.
 
 ## Features
 
-- **Dashboard**: Live view of your active Python version, managed venvs, and pyenv root, including a glowing status light indicator for pending active pip updates.
-- **Pip Package Explorer**: Frosted-glass sliding drawer focused on a target interpreter to browse installed dependencies, audit updates, statically pre-check requirements.txt constraints, and scan codebase imports.
-- **Codebase Import Analyzer**: Statically parses all Python (`.py`) source files in your active workspace using Python AST to identify imports, automatically detects third-party packages, segments missing libraries using warm coral-red tags, and provides a single-click progressive installer to heal your environment package-by-package.
-- **Cozy Pip Updates**: Audits packages against PyPI and provides a checklist for multiselect updates. Outdated pip installations get an isolated cozy update card first before modifying libraries.
-- **Conflict Pre-checker**: Statically resolves local files or pasted remote URLs (auto-translating GitHub repositories) to run conflict analysis comparisons against installed packages, raising coral mismatch indicators and hover tooltips *before* triggering pip.
-- **Visual Management**: Browse and install from the full CPython/PyPy catalog with a single click.
-- **Venv Manager**: Create, list, and delete named virtual environments graphically.
-- **Diagnostics & Self-Healing**: A dedicated **"System Health & Self-Healing Diagnostics"** dashboard that runs comprehensive audits of required shells, profiles, PATH shims, compiler chains (`clang`, `make`), and system library dependencies (`openssl`, `libffi`, `ncurses`), providing a single-click button to attempt automated self-healing repairs.
-- **Settings**: Configure registry integration, architecture preferences, and pip bootstrapping.
-- **Self-Update**: Check for and install `pyenv-native` updates directly from the UI.
+- **Dashboard**: Live view of your active Python version, managed venvs, and pyenv root, including a status light for pending pip updates. Doctor warnings appear as a click-through banner.
+- **Project folder**: The folder bar stays visible on every page. **Make Local** writes `.python-version` there; **Pin to another folder…** in a card’s **More** menu opens a picker without changing the bar.
+- **Pip Package Explorer**: Drawer focused on a target interpreter to browse installed dependencies, audit updates, statically pre-check requirements.txt constraints, and scan codebase imports.
+- **Codebase Import Analyzer**: Statically parses Python source in the active workspace, flags missing third-party imports, and can install them progressively.
+- **Pip Updates**: Audits packages against PyPI with a multiselect checklist. The gold update button stays dimmed until at least one package is selected. Outdated `pip` is updated first.
+- **Conflict Pre-checker**: Resolves local files or HTTPS URLs (GitHub blob links translated to raw) before `pip install`.
+- **Visual Management**: Browse and install CPython 2.x / 3.x and PyPy. Latest patch per line is the default; Python 2 stays in the catalog for legacy projects.
+- **Venv Manager**: Create, list, delete, and migrate named virtual environments onto another installed runtime. Cards keep **Package Explorer** plus a **More** menu (global/local, migrate, delete). The GUI calls the same `venv upgrade` path as the CLI. Global badges and Make Global use the canonical `base/envs/name` spec (aliases such as `venv:name` still match). Rename, `venv use`, and shell-scoped `pyenv shell` remain CLI-only.
+- **Diagnostics & Self-Healing**: Runs doctor/preflight checks and can apply automated repairs. Warnings use the same `WARN` status as the CLI.
+- **Settings**: Architecture, pip bootstrap, and optional companion base-venv flags (`venv.auto_create_base_venv` and `venv.auto_use_base_venv` default **off**). On Windows, `windows.registry_mode=pep514` writes HKCU PEP-514 keys under `Software\Python\PyenvNative` (not `PythonCore`). The Windows settings block is hidden on Linux/macOS.
+- **Self-Update**: Check for and install `pyenv-native` updates from the UI.
 
 ## Visual Tour
 
@@ -31,34 +31,58 @@ The **Pyenv Native GUI** is a premium desktop dashboard built with Tauri v2, pro
 | :---: | :---: | :---: |
 | ![Dashboard](./screenshots/Dashboard.webp) | ![Installed Versions](./screenshots/Installed_Versions.webp) | ![Virtual Envs](./screenshots/VENVs.webp) |
 
-| Available Targets | Settings | About |
+| Install Runtimes | Shell Integration | Settings |
 | :---: | :---: | :---: |
-| ![Available](./screenshots/Available.webp) | ![Settings](./screenshots/Settings.webp) | ![About](./screenshots/About.webp) |
+| ![Available](./screenshots/Available.webp) | ![Shell](./screenshots/Shell.webp) | ![Settings](./screenshots/Settings.webp) |
+
+![About](./screenshots/About.webp)
+
+Regenerate from the repo root with `node ./scripts/gui-screenshots/capture.mjs` (Playwright + ffmpeg).
 
 </details>
 
 ## Installation & Launch
 
-### Windows
+Native release bundles for **Windows x64**, **Linux x64**, and **macOS** include `pyenv-gui` next to `pyenv`. After install:
 
-The GUI is included in the default Windows release bundle. If `pyenv` is on your path, you can launch it via:
-
-```powershell
-# Coming in a future update: pyenv gui launch
-# For now, use the dev script or the Start Menu shortcut
-.\scripts\launch_gui.ps1
+```text
+pyenv gui
 ```
 
-### Building from Source (macOS/Linux)
+Standalone GUI binaries (and matching `.sha256` files) are also attached to each GitHub Release. Verify the checksum before running a standalone download.
 
-You can build the GUI from source if you have the Rust toolchain installed:
+### Windows (dev)
+
+```powershell
+pwsh -NoLogo -NoProfile -File .\scripts\launch_gui.ps1
+```
+
+### Building from source (macOS/Linux)
 
 ```bash
 cargo build --release -p pyenv-gui
 ```
 
-*Note: Linux users will need `webkit2gtk-4.1` and other Tauri system dependencies installed.*
+Linux needs `webkit2gtk-4.1` and other Tauri system dependencies.
+
+### Accessibility check
+
+Static markup (jsdom + axe, contrast off):
+
+```bash
+pnpm --dir scripts/gui-a11y install --frozen-lockfile
+pnpm --dir scripts/gui-a11y run check
+```
+
+Rendered GUI evidence gate (WCAGate, WCAG 2.2 AA, contrast on). This does **not** invent a WCAG percentage:
+
+```bash
+npm --prefix scripts/wcagate install
+npm --prefix scripts/wcagate run wcagate:doctor
+npm --prefix scripts/wcagate run wcagate:prepare
+npm --prefix scripts/wcagate run wcagate:audit
+```
 
 ---
 
-The GUI is designed as a companion to the core CLI. All changes made in the GUI are instantly reflected in your terminal and vice versa.
+The GUI is a companion to the CLI. Changes in the GUI are reflected in the terminal and vice versa.
