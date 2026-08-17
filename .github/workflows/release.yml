@@ -106,18 +106,11 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
+      # pyenv-gui is omitted here: Tauri/WebView2 cannot be cross-compiled
+      # from the x64 runner, so this bundle ships CLI + MCP only.
       - name: Build Windows ARM64 release bundle
         shell: pwsh
         run: .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
-
-      - name: Prepare standalone GUI asset (Windows ARM64)
-        shell: pwsh
-        run: |
-          $src = "dist/pyenv-native-windows-arm64/pyenv-gui.exe"
-          if (-not (Test-Path $src)) { throw "missing $src" }
-          Copy-Item $src "dist/pyenv-gui-windows-arm64.exe"
-          $hash = (Get-FileHash "dist/pyenv-gui-windows-arm64.exe" -Algorithm SHA256).Hash.ToLower()
-          Set-Content -NoNewline -Path "dist/pyenv-gui-windows-arm64.exe.sha256" -Value $hash
 
       - name: Upload Windows ARM64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -126,8 +119,6 @@ jobs:
           path: |
             dist/pyenv-native-windows-arm64.zip
             dist/pyenv-native-windows-arm64.zip.sha256
-            dist/pyenv-gui-windows-arm64.exe
-            dist/pyenv-gui-windows-arm64.exe.sha256
 
   linux-bundle:
     runs-on: ubuntu-latest
