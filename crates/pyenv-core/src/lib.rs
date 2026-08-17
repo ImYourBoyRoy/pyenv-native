@@ -78,7 +78,10 @@ pub use preflight::{
     cmd_environment, cmd_preflight,
 };
 pub use runtime::BASE_VENV_DIR_NAME;
-pub use self_update::{SelfUpdateOptions, cmd_self_uninstall, cmd_self_update};
+pub use self_update::{
+    SelfUpdateCheck, SelfUpdateCheckStatus, SelfUpdateOptions, cmd_self_uninstall, cmd_self_update,
+    inspect_self_update,
+};
 pub use shell::{
     InitCommandOptions, cmd_activate, cmd_deactivate, cmd_init, cmd_sh_activate, cmd_sh_cmd,
     cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_virtualenv_init,

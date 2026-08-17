@@ -10,7 +10,10 @@ use crate::install::resolve_python_build_path;
 use crate::runtime::search_path_entries;
 use crate::version::{SelectedVersions, resolve_selected_versions};
 
-use super::helpers::{path_contains, path_ext_for_platform, paths_equal};
+use super::helpers::{
+    find_windows_store_python_alias, path_contains, path_ext_for_platform, paths_equal,
+    windows_store_alias_precedes_shims,
+};
 use super::types::{DoctorCheck, DoctorOptions, DoctorStatus};
 
 fn i18n(id: &str) -> String {
@@ -565,14 +568,33 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
 }
 
 fn windows_store_alias_check(ctx: &AppContext) -> DoctorCheck {
+    if let Some(alias) = find_windows_store_python_alias(ctx) {
+        let intercepts = windows_store_alias_precedes_shims(ctx);
+        let (status, detail) = if intercepts {
+            (
+                DoctorStatus::Warn,
+                i18n_args(
+                    "doctor-store-alias",
+                    &[("path", alias.display().to_string())],
+                ),
+            )
+        } else {
+            (
+                DoctorStatus::Info,
+                i18n_args(
+                    "doctor-store-alias-shadowed",
+                    &[("path", alias.display().to_string())],
+                ),
+            )
+        };
+        return DoctorCheck {
+            name: "system-python".to_string(),
+            status,
+            detail,
+        };
+    }
+
     let (status, detail) = match find_system_python_command(ctx) {
-        Some(path) if path.to_string_lossy().contains("WindowsApps") => (
-            DoctorStatus::Warn,
-            i18n_args(
-                "doctor-store-alias",
-                &[("path", path.display().to_string())],
-            ),
-        ),
         Some(path) => (
             DoctorStatus::Info,
             i18n_args(

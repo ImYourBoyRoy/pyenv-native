@@ -68,7 +68,7 @@
   "doctor-reason-make": "मूल CPython स्रोत निर्माण के लिए आवश्यक",
   "doctor-reason-compiler": "मूल CPython स्रोत निर्माण के लिए आवश्यक",
   "doctor-reason-pkg-config": "मूल लाइब्रेरी निर्भरताएँ ढूँढने के लिए अनुशंसित",
-  "doctor-store-alias": "सिस्टम पाइथन { $path } पर WindowsApps उपनाम तक पहुँचता है; यह 'जाल' कमांड रोक सकता है और इसे 'Settings > Apps > App Execution Aliases' में अक्षम करना चाहिए",
+  "doctor-store-alias": "सिस्टम पाइथन { $path } पर WindowsApps उपनाम तक पहुँचता है; यदि यह stub pyenv shims से पहले है तो python को रोक सकता है। Settings > Apps > App Execution Aliases में python.exe / python3.exe अक्षम करें",
   "doctor-system-python": "सिस्टम पाइथन { $path } तक पहुँचता है",
   "doctor-no-system-python": "PATH पर कोई सिस्टम पाइथन नहीं मिला",
   "doctor-pyenv-win-path": "PATH में pyenv-win प्रविष्टियाँ pyenv-native से पहले आती हैं; इससे pyenv-win कमांड रोक सकता है। उपयोगकर्ता PATH से pyenv-win प्रविष्टियाँ हटाएँ: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "venv बनाना विफल",
   "gui-delete-failed": "हटाना विफल",
   "gui-up-to-date-title": "अद्यतन",
+  "gui-up-to-date-body": "pyenv-native { $version } अद्यतन है।",
+  "gui-update-available-title": "अपडेट उपलब्ध: { $version }",
+  "gui-update-available-body": "नया रिलीज़ { $latest } उपलब्ध है (वर्तमान { $current })।",
+  "gui-update-ahead-title": "प्रकाशित से नया",
+  "gui-update-ahead-body": "इंस्टॉल किया गया संस्करण { $current } नवीनतम प्रकाशित रिलीज़ { $latest } से नया है।",
   "gui-update-failed": "अपडेट विफल",
   "gui-update-check": "अपडेट जाँच",
   "gui-update-check-failed": "अपडेट जाँच विफल",
@@ -697,5 +702,8 @@
   "gui-fact-available": "उपलब्ध",
   "gui-fact-not-found": "नहीं मिला",
   "gui-fact-missing": "अनुपस्थित",
-  "error-self-update-portable": "pyenv: स्व-अपडेट केवल `{ $expected }` से चलाई गई पोर्टेबल स्थापनाओं का समर्थन करता है; वर्तमान निष्पादन योग्य `{ $current }` है"
+  "error-self-update-portable": "pyenv: स्व-अपडेट केवल `{ $expected }` से चलाई गई पोर्टेबल स्थापनाओं का समर्थन करता है; वर्तमान निष्पादन योग्य `{ $current }` है",
+  "doctor-store-alias-shadowed": "Microsoft Store python stub { $path } पर है; pyenv shims प्राथमिकता लेते हैं, इसलिए Settings > Apps > App Execution Aliases में इसे अक्षम करना वैकल्पिक है",
+  "gui-manual-follow-up": "अभी भी मैन्युअल फ़ॉलो-अप सुझाया गया है:",
+  "gui-doctor-fix-manual": "मैन्युअल चरण आवश्यक"
 }

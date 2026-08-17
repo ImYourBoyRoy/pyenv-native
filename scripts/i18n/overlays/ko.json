@@ -68,7 +68,7 @@
   "doctor-reason-make": "네이티브 CPython 소스 빌드에 필요합니다",
   "doctor-reason-compiler": "네이티브 CPython 소스 빌드에 필요합니다",
   "doctor-reason-pkg-config": "네이티브 라이브러리 종속성을 찾는 데 권장됩니다",
-  "doctor-store-alias": "시스템 python이 { $path } 의 WindowsApps 별칭으로 해석됩니다. 이 '함정'이 명령을 가로챌 수 있으므로 '설정 > 앱 > 앱 실행 별칭'에서 끄세요",
+  "doctor-store-alias": "시스템 python이 { $path } 의 WindowsApps 별칭으로 해석됩니다. pyenv shim보다 앞에 있으면 python을 가로챕니다. ‘설정 > 앱 > 앱 실행 별칭’에서 python.exe / python3.exe 를 끄세요",
   "doctor-system-python": "시스템 python이 { $path } 로 해석됩니다",
   "doctor-no-system-python": "PATH에서 시스템 python을 찾지 못했습니다",
   "doctor-pyenv-win-path": "PATH에서 pyenv-win 항목이 pyenv-native보다 앞에 있어 pyenv-win이 명령을 가로챌 수 있습니다. 사용자 PATH에서 pyenv-win 항목을 제거하세요: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "가상 환경 만들기 실패",
   "gui-delete-failed": "삭제 실패",
   "gui-up-to-date-title": "최신 상태",
+  "gui-up-to-date-body": "pyenv-native { $version } 은(는) 최신 상태입니다.",
+  "gui-update-available-title": "업데이트 가능: { $version }",
+  "gui-update-available-body": "새 릴리스 { $latest } 를 사용할 수 있습니다(현재 { $current }).",
+  "gui-update-ahead-title": "게시된 버전보다 최신",
+  "gui-update-ahead-body": "설치된 버전 { $current } 이(가) 최신 게시 릴리스 { $latest } 보다 더 최신입니다.",
   "gui-update-failed": "업데이트 실패",
   "gui-update-check": "업데이트 확인",
   "gui-update-check-failed": "업데이트 확인 실패",
@@ -697,5 +702,8 @@
   "gui-fact-available": "사용 가능",
   "gui-fact-not-found": "없음",
   "gui-fact-missing": "누락",
-  "error-self-update-portable": "pyenv: 자체 업데이트는 `{ $expected }`에서 실행된 휴대용 설치만 지원합니다. 현재 실행 파일은 `{ $current }`입니다"
+  "error-self-update-portable": "pyenv: 자체 업데이트는 `{ $expected }`에서 실행된 휴대용 설치만 지원합니다. 현재 실행 파일은 `{ $current }`입니다",
+  "doctor-store-alias-shadowed": "Microsoft Store python 스텁이 { $path } 에 있습니다. pyenv shim이 우선하므로 ‘설정 > 앱 > 앱 실행 별칭’에서 끄는 것은 선택 사항입니다",
+  "gui-manual-follow-up": "수동 후속 조치가 여전히 권장됩니다:",
+  "gui-doctor-fix-manual": "수동 단계 필요"
 }

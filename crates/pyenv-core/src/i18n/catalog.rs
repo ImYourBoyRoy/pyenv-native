@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/i18n/catalog.rs
 //! Fluent catalog loader and GUI message bundle.
 //! Touch this file after editing `locales/**/*.ftl` so fluent-templates recompiles.
-//! Last catalog touch: GUI leftover chrome (origin/global, system unsupported, shell facts, self-update).
+//! Last catalog touch: GUI self-update dialog body and related update-check copy.
 
 use std::borrow::Cow;
 use std::collections::HashMap;

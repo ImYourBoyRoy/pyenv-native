@@ -287,9 +287,10 @@ async fn upgrade_venv(
 }
 
 /// Check for pyenv-native updates using the core self-update API (check-only mode).
-/// Returns a human-readable status string.
 #[tauri::command]
-async fn check_for_updates(workspace_dir: Option<String>) -> Result<String, String> {
+async fn check_for_updates(
+    workspace_dir: Option<String>,
+) -> Result<pyenv_core::SelfUpdateCheck, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
         let options = pyenv_core::SelfUpdateOptions {
@@ -300,11 +301,7 @@ async fn check_for_updates(workspace_dir: Option<String>) -> Result<String, Stri
             tag: None,
             restart_gui: false,
         };
-        let report = pyenv_core::cmd_self_update(&ctx, &options);
-        if report.exit_code != 0 {
-            return Err(report.stderr.join("\n"));
-        }
-        Ok(report.stdout.join("\n"))
+        pyenv_core::inspect_self_update(&ctx, &options)
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?
@@ -1148,6 +1145,19 @@ struct DoctorCheckGui {
     detail: String,
 }
 
+#[derive(serde::Serialize)]
+struct DoctorFixGui {
+    key: String,
+    description: String,
+    command_hint: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+struct DoctorFixOutcomeGui {
+    applied: Vec<String>,
+    manual: Vec<DoctorFixGui>,
+}
+
 #[tauri::command]
 async fn run_doctor(workspace_dir: Option<String>) -> Result<Vec<DoctorCheckGui>, String> {
     tokio::task::spawn_blocking(move || {
@@ -1174,7 +1184,7 @@ async fn run_doctor(workspace_dir: Option<String>) -> Result<Vec<DoctorCheckGui>
 }
 
 #[tauri::command]
-async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, String> {
+async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<DoctorFixOutcomeGui, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
         let outcome = pyenv_core::apply_doctor_fixes_with_options(
@@ -1185,7 +1195,18 @@ async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, St
             },
         )
         .map_err(|e| e.to_string())?;
-        Ok(outcome.applied)
+        Ok(DoctorFixOutcomeGui {
+            applied: outcome.applied,
+            manual: outcome
+                .manual
+                .into_iter()
+                .map(|item| DoctorFixGui {
+                    key: item.key,
+                    description: item.description,
+                    command_hint: item.command_hint,
+                })
+                .collect(),
+        })
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?

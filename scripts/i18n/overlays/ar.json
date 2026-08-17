@@ -68,7 +68,7 @@
   "doctor-reason-make": "مطلوب لبناء CPython الأصلي من المصدر",
   "doctor-reason-compiler": "مطلوب لبناء CPython الأصلي من المصدر",
   "doctor-reason-pkg-config": "موصى به لتحديد مواقع تبعيات المكتبات الأصلية",
-  "doctor-store-alias": "بايثون النظام يشير إلى اسم مستعار لـ WindowsApps في { $path }؛ قد يعترض هذا «الفخ» الأوامر ويجب تعطيله في 'Settings > Apps > App Execution Aliases'",
+  "doctor-store-alias": "بايثون النظام يشير إلى اسم مستعار لـ WindowsApps في { $path }؛ قد يعترض هذا الـ stub أمر python إذا سبق شيمات pyenv. عطّل python.exe / python3.exe في Settings > Apps > App Execution Aliases",
   "doctor-system-python": "بايثون النظام يشير إلى { $path }",
   "doctor-no-system-python": "لم يُعثر على بايثون نظام في PATH",
   "doctor-pyenv-win-path": "إدخالات PATH الخاصة بـ pyenv-win تظهر قبل pyenv-native في PATH؛ قد يجعل ذلك pyenv-win يعترض الأوامر. أزل إدخالات pyenv-win من PATH المستخدم: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "فشل إنشاء البيئة الافتراضية",
   "gui-delete-failed": "فشل الحذف",
   "gui-up-to-date-title": "محدَّث",
+  "gui-up-to-date-body": "pyenv-native { $version } محدَّث.",
+  "gui-update-available-title": "تحديث متاح: { $version }",
+  "gui-update-available-body": "يتوفر إصدار أحدث { $latest } (الحالي { $current }).",
+  "gui-update-ahead-title": "أحدث من المنشور",
+  "gui-update-ahead-body": "الإصدار المثبَّت { $current } أحدث من آخر إصدار منشور { $latest }.",
   "gui-update-failed": "فشل التحديث",
   "gui-update-check": "التحقق من التحديث",
   "gui-update-check-failed": "فشل التحقق من التحديث",
@@ -697,5 +702,8 @@
   "gui-fact-available": "متاح",
   "gui-fact-not-found": "غير موجود",
   "gui-fact-missing": "مفقود",
-  "error-self-update-portable": "pyenv: التحديث الذاتي يدعم فقط التثبيتات المحمولة المُشغَّلة من `{ $expected }`؛ الملف التنفيذي الحالي هو `{ $current }`"
+  "error-self-update-portable": "pyenv: التحديث الذاتي يدعم فقط التثبيتات المحمولة المُشغَّلة من `{ $expected }`؛ الملف التنفيذي الحالي هو `{ $current }`",
+  "doctor-store-alias-shadowed": "يوجد stub بايثون من Microsoft Store في { $path }؛ شيمات pyenv لها الأولوية، لذا تعطيله في Settings > Apps > App Execution Aliases اختياري",
+  "gui-manual-follow-up": "ما زال المتابعة اليدوية موصى بها:",
+  "gui-doctor-fix-manual": "مطلوبة خطوات يدوية"
 }

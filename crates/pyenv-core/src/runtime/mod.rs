@@ -9,6 +9,7 @@ pub use inventory::{
     BASE_VENV_DIR_NAME, collect_shim_names_from_prefix, inventory_roots_for_version,
     managed_search_roots_for_version, normalize_shim_name,
 };
+pub(crate) use search::is_windows_apps_dir;
 pub use search::{
     candidate_file_names, find_command_in_prefix, prefix_bin_dirs, search_path_entries,
 };

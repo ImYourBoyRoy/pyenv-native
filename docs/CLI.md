@@ -123,7 +123,7 @@ pyenv pip update --all 3.14.7/envs/api
 
 - `pyenv doctor` — Run a suite of health checks to verify your installation, PATH, and platform prerequisites.
   - **Android/Termux Auditing:** On Termux environments, the doctor will automatically audit the state of required compiler toolchains (`clang`, `make`, `pkg-config`) and system header libraries (`libffi`, `openssl`, `readline`, `ncurses`) to verify source-compilation readiness.
-- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`).
+- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`). Windows Store App Execution Aliases are not changed automatically; doctor prints the Settings path when the stub is ahead of shims.
 - `pyenv preflight` / `pyenv environment` — Report OS, toolchain, and source-build readiness before compiling Python.
 
 ## Shell Integration

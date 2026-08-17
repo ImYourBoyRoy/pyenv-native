@@ -845,6 +845,41 @@ function doctorIssueStatus(status) {
     return normalized === 'WARN' || normalized === 'WARNING' || normalized === 'FAIL' || normalized === 'ERROR' || normalized === 'BLOCKED';
 }
 
+const MANUAL_ONLY_DOCTOR_CHECKS = new Set([
+    'system-python',
+    'pyenv-win-root-conflict',
+    'pyenv-win-path-conflict',
+]);
+
+function doctorIssueIsAutoHealable(issue) {
+    return issue && !MANUAL_ONLY_DOCTOR_CHECKS.has(String(issue.name || '').toLowerCase());
+}
+
+function normalizeDoctorFixOutcome(raw) {
+    if (Array.isArray(raw)) {
+        return { applied: raw.filter((item) => typeof item === 'string'), manual: [] };
+    }
+    if (!raw || typeof raw !== 'object') {
+        return { applied: [], manual: [] };
+    }
+    const applied = Array.isArray(raw.applied)
+        ? raw.applied.filter((item) => typeof item === 'string')
+        : [];
+    const manual = Array.isArray(raw.manual)
+        ? raw.manual
+            .map((item) => {
+                if (!item || typeof item !== 'object') return null;
+                return {
+                    key: String(item.key || ''),
+                    description: String(item.description || ''),
+                    command_hint: item.command_hint == null ? '' : String(item.command_hint),
+                };
+            })
+            .filter(Boolean)
+        : [];
+    return { applied, manual };
+}
+
 function normalizeDoctorCheck(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const name = String(raw.name || raw.id || raw.title || '').trim();
@@ -1470,16 +1505,58 @@ async function deleteVenv(name) {
 
 // ─── Update Flow ───
 // Uses the core self-update API directly (check-only mode, then update with --yes).
+function normalizeUpdateCheck(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const status = String(raw.status || '').toLowerCase();
+    const currentTag = String(raw.current_tag || raw.currentTag || '').trim();
+    const targetTag = String(raw.target_tag || raw.targetTag || '').trim();
+    if (!status) return null;
+    return {
+        status,
+        currentTag,
+        targetTag,
+        releaseUrl: String(raw.release_url || raw.releaseUrl || '').trim(),
+    };
+}
+
 async function checkUpdates() {
     const btn = document.getElementById('footer-btn');
     if(btn) { btn.innerText = t('gui-checking', null, 'Checking…'); btn.disabled = true; }
     try {
-        const result = await invoke('check_for_updates', { workspaceDir: getWorkspaceDir() });
-        // Parse whether an update is available from the result text
-        if (result.includes('up to date') || result.includes('Up to date') || result.includes('already up to date')) {
-            showAlert(t('gui-up-to-date-title', null, 'Up to Date'), escapeHtml(result));
-        } else if (result.includes('Update available') || result.includes('newer')) {
-            const yes = await showConfirm(t('gui-update-available', { version: '' }, 'Update Available'), escapeHtml(result) + '<br><br>' + t('gui-update-now', null, 'Would you like to update now?'));
+        const check = normalizeUpdateCheck(
+            await invoke('check_for_updates', { workspaceDir: getWorkspaceDir() })
+        );
+        if (!check) {
+            throw new Error(t('gui-update-check-failed', null, 'Update Check Failed'));
+        }
+        if (check.status === 'current') {
+            showAlert(
+                t('gui-up-to-date-title', null, 'Up to Date'),
+                escapeHtml(
+                    t(
+                        'gui-up-to-date-body',
+                        { version: check.currentTag },
+                        `pyenv-native ${check.currentTag} is up to date.`,
+                    ),
+                ),
+            );
+            setFooterAppStatus('uptodate');
+        } else if (check.status === 'available') {
+            const latest = check.targetTag.replace(/^v/i, '');
+            const yes = await showConfirm(
+                t(
+                    'gui-update-available-title',
+                    { version: check.targetTag },
+                    `Update Available: ${check.targetTag}`,
+                ),
+                `${escapeHtml(
+                    t(
+                        'gui-update-available-body',
+                        { latest: check.targetTag, current: check.currentTag },
+                        `A newer release ${check.targetTag} is available (current ${check.currentTag}).`,
+                    ),
+                )}<br><br>${escapeHtml(t('gui-update-now', null, 'Would you like to update now?'))}`,
+            );
             if (yes) {
                 if(btn) btn.innerText = t('gui-updating', null, 'Updating…');
                 try {
@@ -1490,9 +1567,24 @@ async function checkUpdates() {
                     showAlert(t('gui-update-failed', null, 'Update Failed'), escapeHtml(updateErr));
                 }
             }
+            setFooterAppStatus('update', latest);
+        } else if (check.status === 'ahead') {
+            showAlert(
+                t('gui-update-ahead-title', null, 'Newer than published'),
+                escapeHtml(
+                    t(
+                        'gui-update-ahead-body',
+                        { current: check.currentTag, latest: check.targetTag },
+                        `Installed version ${check.currentTag} is newer than the latest published release ${check.targetTag}.`,
+                    ),
+                ),
+            );
+            setFooterAppStatus('uptodate');
         } else {
-            // Generic result
-            showAlert(t('gui-update-check', null, 'Update Check'), escapeHtml(result));
+            showAlert(
+                t('gui-update-check', null, 'Update Check'),
+                escapeHtml(check.currentTag || check.targetTag || check.status),
+            );
         }
     } catch(err) {
         showAlert(t('gui-update-check-failed', null, 'Update Check Failed'), escapeHtml(err));
@@ -3260,8 +3352,11 @@ async function runDoctorDiagnostics() {
                 });
             }
             if (btnDoctorFix) {
-                btnDoctorFix.disabled = false;
-                btnDoctorFix.textContent = t('gui-doctor-fix', null, 'Attempt Self-Healing Repair');
+                const canAutoHeal = issues.some(doctorIssueIsAutoHealable);
+                btnDoctorFix.disabled = !canAutoHeal;
+                btnDoctorFix.textContent = canAutoHeal
+                    ? t('gui-doctor-fix', null, 'Attempt Self-Healing Repair')
+                    : t('gui-doctor-fix-manual', null, 'Manual steps required');
             }
         }
         
@@ -3286,16 +3381,33 @@ async function attemptDoctorFix() {
     btnDoctorFix.textContent = t('gui-doctor-applying', null, 'Applying self-healing repairs...');
 
     try {
-        const applied = await invoke('run_doctor_fix', { workspaceDir: getWorkspaceDir() });
-        
-        let message = `${t('gui-applied-repairs', null, 'Applied the following automated repairs:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
-        applied.forEach(act => {
-            message += `<li>${escapeHtml(act)}</li>`;
-        });
-        message += `</ul><br>${t('gui-rerun-diagnostics', null, 'Diagnostics will now be re-run.')}`;
-        
+        const outcome = normalizeDoctorFixOutcome(
+            await invoke('run_doctor_fix', { workspaceDir: getWorkspaceDir() })
+        );
+        const applied = outcome.applied;
+        const manual = outcome.manual;
+
+        let message = '';
+        if (applied.length > 0) {
+            message += `${t('gui-applied-repairs', null, 'Applied the following automated repairs:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
+            applied.forEach((act) => {
+                message += `<li>${escapeHtml(act)}</li>`;
+            });
+            message += `</ul>`;
+        }
+        if (manual.length > 0) {
+            message += `${t('gui-manual-follow-up', null, 'Manual follow-up still recommended:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
+            manual.forEach((item) => {
+                const description = escapeHtml(item.description || item.key || '');
+                const hint = item.command_hint ? ` (${escapeHtml(item.command_hint)})` : '';
+                message += `<li>${description}${hint}</li>`;
+            });
+            message += `</ul>`;
+        }
+        message += `<br>${t('gui-rerun-diagnostics', null, 'Diagnostics will now be re-run.')}`;
+
         showAlert(t('gui-self-healing-complete', null, 'Self-Healing Complete'), message);
-        
+
         // Re-run diagnostics
         runDoctorDiagnostics();
     } catch(err) {

@@ -7,7 +7,6 @@ use std::path::Path;
 
 use crate::context::{AppContext, is_pyenv_win_root};
 use crate::error::PyenvError;
-use crate::executable::find_system_python_command;
 use crate::runtime::search_path_entries;
 use crate::shim::rehash_shims;
 use crate::version::resolve_selected_versions;
@@ -98,9 +97,7 @@ pub fn doctor_fix_plan_with_options(ctx: &AppContext, options: DoctorOptions) ->
             });
         }
 
-        if let Some(path) = find_system_python_command(ctx)
-            && path.to_string_lossy().contains("WindowsApps")
-        {
+        if super::helpers::windows_store_alias_needs_manual_fix(ctx) {
             fixes.push(DoctorFix {
                 key: "windows-store-alias-manual".to_string(),
                 automated: false,

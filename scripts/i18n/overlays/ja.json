@@ -68,7 +68,7 @@
   "doctor-reason-make": "ネイティブ CPython のソースビルドに必要です",
   "doctor-reason-compiler": "ネイティブ CPython のソースビルドに必要です",
   "doctor-reason-pkg-config": "ネイティブライブラリ依存関係の検出に推奨されます",
-  "doctor-store-alias": "システムの python は { $path } の WindowsApps エイリアスに解決されます。この「トラップ」はコマンドを横取りするため、「設定 > アプリ > アプリ実行エイリアス」で無効にしてください",
+  "doctor-store-alias": "システムの python は { $path } の WindowsApps エイリアスに解決されます。pyenv の shim より前にあると python を横取りします。「設定 > アプリ > アプリ実行エイリアス」で python.exe / python3.exe を無効にしてください",
   "doctor-system-python": "システムの python は { $path } に解決されます",
   "doctor-no-system-python": "PATH 上にシステムの python が見つかりません",
   "doctor-pyenv-win-path": "PATH で pyenv-win の項目が pyenv-native より前にあり、コマンドを横取りする可能性があります。ユーザー PATH から pyenv-win の項目を削除してください: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "仮想環境の作成に失敗しました",
   "gui-delete-failed": "削除に失敗しました",
   "gui-up-to-date-title": "最新です",
+  "gui-up-to-date-body": "pyenv-native { $version } は最新です。",
+  "gui-update-available-title": "更新があります: { $version }",
+  "gui-update-available-body": "新しいリリース { $latest } があります（現在 { $current }）。",
+  "gui-update-ahead-title": "公開版より新しい",
+  "gui-update-ahead-body": "インストール済み { $current } は最新の公開リリース { $latest } より新しいです。",
   "gui-update-failed": "更新に失敗しました",
   "gui-update-check": "更新の確認",
   "gui-update-check-failed": "更新の確認に失敗しました",
@@ -697,5 +702,8 @@
   "gui-fact-available": "利用可",
   "gui-fact-not-found": "見つかりません",
   "gui-fact-missing": "欠落",
-  "error-self-update-portable": "pyenv: 自己更新は `{ $expected }` から起動したポータブルインストールのみ対応です。現在の実行ファイルは `{ $current }` です"
+  "error-self-update-portable": "pyenv: 自己更新は `{ $expected }` から起動したポータブルインストールのみ対応です。現在の実行ファイルは `{ $current }` です",
+  "doctor-store-alias-shadowed": "Microsoft Store の python スタブが { $path } にあります。pyenv の shim が優先されるため、「設定 > アプリ > アプリ実行エイリアス」での無効化は任意です",
+  "gui-manual-follow-up": "手動のフォローアップを推奨します:",
+  "gui-doctor-fix-manual": "手動の手順が必要です"
 }

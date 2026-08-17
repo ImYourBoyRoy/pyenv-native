@@ -49,6 +49,14 @@ mod tests {
             !lookup_for_tag("zh-CN", "gui-uptodate-check").contains("Up to Date"),
             "footer up-to-date copy must not stay English in zh-CN"
         );
+        let mut version = HashMap::new();
+        version.insert("version".into(), "v0.3.1".into());
+        let up_to_date = lookup_for_tag_with_args("zh-CN", "gui-up-to-date-body", &version);
+        assert!(up_to_date.contains("v0.3.1"), "got {up_to_date:?}");
+        assert!(
+            !up_to_date.contains("is up to date"),
+            "update dialog body must not stay English in zh-CN: {up_to_date:?}"
+        );
         let runtime = lookup_for_tag("zh-CN", "gui-runtime-target");
         assert!(!runtime.starts_with("Runtime:"), "got {runtime:?}");
         let mut args = HashMap::new();

@@ -157,6 +157,11 @@ mod tests {
             .join("Microsoft")
             .join("WindowsApps")
             .join("PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0");
+        let alias_dir = temp
+            .path()
+            .join("Local")
+            .join("Microsoft")
+            .join("WindowsApps");
         let valid_dir = temp.path().join("Python312");
 
         fs::create_dir_all(&trap_dir).expect("trap dir");
@@ -164,6 +169,7 @@ mod tests {
 
         let python_exe = "python.exe";
         fs::write(trap_dir.join(python_exe), "").expect("trap python");
+        fs::write(alias_dir.join(python_exe), "").expect("alias python");
         fs::write(valid_dir.join(python_exe), "").expect("valid python");
 
         let path_ext = Some(std::ffi::OsStr::new(".exe"));
@@ -174,5 +180,12 @@ mod tests {
 
         let found_trap_only = search_path_entries(&[trap_dir], "python", path_ext);
         assert_eq!(found_trap_only, None);
+
+        let found_alias_only = search_path_entries(&[alias_dir.clone()], "python", path_ext);
+        assert_eq!(found_alias_only, None);
+
+        let found_after_alias =
+            search_path_entries(&[alias_dir, valid_dir.clone()], "python", path_ext);
+        assert_eq!(found_after_alias, Some(valid_dir.join(python_exe)));
     }
 }

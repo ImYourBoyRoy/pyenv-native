@@ -68,7 +68,7 @@
   "doctor-reason-make": "necessário para compilações nativas do CPython a partir do código-fonte",
   "doctor-reason-compiler": "necessário para compilações nativas do CPython a partir do código-fonte",
   "doctor-reason-pkg-config": "recomendado para localizar dependências de bibliotecas nativas",
-  "doctor-store-alias": "o python do sistema resolve para o alias do WindowsApps em { $path }; essa «armadilha» pode interceptar comandos e deve ser desativada em «Configurações > Aplicativos > Aliases de execução de aplicativos»",
+  "doctor-store-alias": "o python do sistema resolve para o alias do WindowsApps em { $path }; esse stub pode interceptar o python quando está à frente dos shims do pyenv. Desative python.exe / python3.exe em Configurações > Aplicativos > Aliases de execução de aplicativos",
   "doctor-system-python": "o python do sistema resolve para { $path }",
   "doctor-no-system-python": "nenhum python do sistema encontrado no PATH",
   "doctor-pyenv-win-path": "entradas do pyenv-win aparecem antes do pyenv-native no PATH; isso pode fazer o pyenv-win interceptar comandos. Remova as entradas do pyenv-win do PATH do usuário: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "Falha ao criar o venv",
   "gui-delete-failed": "Falha ao excluir",
   "gui-up-to-date-title": "Atualizado",
+  "gui-up-to-date-body": "pyenv-native { $version } está atualizado.",
+  "gui-update-available-title": "Atualização disponível: { $version }",
+  "gui-update-available-body": "Há uma versão mais recente { $latest } (atual { $current }).",
+  "gui-update-ahead-title": "Mais recente que a publicada",
+  "gui-update-ahead-body": "A versão instalada { $current } é mais recente que a última publicação { $latest }.",
   "gui-update-failed": "Falha na atualização",
   "gui-update-check": "Verificação de atualização",
   "gui-update-check-failed": "Falha na verificação de atualização",
@@ -697,5 +702,8 @@
   "gui-fact-available": "disponível",
   "gui-fact-not-found": "não encontrado",
   "gui-fact-missing": "ausente",
-  "error-self-update-portable": "pyenv: a autoatualização só admite instalações portáteis iniciadas em `{ $expected }`; o executável atual é `{ $current }`"
+  "error-self-update-portable": "pyenv: a autoatualização só admite instalações portáteis iniciadas em `{ $expected }`; o executável atual é `{ $current }`",
+  "doctor-store-alias-shadowed": "o stub de python da Microsoft Store está em { $path }; os shims do pyenv têm prioridade, então desativá-lo em Configurações > Aplicativos > Aliases de execução de aplicativos é opcional",
+  "gui-manual-follow-up": "Ainda é recomendado um acompanhamento manual:",
+  "gui-doctor-fix-manual": "Etapas manuais necessárias"
 }

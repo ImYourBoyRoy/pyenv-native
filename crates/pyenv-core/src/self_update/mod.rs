@@ -8,6 +8,6 @@ mod types;
 mod uninstall;
 mod versioning;
 
-pub use runner::cmd_self_update;
-pub use types::SelfUpdateOptions;
+pub use runner::{cmd_self_update, inspect_self_update};
+pub use types::{SelfUpdateCheck, SelfUpdateCheckStatus, SelfUpdateOptions};
 pub use uninstall::cmd_self_uninstall;

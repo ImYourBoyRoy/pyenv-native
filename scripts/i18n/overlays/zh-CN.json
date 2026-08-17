@@ -68,7 +68,7 @@
   "doctor-reason-make": "原生 CPython 源码构建所必需",
   "doctor-reason-compiler": "原生 CPython 源码构建所必需",
   "doctor-reason-pkg-config": "用于定位原生库依赖（建议安装）",
-  "doctor-store-alias": "系统 python 解析为 { $path } 处的 WindowsApps 别名；此“陷阱”可能拦截命令，应在“设置 > 应用 > 应用执行别名”中关闭",
+  "doctor-store-alias": "系统 python 解析为 { $path } 处的 WindowsApps 别名；当该存根排在 pyenv shims 之前时会拦截 python。请在“设置 > 应用 > 应用执行别名”中关闭 python.exe / python3.exe",
   "doctor-system-python": "系统 python 解析为 { $path }",
   "doctor-no-system-python": "PATH 中未找到系统 python",
   "doctor-pyenv-win-path": "PATH 中 pyenv-win 条目位于 pyenv-native 之前，可能导致 pyenv-win 拦截命令。请从用户 PATH 中移除 pyenv-win 条目：{ $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "虚拟环境创建失败",
   "gui-delete-failed": "删除失败",
   "gui-up-to-date-title": "已是最新",
+  "gui-up-to-date-body": "pyenv-native { $version } 已是最新。",
+  "gui-update-available-title": "有可用更新：{ $version }",
+  "gui-update-available-body": "有新版本 { $latest } 可用（当前 { $current }）。",
+  "gui-update-ahead-title": "新于已发布版本",
+  "gui-update-ahead-body": "已安装版本 { $current } 新于最新已发布版本 { $latest }。",
   "gui-update-failed": "更新失败",
   "gui-update-check": "检查更新",
   "gui-update-check-failed": "检查更新失败",
@@ -697,5 +702,8 @@
   "gui-fact-available": "可用",
   "gui-fact-not-found": "未找到",
   "gui-fact-missing": "缺失",
-  "error-self-update-portable": "pyenv：自更新仅支持从 `{ $expected }` 启动的便携安装；当前可执行文件是 `{ $current }`"
+  "error-self-update-portable": "pyenv：自更新仅支持从 `{ $expected }` 启动的便携安装；当前可执行文件是 `{ $current }`",
+  "doctor-store-alias-shadowed": "Microsoft Store 的 python 存根位于 { $path }；pyenv shims 优先，因此在“设置 > 应用 > 应用执行别名”中关闭它是可选的",
+  "gui-manual-follow-up": "仍建议手动跟进：",
+  "gui-doctor-fix-manual": "需要手动步骤"
 }

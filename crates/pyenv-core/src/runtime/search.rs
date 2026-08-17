@@ -33,8 +33,10 @@ pub fn search_path_entries(
 
         #[cfg(windows)]
         {
-            let lowered = directory.to_string_lossy().to_ascii_lowercase();
-            if lowered.contains("windowsapps\\python") || lowered.contains("windowsapps/python") {
+            // Skip Microsoft Store App Execution Alias stubs (`WindowsApps\python.exe`)
+            // and Store package dirs (`WindowsApps\PythonSoftwareFoundation.*`).
+            // Do not skip the whole WindowsApps folder for non-Python tools (winget, pwsh).
+            if is_python_family_command(command) && is_windows_apps_dir(directory) {
                 continue;
             }
         }
@@ -48,6 +50,27 @@ pub fn search_path_entries(
     }
 
     None
+}
+
+pub(crate) fn is_windows_apps_dir(directory: &Path) -> bool {
+    let lowered = directory
+        .to_string_lossy()
+        .replace('/', "\\")
+        .to_ascii_lowercase();
+    lowered.contains("\\windowsapps\\") || lowered.ends_with("\\windowsapps")
+}
+
+#[cfg(windows)]
+fn is_python_family_command(command: &str) -> bool {
+    let name = Path::new(command)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(command)
+        .to_ascii_lowercase();
+    name == "python"
+        || name == "pythonw"
+        || name.starts_with("python2")
+        || name.starts_with("python3")
 }
 
 pub fn candidate_file_names(command: &str, path_ext: Option<&OsStr>) -> Vec<String> {

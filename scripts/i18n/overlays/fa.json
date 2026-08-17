@@ -68,7 +68,7 @@
   "doctor-reason-make": "برای ساخت بومی از منبع CPython لازم است",
   "doctor-reason-compiler": "برای ساخت بومی از منبع CPython لازم است",
   "doctor-reason-pkg-config": "برای یافتن وابستگی‌های کتابخانه‌های بومی توصیه می‌شود",
-  "doctor-store-alias": "پایتون سیستم به نام مستعار WindowsApps در { $path } می‌رسد؛ این «تله» می‌تواند فرمان‌ها را رهگیری کند و باید در 'Settings > Apps > App Execution Aliases' غیرفعال شود",
+  "doctor-store-alias": "پایتون سیستم به نام مستعار WindowsApps در { $path } می‌رسد؛ اگر این stub جلوتر از shimهای pyenv باشد می‌تواند python را رهگیری کند. python.exe / python3.exe را در Settings > Apps > App Execution Aliases غیرفعال کنید",
   "doctor-system-python": "پایتون سیستم به { $path } می‌رسد",
   "doctor-no-system-python": "هیچ پایتون سیستمی روی PATH یافت نشد",
   "doctor-pyenv-win-path": "ورودی‌های PATH مربوط به pyenv-win پیش از pyenv-native در PATH ظاهر می‌شوند؛ این می‌تواند باعث رهگیری فرمان‌ها توسط pyenv-win شود. ورودی‌های pyenv-win را از PATH کاربر حذف کنید: { $path }",
@@ -335,6 +335,11 @@
   "gui-venv-create-failed": "ایجاد محیط مجازی ناموفق",
   "gui-delete-failed": "حذف ناموفق",
   "gui-up-to-date-title": "به‌روز",
+  "gui-up-to-date-body": "pyenv-native { $version } به‌روز است.",
+  "gui-update-available-title": "به‌روزرسانی موجود: { $version }",
+  "gui-update-available-body": "نسخه جدیدتر { $latest } در دسترس است (فعلی { $current }).",
+  "gui-update-ahead-title": "جدیدتر از نسخه منتشرشده",
+  "gui-update-ahead-body": "نسخه نصب‌شده { $current } از آخرین انتشار { $latest } جدیدتر است.",
   "gui-update-failed": "به‌روزرسانی ناموفق",
   "gui-update-check": "بررسی به‌روزرسانی",
   "gui-update-check-failed": "بررسی به‌روزرسانی ناموفق",
@@ -697,5 +702,8 @@
   "gui-fact-available": "موجود",
   "gui-fact-not-found": "یافت نشد",
   "gui-fact-missing": "غایب",
-  "error-self-update-portable": "pyenv: به‌روزرسانی خودکار فقط نصب‌های قابل‌حمل اجراشده از `{ $expected }` را پشتیبانی می‌کند؛ فایل اجرایی فعلی `{ $current }` است"
+  "error-self-update-portable": "pyenv: به‌روزرسانی خودکار فقط نصب‌های قابل‌حمل اجراشده از `{ $expected }` را پشتیبانی می‌کند؛ فایل اجرایی فعلی `{ $current }` است",
+  "doctor-store-alias-shadowed": "stub پایتون Microsoft Store در { $path } است؛ shimهای pyenv اولویت دارند، بنابراین غیرفعال‌کردنش در Settings > Apps > App Execution Aliases اختیاری است",
+  "gui-manual-follow-up": "پیگیری دستی هنوز توصیه می‌شود:",
+  "gui-doctor-fix-manual": "مراحل دستی لازم است"
 }

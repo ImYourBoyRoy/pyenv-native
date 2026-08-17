@@ -3,9 +3,10 @@
 
 use std::env;
 use std::ffi::OsStr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::context::AppContext;
+use crate::runtime::is_windows_apps_dir;
 
 pub(super) fn shell_init_hint(ctx: &AppContext, platform: &str) -> String {
     match platform {
@@ -79,6 +80,65 @@ pub(super) fn path_contains(path_env: Option<&std::ffi::OsString>, target: &Path
         .into_iter()
         .flatten()
         .any(|entry| paths_equal(&entry, target))
+}
+
+/// Locate a Microsoft Store `python.exe` App Execution Alias on PATH.
+///
+/// Lookup helpers skip this stub so `system` does not resolve to it. Doctor still
+/// reports it when a bare `python` in the user's shell could hit it first.
+pub(super) fn find_windows_store_python_alias(ctx: &AppContext) -> Option<PathBuf> {
+    let entries = ctx
+        .path_env
+        .as_ref()
+        .map(env::split_paths)
+        .into_iter()
+        .flatten()
+        .filter(|entry| !entry.as_os_str().is_empty())
+        .collect::<Vec<_>>();
+    let names = [
+        "python.exe",
+        "python3.exe",
+        "pythonw.exe",
+        "python",
+        "python3",
+    ];
+    for entry in entries {
+        if !is_windows_apps_dir(&entry) {
+            continue;
+        }
+        for name in names {
+            let candidate = entry.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+pub(super) fn windows_store_alias_precedes_shims(ctx: &AppContext) -> bool {
+    let shims_dir = ctx.shims_dir();
+    let entries = ctx
+        .path_env
+        .as_ref()
+        .map(env::split_paths)
+        .into_iter()
+        .flatten()
+        .filter(|entry| !entry.as_os_str().is_empty())
+        .collect::<Vec<_>>();
+    let shims_pos = entries
+        .iter()
+        .position(|entry| paths_equal(entry, &shims_dir));
+    let alias_pos = entries.iter().position(|entry| is_windows_apps_dir(entry));
+    match (shims_pos, alias_pos) {
+        (_, None) => false,
+        (None, Some(_)) => true,
+        (Some(shims), Some(alias)) => alias < shims,
+    }
+}
+
+pub(super) fn windows_store_alias_needs_manual_fix(ctx: &AppContext) -> bool {
+    find_windows_store_python_alias(ctx).is_some() && windows_store_alias_precedes_shims(ctx)
 }
 
 pub(super) fn paths_equal(lhs: &Path, rhs: &Path) -> bool {

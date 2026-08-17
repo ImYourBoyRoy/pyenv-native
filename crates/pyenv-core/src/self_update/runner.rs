@@ -17,13 +17,26 @@ use crate::http::build_blocking_client;
 use sha2::{Digest, Sha256};
 
 use super::github::{DEFAULT_GITHUB_REPO, resolve_release_target};
-use super::types::{ReleaseTarget, SelfUpdateOptions};
+use super::types::{ReleaseTarget, SelfUpdateCheck, SelfUpdateOptions};
 
 pub fn cmd_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> CommandReport {
     match run_self_update(ctx, options) {
         Ok(lines) => CommandReport::success(lines),
         Err(message) => CommandReport::failure(vec![message], 1),
     }
+}
+
+pub fn inspect_self_update(
+    ctx: &AppContext,
+    options: &SelfUpdateOptions,
+) -> Result<SelfUpdateCheck, String> {
+    let repo = options
+        .github_repo
+        .clone()
+        .unwrap_or_else(|| DEFAULT_GITHUB_REPO.to_string());
+    ensure_portable_install(ctx, options.restart_gui)?;
+    let target = resolve_release_target(&repo, options.tag.as_deref())?;
+    Ok(SelfUpdateCheck::from_target(&target))
 }
 
 fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<String>, String> {

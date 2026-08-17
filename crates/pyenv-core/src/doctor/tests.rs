@@ -199,4 +199,61 @@ mod tests {
             .expect("cli bin");
         assert_eq!(cli_bin.status, DoctorStatus::Warn);
     }
+
+    fn windowsapps_python_stub(root: &std::path::Path) -> std::path::PathBuf {
+        let alias_dir = root.join("Microsoft").join("WindowsApps");
+        fs::create_dir_all(&alias_dir).expect("windowsapps dir");
+        let stub = if cfg!(windows) {
+            alias_dir.join("python.exe")
+        } else {
+            alias_dir.join("python")
+        };
+        fs::write(&stub, "").expect("store alias stub");
+        alias_dir
+    }
+
+    #[test]
+    fn windows_store_alias_is_info_when_shims_precede_it() {
+        crate::i18n::set_lang_tag("en-US");
+        let (_temp, mut ctx) = test_context();
+        let alias_dir = windowsapps_python_stub(_temp.path());
+        ctx.path_env =
+            Some(env::join_paths([ctx.shims_dir(), alias_dir.clone()]).expect("path env"));
+        let checks = collect_checks_for_platform(&ctx, "windows", DoctorOptions::default());
+        let system_python = checks
+            .iter()
+            .find(|check| check.name == "system-python")
+            .expect("system-python check");
+        assert_eq!(system_python.status, DoctorStatus::Info);
+        assert!(
+            system_python.detail.contains("optional")
+                || system_python.detail.to_ascii_lowercase().contains("shims"),
+            "got {}",
+            system_python.detail
+        );
+        assert!(!super::super::helpers::windows_store_alias_needs_manual_fix(&ctx));
+    }
+
+    #[test]
+    fn windows_store_alias_warns_when_it_precedes_shims() {
+        crate::i18n::set_lang_tag("en-US");
+        let (_temp, mut ctx) = test_context();
+        let alias_dir = windowsapps_python_stub(_temp.path());
+        ctx.path_env =
+            Some(env::join_paths([alias_dir.clone(), ctx.shims_dir()]).expect("path env"));
+        let checks = collect_checks_for_platform(&ctx, "windows", DoctorOptions::default());
+        let system_python = checks
+            .iter()
+            .find(|check| check.name == "system-python")
+            .expect("system-python check");
+        assert_eq!(system_python.status, DoctorStatus::Warn);
+        assert!(
+            system_python.detail.contains("WindowsApps"),
+            "got {}",
+            system_python.detail
+        );
+        assert!(super::super::helpers::windows_store_alias_needs_manual_fix(
+            &ctx
+        ));
+    }
 }
