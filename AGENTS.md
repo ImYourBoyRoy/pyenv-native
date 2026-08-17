@@ -21,7 +21,7 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 
 ## When working ON this repo (Rust / packaging)
 
-- Primary platform: **Windows x64**; also test Linux/macOS paths when touching install or resolution logic.
+- Supported platforms: **Windows**, **Linux**, and **macOS**. Exercise install and resolution on the OS you touch. Android/Termux is experimental (source builds).
 - Use existing scripts: `scripts/dev-cargo.ps1`, `scripts/build-release-bundle.ps1`.
 - Every install path must ship **both** `pyenv` and `pyenv-mcp`.
 - Run `cargo test` in affected crates before claiming success.

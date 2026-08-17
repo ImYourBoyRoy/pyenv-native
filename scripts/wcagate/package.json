@@ -1,0 +1,17 @@
+{
+  "name": "pyenv-native-wcagate",
+  "private": true,
+  "type": "module",
+  "description": "WCAGate accessibility evidence gate for the pyenv-native Tauri GUI.",
+  "scripts": {
+    "wcagate:doctor": "wcagate doctor",
+    "wcagate:prepare": "wcagate prepare",
+    "wcagate:audit": "wcagate run",
+    "wcagate:results": "wcagate serve"
+  },
+  "devDependencies": {
+    "@imyourboyroy/wcagate": "github:imyourboyroy/WCAGate#v2.3.1",
+    "playwright": "^1.62.1",
+    "@axe-core/playwright": "^4.13.0"
+  }
+}

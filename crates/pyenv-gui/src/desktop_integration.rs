@@ -38,6 +38,7 @@ pub fn prepare_linux_runtime() {
 
 pub fn prepare_app(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     apply_window_icons(app);
+    disable_webview_context_menu(app);
 
     #[cfg(target_os = "linux")]
     {
@@ -45,6 +46,23 @@ pub fn prepare_app(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn disable_webview_context_menu(app: &tauri::App) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let _ = window.with_webview(|webview| {
+        #[cfg(target_os = "linux")]
+        {
+            use webkit2gtk::WebViewExt;
+            webview.inner().connect_context_menu(|_, _, _, _| true);
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = webview;
+        }
+    });
 }
 
 fn apply_window_icons(app: &tauri::App) {

@@ -16,6 +16,9 @@ tokio = { workspace = true, features = ["full"] }
 rfd.workspace = true
 opener.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

@@ -94,9 +94,15 @@ mod tests {
         );
         let mut config = config;
         set_config_value(&mut config, "plugins.search_path", "false").expect("set");
+        set_config_value(&mut config, "ui.language", "zh-TW").expect("set lang");
         assert_eq!(
-            get_config_value(&config, "plugins.search_path").expect("get"),
-            "false"
+            get_config_value(&config, "ui.language").expect("get lang"),
+            "zh-CN"
+        );
+        set_config_value(&mut config, "ui.language", "auto").expect("set auto");
+        assert_eq!(
+            get_config_value(&config, "ui.language").expect("get auto"),
+            "auto"
         );
     }
 

@@ -1,0 +1,12 @@
+Vendored GUI fonts (SIL Open Font License 1.1). Do not load these from a CDN.
+
+- Inter Variable — The Inter Project Authors — https://github.com/rsms/inter
+- Noto Sans SC — Google / Noto Fonts — https://fonts.google.com/noto/specimen/Noto+Sans+SC
+- Noto Sans JP — Google / Noto Fonts — https://fonts.google.com/noto/specimen/Noto+Sans+JP
+- Noto Sans KR — Google / Noto Fonts — https://fonts.google.com/noto/specimen/Noto+Sans+KR
+- Noto Naskh Arabic — Google / Noto Fonts — https://fonts.google.com/noto/specimen/Noto+Naskh+Arabic
+- Noto Sans Devanagari — Google / Noto Fonts — https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari
+
+Files were copied from Fontsource 5.3.0 packages (@fontsource/noto-sans-sc, noto-sans-jp,
+noto-sans-kr, noto-naskh-arabic, noto-sans-devanagari) which redistribute the OFL fonts.
+The full OFL text is in OFL.txt.

@@ -19,9 +19,64 @@ REFRESH_SHIMS="true"
 FORCE="false"
 YES="false"
 LOG_PATH=""
+PYENV_INSTALL_LANG="${PYENV_LANG:-${LANG:-en-US}}"
 
 print_line() {
   printf '%s\n' "$1"
+}
+
+_INSTALL_STRINGS="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/i18n/install-strings.sh"
+if [ -f "$_INSTALL_STRINGS" ]; then
+  # shellcheck disable=SC1090
+  . "$_INSTALL_STRINGS"
+else
+  pyenv_normalize_install_lang() {
+    raw="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr '_' '-')"
+    case "$raw" in
+      zh|zh-cn|zh-hans|zh-hans-cn|zh-sg|zh-tw|zh-hant|zh-hant-tw|zh-hk|zh-mo) printf 'zh-CN' ;;
+      pt|pt-pt|pt-br) printf 'pt-BR' ;;
+      en|en-us|en-gb|en-au|en-ca|'') printf 'en-US' ;;
+      es|es-mx|es-ar|es-es|es-419) printf 'es' ;;
+      ja|ko|fr|de|ru|fa|ar|hi|it|tr) printf '%s' "$raw" ;;
+      *) printf 'en-US' ;;
+    esac
+  }
+  pyenv_install_tr() {
+    key="$1"
+    lang="$(pyenv_normalize_install_lang "${PYENV_INSTALL_LANG:-en-US}")"
+    case "$lang:$key" in
+      *:install-downloading) printf 'Downloading %s' "$2" ;;
+      *:install-extracting) printf 'Extracting release bundle' ;;
+      *:install-installing) printf 'Installing into %s' "$2" ;;
+      *:install-done) printf 'pyenv-native installed. Open a new terminal, then run `pyenv doctor`.' ;;
+      *:install-failed) printf 'Installation failed' ;;
+      *:install-lang-help) printf 'Interface language for installer messages' ;;
+      *:install-summary-title) printf 'pyenv-native install summary' ;;
+      *:install-network-summary-title) printf 'pyenv-native network install summary' ;;
+      *:install-summary-blurb) printf 'This will create or update a portable pyenv-native installation under the selected root.' ;;
+      *:install-summary-blurb-detail) printf 'It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks.' ;;
+      *:install-network-blurb) printf 'This will download a published pyenv-native bundle, verify its SHA-256 checksum, and install it into the selected portable root.' ;;
+      *:install-profile-yes) printf 'Your shell profile will be updated so future sessions can find pyenv-native automatically.' ;;
+      *:install-profile-yes-pwsh) printf 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.' ;;
+      *:install-profile-no) printf 'No shell profile changes will be made.' ;;
+      *:install-profile-no-pwsh) printf 'No PowerShell profile changes will be made.' ;;
+      *:install-continue) printf 'Continue with install? [y/N]: ' ;;
+      *:install-need-yes) printf 'Confirmation is required for interactive installs. Re-run with --yes for non-interactive use.' ;;
+      *:install-need-yes-pwsh) printf 'Confirmation is required for interactive installs. Re-run with -Yes for non-interactive use.' ;;
+      *:install-cancelled) printf 'Install cancelled.' ;;
+      *:install-installed-to) printf 'Installed pyenv-native to %s' "$2" ;;
+      *:install-installed-command) printf 'Installed command: %s' "$2" ;;
+      *:install-installed-mcp) printf 'Installed MCP server: %s' "$2" ;;
+      *:install-mcp-helper) printf 'MCP config helper: %s' "$2" ;;
+      *:install-installed-gui) printf 'Installed GUI: %s' "$2" ;;
+      *:install-log-file) printf 'Log file: %s' "$2" ;;
+      *) printf '%s' "$key" ;;
+    esac
+  }
+fi
+
+install_tr() {
+  print_line "$(pyenv_install_tr "$1" "${2:-}")"
 }
 
 parse_bool() {
@@ -400,7 +455,7 @@ write_warn() {
 
 emit_summary() {
   print_line ""
-  print_line "pyenv-native install summary"
+  install_tr install-summary-title
   print_line "============================"
   print_line "source binary : $RESOLVED_SOURCE"
   print_line "source mcp    : ${RESOLVED_MCP_SOURCE:-<not found>}"
@@ -416,12 +471,12 @@ emit_summary() {
   print_line "force         : $FORCE"
   print_line "log path      : $LOG_PATH"
   print_line ""
-  print_line "This will create or update a portable pyenv-native installation under the selected root."
-  print_line "It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks."
+  install_tr install-summary-blurb
+  install_tr install-summary-blurb-detail
   if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ]; then
-    print_line "Your shell profile will be updated so future sessions can find pyenv-native automatically."
+    install_tr install-profile-yes
   else
-    print_line "No shell profile changes will be made."
+    install_tr install-profile-no
   fi
   print_line ""
 }
@@ -432,20 +487,20 @@ confirm_action() {
   fi
 
   if ! is_interactive; then
-    print_line 'Confirmation is required for interactive installs. Re-run with --yes for non-interactive use.' >&2
+    print_line "$(pyenv_install_tr install-need-yes)" >&2
     exit 1
   fi
 
-  printf 'Continue with install? [y/N]: ' > /dev/tty
+  printf '%s' "$(pyenv_install_tr install-continue)" > /dev/tty
   if ! IFS= read -r answer < /dev/tty; then
-    print_line 'Install cancelled.' >&2
+    print_line "$(pyenv_install_tr install-cancelled)" >&2
     exit 1
   fi
 
   case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
     y|yes) return 0 ;;
     *)
-      print_line 'Install cancelled.' >&2
+      print_line "$(pyenv_install_tr install-cancelled)" >&2
       exit 1
       ;;
   esac
@@ -512,6 +567,10 @@ while [ "$#" -gt 0 ]; do
       LOG_PATH="${2:-}"
       shift 2
       ;;
+    --lang)
+      PYENV_INSTALL_LANG="${2:-}"
+      shift 2
+      ;;
     --force)
       FORCE="true"
       shift 1
@@ -552,7 +611,7 @@ ensure_log_ready
 emit_summary
 confirm_action
 
-write_step "Creating portable pyenv-native layout"
+write_step "$(pyenv_install_tr install-installing "$INSTALL_ROOT")"
 mkdir -p "$INSTALL_BIN" "${INSTALL_ROOT}/shims" "${INSTALL_ROOT}/versions" "${INSTALL_ROOT}/cache" "${INSTALL_ROOT}/logs"
 if [ -d "$script_dir/share" ]; then
   mkdir -p "${INSTALL_ROOT}/share"
@@ -641,6 +700,7 @@ if [ "$UPDATE_PROFILE_EFFECTIVE" = "true" ] && [ -n "$PROFILE_PATH" ]; then
 fi
 
 write_step 'Install completed successfully.'
+install_tr install-done
 log_line INFO "Final artifacts:"
 log_line INFO "  install_root: $INSTALL_ROOT"
 log_line INFO "  installed_exe: $INSTALLED_EXE"
@@ -652,13 +712,13 @@ if [ -n "$PROFILE_PATH" ]; then
   log_line INFO "  profile_path: $PROFILE_PATH"
 fi
 print_line ""
-print_line "Installed pyenv-native to $INSTALL_ROOT"
-print_line "Installed command: ${INSTALL_ROOT}/bin/pyenv"
+install_tr install-installed-to "$INSTALL_ROOT"
+install_tr install-installed-command "${INSTALL_ROOT}/bin/pyenv"
 if [ -f "$INSTALLED_MCP_EXE" ]; then
-  print_line "Installed MCP server: ${INSTALLED_MCP_EXE}"
-  print_line "MCP config helper: ${INSTALLED_MCP_EXE} print-config"
+  install_tr install-installed-mcp "${INSTALLED_MCP_EXE}"
+  install_tr install-mcp-helper "${INSTALLED_MCP_EXE} print-config"
 fi
 if [ -f "$INSTALLED_GUI_EXE" ]; then
-  print_line "Installed GUI: ${INSTALLED_GUI_EXE}"
+  install_tr install-installed-gui "${INSTALLED_GUI_EXE}"
 fi
-print_line "Log file: $LOG_PATH"
+install_tr install-log-file "$LOG_PATH"

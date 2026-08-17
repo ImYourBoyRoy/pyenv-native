@@ -21,6 +21,9 @@ sh ./scripts/check-version-sync.sh
 echo "--- GUI patterns ---"
 sh ./scripts/check-gui-patterns.sh
 
+echo "--- i18n catalogs ---"
+sh ./scripts/check-i18n.sh
+
 echo "--- Python bootstrap tests ---"
 PYTHONPATH=./python-package/src python3 -m unittest discover -s ./python-package/tests -p "test_*.py"
 

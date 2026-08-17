@@ -14,7 +14,7 @@ mod tests {
 
     use super::super::checks::collect_checks_for_platform;
     use super::super::report::cmd_doctor;
-    use super::super::types::DoctorStatus;
+    use super::super::types::{DoctorOptions, DoctorStatus};
 
     fn test_path_ext() -> Option<OsString> {
         if cfg!(windows) {
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn non_windows_doctor_reports_source_build_readiness() {
         let (_temp, ctx) = test_context();
-        let checks = collect_checks_for_platform(&ctx, "linux");
+        let checks = collect_checks_for_platform(&ctx, "linux", Default::default());
         assert!(
             checks
                 .iter()
@@ -107,7 +107,7 @@ mod tests {
     fn non_windows_doctor_treats_missing_python_build_as_info() {
         let (_temp, mut ctx) = test_context();
         ctx.path_env = Some(OsString::from(String::new()));
-        let checks = collect_checks_for_platform(&ctx, "macos");
+        let checks = collect_checks_for_platform(&ctx, "macos", Default::default());
         let python_build = checks
             .iter()
             .find(|check| check.name == "python-build-backend")
@@ -142,7 +142,7 @@ mod tests {
             .expect("bad shim");
         }
 
-        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS, Default::default());
         let integrity = checks
             .iter()
             .find(|check| check.name == "shim-launcher-integrity")
@@ -154,18 +154,49 @@ mod tests {
     #[test]
     fn doctor_reports_plugin_path_search() {
         let (_temp, mut ctx) = test_context();
-        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS, Default::default());
         let enabled = checks
             .iter()
             .find(|check| check.name == "plugin-path-search")
             .expect("plugin path check");
         assert_eq!(enabled.status, DoctorStatus::Info);
         ctx.config.plugins.search_path = false;
-        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS, Default::default());
         let disabled = checks
             .iter()
             .find(|check| check.name == "plugin-path-search")
             .expect("plugin path check");
         assert_eq!(disabled.status, DoctorStatus::Ok);
+    }
+
+    #[test]
+    fn desktop_session_downgrades_missing_process_path_when_profiles_exist() {
+        crate::i18n::set_lang_tag("en-US");
+        let (_temp, mut ctx) = test_context();
+        ctx.path_env = Some(OsString::from(String::new()));
+        let options = DoctorOptions {
+            desktop_session: true,
+            profiles_configured: Some(true),
+        };
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS, options);
+        let bin = checks
+            .iter()
+            .find(|check| check.name == "pyenv-bin-on-path")
+            .expect("bin check");
+        let shims = checks
+            .iter()
+            .find(|check| check.name == "shims-on-path")
+            .expect("shims check");
+        assert_eq!(bin.status, DoctorStatus::Info);
+        assert_eq!(shims.status, DoctorStatus::Info);
+        assert!(bin.detail.contains("desktop"));
+
+        let cli_checks =
+            collect_checks_for_platform(&ctx, env::consts::OS, DoctorOptions::default());
+        let cli_bin = cli_checks
+            .iter()
+            .find(|check| check.name == "pyenv-bin-on-path")
+            .expect("cli bin");
+        assert_eq!(cli_bin.status, DoctorStatus::Warn);
     }
 }

@@ -11,7 +11,7 @@
   background: rgba(0, 0, 0, 0.1);
 }
 .titlebar-label {
-  padding-left: 16px;
+  padding-inline-start: 16px;
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
@@ -46,11 +46,11 @@
 .sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
-  padding: calc(var(--titlebar-height) + 32px) 24px 32px;
+  padding: calc(var(--titlebar-height) + 32px) 24px 24px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--glass-border);
-  border-left: none; border-top: none; border-bottom: none;
+  border-inline-end: 1px solid var(--glass-border);
+  border-inline-start: none; border-top: none; border-bottom: none;
   overflow-y: auto;
 }
 .brand {
@@ -108,7 +108,7 @@
   color: var(--text-muted);
   border: 1px solid transparent;
   background: transparent;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 .nav-btn:hover { background: var(--glass-hover); color: #ffffff; transform: translateX(2px); }
@@ -204,8 +204,8 @@
 .app-footer {
   position: fixed;
   bottom: 0;
-  left: var(--sidebar-width);
-  right: 0;
+  inset-inline-start: var(--sidebar-width);
+  inset-inline-end: 0;
   height: var(--footer-height);
   background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(12px);

@@ -2,6 +2,10 @@
 //! Frontend logic for pyenv-native GUI.
 //! Uses Tauri v2 IPC to communicate with the Rust backend.
 
+document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+}, true);
+
 function invoke(cmd, args) {
     const fn = window.__TAURI__?.core?.invoke || window.__TAURI__?.invoke;
     if (typeof fn !== 'function') {
@@ -30,6 +34,8 @@ let drawerReturnFocus = null;
 let toastTimer = null;
 let lastNavInput = 'pointer';
 let openDrawerCount = 0;
+let lastFooterStatus = { kind: '', detail: '' };
+let cachedAppVersion = '';
 const VIEW_TITLES = {
     'view-dashboard': 'Current Environment',
     'view-installed': 'Installed Runtimes',
@@ -39,6 +45,34 @@ const VIEW_TITLES = {
     'view-settings': 'Configuration',
     'view-about': 'About Pyenv-Native',
 };
+
+function viewTitle(viewId) {
+    const ids = {
+        'view-dashboard': 'gui-view-dashboard',
+        'view-installed': 'gui-view-installed',
+        'view-venvs': 'gui-view-venvs',
+        'view-shell': 'gui-view-shell',
+        'view-available': 'gui-view-available',
+        'view-settings': 'gui-view-settings',
+        'view-about': 'gui-view-about',
+    };
+    if (window.I18n?.t && ids[viewId]) return window.I18n.t(ids[viewId]);
+    return VIEW_TITLES[viewId] || 'Pyenv Native';
+}
+
+function t(id, args, fallback) {
+    if (window.I18n?.t) {
+        const value = window.I18n.t(id, args);
+        if (value && value !== id) return value;
+    }
+    if (fallback !== undefined) {
+        if (!args) return fallback;
+        return String(fallback).replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => (
+            args[name] !== undefined ? String(args[name]) : `{ $${name} }`
+        ));
+    }
+    return id;
+}
 
 function announce(message) {
     const region = document.getElementById('aria-live-status');
@@ -87,19 +121,20 @@ function createStepSvg(paths, viewBox = '0 0 24 24') {
 }
 
 function setFooterAppStatus(kind, detail = '') {
+    lastFooterStatus = { kind, detail };
     const statusEl = document.getElementById('footer-app-status');
     if (!statusEl) return;
     statusEl.replaceChildren();
     const span = document.createElement('span');
     if (kind === 'update') {
         span.style.color = 'var(--danger)';
-        span.textContent = `Update Available: v${detail}`;
+        span.textContent = t('gui-update-available', { version: detail }, `Update Available: v${detail}`);
     } else if (kind === 'uptodate') {
         span.style.color = '#10b981';
-        span.textContent = '✓ Up to Date';
+        span.textContent = t('gui-uptodate-check', null, '✓ Up to Date');
     } else if (kind === 'offline') {
         span.style.opacity = '0.5';
-        span.textContent = '(Offline)';
+        span.textContent = t('gui-offline', null, '(Offline)');
     }
     statusEl.appendChild(span);
 }
@@ -107,7 +142,7 @@ function setFooterAppStatus(kind, detail = '') {
 function appendFooterPortableBadge() {
     const statusEl = document.getElementById('footer-app-status');
     if (!statusEl || statusEl.querySelector('[data-portable-badge]')) return;
-    const badge = createBadge('Portable', 'badge badge-success', 'font-size:10px; padding: 2px 6px; margin-left: 8px;');
+    const badge = createBadge(t('gui-portable', null, 'Portable'), 'badge badge-success', 'font-size:10px; padding: 2px 6px; margin-left: 8px;');
     badge.dataset.portableBadge = 'true';
     statusEl.appendChild(document.createTextNode(' '));
     statusEl.appendChild(badge);
@@ -123,7 +158,7 @@ function showInlineRemovingState(container) {
     const label = document.createElement('span');
     label.style.fontSize = '12px';
     label.style.marginLeft = '8px';
-    label.textContent = 'Removing…';
+    label.textContent = t('gui-removing', null, 'Removing…');
     container.append(loader, label);
 }
 
@@ -142,6 +177,12 @@ function getOpenDrawerOverlay() {
     return null;
 }
 
+function syncDrawerBackdrop() {
+    const backdrop = document.getElementById('drawer-backdrop');
+    if (!backdrop) return;
+    backdrop.hidden = !getOpenDrawerOverlay();
+}
+
 function setDrawerState(drawerEl, open, options = {}) {
     if (!drawerEl) return;
     const closeBtn = options.closeButton;
@@ -154,7 +195,7 @@ function setDrawerState(drawerEl, open, options = {}) {
         drawerEl.setAttribute('aria-hidden', 'false');
         const focusTarget = closeBtn || drawerEl.querySelector('.drawer-close');
         focusTarget?.focus();
-        announce(options.announce || 'Panel opened');
+        announce(options.announce || t('gui-panel-opened', null, 'Panel opened'));
     } else {
         openDrawerCount = Math.max(0, openDrawerCount - 1);
         drawerEl.classList.remove('open');
@@ -163,8 +204,9 @@ function setDrawerState(drawerEl, open, options = {}) {
         if (openDrawerCount === 0) unlockAppShell();
         const restore = options.returnFocus || drawerReturnFocus;
         if (restore && typeof restore.focus === 'function') restore.focus();
-        announce(options.announce || 'Panel closed');
+        announce(options.announce || t('gui-panel-closed', null, 'Panel closed'));
     }
+    syncDrawerBackdrop();
 }
 
 function readBooleanPreference(storageKey, mediaQuery) {
@@ -207,8 +249,8 @@ function resetAccessibilityPreferences() {
         'pyenv-a11y-large-text',
     ].forEach((key) => localStorage.removeItem(key));
     applyAccessibilityPreferences();
-    showToast('Accessibility preferences reset');
-    announce('Accessibility preferences reset to system defaults');
+    showToast(t('gui-a11y-reset-toast', null, 'Accessibility preferences reset'));
+    announce(t('gui-a11y-reset-announce', null, 'Accessibility preferences reset to system defaults'));
 }
 
 function bindAccessibilityPreferenceControls() {
@@ -224,8 +266,8 @@ function bindAccessibilityPreferenceControls() {
         input.addEventListener('change', () => {
             localStorage.setItem(key, input.checked ? 'true' : 'false');
             applyAccessibilityPreferences();
-            showToast('Accessibility preference saved');
-            announce('Accessibility preference saved');
+            showToast(t('gui-a11y-saved-toast', null, 'Accessibility preference saved'));
+            announce(t('gui-a11y-saved-toast', null, 'Accessibility preference saved'));
         });
     });
 }
@@ -312,21 +354,24 @@ function updateWorkspaceUI() {
     const el = document.getElementById('workspace-path');
     const btn = document.getElementById('btn-change-workspace');
     if (el) {
-        el.textContent = currentWorkspaceDir || 'No project folder selected';
+        el.textContent = currentWorkspaceDir || t('gui-no-project-folder', null, 'No project folder selected');
         el.title = currentWorkspaceDir
             ? currentWorkspaceDir
-            : 'Choose a folder so Make Local knows where to write .python-version.';
+            : t('gui-workspace-empty-title', null, 'Choose a folder so Make Local knows where to write .python-version.');
     }
     if (btn) {
-        btn.textContent = currentWorkspaceDir ? 'Change Folder' : 'Choose Folder';
+        btn.textContent = currentWorkspaceDir
+            ? t('gui-change-folder', null, 'Change Folder')
+            : t('gui-choose-folder', null, 'Choose Folder');
         btn.title = currentWorkspaceDir
-            ? 'Switch the project folder used for Make Local.'
-            : 'Select the project folder used for Make Local.';
+            ? t('gui-workspace-switch-title', null, 'Switch the project folder used for Make Local.')
+            : t('gui-workspace-pick-title', null, 'Select the project folder used for Make Local.');
     }
 }
 
 // Bind Change Workspace Button
 document.addEventListener('DOMContentLoaded', () => {
+    const start = () => {
     applyAccessibilityPreferences();
     bindAccessibilityPreferenceControls();
     bindConfigControls();
@@ -337,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-open-website')?.addEventListener('click', () => openExternal('https://imyourboyroy.com'));
     document.getElementById('btn-open-github')?.addEventListener('click', () => openExternal('https://github.com/imyourboyroy/pyenv-native'));
     document.getElementById('btn-open-pypi')?.addEventListener('click', () => openExternal('https://pypi.org/user/ImYourBoyRoy/'));
+    document.getElementById('btn-open-kinimail')?.addEventListener('click', () => openExternal('https://github.com/KiniMail'));
     document.getElementById('footer-btn')?.addEventListener('click', () => checkUpdates());
     document.querySelectorAll('.view').forEach((view) => {
         if (view.id !== 'view-dashboard') {
@@ -354,22 +400,68 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentWorkspaceDir = selectedDir;
                 localStorage.setItem('pyenv-workspace-dir', selectedDir);
                 updateWorkspaceUI();
-                // Reload views
                 loadDashboard();
                 loadInstalled();
                 availableLoaded = false;
                 loadVenvs();
                 loadConfig();
-                showAlert('Project Folder', `Now using:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
+                showAlert(t('gui-project-folder-title', null, 'Project Folder'), `${t('gui-now-using', null, 'Now using')}:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
             }
         } catch (err) {
-            showAlert('Error', 'Failed to change workspace directory:\n' + escapeHtml(err));
+            showAlert(t('gui-error', null, 'Error'), t('gui-workspace-change-failed', null, 'Failed to change workspace directory:') + '\n' + escapeHtml(err));
         }
     });
+    window.addEventListener('pyenv-i18n-changed', () => {
+        updateWorkspaceUI();
+        if (lastFooterStatus.kind) {
+            setFooterAppStatus(lastFooterStatus.kind, lastFooterStatus.detail);
+        }
+        if (cachedAppVersion) {
+            const versionEl = document.getElementById('footer-version');
+            if (versionEl) {
+                versionEl.textContent = t('gui-app-version', { version: cachedAppVersion }, `Pyenv-Native v${cachedAppVersion}`);
+            }
+            const aboutEl = document.getElementById('about-version');
+            if (aboutEl) aboutEl.textContent = cachedAppVersion;
+        }
+        const active = document.querySelector('.nav-btn.active')?.dataset.view;
+        if (active) {
+            document.title = `${viewTitle(active)} · ${t('gui-app-title', null, 'Pyenv Native')}`;
+            if (active === 'view-dashboard') loadDashboard();
+            if (active === 'view-installed') loadInstalled();
+            if (active === 'view-venvs') loadVenvs();
+            if (active === 'view-shell') loadShellIntegration();
+            if (active === 'view-settings') loadConfig();
+            if (active === 'view-about') initAppVersion({ refreshRemote: false });
+        }
+    });
+    document.getElementById('drawer-backdrop')?.addEventListener('click', () => {
+        if (drawer?.classList.contains('open')) closePackageExplorer();
+        if (upgraderDrawer?.classList.contains('open')) {
+            setDrawerState(upgraderDrawer, false, { closeButton: upgraderCloseBtn });
+        }
+    });
+    };
+
+    if (window.I18n?.load) {
+        window.I18n.load().then(start).then(() => {
+            initAppVersion({ refreshRemote: true });
+            checkInstallation();
+        }).catch(() => {
+            start();
+            initAppVersion({ refreshRemote: true });
+            checkInstallation();
+        });
+    } else {
+        document.documentElement.classList.remove('i18n-pending');
+        start();
+        initAppVersion({ refreshRemote: true });
+        checkInstallation();
+    }
 });
 
 // ─── Custom Modal System ───
-function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary', primary: true}], options = {}) {
+function showModal(title, message, buttons = [{label: t('gui-ok', null, 'OK'), style: 'btn-primary', primary: true}], options = {}) {
     return new Promise(resolve => {
         const root = document.getElementById('modal-root');
         const overlay = document.createElement('div');
@@ -447,21 +539,21 @@ function showModal(title, message, buttons = [{label: 'OK', style: 'btn-primary'
 }
 
 async function showAlert(title, message) {
-    return showModal(title, message, [{label: 'OK', style: 'btn-primary', primary: true}]);
+    return showModal(title, message, [{label: t('gui-ok', null, 'OK'), style: 'btn-primary', primary: true}]);
 }
 
 async function showConfirm(title, message) {
     return showModal(title, message, [
-        {label: 'Confirm', style: 'btn-danger'},
-        {label: 'Cancel', style: 'btn-outline', primary: true}
+        {label: t('gui-confirm', null, 'Confirm'), style: 'btn-danger'},
+        {label: t('gui-cancel', null, 'Cancel'), style: 'btn-outline', primary: true}
     ], { alert: true });
 }
 
 function openExternal(url) {
     invoke('open_url', { url }).catch((err) => {
         const detail = err ? String(err) : 'unknown error';
-        showToast(`Could not open link: ${detail}`);
-        showAlert('Open Link Failed', `Could not open <code>${escapeHtml(url)}</code>:\n${escapeHtml(detail)}`);
+        showToast(t('gui-could-not-open', { detail }, `Could not open link: ${detail}`));
+        showAlert(t('gui-open-link-failed', null, 'Open Link Failed'), `${t('gui-could-not-open', { detail }, `Could not open link: ${detail}`)}<br><code>${escapeHtml(url)}</code>`);
     });
 }
 
@@ -486,14 +578,19 @@ function showView(viewId) {
     target.setAttribute('aria-hidden', 'false');
     void target.offsetWidth;
     target.classList.add('fade-in');
+    if (viewId === 'view-about') {
+        target.querySelectorAll('.brand-icon svg').forEach((svg) => {
+            svg.replaceWith(svg.cloneNode(true));
+        });
+    }
     const heading = target.querySelector('.page-title');
     if (heading && lastNavInput === 'keyboard') {
         heading.setAttribute('tabindex', '-1');
         heading.focus({ preventScroll: true });
     }
     lastNavInput = 'pointer';
-    document.title = `${VIEW_TITLES[viewId] || 'Pyenv Native'} · Pyenv Native`;
-    announce(`Showing ${VIEW_TITLES[viewId] || 'view'}`);
+    document.title = `${viewTitle(viewId)} · ${t('gui-app-title', null, 'Pyenv Native')}`;
+    announce(t('gui-showing-view', { view: viewTitle(viewId) }, `Showing ${viewTitle(viewId)}`));
 }
 
 function navigateToView(viewId) {
@@ -551,26 +648,26 @@ function venvDisplayName(specOrName) {
 function pushGlobalMenuItem(items, versionName, globalVersions) {
     if (isGlobalVersion(versionName, globalVersions)) return;
     items.push({
-        label: 'Make Global',
+        label: t('gui-make-global', null, 'Make Global'),
         action: 'set-global',
         target: versionName,
-        title: 'Use this as the default for new shells.',
+        title: t('gui-make-global-title', null, 'Use this as the default for new shells.'),
     });
 }
 
 function localMenuItems(target) {
     return [
         {
-            label: 'Make Local',
+            label: t('gui-make-local', null, 'Make Local'),
             action: 'set-local',
             target,
-            title: 'Write .python-version in the current project folder.',
+            title: t('gui-make-local-title', null, 'Write .python-version in the current project folder.'),
         },
         {
-            label: 'Pin to another folder…',
+            label: t('gui-pin-folder', null, 'Pin to another folder…'),
             action: 'set-local-pick',
             target,
-            title: 'Write .python-version in a folder you pick.',
+            title: t('gui-pin-folder-title', null, 'Write .python-version in a folder you pick.'),
         },
     ];
 }
@@ -620,9 +717,9 @@ function createOverflowMenu(items) {
     toggle.setAttribute('aria-haspopup', 'menu');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-controls', menuId);
-    toggle.setAttribute('aria-label', 'More actions');
-    toggle.title = 'More actions for this item.';
-    toggle.textContent = 'More';
+    toggle.setAttribute('aria-label', t('gui-more-actions', null, 'More actions'));
+    toggle.title = t('gui-more-actions-title', null, 'More actions for this item.');
+    toggle.textContent = t('gui-more', null, 'More');
     const menu = document.createElement('div');
     menu.id = menuId;
     menu.className = 'card-menu-list';
@@ -725,6 +822,7 @@ sidebarNavItems.forEach((item) => {
         if (item.dataset.view === 'view-available') setupAvailableView();
         if (item.dataset.view === 'view-venvs') loadVenvs();
         if (item.dataset.view === 'view-settings') loadConfig();
+        if (item.dataset.view === 'view-about') initAppVersion({ refreshRemote: false });
     });
 });
 
@@ -767,7 +865,7 @@ async function refreshDashboardHealth() {
         const jsonStr = await invoke('run_doctor', { workspaceDir: getWorkspaceDir() });
         const checks = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
         if (!Array.isArray(checks)) {
-            setDashboardHealth('error', 'Diagnostics unavailable', 'Doctor did not return a usable report.');
+            setDashboardHealth('error', t('gui-diagnostics-unavailable', null, 'Diagnostics unavailable'), t('gui-doctor-unusable', null, 'Doctor did not return a usable report.'));
             return;
         }
         const issues = checks
@@ -775,17 +873,19 @@ async function refreshDashboardHealth() {
             .filter((check) => check && doctorIssueStatus(check.status))
             .map((check) => ({
                 ...check,
-                detail: check.detail || 'No additional detail was reported for this check.',
+                detail: check.detail || t('gui-doctor-no-detail', null, 'No additional detail was reported for this check.'),
             }));
         if (issues.length === 0) {
-            setDashboardHealth('ok', 'System health', 'No doctor warnings.');
+            setDashboardHealth('ok', t('gui-system-health', null, 'System health'), t('gui-no-doctor-warnings', null, 'No doctor warnings.'));
             return;
         }
         const preview = issues.slice(0, 2).map((issue) => `${issue.name}: ${issue.detail}`).join(' · ');
-        const extra = issues.length > 2 ? ` · +${issues.length - 2} more` : '';
-        setDashboardHealth('warn', `${issues.length} health issue${issues.length === 1 ? '' : 's'}`, preview + extra);
+        const extra = issues.length > 2 ? t('gui-health-more', { count: String(issues.length - 2) }, ` · +${issues.length - 2} more`) : '';
+        setDashboardHealth('warn', issues.length === 1
+            ? t('gui-health-issue-one', null, '1 health issue')
+            : t('gui-health-issues', { count: String(issues.length) }, `${issues.length} health issues`), preview + extra);
     } catch (err) {
-        setDashboardHealth('error', 'Diagnostics unavailable', String(err));
+        setDashboardHealth('error', t('gui-diagnostics-unavailable', null, 'Diagnostics unavailable'), String(err));
     }
 }
 
@@ -795,25 +895,25 @@ async function loadDashboard() {
         const status = JSON.parse(jsonStr);
         
         const activeVersionEl = document.getElementById('active-version');
-        activeVersionEl.textContent = status.active_versions.length ? status.active_versions.join(', ') : 'None';
+        activeVersionEl.textContent = status.active_versions.length ? status.active_versions.join(', ') : t('gui-none', null, 'None');
         activeVersionEl.title = activeVersionEl.textContent;
         const globalLabel = status.global_versions?.length
             ? status.global_versions.join(', ')
-            : 'system';
+            : t('gui-system-python', null, 'System Python');
         const originEl = document.getElementById('active-origin');
         originEl.textContent =
-            `Origin: ${status.origin} • Global: ${globalLabel}`;
+            t('gui-origin-global-line', { origin: status.origin, global: globalLabel }, `Origin: ${status.origin} • Global: ${globalLabel}`);
         originEl.title = originEl.textContent;
         
         if (status.managed_venv) {
             const venvEl = document.getElementById('active-venv');
             venvEl.textContent = status.managed_venv.name;
             venvEl.title = status.managed_venv.spec || status.managed_venv.name;
-            document.getElementById('active-venv-base').textContent = `Base: ${status.managed_venv.base_version}`;
+            document.getElementById('active-venv-base').textContent = t('gui-base-prefix', { version: status.managed_venv.base_version }, `Base: ${status.managed_venv.base_version}`);
         } else {
-            document.getElementById('active-venv').textContent = 'None';
-            document.getElementById('active-venv').title = 'No managed venv is currently selected.';
-            document.getElementById('active-venv-base').textContent = 'Integrated Project Env';
+            document.getElementById('active-venv').textContent = t('gui-none', null, 'None');
+            document.getElementById('active-venv').title = t('gui-no-managed-venv', null, 'No managed venv is currently selected.');
+            document.getElementById('active-venv-base').textContent = t('gui-integrated-project-env', null, 'Integrated Project Env');
         }
 
         document.getElementById('sys-root').textContent = status.root;
@@ -822,9 +922,9 @@ async function loadDashboard() {
 
     } catch (err) {
         console.error("Failed to load status:", err);
-        document.getElementById('active-version').textContent = "Error";
+        document.getElementById('active-version').textContent = t('gui-error', null, 'Error');
         document.getElementById('active-origin').textContent = String(err);
-        setDashboardHealth('error', 'Could not load environment status.', String(err));
+        setDashboardHealth('error', t('gui-could-not-load-status', null, 'Could not load environment status.'), String(err));
     }
 }
 
@@ -832,7 +932,7 @@ async function loadDashboard() {
 async function loadInstalled() {
     const list = document.getElementById('installed-list');
     const summary = document.getElementById('installed-global-summary');
-    setRegionLoading(list, true, 'Loading installed runtimes…');
+    setRegionLoading(list, true, t('gui-loading-runtimes', null, 'Loading installed runtimes…'));
 
     try {
         const [versionsJson, statusJson] = await Promise.all([
@@ -844,10 +944,12 @@ async function loadInstalled() {
         const globalVersions = status.global_versions?.length
             ? status.global_versions
             : ['system'];
-        const globalLabel = globalVersions.join(', ');
+        const globalLabel = globalVersions
+            .map((name) => (name === 'system' ? t('gui-system-python', null, 'System Python') : name))
+            .join(', ');
         const activeLabel = status.active_versions?.length
             ? status.active_versions.join(', ')
-            : 'None';
+            : t('gui-none', null, 'None');
 
         if (summary) {
             summary.style.display = 'block';
@@ -858,17 +960,17 @@ async function loadInstalled() {
             const info = document.createElement('div');
             const eyebrow = document.createElement('div');
             eyebrow.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:4px;';
-            eyebrow.textContent = 'Current setup';
+            eyebrow.textContent = t('gui-current-setup', null, 'Current setup');
             const activeLine = document.createElement('div');
             activeLine.style.cssText = 'font-size:14px;font-weight:600;';
-            activeLine.textContent = `Active: ${activeLabel} • Global: ${globalLabel}`;
+            activeLine.textContent = t('gui-active-global', { active: activeLabel, global: globalLabel }, `Active: ${activeLabel} • Global: ${globalLabel}`);
             const originLine = document.createElement('div');
             originLine.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:6px;';
-            originLine.textContent = `Origin: ${status.origin}`;
+            originLine.textContent = t('gui-origin-line', { origin: status.origin }, `Origin: ${status.origin}`);
             info.append(eyebrow, activeLine, originLine);
 
-            const installBtn = createActionButton('Install New Runtime', 'navigate', 'view-available', 'btn btn-primary', {
-                title: 'Open the install catalog.',
+            const installBtn = createActionButton(t('gui-install-new-runtime', null, 'Install New Runtime'), 'navigate', 'view-available', 'btn btn-primary', {
+                title: t('gui-open-catalog-title', null, 'Open the install catalog.'),
             });
             installBtn.style.fontSize = '12px';
             row.append(info, installBtn);
@@ -879,8 +981,7 @@ async function loadInstalled() {
         list.setAttribute('aria-busy', 'false');
 
         const displayVersions = [];
-        const hasRealSystem = await detectSystemPython();
-        displayVersions.push({ name: 'system', isSystem: true, available: hasRealSystem });
+        displayVersions.push({ name: 'system', isSystem: true, available: true });
         versions.forEach(v => {
             if (v !== 'system') {
                 displayVersions.push({ name: v, isSystem: false, available: true });
@@ -894,15 +995,15 @@ async function loadInstalled() {
             empty.style.padding = '32px 16px';
             const title = document.createElement('div');
             title.style.cssText = 'font-size:15px;font-weight:600;margin-bottom:8px;';
-            title.textContent = 'No managed runtimes installed yet';
+            title.textContent = t('gui-no-runtimes', null, 'No managed runtimes installed yet');
             const hint = document.createElement('div');
             hint.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:16px;';
-            hint.textContent = 'Install a Python 2 or 3 runtime to get started.';
-            empty.append(title, hint, createActionButton('Install Runtimes', 'navigate', 'view-available', 'btn btn-primary', {
-                title: 'Open the install catalog.',
+            hint.textContent = t('gui-install-runtime-hint', null, 'Install a Python 2 or 3 runtime to get started.');
+            empty.append(title, hint, createActionButton(t('gui-nav-available', null, 'Install Runtimes'), 'navigate', 'view-available', 'btn btn-primary', {
+                title: t('gui-open-catalog-title', null, 'Open the install catalog.'),
             }));
             list.appendChild(empty);
-            announce('No managed runtimes installed');
+            announce(t('gui-announce-no-runtimes', null, 'No managed runtimes installed'));
             return;
         }
 
@@ -916,28 +1017,36 @@ async function loadInstalled() {
             info.className = 'version-info';
             const nameEl = document.createElement('div');
             nameEl.className = 'version-name';
-            nameEl.append(document.createTextNode(entry.name));
+            nameEl.append(document.createTextNode(
+                entry.isSystem ? t('gui-system-python', null, 'System Python') : entry.name
+            ));
 
             const meta = document.createElement('div');
             meta.className = 'version-meta';
 
             if (entry.isSystem) {
-                appendBadge(nameEl, entry.available ? 'Detected' : 'Not Available', entry.available ? 'system-badge badge-success' : 'system-badge badge-muted', entry.available ? 'A system Python was found on PATH.' : 'No usable system Python (Store alias only).');
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
+                appendBadge(nameEl, entry.available ? t('gui-detected', null, 'Detected') : t('gui-not-available', null, 'Not Available'), entry.available ? 'system-badge badge-success' : 'system-badge badge-muted', entry.available ? t('gui-detected-title', null, 'A system Python was found on PATH.') : t('gui-not-available-title', null, 'No usable system Python (Store alias only).'));
+                if (isGlobal) appendBadge(nameEl, t('gui-global', null, 'Global'), 'badge badge-success', t('gui-global-title', null, 'Default for new shells.'));
                 meta.textContent = entry.available
-                    ? 'System-wide Python installation'
-                    : 'No system Python found (Microsoft Store alias detected)';
+                    ? t('gui-system-python-meta', null, 'System-wide Python installation')
+                    : t('gui-no-system-python-meta', null, 'No system Python found (Microsoft Store alias detected)');
             } else {
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
-                meta.textContent = isGlobal ? 'Configured as the global default runtime' : 'Installed managed runtime';
+                if (isGlobal) appendBadge(nameEl, t('gui-global', null, 'Global'), 'badge badge-success', t('gui-global-title', null, 'Default for new shells.'));
+                meta.textContent = isGlobal ? t('gui-global-default-runtime', null, 'Configured as the global default runtime') : t('gui-installed-runtime', null, 'Installed managed runtime');
             }
             info.append(nameEl, meta);
 
             const actions = document.createElement('div');
             actions.className = 'version-actions';
-            if (!entry.isSystem || entry.available) {
-                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', entry.name, 'btn btn-outline', {
-                    title: 'Browse and update packages in this runtime.',
+            if (entry.isSystem) {
+                const unsupported = createActionButton(t('gui-unsupported', null, 'Unsupported'), 'package-explorer', entry.name, 'btn btn-outline', {
+                    title: t('gui-system-packages-unsupported', null, 'Package management is not available for system Python. Install a managed runtime to browse and update packages.'),
+                });
+                unsupported.disabled = true;
+                actions.appendChild(unsupported);
+            } else {
+                actions.appendChild(createActionButton(t('gui-package-explorer', null, 'Package Explorer'), 'package-explorer', entry.name, 'btn btn-outline', {
+                    title: t('gui-packages-title', null, 'Browse and update packages in this runtime.'),
                 }));
             }
             const menuItems = [];
@@ -947,11 +1056,11 @@ async function loadInstalled() {
                 appendMenuGroup(menuItems, globalItems);
                 appendMenuGroup(menuItems, localMenuItems(entry.name));
                 appendMenuGroup(menuItems, [{
-                    label: 'Uninstall',
+                    label: t('gui-uninstall', null, 'Uninstall'),
                     action: 'uninstall',
                     target: entry.name,
                     danger: true,
-                    title: 'Remove this runtime from pyenv.',
+                    title: t('gui-uninstall-title', null, 'Remove this runtime from pyenv.'),
                 }]);
                 appendCardOverflow(actions, menuItems);
             } else if (entry.available) {
@@ -962,11 +1071,11 @@ async function loadInstalled() {
             card.append(info, actions);
             list.appendChild(card);
         });
-        announce(`Loaded ${managedVersions.length} managed runtime${managedVersions.length === 1 ? '' : 's'}`);
+        announce(t('gui-loaded-runtimes', { count: String(managedVersions.length) }, `Loaded ${managedVersions.length} managed runtimes`));
     } catch (err) {
         console.error("Failed to load installed:", err);
-        showEmptyState(list, 'Failed to load installed runtimes.', { danger: true });
-        announce('Failed to load installed runtimes');
+        showEmptyState(list, t('gui-failed-load-installed', null, 'Failed to load installed runtimes.'), { danger: true });
+        announce(t('gui-failed-load-installed', null, 'Failed to load installed runtimes'));
     }
 }
 
@@ -1018,10 +1127,10 @@ function runtimeFamily(spec) {
 
 function runtimeFamilyLabel(family) {
     switch (family) {
-        case 'cpython3': return 'Python 3';
-        case 'cpython2': return 'Python 2';
-        case 'pypy': return 'PyPy';
-        default: return 'Other';
+        case 'cpython3': return t('gui-filter-py3', null, 'Python 3');
+        case 'cpython2': return t('gui-filter-py2', null, 'Python 2');
+        case 'pypy': return t('gui-filter-pypy', null, 'PyPy');
+        default: return t('gui-family-other', null, 'Other');
     }
 }
 
@@ -1094,7 +1203,10 @@ function applyAvailableFilters() {
     if (countEl) {
         const python2 = displayList.filter((entry) => runtimeFamily(runtimeSpec(entry)) === 'cpython2').length;
         const total = fullAvailableCache.length;
-        countEl.textContent = `Showing ${displayList.length} of ${total} runtimes${python2 ? ` · ${python2} Python 2` : ''}. Uncheck latest patch to see every release.`;
+        countEl.textContent = t('gui-showing-runtimes', { shown: String(displayList.length), total: String(total) }, `Showing ${displayList.length} of ${total} runtimes`)
+            + (python2 ? t('gui-python2-count', { count: String(python2) }, ` · ${python2} Python 2`) : '')
+            + '. '
+            + t('gui-uncheck-latest', null, 'Uncheck latest patch to see every release.');
     }
     if (list) renderAvailable(displayList);
 }
@@ -1103,7 +1215,7 @@ let availableLoaded = false;
 async function setupAvailableView() {
     if (availableLoaded) return;
     const list = document.getElementById('available-list');
-    setRegionLoading(list, true, 'Loading installable runtimes…');
+    setRegionLoading(list, true, t('gui-loading-installable', null, 'Loading installable runtimes…'));
     try {
         const installedStr = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         installedVersionsSet = JSON.parse(installedStr);
@@ -1122,8 +1234,8 @@ async function setupAvailableView() {
         availableLoaded = true;
     } catch (err) {
         console.error(err);
-        showEmptyState(list, 'Failed to load catalog. Launch this window with `pyenv gui` to talk to the backend.', { danger: true });
-        announce('Failed to load installable runtimes');
+        showEmptyState(list, t('gui-failed-load-catalog', null, 'Failed to load catalog. Launch this window with `pyenv gui` to talk to the backend.'), { danger: true });
+        announce(t('gui-failed-load-installable-announce', null, 'Failed to load installable runtimes'));
     }
 }
 
@@ -1132,8 +1244,8 @@ function renderAvailable(items) {
     list.replaceChildren();
     list.setAttribute('aria-busy', 'false');
     if (!items || items.length === 0) {
-        showEmptyState(list, 'No runtimes match these filters.');
-        announce('No installable runtimes found');
+        showEmptyState(list, t('gui-no-runtimes-match', null, 'No runtimes match these filters.'));
+        announce(t('gui-no-installable-announce', null, 'No installable runtimes found'));
         return;
     }
 
@@ -1158,7 +1270,7 @@ function renderAvailable(items) {
         nameEl.className = 'version-name';
         nameEl.textContent = spec;
         if (installedVersionsSet.includes(spec)) {
-            appendBadge(nameEl, 'Installed', 'badge badge-success', 'Already installed on this machine.');
+            appendBadge(nameEl, t('gui-installed-label', null, 'Installed'), 'badge badge-success', t('gui-already-installed-title', null, 'Already installed on this machine.'));
         }
         info.appendChild(nameEl);
 
@@ -1169,25 +1281,25 @@ function renderAvailable(items) {
             button.type = 'button';
             button.className = 'btn btn-outline';
             button.disabled = true;
-            button.textContent = 'Installed';
-            button.title = `${spec} is already installed.`;
+            button.textContent = t('gui-installed-label', null, 'Installed');
+            button.title = t('gui-already-installed-spec', { spec }, `${spec} is already installed.`);
             actions.appendChild(button);
         } else {
-            actions.appendChild(createActionButton('Install', 'install', spec, 'btn btn-primary', {
-                title: `Download and install ${spec}.`,
+            actions.appendChild(createActionButton(t('gui-install', null, 'Install'), 'install', spec, 'btn btn-primary', {
+                title: t('gui-install-spec-title', { spec }, `Download and install ${spec}.`),
             }));
         }
 
         card.append(info, actions);
         list.appendChild(card);
     });
-    announce(`Showing ${items.length} installable runtime${items.length === 1 ? '' : 's'}`);
+    announce(t('gui-announce-installable', { count: String(items.length) }, `Showing ${items.length} installable runtimes`));
 }
 
 // ─── Virtual Environments ───
 async function loadVenvs() {
     const list = document.getElementById('venvs-list');
-    setRegionLoading(list, true, 'Loading virtual environments…');
+    setRegionLoading(list, true, t('gui-loading-venvs', null, 'Loading virtual environments…'));
     try {
         const [venvsJson, statusJson] = await Promise.all([
             invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() }),
@@ -1201,8 +1313,8 @@ async function loadVenvs() {
         list.replaceChildren();
         list.setAttribute('aria-busy', 'false');
         if (venvs.length === 0) {
-            showEmptyState(list, 'No virtual environments found.');
-            announce('No virtual environments found');
+            showEmptyState(list, t('gui-no-venvs', null, 'No virtual environments found.'));
+            announce(t('gui-no-venvs', null, 'No virtual environments found'));
         } else {
             venvs.forEach(v => {
                 const spec = venvSpec(v);
@@ -1218,18 +1330,18 @@ async function loadVenvs() {
                 const nameEl = document.createElement('div');
                 nameEl.className = 'version-name';
                 nameEl.textContent = v.name;
-                if (isActive) appendBadge(nameEl, 'Active', 'badge badge-success', 'Currently selected environment.');
-                if (isGlobal) appendBadge(nameEl, 'Global', 'badge badge-success', 'Default for new shells.');
+                if (isActive) appendBadge(nameEl, t('gui-active', null, 'Active'), 'badge badge-success', t('gui-active-title', null, 'Currently selected environment.'));
+                if (isGlobal) appendBadge(nameEl, t('gui-global', null, 'Global'), 'badge badge-success', t('gui-global-title', null, 'Default for new shells.'));
                 const meta = document.createElement('div');
                 meta.className = 'version-meta';
-                meta.textContent = `Base ${v.base_version} · ${v.path}`;
+                meta.textContent = t('gui-base-meta', { version: v.base_version, path: v.path }, `Base ${v.base_version} · ${v.path}`);
                 meta.title = v.path;
                 info.append(nameEl, meta);
 
                 const actions = document.createElement('div');
                 actions.className = 'version-actions';
-                actions.appendChild(createActionButton('Package Explorer', 'package-explorer', spec, 'btn btn-outline', {
-                    title: 'Browse and update packages in this venv.',
+                actions.appendChild(createActionButton(t('gui-package-explorer', null, 'Package Explorer'), 'package-explorer', spec, 'btn btn-outline', {
+                    title: t('gui-packages-venv-title', null, 'Browse and update packages in this venv.'),
                 }));
                 const menuItems = [];
                 const globalItems = [];
@@ -1237,24 +1349,24 @@ async function loadVenvs() {
                 appendMenuGroup(menuItems, globalItems);
                 appendMenuGroup(menuItems, localMenuItems(spec));
                 appendMenuGroup(menuItems, [{
-                    label: 'Migrate Runtime',
+                    label: t('gui-migrate-runtime', null, 'Migrate Runtime'),
                     action: 'upgrade-venv',
                     target: spec,
                     extra: { baseVersion: v.base_version },
-                    title: `Recreate this venv on another installed Python (now ${v.base_version}).`,
+                    title: t('gui-migrate-venv-title', { version: v.base_version }, `Recreate this venv on another installed Python (now ${v.base_version}).`),
                 }]);
                 appendMenuGroup(menuItems, [{
-                    label: 'Delete',
+                    label: t('gui-delete', null, 'Delete'),
                     action: 'delete-venv',
                     target: spec,
                     danger: true,
-                    title: 'Permanently delete this virtual environment.',
+                    title: t('gui-delete-venv-title', null, 'Permanently delete this virtual environment.'),
                 }]);
                 appendCardOverflow(actions, menuItems);
                 card.append(info, actions);
                 list.appendChild(card);
             });
-            announce(`Loaded ${venvs.length} virtual environment${venvs.length === 1 ? '' : 's'}`);
+            announce(t('gui-loaded-venvs', { count: String(venvs.length) }, `Loaded ${venvs.length} virtual environments`));
         }
         const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
@@ -1262,7 +1374,7 @@ async function loadVenvs() {
         sel.replaceChildren();
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = 'Select base runtime…';
+        placeholder.textContent = t('gui-select-base-runtime', null, 'Select base runtime…');
         sel.appendChild(placeholder);
         bases.forEach(b => {
             const option = document.createElement('option');
@@ -1272,8 +1384,8 @@ async function loadVenvs() {
         });
     } catch (err) {
         console.error("Failed to load venvs:", err);
-        showEmptyState(list, 'Failed to load virtual environments.', { danger: true });
-        announce('Failed to load virtual environments');
+        showEmptyState(list, t('gui-failed-load-venvs', null, 'Failed to load virtual environments.'), { danger: true });
+        announce(t('gui-failed-load-venvs', null, 'Failed to load virtual environments'));
     }
 }
 
@@ -1285,23 +1397,23 @@ document.getElementById('available-search').addEventListener('input', () => {
 async function installTarget(v, btnEl) {
     btnEl.disabled = true;
     const originalText = btnEl.textContent;
-    btnEl.textContent = 'Installing…';
+    btnEl.textContent = t('gui-installing', null, 'Installing…');
     btnEl.setAttribute('aria-busy', 'true');
     
     try {
         await invoke('install_version', { workspaceDir: getWorkspaceDir(), version: v });
-        btnEl.textContent = 'Installed ✓';
+        btnEl.textContent = t('gui-installed-ok', null, 'Installed ✓');
         btnEl.classList.remove('btn-primary');
         btnEl.classList.add('btn-outline');
         installedVersionsSet.push(v);
         loadDashboard();
         loadInstalled();
-        announce(`Installed ${v}`);
+        announce(t('gui-installed-announce', { version: v }, `Installed ${v}`));
     } catch (err) {
         console.error("Install failed:", err);
         btnEl.textContent = originalText;
         btnEl.disabled = false;
-        showAlert('Install Failed', escapeHtml(String(err)));
+        showAlert(t('gui-install-failed', null, 'Install Failed'), escapeHtml(String(err)));
     } finally {
         btnEl.removeAttribute('aria-busy');
     }
@@ -1313,9 +1425,9 @@ async function setGlobal(v) {
         loadDashboard();
         loadInstalled();
         loadVenvs();
-        showAlert('Global Version Set', `Python <b>${escapeHtml(v)}</b> is now the global default.`);
+        showAlert(t('gui-global-set-title', null, 'Global Version Set'), t('gui-global-set-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} is now the global default.`));
     } catch(err) {
-        showAlert('Error', 'Failed to set global version:\n' + escapeHtml(err));
+        showAlert(t('gui-error', null, 'Error'), t('gui-set-global-failed', null, 'Failed to set global version:') + '\n' + escapeHtml(err));
     }
 }
 
@@ -1325,34 +1437,34 @@ document.getElementById('btn-create-venv')?.addEventListener('click', async () =
     const name = document.getElementById('venv-name').value.trim();
     const base = document.getElementById('venv-base-version').value;
     if(!name || !base) {
-        showAlert('Missing Fields', 'Please provide both a name and a base version.');
+        showAlert(t('gui-missing-fields', null, 'Missing Fields'), t('gui-missing-fields-body', null, 'Please provide both a name and a base version.'));
         return;
     }
     const btn = document.getElementById('btn-create-venv');
     btn.disabled = true;
-    btn.innerText = "Creating...";
+    btn.innerText = t('gui-creating', null, 'Creating…');
     try {
         await invoke('create_venv', { workspaceDir: getWorkspaceDir(), baseVersion: base, name: name });
         document.getElementById('venv-name').value = '';
         loadVenvs();
         loadDashboard();
     } catch(err) {
-        showAlert('Venv Creation Failed', escapeHtml(err));
+        showAlert(t('gui-venv-create-failed', null, 'Venv Creation Failed'), escapeHtml(err));
     } finally {
         btn.disabled = false;
-        btn.innerText = "Create";
+        btn.innerText = t('gui-create', null, 'Create');
     }
 });
 
 async function deleteVenv(name) {
-    const yes = await showConfirm('Delete Virtual Environment', `Are you sure you want to delete venv <b>${name}</b>? This cannot be undone.`);
+    const yes = await showConfirm(t('gui-delete-venv-confirm-title', null, 'Delete Virtual Environment'), t('gui-delete-venv-confirm-body', { name }, `Are you sure you want to delete venv ${name}? This cannot be undone.`));
     if (!yes) return;
     try {
         await invoke('delete_venv', { workspaceDir: getWorkspaceDir(), spec: name });
         loadVenvs();
         loadDashboard();
     } catch(err) {
-        showAlert('Delete Failed', escapeHtml(err));
+        showAlert(t('gui-delete-failed', null, 'Delete Failed'), escapeHtml(err));
     }
 }
 
@@ -1360,32 +1472,32 @@ async function deleteVenv(name) {
 // Uses the core self-update API directly (check-only mode, then update with --yes).
 async function checkUpdates() {
     const btn = document.getElementById('footer-btn');
-    if(btn) { btn.innerText = "Checking…"; btn.disabled = true; }
+    if(btn) { btn.innerText = t('gui-checking', null, 'Checking…'); btn.disabled = true; }
     try {
         const result = await invoke('check_for_updates', { workspaceDir: getWorkspaceDir() });
         // Parse whether an update is available from the result text
         if (result.includes('up to date') || result.includes('Up to date') || result.includes('already up to date')) {
-            showAlert('Up to Date', escapeHtml(result));
+            showAlert(t('gui-up-to-date-title', null, 'Up to Date'), escapeHtml(result));
         } else if (result.includes('Update available') || result.includes('newer')) {
-            const yes = await showConfirm('Update Available', escapeHtml(result) + '<br><br>Would you like to update now?');
+            const yes = await showConfirm(t('gui-update-available', { version: '' }, 'Update Available'), escapeHtml(result) + '<br><br>' + t('gui-update-now', null, 'Would you like to update now?'));
             if (yes) {
-                if(btn) btn.innerText = "Updating…";
+                if(btn) btn.innerText = t('gui-updating', null, 'Updating…');
                 try {
                     await invoke('perform_update', { workspaceDir: getWorkspaceDir() });
                     // Close immediately so the background updater can finish and relaunch.
                     await invoke('close_app');
                 } catch(updateErr) {
-                    showAlert('Update Failed', escapeHtml(updateErr));
+                    showAlert(t('gui-update-failed', null, 'Update Failed'), escapeHtml(updateErr));
                 }
             }
         } else {
             // Generic result
-            showAlert('Update Check', escapeHtml(result));
+            showAlert(t('gui-update-check', null, 'Update Check'), escapeHtml(result));
         }
     } catch(err) {
-        showAlert('Update Check Failed', escapeHtml(err));
+        showAlert(t('gui-update-check-failed', null, 'Update Check Failed'), escapeHtml(err));
     } finally {
-        if(btn) { btn.innerText = "Check for Updates"; btn.disabled = false; }
+        if(btn) { btn.innerText = t('gui-footer-check-updates', null, 'Check for Updates'); btn.disabled = false; }
     }
 }
 
@@ -1394,8 +1506,8 @@ async function setLocal(v, { pickFolder = false } = {}) {
         let selectedDir = null;
         if (!pickFolder && currentWorkspaceDir) {
             const yes = await showConfirm(
-                'Make Local',
-                `Pin <b>${escapeHtml(v)}</b> to the current project folder?<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(currentWorkspaceDir)}</code>`,
+                t('gui-make-local', null, 'Make Local'),
+                `${t('gui-make-local-confirm', { version: escapeHtml(v) }, `Pin ${escapeHtml(v)} to the current project folder?`)}<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(currentWorkspaceDir)}</code>`,
             );
             if (!yes) return;
             selectedDir = currentWorkspaceDir;
@@ -1405,8 +1517,8 @@ async function setLocal(v, { pickFolder = false } = {}) {
         if (!selectedDir) {
             if (!pickFolder && !currentWorkspaceDir) {
                 showAlert(
-                    'No project folder',
-                    'Choose a project folder in the bar above, or use <b>Pin to another folder</b> from More.',
+                    t('gui-no-project-folder', null, 'No project folder selected'),
+                    t('gui-no-project-folder-body', null, 'Choose a project folder in the bar above, or use Pin to another folder from More.'),
                 );
             }
             return;
@@ -1414,9 +1526,9 @@ async function setLocal(v, { pickFolder = false } = {}) {
         await invoke('set_local', { version: v, path: selectedDir });
         loadDashboard();
         loadInstalled();
-        showAlert('Local Version Set', `Python <b>${escapeHtml(v)}</b> pinned to:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
+        showAlert(t('gui-local-set-title', null, 'Local Version Set'), `${t('gui-local-set-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} pinned to:`)}<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
     } catch (err) {
-        showAlert('Error', 'Failed to set local version:\n' + escapeHtml(err));
+        showAlert(t('gui-error', null, 'Error'), t('gui-set-local-failed', null, 'Failed to set local version:') + '\n' + escapeHtml(err));
     }
 }
 
@@ -1441,17 +1553,26 @@ async function loadCacheStats() {
         host.replaceChildren();
         const total = document.createElement('div');
         total.className = 'cache-total';
-        total.textContent = `Total tracked: ${formatBytes(stats.total_bytes)}`;
+        total.textContent = t('gui-total-tracked', { bytes: formatBytes(stats.total_bytes) }, `Total tracked: ${formatBytes(stats.total_bytes)}`);
         host.appendChild(total);
         (stats.entries || []).forEach((entry) => {
             const row = document.createElement('div');
             row.className = 'cache-row';
             const label = document.createElement('div');
             label.className = 'cache-row-label';
-            label.textContent = entry.name;
+            const cacheIds = {
+                all: 'gui-cache-all',
+                packages: 'gui-cache-packages',
+                'python-build': 'gui-cache-python-build',
+                metadata: 'gui-cache-metadata',
+                pip: 'gui-cache-pip',
+            };
+            label.textContent = cacheIds[entry.id]
+                ? t(cacheIds[entry.id], null, entry.name)
+                : (entry.name || '');
             const meta = document.createElement('div');
             meta.className = 'cache-row-meta';
-            meta.textContent = `${formatBytes(entry.bytes)} · ${entry.exists ? entry.path : 'not present'}`;
+            meta.textContent = t('gui-cache-entry-meta', { bytes: formatBytes(entry.bytes), path: entry.exists ? entry.path : t('gui-cache-not-present', null, 'not present') }, `${formatBytes(entry.bytes)} · ${entry.exists ? entry.path : 'not present'}`);
             row.append(label, meta);
             host.appendChild(row);
         });
@@ -1460,23 +1581,23 @@ async function loadCacheStats() {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         empty.style.padding = '12px';
-        empty.textContent = `Could not read cache stats: ${err}`;
+        empty.textContent = t('gui-cache-read-failed', { error: String(err) }, `Could not read cache stats: ${err}`);
         host.appendChild(empty);
     }
 }
 
 async function purgeCacheTarget(target, label) {
     const yes = await showConfirm(
-        'Purge Cache',
-        `Safely purge <b>${label}</b>?<br><br>Installed Python versions and virtual environments are <b>not</b> deleted.`,
+        t('gui-purge-cache-title', null, 'Purge Cache'),
+        t('gui-purge-cache-body', { label }, `Safely purge ${label}? Installed Python versions and virtual environments are not deleted.`),
     );
     if (!yes) return;
     try {
         const result = await invoke('purge_cache', { workspaceDir: getWorkspaceDir(), target });
-        showAlert('Cache Purged', escapeHtml(result));
+        showAlert(t('gui-cache-purged', null, 'Cache Purged'), escapeHtml(result));
         loadCacheStats();
     } catch (err) {
-        showAlert('Purge Failed', escapeHtml(err));
+        showAlert(t('gui-purge-failed', null, 'Purge Failed'), escapeHtml(err));
     }
 }
 
@@ -1484,8 +1605,7 @@ async function loadConfig() {
     try {
         const jsonStr = await invoke('get_config', { workspaceDir: getWorkspaceDir() });
         const config = JSON.parse(jsonStr);
-        const platform = window.__installPlatform
-            || (await invoke('check_install_status').then((s) => s.platform).catch(() => 'linux'));
+        const platform = window.__installPlatform || 'linux';
         window.__installPlatform = platform;
 
         const windowsBlock = document.getElementById('settings-windows');
@@ -1501,6 +1621,15 @@ async function loadConfig() {
         document.getElementById('config-install.bootstrap_pip').checked = config.install?.bootstrap_pip ?? true;
         document.getElementById('config-venv.auto_create_base_venv').checked = config.venv?.auto_create_base_venv ?? false;
         document.getElementById('config-venv.auto_use_base_venv').checked = config.venv?.auto_use_base_venv ?? false;
+        const langSelect = document.getElementById('config-ui.language');
+        if (langSelect) {
+            const configured = config.ui?.language || 'auto';
+            langSelect.dataset.configured = configured;
+            window.I18n?.bindChrome?.();
+            if ([...langSelect.options].some((opt) => opt.value === configured)) {
+                langSelect.value = configured;
+            }
+        }
         loadCacheStats();
     } catch(err) {
         console.error("Failed to load config", err);
@@ -1511,18 +1640,18 @@ async function updateConfig(key, value) {
     const status = document.getElementById('config-save-status');
     try {
         await invoke('set_config', { workspaceDir: getWorkspaceDir(), key, value });
-        if (status) status.textContent = `Saved ${key} = ${value}`;
-        showToast(`Saved ${key}`);
-        announce(`Configuration saved: ${key}`);
+        if (status) status.textContent = t('gui-saved', { key, value }, `Saved ${key} = ${value}`);
+        showToast(t('gui-saved', { key, value: '' }, `Saved ${key}`));
+        announce(t('gui-config-saved-announce', { key }, `Configuration saved: ${key}`));
     } catch(err) {
-        if (status) status.textContent = `Failed to save ${key}`;
-        showAlert('Config Error', 'Failed to save config:\n' + escapeHtml(err));
+        if (status) status.textContent = t('gui-save-failed-status', { key }, `Failed to save ${key}`);
+        showAlert(t('gui-config-error', null, 'Config Error'), t('gui-save-failed', { key: '' }, 'Failed to save') + ':\n' + escapeHtml(err));
     }
 }
 
 // ─── Uninstall ───
 async function uninstallVersion(v) {
-    const yes = await showConfirm('Uninstall Python', `Are you sure you want to completely remove Python <b>${escapeHtml(v)}</b>? This will delete all files for this version.`);
+    const yes = await showConfirm(t('gui-uninstall-python-title', null, 'Uninstall Python'), t('gui-uninstall-python-body', { version: escapeHtml(v) }, `Are you sure you want to completely remove Python ${escapeHtml(v)}? This will delete all files for this version.`));
     if (!yes) return;
     
     // Show inline progress
@@ -1536,11 +1665,11 @@ async function uninstallVersion(v) {
     try {
         await invoke('uninstall_version', { workspaceDir: getWorkspaceDir(), version: v });
         installedVersionsSet = installedVersionsSet.filter(x => x !== v);
-        showAlert('Uninstalled', `Python <b>${escapeHtml(v)}</b> has been removed.`);
+        showAlert(t('gui-uninstalled-title', null, 'Uninstalled'), t('gui-uninstalled-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} has been removed.`));
         loadInstalled();
         loadDashboard();
     } catch(err) {
-        showAlert('Uninstall Failed', escapeHtml(err));
+        showAlert(t('gui-uninstall-failed', null, 'Uninstall Failed'), escapeHtml(err));
         loadInstalled();
     }
 }
@@ -1556,25 +1685,28 @@ function compareVersions(v1, v2) {
 }
 
 // ─── Version & Init ───
-async function initAppVersion() {
+async function initAppVersion({ refreshRemote = false } = {}) {
     try {
-        const version = await invoke('get_app_version');
+        if (!cachedAppVersion) {
+            cachedAppVersion = await invoke('get_app_version');
+        }
+        const version = cachedAppVersion;
         const versionEl = document.getElementById('footer-version');
-        if (versionEl) versionEl.textContent = `Pyenv-Native v${version}`;
-        
+        if (versionEl) versionEl.textContent = t('gui-app-version', { version }, `Pyenv-Native v${version}`);
+
         const aboutEl = document.getElementById('about-version');
         if (aboutEl) aboutEl.textContent = version;
-        
-        // Check for latest version from GitHub
+
+        if (!refreshRemote && lastFooterStatus.kind) return;
+
         try {
             const res = await fetch('https://api.github.com/repos/ImYourBoyRoy/pyenv-native/releases/latest');
             if (!res.ok) throw new Error('Fetch failed');
             const data = await res.json();
             const latestTag = data.tag_name || '';
             const latest = latestTag.replace(/^v/, '');
-            
-            const statusEl = document.getElementById('footer-app-status');
-            if (statusEl && latest) {
+
+            if (latest) {
                 if (compareVersions(latest, version) > 0) {
                     setFooterAppStatus('update', latest);
                 } else {
@@ -1584,7 +1716,7 @@ async function initAppVersion() {
         } catch {
             setFooterAppStatus('offline');
         }
-    } catch(err) {
+    } catch (err) {
         console.error("Failed to get app version:", err);
     }
 }
@@ -1603,17 +1735,17 @@ async function checkInstallation() {
         if (banner) banner.style.display = showBanner ? 'block' : 'none';
         if (showBanner) {
             if (!status.is_installed) {
-                if (title) title.textContent = 'Install core features';
+                if (title) title.textContent = t('gui-install-core', null, 'Install core features');
                 if (body) {
-                    body.textContent = 'Pyenv-native binaries were not found under the install root. Run setup to install the CLI, shims, and MCP companion.';
+                    body.textContent = t('gui-install-core-body', null, 'Pyenv-native binaries were not found under the install root. Run setup to install the CLI, shims, and MCP companion.');
                 }
-                if (actionBtn) actionBtn.textContent = 'Install Now';
+                if (actionBtn) actionBtn.textContent = t('gui-install-now', null, 'Install Now');
             } else {
-                if (title) title.textContent = 'Activate shell integration';
+                if (title) title.textContent = t('gui-activate-shell', null, 'Activate shell integration');
                 if (body) {
-                    body.textContent = 'Core binaries are installed, but no shell profile has pyenv init yet. Finish setup so new terminals get shims on PATH.';
+                    body.textContent = t('gui-activate-shell-missing', null, 'Core binaries are installed, but no shell profile has pyenv init yet. Finish setup so new terminals get shims on PATH.');
                 }
-                if (actionBtn) actionBtn.textContent = 'Finish Setup';
+                if (actionBtn) actionBtn.textContent = t('gui-finish-setup', null, 'Finish Setup');
             }
         }
 
@@ -1628,6 +1760,10 @@ async function checkInstallation() {
 
         document.querySelector('.sidebar').style.display = 'flex';
         loadDashboard();
+        void loadInstalled();
+        void loadVenvs();
+        void loadConfig();
+        void loadShellIntegration();
 
         if (status.is_portable && status.is_installed) {
             appendFooterPortableBadge();
@@ -1653,10 +1789,10 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
 
     try {
         const result = await invoke('install_local_pyenv');
-        if (statusText) statusText.textContent = "Done! Environment refreshed.";
+        if (statusText) statusText.textContent = t('gui-setup-done', null, 'Done! Environment refreshed.');
         showAlert(
-            'Setup Complete',
-            `${escapeHtml(result)}<br><br>Open a <b>new terminal</b> so shims appear on PATH. This GUI process keeps its original PATH until restarted.`,
+            t('gui-setup-complete', null, 'Setup Complete'),
+            `${escapeHtml(result)}<br><br>${t('gui-setup-complete-body', null, 'Open a new terminal so shims appear on PATH. This app loads bin and shims into its own PATH automatically.')}`,
         );
         setTimeout(() => {
             location.reload();
@@ -1664,7 +1800,7 @@ document.getElementById('btn-run-setup-banner')?.addEventListener('click', async
     } catch (err) {
         if (progress) progress.style.display = 'none';
         if (actions) actions.style.display = 'flex';
-        showAlert('Setup Failed', escapeHtml(err));
+        showAlert(t('gui-setup-failed', null, 'Setup Failed'), escapeHtml(err));
     }
 });
 
@@ -1838,23 +1974,23 @@ function applyUpgradeProgressLog(log, success) {
     const hasVerify = joined.includes('verify:');
     const hasCleanup = joined.includes('cleanup:') || joined.includes('Renamed managed venv');
 
-    if (hasBackup) markStepSuccess('backup', 'Inventory complete', 'Captured source packages');
-    if (hasCreate) markStepSuccess('recreate', 'Environment recreated', 'Created migration venv');
-    if (hasRestore) markStepSuccess('restore', 'Packages restored', 'Reinstalled custom packages');
+    if (hasBackup) markStepSuccess('backup', t('gui-inventory-complete', null, 'Inventory complete'), t('gui-captured-packages', null, 'Captured source packages'));
+    if (hasCreate) markStepSuccess('recreate', t('gui-env-recreated', null, 'Environment recreated'), t('gui-created-migration-venv', null, 'Created migration venv'));
+    if (hasRestore) markStepSuccess('restore', t('gui-packages-restored', null, 'Packages restored'), t('gui-reinstalled-custom', null, 'Reinstalled custom packages'));
     if (hasVerify) {
         if (joined.includes('[WARNING] dependency conflicts')) {
-            markStepWarning('verify', 'Conflicts discovered', 'pip check reported warnings');
+            markStepWarning('verify', t('gui-conflicts-discovered', null, 'Conflicts discovered'), t('gui-pip-check-warnings', null, 'pip check reported warnings'));
         } else {
-            markStepSuccess('verify', 'Verification complete', 'Dependency check finished');
+            markStepSuccess('verify', t('gui-verification-complete', null, 'Verification complete'), t('gui-dep-check-finished', null, 'Dependency check finished'));
         }
     }
-    if (hasCleanup) markStepSuccess('cleanup', 'Cleanup complete', 'Old environment removed');
+    if (hasCleanup) markStepSuccess('cleanup', t('gui-cleanup-complete', null, 'Cleanup complete'), t('gui-old-env-removed', null, 'Old environment removed'));
 
     if (!success) {
-        if (!hasBackup) markStepWarning('backup', 'Inventory failed', 'Could not list packages in the source venv');
-        else if (!hasCreate) markStepWarning('recreate', 'Create failed', 'Could not create the migration venv');
-        else if (!hasRestore) markStepWarning('restore', 'Restore failed', 'Package reinstall stopped; source venv left unchanged');
-        else if (!hasCleanup) markStepWarning('cleanup', 'Cleanup failed', 'New venv exists; source may still be present');
+        if (!hasBackup) markStepWarning('backup', t('gui-inventory-failed', null, 'Inventory failed'), t('gui-could-not-list-packages', null, 'Could not list packages in the source venv'));
+        else if (!hasCreate) markStepWarning('recreate', t('gui-create-failed', null, 'Create failed'), t('gui-could-not-create-migration', null, 'Could not create the migration venv'));
+        else if (!hasRestore) markStepWarning('restore', t('gui-restore-failed', null, 'Restore failed'), t('gui-reinstall-stopped', null, 'Package reinstall stopped; source venv left unchanged'));
+        else if (!hasCleanup) markStepWarning('cleanup', t('gui-cleanup-failed', null, 'Cleanup failed'), t('gui-new-venv-source-present', null, 'New venv exists; source may still be present'));
         appendUpgraderLog('\n[FATAL ERROR] Migration failed.');
     } else {
         appendUpgraderLog('\n[FINISH] Venv migration completed successfully!');
@@ -1867,21 +2003,21 @@ window.openVenvUpgradeWizard = async function(spec, baseVersion) {
     upgraderSourceName = venvDisplayName(spec);
     upgraderSourceBase = baseVersion;
     
-    upgraderTargetTitle.textContent = `Migrate ${upgraderSourceName}`;
-    upgraderTargetSubtitle.textContent = `Current Base: ${baseVersion}`;
+    upgraderTargetTitle.textContent = `${t('gui-migrate-runtime', null, 'Migrate Runtime')} ${upgraderSourceName}`;
+    upgraderTargetSubtitle.textContent = t('gui-current-base', { version: baseVersion }, `Current Base: ${baseVersion}`);
     
     // Reset wizard view
     upgraderSetupCard.style.display = 'block';
     upgraderProgressCard.style.display = 'none';
     clearUpgraderLog();
-    appendUpgraderLog("Select a target Python version to begin migration.");
+    appendUpgraderLog(t('gui-migration-begin', null, 'Select a target Python version to begin migration.'));
     
     // Reset checklist items to default empty style
-    resetStepRow('backup', '1', 'Inventory old environment', 'Discovering installed packages...');
-    resetStepRow('recreate', '2', 'Create fresh environment', 'Rebuilding venv under target version...');
-    resetStepRow('restore', '3', 'Restore packages', 'Progressively reinstalling packages...');
-    resetStepRow('verify', '4', 'Dependency diagnostics', 'Running pip check verification...');
-    resetStepRow('cleanup', '5', 'Cleanup old environment', 'Removing old virtual environment...');
+    resetStepRow('backup', '1', t('gui-step-inventory', null, 'Inventory old environment'), t('gui-step-inventory-desc', null, 'Discovering installed packages…'));
+    resetStepRow('recreate', '2', t('gui-step-create', null, 'Create fresh environment'), t('gui-step-create-desc', null, 'Rebuilding venv under target version…'));
+    resetStepRow('restore', '3', t('gui-step-restore', null, 'Restore packages'), t('gui-step-restore-desc', null, 'Progressively reinstalling packages…'));
+    resetStepRow('verify', '4', t('gui-step-verify', null, 'Dependency diagnostics'), t('gui-step-verify-desc', null, 'Running pip check verification…'));
+    resetStepRow('cleanup', '5', t('gui-step-cleanup', null, 'Cleanup old environment'), t('gui-step-cleanup-desc', null, 'Removing old virtual environment…'));
 
     // Populate dropdown with installed python versions
     try {
@@ -1915,7 +2051,7 @@ if (btnStartUpgrade) {
     btnStartUpgrade.addEventListener('click', async () => {
         const targetVer = upgraderTargetVersionSel.value;
         if (!targetVer) {
-            showAlert("Migration Error", "Please select a target Python runtime version.");
+            showAlert(t('gui-migration-error', null, 'Migration Error'), t('gui-select-target-runtime-alert', null, 'Please select a target Python runtime version.'));
             return;
         }
         
@@ -1937,12 +2073,12 @@ if (btnStartUpgrade) {
                 newRuntime: targetVer,
             });
             applyUpgradeProgressLog(String(log || ''), true);
-            showAlert("Migration Success", `Managed virtual environment '${escapeHtml(upgraderSourceName)}' has been fully migrated to Python ${escapeHtml(targetVer)}.`);
+            showAlert(t('gui-migration-success', null, 'Migration Success'), t('gui-migration-success-body', { name: escapeHtml(upgraderSourceName), version: escapeHtml(targetVer) }, `Managed virtual environment ${escapeHtml(upgraderSourceName)} has been fully migrated to Python ${escapeHtml(targetVer)}.`));
             loadVenvs();
         } catch (error) {
             console.error("Migration failed:", error);
             applyUpgradeProgressLog(String(error || ''), false);
-            showAlert("Migration Failed", escapeHtml(error));
+            showAlert(t('gui-migration-failed', null, 'Migration Failed'), escapeHtml(error));
         }
     });
 }
@@ -1950,12 +2086,15 @@ if (btnStartUpgrade) {
 // Open Package Explorer Drawer
 window.openPackageExplorer = function(target) {
     currentExplorerTarget = target;
-    
-    // Set Target Title/Subtitle
     const envName = venvDisplayName(target);
     const isVenv = target.includes('/envs/') || target.startsWith('venv:');
-    drawerTargetTitle.textContent = isVenv ? `Venv: ${envName}` : `Runtime: ${target}`;
-    drawerTargetSubtitle.textContent = `Package Explorer Target Context`;
+    const isSystem = target === 'system';
+    drawerTargetTitle.textContent = isVenv
+        ? t('gui-venv-target', { name: envName }, `Venv: ${envName}`)
+        : t('gui-runtime-target', {
+            name: isSystem ? t('gui-system-python', null, 'System Python') : target,
+        }, `Runtime: ${isSystem ? t('gui-system-python', null, 'System Python') : target}`);
+    drawerTargetSubtitle.textContent = t('gui-package-explorer-context', null, 'Package Explorer Target Context');
     
     // Switch to first tab (Installed)
     switchDrawerTab('tab-installed');
@@ -1968,9 +2107,12 @@ window.openPackageExplorer = function(target) {
         closeButton: drawerCloseBtn,
         announce: `Opened package explorer for ${target}`,
     });
-    
-    // Load installed packages
-    loadDrawerPackages();
+
+    if (isSystem) {
+        showSystemPackagesUnsupported();
+    } else {
+        loadDrawerPackages();
+    }
     
     // Check if we should reset outdated scans if target changed
     if (scannedTarget !== target) {
@@ -1982,14 +2124,14 @@ window.openPackageExplorer = function(target) {
     importPrecheckDashboard.style.display = 'none';
     importPrecheckLoading.style.display = 'none';
     btnInstallImported.disabled = true;
-    btnInstallImported.textContent = "Install Dependencies";
+    btnInstallImported.textContent = t('gui-install-dependencies', null, 'Install Dependencies');
     
     // Clear import scanner results
     if (scanImportsResults) scanImportsResults.style.display = 'none';
     if (scanImportsLoading) scanImportsLoading.style.display = 'none';
     if (btnScanImports) {
         btnScanImports.disabled = false;
-        btnScanImports.textContent = "Scan";
+        btnScanImports.textContent = t('gui-scan', null, 'Scan');
     }
     scannedMissingImports = [];
     if (scanMissingBadges) scanMissingBadges.replaceChildren();
@@ -2003,6 +2145,14 @@ function closePackageExplorer() {
 }
 
 drawerCloseBtn.addEventListener('click', closePackageExplorer);
+
+function showSystemPackagesUnsupported() {
+    drawerPackageEmpty.style.display = 'block';
+    drawerPackageEmpty.textContent = t('gui-system-packages-unsupported', null, 'Package management is not available for system Python. Install a managed runtime to browse and update packages.');
+    drawerPackageList.replaceChildren();
+    drawerPackageLoading.style.display = 'none';
+    pipSelfUpdateCard.style.display = 'none';
+}
 
 // Tab switching logic inside the drawer
 function switchDrawerTab(tabId) {
@@ -2081,7 +2231,7 @@ async function loadDrawerPackages() {
         td.colSpan = 3;
         td.style.color = 'var(--danger)';
         td.style.textAlign = 'center';
-        td.textContent = `Error loading packages: ${err}`;
+        td.textContent = t('gui-error-loading-packages', { error: String(err) }, `Error loading packages: ${err}`);
         tr.appendChild(td);
         drawerPackageList.appendChild(tr);
     } finally {
@@ -2099,7 +2249,7 @@ async function checkForPipUpdatesInBackground() {
         const pipOutdated = outdated.find(p => p.name.toLowerCase() === 'pip');
         if (pipOutdated) {
             pipSelfUpdateCard.style.display = 'flex';
-            pipSelfUpdateVersions.textContent = `Current: ${pipOutdated.version} → Latest: ${pipOutdated.latest_version}`;
+            pipSelfUpdateVersions.textContent = t('gui-pip-current-latest', { current: pipOutdated.version, latest: pipOutdated.latest_version }, `Current: ${pipOutdated.version} → Latest: ${pipOutdated.latest_version}`);
             
             // Also light up the active pip status in the main GUI if this matches active environment!
             updateActivePipLight(true, pipOutdated.version, pipOutdated.latest_version);
@@ -2115,7 +2265,7 @@ async function checkForPipUpdatesInBackground() {
 // Upgrade Pip cozy action
 btnUpgradePip.addEventListener('click', async () => {
     btnUpgradePip.disabled = true;
-    btnUpgradePip.textContent = "Upgrading...";
+    btnUpgradePip.textContent = t('gui-upgrading-packages', null, 'Upgrading packages…');
     
     try {
         await invoke('update_pip_packages', {
@@ -2124,13 +2274,13 @@ btnUpgradePip.addEventListener('click', async () => {
             packages: ["pip"],
             all: false
         });
-        showAlert("Pip Upgraded", "pip self-update completed successfully.");
+        showAlert(t('gui-pip-upgraded', null, 'Pip Upgraded'), t('gui-pip-upgraded-body', null, 'pip self-update completed successfully.'));
         loadDrawerPackages();
     } catch(err) {
-        showAlert("Upgrade Failed", escapeHtml(err));
+        showAlert(t('gui-upgrade-failed', null, 'Upgrade Failed'), escapeHtml(err));
     } finally {
         btnUpgradePip.disabled = false;
-        btnUpgradePip.textContent = "Update";
+        btnUpgradePip.textContent = t('gui-update', null, 'Update');
     }
 });
 
@@ -2164,10 +2314,10 @@ function renderInstalledPackages() {
         if (p.name.toLowerCase() === 'pip') {
             statusSpan.style.color = 'var(--accent)';
             statusSpan.style.fontWeight = '500';
-            statusSpan.textContent = 'System';
+            statusSpan.textContent = t('gui-status-system', null, 'System');
         } else {
             statusSpan.style.opacity = '0.6';
-            statusSpan.textContent = 'OK';
+            statusSpan.textContent = t('gui-status-ok', null, 'OK');
         }
         statusTd.appendChild(statusSpan);
         tr.append(nameTd, versionTd, statusTd);
@@ -2202,7 +2352,7 @@ btnScanOutdated.addEventListener('click', async () => {
         
         renderOutdatedChecklist();
     } catch(err) {
-        showAlert("Scan Failed", escapeHtml(err));
+        showAlert(t('gui-scan-failed', null, 'Scan Failed'), escapeHtml(err));
         updatesScanPrompt.style.display = 'block';
     } finally {
         updatesScanning.style.display = 'none';
@@ -2227,7 +2377,7 @@ function renderOutdatedChecklist() {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         empty.style.padding = '20px';
-        empty.textContent = 'All libraries are up to date!';
+        empty.textContent = t('gui-all-up-to-date', null, 'All libraries are up to date!');
         updatesChecklist.appendChild(empty);
         updatesScanPrompt.style.display = 'none';
         updatesChecklistView.style.display = 'block';
@@ -2294,7 +2444,7 @@ function renderOutdatedChecklist() {
 // Update selected text and action button state
 function updateSelectedCountText() {
     const size = selectedOutdated.size;
-    selectedUpdatesCount.textContent = `${size} selected`;
+    selectedUpdatesCount.textContent = t('gui-selected-count', { count: String(size) }, `${size} selected`);
     btnUpdateSelected.disabled = size === 0;
     
     const actualPackagesCount = outdatedPackages.filter(p => p.name.toLowerCase() !== 'pip').length;
@@ -2329,7 +2479,7 @@ btnUpdateSelected.addEventListener('click', async () => {
     const progressBar = document.getElementById('pkg-update-progress-bar');
     
     btnUpdateSelected.disabled = true;
-    btnUpdateSelected.textContent = "Updating Packages...";
+    btnUpdateSelected.textContent = t('gui-updating-packages', null, 'Updating Packages…');
     progressContainer.style.display = 'block';
     progressBar.style.width = '0%';
     progressBar.setAttribute('aria-valuenow', '0');
@@ -2341,7 +2491,7 @@ btnUpdateSelected.addEventListener('click', async () => {
             const currentNum = i + 1;
             const percent = Math.round((i / pkgs.length) * 100);
             
-            progressText.textContent = `Upgrading ${pkg} (${currentNum}/${pkgs.length})...`;
+            progressText.textContent = t('gui-upgrading-named', { name: pkg, current: String(currentNum), total: String(pkgs.length) }, `Upgrading ${pkg} (${currentNum}/${pkgs.length})...`);
             progressPercent.textContent = `${percent}%`;
             progressBar.style.width = `${percent}%`;
             progressBar.setAttribute('aria-valuenow', String(percent));
@@ -2355,17 +2505,17 @@ btnUpdateSelected.addEventListener('click', async () => {
             selectedOutdated.delete(pkg);
         }
         
-        progressText.textContent = `All updates completed!`;
+        progressText.textContent = t('gui-updates-complete', null, 'All updates completed!');
         progressPercent.textContent = `100%`;
         progressBar.style.width = `100%`;
         progressBar.setAttribute('aria-valuenow', '100');
         
         setTimeout(() => {
             progressContainer.style.display = 'none';
-            btnUpdateSelected.textContent = "Update Selected Packages";
+            btnUpdateSelected.textContent = t('gui-update-selected-packages', null, 'Update Selected Packages');
         }, 1500);
         
-        showAlert("Packages Updated", `Successfully upgraded packages:<br><code style="font-size: 11px;">${escapeHtml(pkgs.join(', '))}</code>`);
+        showAlert(t('gui-packages-updated', null, 'Packages Updated'), `${t('gui-packages-updated-body', null, 'Successfully upgraded packages:')}<br><code style="font-size: 11px;">${escapeHtml(pkgs.join(', '))}</code>`);
         
         // Refresh installed packages table
         loadDrawerPackages();
@@ -2373,10 +2523,10 @@ btnUpdateSelected.addEventListener('click', async () => {
         // Reset outdated check since updates were performed
         resetOutdatedScanView();
     } catch(err) {
-        showAlert("Update Failed", escapeHtml(err));
+        showAlert(t('gui-update-failed', null, 'Update Failed'), escapeHtml(err));
         progressContainer.style.display = 'none';
         btnUpdateSelected.disabled = false;
-        btnUpdateSelected.textContent = "Update Selected Packages";
+        btnUpdateSelected.textContent = t('gui-update-selected-packages', null, 'Update Selected Packages');
         loadDrawerPackages();
         updateSelectedCountText();
     }
@@ -2386,7 +2536,7 @@ btnUpdateSelected.addEventListener('click', async () => {
 btnPrecheckImport.addEventListener('click', async () => {
     const pathOrUrl = importRequirementsPath.value.trim();
     if (!pathOrUrl) {
-        showAlert("Input Required", "Please paste a requirements.txt local path or HTTPS URL.");
+        showAlert(t('gui-input-required', null, 'Input Required'), t('gui-paste-requirements', null, 'Please paste a requirements.txt local path or HTTPS URL.'));
         return;
     }
     
@@ -2405,7 +2555,7 @@ btnPrecheckImport.addEventListener('click', async () => {
         const precheck = JSON.parse(jsonStr);
         renderPrecheckResults(precheck);
     } catch(err) {
-        showAlert("Precheck Failed", escapeHtml(err));
+        showAlert(t('gui-precheck-failed', null, 'Precheck Failed'), escapeHtml(err));
     } finally {
         btnPrecheckImport.disabled = false;
         importPrecheckLoading.style.display = 'none';
@@ -2422,14 +2572,14 @@ function renderPrecheckResults(precheck) {
         precheckBanner.style.border = '1px solid rgba(16, 185, 129, 0.2)';
         precheckBanner.style.color = 'var(--success)';
         precheckBannerIcon.textContent = '✓';
-        precheckBannerText.textContent = 'Environment is safe and fully compatible!';
+        precheckBannerText.textContent = t('gui-env-safe', null, 'Environment is safe and fully compatible!');
         btnInstallImported.disabled = false;
     } else {
         precheckBanner.style.background = 'rgba(239, 68, 68, 0.1)';
         precheckBanner.style.border = '1px solid rgba(239, 68, 68, 0.2)';
         precheckBanner.style.color = '#f87171';
         precheckBannerIcon.textContent = '⚠';
-        precheckBannerText.textContent = 'Version mismatch or conflicts detected.';
+        precheckBannerText.textContent = t('gui-version-mismatch', null, 'Version mismatch or conflicts detected.');
         btnInstallImported.disabled = false; // We still allow installation, but with warning
     }
     
@@ -2476,13 +2626,13 @@ function renderPrecheckResults(precheck) {
             } else if (p.version === 'not installed') {
                 const pending = document.createElement('span');
                 pending.style.color = '#60a5fa';
-                pending.textContent = 'Pending Install';
+                pending.textContent = t('gui-pending-install', null, 'Pending Install');
                 statusTd.appendChild(pending);
             } else {
                 const compatible = document.createElement('span');
                 compatible.style.color = 'var(--success)';
                 compatible.style.fontWeight = '500';
-                compatible.textContent = 'Compatible';
+                compatible.textContent = t('gui-compatible', null, 'Compatible');
                 statusTd.appendChild(compatible);
             }
 
@@ -2495,7 +2645,7 @@ function renderPrecheckResults(precheck) {
         td.colSpan = 3;
         td.style.textAlign = 'center';
         td.style.opacity = '0.6';
-        td.textContent = 'No packages specified.';
+        td.textContent = t('gui-no-packages-specified', null, 'No packages specified.');
         tr.appendChild(td);
         precheckResolvedList.appendChild(tr);
     }
@@ -2507,7 +2657,7 @@ btnInstallImported.addEventListener('click', async () => {
     if (!pathOrUrl) return;
     
     btnInstallImported.disabled = true;
-    btnInstallImported.textContent = "Installing Dependencies...";
+    btnInstallImported.textContent = t('gui-installing-deps', null, 'Installing Dependencies…');
     
     try {
         await invoke('install_requirements', {
@@ -2516,7 +2666,7 @@ btnInstallImported.addEventListener('click', async () => {
             pathOrUrl: pathOrUrl
         });
         
-        showAlert("Installation Complete", "Dependencies installed successfully.");
+        showAlert(t('gui-installation-complete', null, 'Installation Complete'), t('gui-installation-complete-body', null, 'Dependencies installed successfully.'));
         
         // Refresh installed packages table
         loadDrawerPackages();
@@ -2527,10 +2677,10 @@ btnInstallImported.addEventListener('click', async () => {
         // Switch to installed tab to see them
         switchDrawerTab('tab-installed');
     } catch(err) {
-        showAlert("Installation Failed", escapeHtml(err));
+        showAlert(t('gui-installation-failed', null, 'Installation Failed'), escapeHtml(err));
     } finally {
         btnInstallImported.disabled = false;
-        btnInstallImported.textContent = "Install Dependencies";
+        btnInstallImported.textContent = t('gui-install-dependencies', null, 'Install Dependencies');
     }
 });
 
@@ -2542,9 +2692,9 @@ const scanFolderLabel = document.getElementById('scan-folder-label');
 function updateScanFolderLabel() {
     if (!scanFolderLabel) return;
     if (scanTargetDir) {
-        scanFolderLabel.textContent = `Scan folder: ${scanTargetDir}`;
+        scanFolderLabel.textContent = t('gui-scan-folder-label', { path: scanTargetDir }, `Scan folder: ${scanTargetDir}`);
     } else {
-        scanFolderLabel.textContent = 'Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.';
+        scanFolderLabel.textContent = t('gui-scan-folder-help', null, 'Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.');
     }
 }
 
@@ -2557,7 +2707,7 @@ if (btnSelectScanFolder) {
                 updateScanFolderLabel();
             }
         } catch (err) {
-            showAlert('Folder Selection Failed', escapeHtml(err));
+            showAlert(t('gui-folder-selection-failed', null, 'Folder Selection Failed'), escapeHtml(err));
         }
     });
 }
@@ -2566,12 +2716,12 @@ if (btnScanImports) {
     btnScanImports.addEventListener('click', async () => {
         const scanDir = scanTargetDir || currentWorkspaceDir || '';
         if (!scanDir) {
-            showAlert("Folder Required", "Select a project folder with <b>Select Folder</b>, or set a workspace directory first.");
+            showAlert(t('gui-input-required', null, 'Input Required'), t('gui-folder-required', null, 'Select a project folder with Select Folder, or set a workspace directory first.'));
             return;
         }
         
         btnScanImports.disabled = true;
-        btnScanImports.textContent = "Scanning...";
+        btnScanImports.textContent = t('gui-scanning', null, 'Scanning…');
         if (scanImportsResults) scanImportsResults.style.display = 'none';
         if (scanImportsLoading) scanImportsLoading.style.display = 'block';
         if (scanMissingBadges) scanMissingBadges.replaceChildren();
@@ -2598,7 +2748,7 @@ if (btnScanImports) {
                 if (scanMissingCard) scanMissingCard.style.display = 'block';
                 const missingDesc = document.getElementById('scan-missing-desc');
                 if (missingDesc) {
-                    missingDesc.textContent = `These ${scannedMissingImports.length} libraries are used in the codebase but not currently installed.`;
+                    missingDesc.textContent = t('gui-missing-libs-desc', { count: String(scannedMissingImports.length) }, `These ${scannedMissingImports.length} libraries are used in the codebase but not currently installed.`);
                 }
                 
                 if (scanMissingBadges) {
@@ -2617,7 +2767,7 @@ if (btnScanImports) {
                 
                 if (btnInstallMissingImports) {
                     btnInstallMissingImports.disabled = false;
-                    btnInstallMissingImports.textContent = "Install Missing Dependencies";
+                    btnInstallMissingImports.textContent = t('gui-install-missing', null, 'Install Missing Dependencies');
                 }
             }
             
@@ -2645,19 +2795,19 @@ if (btnScanImports) {
             if (scanImportsResults) scanImportsResults.style.display = 'block';
             
         } catch (err) {
-            showAlert("Scan Failed", `Failed to statically scan workspace codebase imports:<br><code style="font-size: 11px;">${escapeHtml(err)}</code>`);
+            showAlert(t('gui-scan-failed', null, 'Scan Failed'), `${t('gui-scan-failed-imports', null, 'Failed to statically scan workspace codebase imports:')}<br><code style="font-size: 11px;">${escapeHtml(err)}</code>`);
         } finally {
             if (scanImportsLoading) scanImportsLoading.style.display = 'none';
             btnScanImports.disabled = false;
-            btnScanImports.textContent = "Scan";
+            btnScanImports.textContent = t('gui-scan', null, 'Scan');
         }
     });
 }
 
 document.getElementById('btn-refresh-cache')?.addEventListener('click', () => loadCacheStats());
-document.getElementById('btn-purge-packages-cache')?.addEventListener('click', () => purgeCacheTarget('packages', 'download / package cache'));
-document.getElementById('btn-purge-build-cache')?.addEventListener('click', () => purgeCacheTarget('python-build', 'python-build cache'));
-document.getElementById('btn-purge-all-cache')?.addEventListener('click', () => purgeCacheTarget('all', 'all pyenv caches'));
+document.getElementById('btn-purge-packages-cache')?.addEventListener('click', () => purgeCacheTarget('packages', t('gui-cache-packages', null, 'Python downloads / packages')));
+document.getElementById('btn-purge-build-cache')?.addEventListener('click', () => purgeCacheTarget('python-build', t('gui-cache-python-build', null, 'python-build cache')));
+document.getElementById('btn-purge-all-cache')?.addEventListener('click', () => purgeCacheTarget('all', t('gui-cache-all', null, 'All pyenv cache')));
 
 if (btnInstallMissingImports) {
     btnInstallMissingImports.addEventListener('click', async () => {
@@ -2668,7 +2818,7 @@ if (btnInstallMissingImports) {
         let installedCount = 0;
         
         for (const pkg of scannedMissingImports) {
-            btnInstallMissingImports.textContent = `Installing ${pkg} (${installedCount + 1}/${total})...`;
+            btnInstallMissingImports.textContent = t('gui-installing-named', { name: pkg, current: String(installedCount + 1), total: String(total) }, `Installing ${pkg} (${installedCount + 1}/${total})...`);
             try {
                 await invoke('update_pip_packages', {
                     workspaceDir: getWorkspaceDir(),
@@ -2678,14 +2828,14 @@ if (btnInstallMissingImports) {
                 });
                 installedCount++;
             } catch (err) {
-                showAlert("Installation Failed", `Failed to install dependency <b>${escapeHtml(pkg)}</b>:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+                showAlert(t('gui-installation-failed', null, 'Installation Failed'), `${t('gui-install-dep-failed', { name: escapeHtml(pkg) }, `Failed to install dependency ${escapeHtml(pkg)}:`)}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
                 btnInstallMissingImports.disabled = false;
-                btnInstallMissingImports.textContent = "Install Missing Dependencies";
+                btnInstallMissingImports.textContent = t('gui-install-missing', null, 'Install Missing Dependencies');
                 return;
             }
         }
         
-        showAlert("Installation Complete", `Successfully installed all ${total} missing dependencies!`);
+        showAlert(t('gui-installation-complete', null, 'Installation Complete'), t('gui-installed-missing-count', { count: String(total) }, `Successfully installed all ${total} missing dependencies!`));
         
         // Refresh installed list in drawer
         loadDrawerPackages();
@@ -2723,7 +2873,7 @@ function updateActivePipLight(isOutdated, currentVer = '', latestVer = '') {
     if (container && text) {
         if (isOutdated) {
             container.style.display = 'inline-flex';
-            text.textContent = `pip update available (current ${currentVer} → latest ${latestVer})`;
+            text.textContent = t('gui-pip-update-detail', { current: currentVer, latest: latestVer }, `pip update available (current ${currentVer} → latest ${latestVer})`);
         } else {
             container.style.display = 'none';
         }
@@ -2772,20 +2922,31 @@ async function loadPlatformIntelligence() {
         if (!intel || typeof intel !== 'object' || Array.isArray(intel)) {
             throw new Error('Platform intelligence payload was empty.');
         }
-        summaryEl.textContent = intel.summary || 'Host environment details loaded.';
         const verdict = String(intel.verdict || '').toLowerCase();
+        summaryEl.textContent = t(
+            verdict === 'ready'
+                ? 'gui-intel-summary-ready'
+                : verdict === 'blocked'
+                    ? 'gui-intel-summary-blocked'
+                    : 'gui-intel-summary-attention',
+            {
+                os: intel.os_pretty_name || intel.os || '',
+                strategy: t(`gui-strategy-${intel.os}`, null, intel.install_strategy || ''),
+            },
+            intel.summary || 'Host environment details loaded.',
+        );
         verdictEl.className = 'platform-intel-verdict';
         if (verdict === 'ready') {
             verdictEl.classList.add('ready');
-            verdictEl.textContent = 'Ready';
+            verdictEl.textContent = t('gui-ready', null, 'Ready');
         } else if (verdict === 'blocked') {
             verdictEl.classList.add('blocked');
-            verdictEl.textContent = 'Blocked';
+            verdictEl.textContent = t('gui-blocked', null, 'Blocked');
         } else if (verdict === 'needs-attention' || verdict === 'attention') {
             verdictEl.classList.add('attention');
-            verdictEl.textContent = 'Needs attention';
+            verdictEl.textContent = t('gui-needs-attention', null, 'Needs attention');
         } else {
-            verdictEl.textContent = 'Unavailable';
+            verdictEl.textContent = t('gui-intel-unavailable-verdict', null, 'Unavailable');
         }
 
         factsEl.replaceChildren();
@@ -2794,10 +2955,25 @@ async function loadPlatformIntelligence() {
             item.className = 'platform-intel-fact';
             const label = document.createElement('span');
             label.className = 'label';
-            label.textContent = fact.label || fact.key || 'Fact';
+            const factId = fact.key ? `gui-fact-${fact.key}` : '';
+            label.textContent = factId ? t(factId, null, fact.label || fact.key || 'Fact') : (fact.label || fact.key || 'Fact');
             const value = document.createElement('span');
             value.className = 'value';
-            value.textContent = fact.value || '';
+            let displayValue = fact.value || '';
+            if (fact.key === 'install-strategy') {
+                displayValue = t(`gui-strategy-${intel.os}`, null, displayValue);
+            } else if (fact.key === 'build-mode') {
+                displayValue = /source compile/i.test(displayValue)
+                    ? t('gui-build-mode-source', null, displayValue)
+                    : t('gui-build-mode-binary', null, displayValue);
+            } else if (fact.key === 'homebrew') {
+                displayValue = /not found/i.test(displayValue)
+                    ? t('gui-fact-not-found', null, displayValue)
+                    : t('gui-fact-available', null, displayValue);
+            } else if (fact.key === 'termux-prefix' && /missing/i.test(displayValue)) {
+                displayValue = t('gui-fact-missing', null, displayValue);
+            }
+            value.textContent = displayValue;
             item.append(label, value);
             factsEl.appendChild(item);
         });
@@ -2811,7 +2987,7 @@ async function loadPlatformIntelligence() {
                 if (blockers.length) {
                     const title = document.createElement('div');
                     title.style.cssText = 'font-size: 11px; font-weight: 600; color: #f87171; margin-bottom: 6px;';
-                    title.textContent = 'Blocking before install';
+                    title.textContent = t('gui-blocking-install', null, 'Blocking before install');
                     blockersEl.appendChild(title);
                     blockers.forEach((issue) => {
                         const row = document.createElement('div');
@@ -2823,7 +2999,7 @@ async function loadPlatformIntelligence() {
                 if (warnings.length) {
                     const warnTitle = document.createElement('div');
                     warnTitle.style.cssText = `font-size: 11px; font-weight: 600; color: #fbbf24; margin-bottom: 6px;${blockers.length ? ' margin-top: 10px;' : ''}`;
-                    warnTitle.textContent = 'Install prerequisites needing attention';
+                    warnTitle.textContent = t('gui-prereq-attention', null, 'Install prerequisites needing attention');
                     blockersEl.appendChild(warnTitle);
                     warnings.forEach((issue) => {
                         const row = document.createElement('div');
@@ -2839,26 +3015,31 @@ async function loadPlatformIntelligence() {
         }
     } catch (err) {
         console.error('Failed to load platform intelligence:', err);
-        summaryEl.textContent = 'Unable to load platform intelligence for this host.';
+        summaryEl.textContent = t('gui-intel-unavailable', null, 'Unable to load platform intelligence for this host.');
         verdictEl.className = 'platform-intel-verdict';
-        verdictEl.textContent = 'Unavailable';
+        verdictEl.textContent = t('gui-intel-unavailable-verdict', null, 'Unavailable');
     }
 }
 
 async function loadShellIntegration() {
-    await loadPlatformIntelligence();
+    const cardsContainer = document.getElementById('shell-status-cards');
+    if (cardsContainer) {
+        setRegionLoading(cardsContainer, true, t('gui-scanning-shells', null, 'Scanning shells and configurations…'));
+        cardsContainer.setAttribute('aria-busy', 'true');
+    }
+    await Promise.all([loadPlatformIntelligence(), loadShellCards()]);
+}
+
+async function loadShellCards() {
     const cardsContainer = document.getElementById('shell-status-cards');
     if (!cardsContainer) return;
-
-    setRegionLoading(cardsContainer, true, 'Scanning shells and configurations…');
-    cardsContainer.setAttribute('aria-busy', 'true');
 
     try {
         const statuses = await invoke('get_shell_statuses', { workspaceDir: getWorkspaceDir() });
         cardsContainer.replaceChildren();
 
         if (!statuses || statuses.length === 0) {
-            showEmptyState(cardsContainer, 'No standard shells discovered on this platform.');
+            showEmptyState(cardsContainer, t('gui-no-shells', null, 'No standard shells discovered on this platform.'));
             return;
         }
 
@@ -2886,17 +3067,17 @@ async function loadShellIntegration() {
 
             if (!status.is_installed) {
                 badges.appendChild(createShellStatusBadge(
-                    'Not Detected',
+                    t('gui-shell-not-detected', null, 'Not Detected'),
                     'background: rgba(148, 163, 184, 0.08); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15);',
                 ));
             } else if (status.is_configured) {
                 badges.appendChild(createShellStatusBadge(
-                    'Configured',
+                    t('gui-shell-configured', null, 'Configured'),
                     'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);',
                 ));
             } else {
                 badges.appendChild(createShellStatusBadge(
-                    'Not Configured',
+                    t('gui-shell-not-configured', null, 'Not Configured'),
                     'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);',
                 ));
             }
@@ -2904,8 +3085,10 @@ async function loadShellIntegration() {
             if (status.is_installed) {
                 const pathLabel = status.path_label
                     || (status.active_in_path
-                        ? 'PATH Active'
-                        : (status.is_configured ? 'Restart terminal to activate' : 'Shims not on PATH'));
+                        ? t('gui-shell-path-active', null, 'PATH Active')
+                        : (status.is_configured
+                            ? t('gui-shell-restart-terminal', null, 'Restart terminal to activate')
+                            : t('gui-shell-shims-missing', null, 'Shims not on PATH')));
                 const pathOk = status.active_in_path;
                 const pathSoft = !pathOk && status.is_configured;
                 badges.appendChild(createShellStatusBadge(
@@ -2924,7 +3107,7 @@ async function loadShellIntegration() {
             profile.style.wordBreak = 'break-all';
             profile.style.lineHeight = '1.4';
             const profileLabel = document.createElement('strong');
-            profileLabel.textContent = 'Profile File:';
+            profileLabel.textContent = t('gui-shell-profile-file', null, 'Profile File:');
             profile.append(profileLabel, document.createElement('br'), document.createTextNode(status.profile_path));
             top.append(title, badges, profile);
 
@@ -2943,47 +3126,47 @@ async function loadShellIntegration() {
                 const wantsPwsh = status.name.toLowerCase().includes('powershell 7');
                 if (wantsPwsh) {
                     btn.classList.add('btn-gold');
-                    btn.textContent = 'Install PowerShell 7';
+                    btn.textContent = t('gui-install-pwsh', null, 'Install PowerShell 7');
                     btn.disabled = false;
                     btn.addEventListener('click', async () => {
                         btn.disabled = true;
-                        btn.textContent = 'Installing...';
+                        btn.textContent = t('gui-installing', null, 'Installing...');
                         try {
                             const result = await invoke('install_powershell_7');
-                            showAlert('PowerShell 7', escapeHtml(result));
+                            showAlert(t('gui-pwsh7', null, 'PowerShell 7'), escapeHtml(result));
                             loadShellIntegration();
                         } catch (err) {
-                            showAlert('PowerShell 7 Install Failed', escapeHtml(err));
+                            showAlert(t('gui-pwsh7-failed', null, 'PowerShell 7 Install Failed'), escapeHtml(err));
                             btn.disabled = false;
-                            btn.textContent = 'Install PowerShell 7';
+                            btn.textContent = t('gui-install-pwsh', null, 'Install PowerShell 7');
                         }
                     });
                 } else {
                     btn.classList.add('btn-outline');
-                    btn.textContent = 'Shell Not Installed';
+                    btn.textContent = t('gui-shell-not-installed', null, 'Shell Not Installed');
                     btn.disabled = true;
                 }
             } else if (status.is_configured) {
                 btn.classList.add('btn-outline');
-                btn.textContent = 'Configured';
+                btn.textContent = t('gui-shell-configured', null, 'Configured');
                 btn.disabled = true;
             } else {
                 btn.classList.add('btn-gold');
-                btn.textContent = 'Auto-Configure Shell';
+                btn.textContent = t('gui-shell-auto-configure', null, 'Auto-Configure Shell');
                 btn.addEventListener('click', async () => {
                     btn.disabled = true;
-                    btn.textContent = 'Configuring...';
+                    btn.textContent = t('gui-shell-configuring', null, 'Configuring...');
                     try {
                         await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
                         showAlert(
-                            'Shell Configured',
+                            t('gui-shell-configured-title', null, 'Shell Configured'),
                             `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
                         );
                         loadShellIntegration();
                     } catch (err) {
-                        showAlert('Configuration Failed', escapeHtml(err));
+                        showAlert(t('gui-config-failed', null, 'Configuration Failed'), escapeHtml(err));
                         btn.disabled = false;
-                        btn.textContent = 'Auto-Configure Shell';
+                        btn.textContent = t('gui-shell-auto-configure', null, 'Auto-Configure Shell');
                     }
                 });
             }
@@ -2996,7 +3179,7 @@ async function loadShellIntegration() {
         runDoctorDiagnostics();
     } catch (err) {
         console.error('Failed to load shell statuses:', err);
-        showEmptyState(cardsContainer, `Failed to scan shells: ${err}`, { danger: true });
+        showEmptyState(cardsContainer, t('gui-failed-scan-shells', { error: String(err) }, `Failed to scan shells: ${err}`), { danger: true });
     } finally {
         cardsContainer.setAttribute('aria-busy', 'false');
     }
@@ -3025,7 +3208,7 @@ async function runDoctorDiagnostics() {
     if (!btnRunDoctor) return;
 
     btnRunDoctor.disabled = true;
-    btnRunDoctor.textContent = "Checking...";
+    btnRunDoctor.textContent = t('gui-doctor-checking', null, 'Checking...');
     if (doctorLoading) doctorLoading.style.display = 'block';
     if (doctorResults) doctorResults.style.display = 'none';
     if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
@@ -3045,7 +3228,7 @@ async function runDoctorDiagnostics() {
             .filter((check) => doctorIssueStatus(check.status))
             .map((check) => ({
                 ...check,
-                detail: check.detail || 'No additional detail was reported for this check.',
+                detail: check.detail || t('gui-doctor-no-detail', null, 'No additional detail was reported for this check.'),
             }));
 
         if (checks.length > 0 && parsed.length === 0) {
@@ -3054,13 +3237,13 @@ async function runDoctorDiagnostics() {
                 const item = document.createElement('div');
                 item.className = 'doctor-issue';
                 const strong = document.createElement('strong');
-                strong.textContent = 'Incomplete diagnostics';
+                strong.textContent = t('gui-doctor-incomplete', null, 'Incomplete diagnostics');
                 item.append(strong, document.createTextNode(': the health report did not include names and reasons, so no warning is shown.'));
                 doctorIssuesList.appendChild(item);
             }
             if (btnDoctorFix) {
                 btnDoctorFix.disabled = true;
-                btnDoctorFix.textContent = 'Repair unavailable';
+                btnDoctorFix.textContent = t('gui-doctor-repair-unavailable', null, 'Repair unavailable');
             }
         } else if (issues.length === 0) {
             if (doctorHealthyCard) doctorHealthyCard.style.display = 'block';
@@ -3078,20 +3261,20 @@ async function runDoctorDiagnostics() {
             }
             if (btnDoctorFix) {
                 btnDoctorFix.disabled = false;
-                btnDoctorFix.textContent = 'Attempt Self-Healing Repair';
+                btnDoctorFix.textContent = t('gui-doctor-fix', null, 'Attempt Self-Healing Repair');
             }
         }
         
         if (doctorResults) doctorResults.style.display = 'block';
     } catch(err) {
         console.error("Doctor failed:", err);
-        showAlert("Diagnostics Failed", `Doctor could not complete:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+        showAlert(t('gui-diagnostics-failed', null, 'Diagnostics Failed'), `${t('gui-doctor-could-not-complete', null, 'Doctor could not complete:')}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
         if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
         if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
     } finally {
         if (doctorLoading) doctorLoading.style.display = 'none';
         btnRunDoctor.disabled = false;
-        btnRunDoctor.textContent = "Run Diagnostics";
+        btnRunDoctor.textContent = t('gui-doctor-run', null, 'Run Diagnostics');
     }
 }
 
@@ -3100,25 +3283,25 @@ async function attemptDoctorFix() {
     if (!btnDoctorFix) return;
 
     btnDoctorFix.disabled = true;
-    btnDoctorFix.textContent = "Applying self-healing repairs...";
+    btnDoctorFix.textContent = t('gui-doctor-applying', null, 'Applying self-healing repairs...');
 
     try {
         const applied = await invoke('run_doctor_fix', { workspaceDir: getWorkspaceDir() });
         
-        let message = "Applied the following automated repairs:<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>";
+        let message = `${t('gui-applied-repairs', null, 'Applied the following automated repairs:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
         applied.forEach(act => {
             message += `<li>${escapeHtml(act)}</li>`;
         });
-        message += "</ul><br>Diagnostics will now be re-run.";
+        message += `</ul><br>${t('gui-rerun-diagnostics', null, 'Diagnostics will now be re-run.')}`;
         
-        showAlert("Self-Healing Complete", message);
+        showAlert(t('gui-self-healing-complete', null, 'Self-Healing Complete'), message);
         
         // Re-run diagnostics
         runDoctorDiagnostics();
     } catch(err) {
-        showAlert("Self-Healing Failed", `Failed to automatically repair system environment:<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+        showAlert(t('gui-self-healing-failed', null, 'Self-Healing Failed'), `${t('gui-self-healing-failed-body', null, 'Failed to automatically repair system environment:')}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
         btnDoctorFix.disabled = false;
-        btnDoctorFix.textContent = "Attempt Self-Healing Repair";
+        btnDoctorFix.textContent = t('gui-doctor-fix', null, 'Attempt Self-Healing Repair');
     }
 }
 
@@ -3131,7 +3314,3 @@ const btnDoctorFix = document.getElementById('btn-doctor-fix');
 if (btnDoctorFix) {
     btnDoctorFix.addEventListener('click', attemptDoctorFix);
 }
-
-// Init startup
-initAppVersion();
-checkInstallation();

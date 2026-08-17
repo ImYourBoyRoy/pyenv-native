@@ -21,6 +21,15 @@ impl DoctorStatus {
     }
 }
 
+/// How doctor should interpret process PATH (CLI vs desktop GUI).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DoctorOptions {
+    /// True when diagnostics run inside pyenv-gui. Desktop launches rarely inherit shell PATH.
+    pub desktop_session: bool,
+    /// Override profile detection in tests. `None` inspects the user home directory.
+    pub profiles_configured: Option<bool>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DoctorCheck {
     pub name: String,

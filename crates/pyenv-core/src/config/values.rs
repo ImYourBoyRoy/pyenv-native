@@ -34,6 +34,7 @@ pub fn get_config_value(config: &AppConfig, key: &str) -> Result<String, PyenvEr
         "venv.auto_create_base_venv" => Ok(config.venv.auto_create_base_venv.to_string()),
         "venv.auto_use_base_venv" => Ok(config.venv.auto_use_base_venv.to_string()),
         "plugins.search_path" => Ok(config.plugins.search_path.to_string()),
+        "ui.language" => Ok(config.ui.language.clone()),
         _ => Err(PyenvError::UnknownConfigKey(key.to_string())),
     }
 }
@@ -88,8 +89,21 @@ pub fn set_config_value(config: &mut AppConfig, key: &str, value: &str) -> Resul
             config.plugins.search_path = parse_bool(key, value)?;
             Ok(())
         }
+        "ui.language" => {
+            config.ui.language = normalize_language(value)?;
+            Ok(())
+        }
         _ => Err(PyenvError::UnknownConfigKey(key.to_string())),
     }
+}
+
+fn normalize_language(value: &str) -> Result<String, PyenvError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
+        return Ok("auto".to_string());
+    }
+    let resolved = crate::i18n::negotiate(&[trimmed.to_string()]).to_string();
+    Ok(resolved)
 }
 
 fn parse_bool(key: &str, value: &str) -> Result<bool, PyenvError> {

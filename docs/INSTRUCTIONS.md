@@ -410,7 +410,7 @@ Click **Check for Updates** in the footer. The GUI uses the same self-update API
 
 ### Platform availability
 
-Native release bundles include `pyenv-gui` on **Windows x64**, **Linux x64**, and **macOS** (arm64 and Intel). Cross-compiled Windows ARM64, Linux ARM64, and Android bundles do not include the GUI. Linux/macOS GUI builds are experimental.
+Native release bundles include `pyenv-gui` on **Windows x64**, **Linux x64**, and **macOS** (arm64 and Intel). Cross-compiled Windows ARM64, Linux ARM64, and Android bundles do not include the GUI.
 
 Standalone GUI binaries and matching `.sha256` files are attached to GitHub Releases.
 

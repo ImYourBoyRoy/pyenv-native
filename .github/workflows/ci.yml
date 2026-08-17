@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          
+
       - name: Install dependencies (Linux)
         run: |
           sudo apt-get update
@@ -62,15 +62,16 @@ jobs:
         shell: bash
         run: sh ./scripts/check-gui-patterns.sh
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
+      - name: i18n catalog check
+        shell: bash
+        run: sh ./scripts/check-i18n.sh
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
         with:
-          version: 11
+          version: 11.22.0
+          runtime: node@26
+          install: false
 
       - name: GUI accessibility audit
         shell: bash

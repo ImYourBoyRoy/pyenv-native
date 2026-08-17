@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="i18n-pending">
 
 <head>
   <meta charset="UTF-8" />
@@ -9,25 +9,25 @@
 </head>
 
 <body>
-  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <a class="skip-link" href="#main-content" data-i18n="gui-skip-main">Skip to main content</a>
   <div id="aria-live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="status-toast" class="status-toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="bg-gradient"></div>
 
-  <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar">
-    <div class="titlebar-label">pyenv-native dashboard</div>
+  <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar" data-i18n-aria="gui-titlebar-aria">
+    <div class="titlebar-label" data-i18n="gui-titlebar-label">pyenv-native dashboard</div>
     <div class="titlebar-controls">
-      <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window" title="Minimize">
+      <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window" title="Minimize" data-i18n-aria="gui-window-minimize" data-i18n-title="gui-window-minimize">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M0 4.5h10v1H0z" />
         </svg>
       </button>
-      <button type="button" class="titlebar-button" id="titlebar-maximize" aria-label="Maximize window" title="Maximize">
+      <button type="button" class="titlebar-button" id="titlebar-maximize" aria-label="Maximize window" title="Maximize" data-i18n-aria="gui-window-maximize" data-i18n-title="gui-window-maximize">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="none" stroke="currentColor" d="M1.5 1.5h7v7h-7z" />
         </svg>
       </button>
-      <button type="button" class="titlebar-button close-btn" id="titlebar-close" aria-label="Close window" title="Close">
+      <button type="button" class="titlebar-button close-btn" id="titlebar-close" aria-label="Close window" title="Close" data-i18n-aria="gui-window-close" data-i18n-title="gui-window-close">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
           <path fill="currentColor"
             d="M1.4 0L5 3.6 8.6 0 10 1.4 6.4 5l3.6 3.6-1.4 1.4L5 6.4 1.4 10 0 8.6 3.6 5 0 1.4z" />
@@ -112,13 +112,13 @@
           </svg>
         </div>
         <div>
-          <div class="brand-title">Pyenv Native</div>
-          <small class="brand-subtitle">Environment Manager</small>
+          <div class="brand-title" data-i18n="gui-brand-title">Pyenv Native</div>
+          <small class="brand-subtitle" data-i18n="gui-brand-subtitle">Environment Manager</small>
         </div>
       </div>
 
-      <h2 class="nav-header">Environments</h2>
-      <nav aria-label="Primary">
+      <h2 class="nav-header" data-i18n="gui-nav-environments">Environments</h2>
+      <nav aria-label="Primary" data-i18n-aria="gui-nav-primary">
       <ul class="nav">
         <li>
           <button type="button" class="nav-btn active" data-view="view-dashboard" aria-current="page">
@@ -129,7 +129,7 @@
             <rect x="14" y="14" width="7" height="7"></rect>
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
-          Dashboard
+          <span data-i18n="gui-nav-dashboard">Dashboard</span>
           </button>
         </li>
         <li>
@@ -140,7 +140,7 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          Install Runtimes
+          <span data-i18n="gui-nav-available">Install Runtimes</span>
           </button>
         </li>
         <li>
@@ -151,7 +151,7 @@
             <path d="M2 17l10 5 10-5"></path>
             <path d="M2 12l10 5 10-5"></path>
           </svg>
-          Installed Versions
+          <span data-i18n="gui-nav-installed">Installed Versions</span>
           </button>
         </li>
         <li>
@@ -162,11 +162,11 @@
             <line x1="3" y1="9" x2="21" y2="9"></line>
             <line x1="9" y1="21" x2="9" y2="9"></line>
           </svg>
-          Virtual Environments
+          <span data-i18n="gui-nav-venvs">Virtual Environments</span>
           </button>
         </li>
       </ul>
-      <h2 class="nav-header nav-header-spaced">System</h2>
+      <h2 class="nav-header nav-header-spaced" data-i18n="gui-nav-system">System</h2>
       <ul class="nav">
         <li>
           <button type="button" class="nav-btn" data-view="view-shell">
@@ -175,7 +175,7 @@
             <polyline points="4 17 10 11 4 5"></polyline>
             <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
-          Shell Integration
+          <span data-i18n="gui-nav-shell">Shell Integration</span>
           </button>
         </li>
         <li>
@@ -187,7 +187,7 @@
               d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0 .33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
             </path>
           </svg>
-          Settings
+          <span data-i18n="gui-nav-settings">Settings</span>
           </button>
         </li>
         <li>
@@ -198,15 +198,26 @@
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          About
+          <span data-i18n="gui-nav-about">About</span>
           </button>
         </li>
       </ul>
       </nav>
+      <div class="sidebar-foot">
+        <button type="button" class="lang-switcher" id="lang-switcher" aria-haspopup="dialog" aria-expanded="false" aria-controls="lang-popover" data-i18n-aria="gui-lang-switcher">
+          <span class="lang-switcher-code" id="lang-switcher-code">EN</span>
+          <span class="lang-switcher-name" id="lang-switcher-name">English</span>
+        </button>
+        <div class="lang-popover" id="lang-popover" hidden role="dialog" data-i18n-aria="gui-lang-menu-label">
+          <label class="sr-only" for="lang-search" data-i18n="gui-lang-search">Search languages</label>
+          <input type="search" id="lang-search" class="lang-search" autocomplete="off" data-i18n-placeholder="gui-lang-search" />
+          <ul class="lang-list" id="lang-list" role="listbox"></ul>
+        </div>
+      </div>
     </aside>
 
     <main class="content relative" id="main-content" tabindex="-1">
-      <div id="workspace-bar" class="glass workspace-bar" role="region" aria-label="Project folder">
+      <div id="workspace-bar" class="glass workspace-bar" role="region" aria-label="Project folder" data-i18n-aria="gui-project-folder">
         <div class="workspace-bar-main">
           <div class="brand-icon workspace-folder-icon">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -214,7 +225,7 @@
             </svg>
           </div>
           <div class="workspace-copy">
-            <span class="workspace-eyebrow">Project folder</span>
+            <span class="workspace-eyebrow" data-i18n="gui-project-folder">Project folder</span>
             <span id="workspace-path" class="workspace-path">No project folder selected</span>
           </div>
         </div>
@@ -226,46 +237,46 @@
       <!-- DASHBOARD VIEW -->
       <section id="view-dashboard" class="view fade-in">
 
-        <h1 class="page-title">Current Environment</h1>
+        <h1 class="page-title" data-i18n="gui-page-dashboard">Current Environment</h1>
 
         <div id="dashboard-health" class="glass dashboard-health" hidden>
           <div class="dashboard-health-copy">
-            <div id="dashboard-health-title" class="dashboard-health-title">System health</div>
-            <div id="dashboard-health-body" class="dashboard-health-body">Checking diagnostics…</div>
+            <div id="dashboard-health-title" class="dashboard-health-title" data-i18n="gui-system-health">System health</div>
+            <div id="dashboard-health-body" class="dashboard-health-body" data-i18n="gui-checking-diagnostics">Checking diagnostics…</div>
           </div>
-          <button type="button" class="btn btn-outline btn-compact" data-action="navigate" data-target="view-shell" data-scroll="doctor-section" title="Open doctor checks.">
-            View diagnostics
+          <button type="button" class="btn btn-outline btn-compact" data-action="navigate" data-target="view-shell" data-scroll="doctor-section" title="Open doctor checks." data-i18n-title="gui-open-doctor-title">
+            <span data-i18n="gui-view-diagnostics">View diagnostics</span>
           </button>
         </div>
 
         <div class="status-grid">
-          <button type="button" class="status-card glass highlight-card" data-action="navigate" data-target="view-installed" aria-label="Open installed runtimes" title="Open installed runtimes.">
+          <button type="button" class="status-card glass highlight-card" data-action="navigate" data-target="view-installed" aria-label="Open installed runtimes" title="Open installed runtimes." data-i18n-aria="gui-open-installed" data-i18n-title="gui-open-installed">
             <div class="stat-header">
               <span class="status-dot active-dot" aria-hidden="true"></span>
-              <span class="stat-label">Active Version</span>
+              <span class="stat-label" data-i18n="gui-active-version">Active Version</span>
             </div>
             <div class="stat-value text-glow" id="active-version">Loading...</div>
             <div class="stat-sub" id="active-origin">Determining origin...</div>
             <div id="active-pip-status-container" class="pip-status-chip">
               <span class="status-dot status-light-glow gold pip-status-dot" id="active-pip-glow"></span>
-              <span id="active-pip-status-text" class="pip-status-text">pip update available</span>
+              <span id="active-pip-status-text" class="pip-status-text" data-i18n="gui-pip-update-available">pip update available</span>
             </div>
           </button>
-          <button type="button" class="status-card glass" data-action="navigate" data-target="view-venvs" aria-label="Open virtual environments" title="Open virtual environments.">
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-venvs" aria-label="Open virtual environments" title="Open virtual environments." data-i18n-aria="gui-open-venvs" data-i18n-title="gui-open-venvs">
             <div class="stat-header">
               <span class="status-dot" aria-hidden="true"></span>
-              <span class="stat-label">Managed Virtual Env</span>
+              <span class="stat-label" data-i18n="gui-managed-venv">Managed Virtual Env</span>
             </div>
             <div class="stat-value" id="active-venv">Checking...</div>
-            <div class="stat-sub" id="active-venv-base">Integrated Project Env</div>
+            <div class="stat-sub" id="active-venv-base" data-i18n="gui-integrated-project-env">Integrated Project Env</div>
           </button>
-          <button type="button" class="status-card glass" data-action="navigate" data-target="view-settings" aria-label="Open settings for pyenv root and cache" title="Open settings.">
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-settings" aria-label="Open settings for pyenv root and cache" title="Open settings." data-i18n-aria="gui-open-settings-aria" data-i18n-title="gui-open-settings">
             <div class="stat-header">
               <span class="status-dot" aria-hidden="true"></span>
-              <span class="stat-label">Pyenv Root</span>
+              <span class="stat-label" data-i18n="gui-pyenv-root">Pyenv Root</span>
             </div>
             <div class="stat-value small-path" id="sys-root">Checking...</div>
-            <div class="stat-sub">Storage &amp; Cache</div>
+            <div class="stat-sub" data-i18n="gui-storage-cache">Storage &amp; Cache</div>
           </button>
         </div>
 
@@ -273,22 +284,22 @@
         <div id="setup-banner" class="glass setup-banner">
           <div class="setup-banner-row">
             <div class="setup-banner-copy">
-              <div id="setup-banner-title" class="setup-banner-title">Activate shell integration</div>
+              <div id="setup-banner-title" class="setup-banner-title" data-i18n="gui-activate-shell">Activate shell integration</div>
               <div id="setup-banner-body" class="setup-banner-body">
                 Core binaries are installed. Finish shell setup so <code>pyenv</code>, shims, and MCP work in new terminals.
               </div>
             </div>
             <div id="banner-actions" class="banner-actions">
-              <button class="btn btn-primary" id="btn-run-setup-banner" title="Install shims and shell init.">
+              <button class="btn btn-primary" id="btn-run-setup-banner" title="Install shims and shell init." data-i18n="gui-finish-setup" data-i18n-title="gui-finish-setup-title">
                 Finish Setup
               </button>
-              <button class="btn btn-outline" id="btn-dismiss-banner" title="Hide this banner until next launch.">
+              <button class="btn btn-outline" id="btn-dismiss-banner" title="Hide this banner until next launch." data-i18n="gui-maybe-later" data-i18n-title="gui-maybe-later-title">
                 Maybe Later
               </button>
             </div>
             <div id="banner-progress" class="banner-progress">
               <div class="loader loader-sm"></div>
-              <span id="banner-status-text" class="banner-status-text">Configuring shell integration…</span>
+              <span id="banner-status-text" class="banner-status-text" data-i18n="gui-configuring-shell">Configuring shell integration…</span>
             </div>
           </div>
         </div>
@@ -297,15 +308,15 @@
       <!-- INSTALLED VIEW -->
       <section id="view-installed" class="view" style="display:none;">
         <div class="header-row">
-          <h1 class="page-title">Installed Runtimes</h1>
-          <button class="btn btn-primary" id="btn-refresh-installed" title="Reload installed runtimes.">
+          <h1 class="page-title" data-i18n="gui-page-installed">Installed Runtimes</h1>
+          <button class="btn btn-primary" id="btn-refresh-installed" title="Reload installed runtimes." data-i18n-title="gui-refresh-installed-title">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
               stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
-            Refresh
+            <span data-i18n="gui-refresh">Refresh</span>
           </button>
         </div>
         <div id="installed-global-summary" class="glass" style="display:none; margin-bottom: 20px; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--glass-border);"></div>
@@ -319,25 +330,25 @@
       <!-- VIRTUAL ENVIRONMENTS VIEW -->
       <section id="view-venvs" class="view" style="display:none;">
         <div class="header-row">
-          <h1 class="page-title">Virtual Environments</h1>
-          <button type="button" class="btn btn-outline btn-compact" id="btn-refresh-venvs" title="Reload virtual environments.">
+          <h1 class="page-title" data-i18n="gui-page-venvs">Virtual Environments</h1>
+          <button type="button" class="btn btn-outline btn-compact" id="btn-refresh-venvs" title="Reload virtual environments." data-i18n-title="gui-refresh-venvs-title">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
-            Refresh
+            <span data-i18n="gui-refresh">Refresh</span>
           </button>
         </div>
         <div class="venv-create-row">
-          <label class="sr-only" for="venv-name">Environment name</label>
-          <input type="text" id="venv-name" placeholder="New environment name" class="search-input" autocomplete="off" title="Name for the new virtual environment.">
-          <label class="sr-only" for="venv-base-version">Base Python version</label>
-          <select id="venv-base-version" class="dropdown" title="Installed Python this venv will use.">
-            <option value="">Select base runtime…</option>
+          <label class="sr-only" for="venv-name" data-i18n="gui-env-name">Environment name</label>
+          <input type="text" id="venv-name" placeholder="New environment name" class="search-input" autocomplete="off" title="Name for the new virtual environment." data-i18n-placeholder="gui-new-env-name" data-i18n-title="gui-venv-name-title">
+          <label class="sr-only" for="venv-base-version" data-i18n="gui-base-python">Base Python version</label>
+          <select id="venv-base-version" class="dropdown" title="Installed Python this venv will use." data-i18n-title="gui-venv-base-title">
+            <option value="" data-i18n="gui-select-base-runtime">Select base runtime…</option>
           </select>
-          <button type="button" class="btn btn-primary" id="btn-create-venv" title="Create a managed venv under the selected runtime.">Create</button>
+          <button type="button" class="btn btn-primary" id="btn-create-venv" title="Create a managed venv under the selected runtime." data-i18n="gui-create" data-i18n-title="gui-create-venv-title">Create</button>
         </div>
         <div id="venvs-list" class="card-list">
           <div class="empty-state">
@@ -349,25 +360,25 @@
       <!-- SHELL INTEGRATION VIEW -->
       <section id="view-shell" class="view" style="display:none;">
         <div class="header-row">
-          <h1 class="page-title">Shell Integration & Diagnostics</h1>
-          <button class="btn btn-outline" id="btn-refresh-shells" style="font-size: 12px; padding: 6px 12px;" title="Reload shell and doctor status.">Refresh Status</button>
+          <h1 class="page-title" data-i18n="gui-page-shell-full">Shell Integration & Diagnostics</h1>
+          <button class="btn btn-outline" id="btn-refresh-shells" style="font-size: 12px; padding: 6px 12px;" title="Reload shell and doctor status." data-i18n="gui-refresh-shells" data-i18n-title="gui-refresh-shells-title">Refresh Status</button>
         </div>
         
-        <p style="color: var(--text-muted); font-size: 14px; margin-top: -16px; margin-bottom: 24px; max-width: 600px;">
+        <p style="color: var(--text-muted); font-size: 14px; margin-top: -16px; margin-bottom: 24px; max-width: 600px;" data-i18n="gui-shell-intro">
           For shims and automatic version switching to work properly, pyenv-native must be initialized in your active shell's startup profile.
         </p>
 
         <div class="glass platform-intel-panel" id="platform-intel-panel" style="margin-bottom: 28px; padding: 24px; border-radius: 16px; max-width: 800px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
             <div>
-              <h3 style="margin: 0 0 6px 0; color: #fff; font-size: 16px;">Host Environment</h3>
-              <p id="platform-intel-summary" style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.45;">
+              <h3 style="margin: 0 0 6px 0; color: #fff; font-size: 16px;" data-i18n="gui-host-environment">Host Environment</h3>
+              <p id="platform-intel-summary" style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.45;" data-i18n="gui-loading-platform">
                 Loading platform intelligence…
               </p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span id="platform-intel-verdict" class="platform-intel-verdict">…</span>
-              <button class="btn btn-outline" id="btn-refresh-platform-intel" style="font-size: 11px; padding: 4px 10px;" title="Reload host preflight.">Refresh</button>
+              <button class="btn btn-outline" id="btn-refresh-platform-intel" style="font-size: 11px; padding: 4px 10px;" title="Reload host preflight." data-i18n="gui-refresh" data-i18n-title="gui-refresh-platform-title">Refresh</button>
             </div>
           </div>
           <div id="platform-intel-facts" class="platform-intel-facts"></div>
@@ -385,26 +396,26 @@
               <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24;">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
               </svg>
-              System Health & Self-Healing Diagnostics
+              <span data-i18n="gui-doctor-title">System Health & Self-Healing Diagnostics</span>
             </h3>
-            <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks.">Run Diagnostics</button>
+            <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks." data-i18n="gui-doctor-run" data-i18n-title="gui-doctor-run-title">Run Diagnostics</button>
           </div>
           
           <div id="doctor-loading" class="empty-state" style="display: none; padding: 20px;">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;">Analyzing system prerequisites...</div>
+            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-analyzing-prereqs">Analyzing system prerequisites...</div>
           </div>
           
           <div id="doctor-results" style="display: none;">
             <div id="doctor-issues-card" class="glass" style="padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.02); display: none;">
               <div style="font-weight: 600; color: #fbbf24; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                Potential System Health Issues Discovered
+                <span data-i18n="gui-doctor-issues">Potential System Health Issues Discovered</span>
               </div>
               <div id="doctor-issues-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
                 <!-- Dynamically populated issues -->
               </div>
-              <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor.">
+              <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor." data-i18n="gui-doctor-fix" data-i18n-title="gui-doctor-fix-title">
                 Attempt Self-Healing Repair
               </button>
             </div>
@@ -412,9 +423,9 @@
             <div id="doctor-healthy-card" class="glass" style="padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02); display: none;">
               <div style="font-weight: 600; color: #34d399; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                System Health is Perfect!
+                <span data-i18n="gui-doctor-healthy">System Health is Perfect!</span>
               </div>
-              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0 0;">
+              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0 0;" data-i18n="gui-doctor-healthy-body">
                 All system path configurations, shims, compilers, and dependencies are fully aligned.
               </p>
             </div>
@@ -428,10 +439,10 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            Understanding Shell Shims
+            <span data-i18n="gui-shims-title">Understanding Shell Shims</span>
           </h3>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 0;">
-            When you run <code>python</code> or <code>pip</code> in your terminal, the shell calls the pyenv-native <strong>shims</strong> first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute <code>pyenv doctor</code> in your shell.
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 0;" data-i18n="gui-shims-body">
+            When you run python or pip in your terminal, the shell calls the pyenv-native shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute pyenv doctor in your shell.
           </p>
         </div>
       </section>
@@ -439,11 +450,11 @@
       <!-- AVAILABLE VIEW -->
       <section id="view-available" class="view" style="display:none;">
         <div class="header-row">
-          <h1 class="page-title">Installable Runtimes</h1>
+          <h1 class="page-title" data-i18n="gui-page-available">Installable Runtimes</h1>
           <div class="catalog-toolbar">
-            <label class="catalog-latest-toggle" for="chk-latest-only" title="Show only the newest patch of each 2.x, 3.x, and PyPy line.">
+            <label class="catalog-latest-toggle" for="chk-latest-only" title="Show only the newest patch of each 2.x, 3.x, and PyPy line." data-i18n-title="gui-latest-only-title">
               <input type="checkbox" id="chk-latest-only" checked />
-              Latest patch per line
+              <span data-i18n="gui-latest-patch">Latest patch per line</span>
             </label>
             <div class="search-box">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
@@ -451,73 +462,83 @@
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <label class="sr-only" for="available-search">Search installable runtimes</label>
-              <input type="search" id="available-search" placeholder="Search 2.7, 3.12, pypy…" aria-label="Search installable runtimes" title="Filter by version prefix, such as 3.12 or pypy3.11." />
+              <label class="sr-only" for="available-search" data-i18n="gui-search-runtimes">Search installable runtimes</label>
+              <input type="search" id="available-search" placeholder="Search 2.7, 3.12, pypy…" aria-label="Search installable runtimes" title="Filter by version prefix, such as 3.12 or pypy3.11." data-i18n-placeholder="gui-search-runtimes" data-i18n-aria="gui-search-runtimes-aria" data-i18n-title="gui-search-runtimes-title" />
             </div>
           </div>
         </div>
-        <div class="catalog-filters" role="radiogroup" aria-label="Runtime family">
-          <button type="button" class="filter-chip" data-family="all" role="radio" aria-checked="true" title="Show every installable family.">All</button>
-          <button type="button" class="filter-chip" data-family="cpython3" role="radio" aria-checked="false" title="CPython 3.x.">Python 3</button>
-          <button type="button" class="filter-chip" data-family="cpython2" role="radio" aria-checked="false" title="CPython 2.x for legacy projects.">Python 2</button>
-          <button type="button" class="filter-chip" data-family="pypy" role="radio" aria-checked="false" title="PyPy JIT runtimes. Newest language line is 3.11.">PyPy</button>
+        <div class="catalog-filters" role="radiogroup" aria-label="Runtime family" data-i18n-aria="gui-runtime-family-aria">
+          <button type="button" class="filter-chip" data-family="all" role="radio" aria-checked="true" title="Show every installable family." data-i18n="gui-filter-all" data-i18n-title="gui-filter-all-title">All</button>
+          <button type="button" class="filter-chip" data-family="cpython3" role="radio" aria-checked="false" title="CPython 3.x." data-i18n="gui-filter-py3" data-i18n-title="gui-filter-py3-title">Python 3</button>
+          <button type="button" class="filter-chip" data-family="cpython2" role="radio" aria-checked="false" title="CPython 2.x for legacy projects." data-i18n="gui-filter-py2" data-i18n-title="gui-filter-py2-title">Python 2</button>
+          <button type="button" class="filter-chip" data-family="pypy" role="radio" aria-checked="false" title="PyPy JIT runtimes. Newest language line is 3.11." data-i18n="gui-filter-pypy" data-i18n-title="gui-filter-pypy-title">PyPy</button>
         </div>
-        <p id="available-count" class="catalog-count">Python 2 and 3 are both listed. Latest patch keeps one version per 2.x / 3.x line.</p>
+        <p id="available-count" class="catalog-count" data-i18n="gui-catalog-hint">Python 2 and 3 are both listed. Latest patch keeps one version per 2.x / 3.x line.</p>
         <div id="available-list" class="card-list">
-          <div class="empty-state">Ready to fetch upstream catalog...</div>
+          <div class="empty-state" data-i18n="gui-catalog-ready">Ready to fetch upstream catalog...</div>
         </div>
       </section>
 
       <!-- SETTINGS VIEW -->
       <section id="view-settings" class="view" style="display:none;" aria-labelledby="settings-title">
-        <h1 class="page-title" id="settings-title">Settings</h1>
-        <p class="settings-page-intro">Tune install defaults, virtual environments, cache, and accessibility. Platform-only options appear when relevant.</p>
+        <h1 class="page-title" id="settings-title" data-i18n="gui-page-settings">Settings</h1>
+        <p class="settings-page-intro" data-i18n="gui-settings-intro">Tune install defaults, virtual environments, cache, and accessibility. Platform-only options appear when relevant.</p>
         <div class="card-list settings-grid">
+          <fieldset class="version-card settings-fieldset" id="settings-language">
+            <legend data-i18n="gui-language-legend">Interface language</legend>
+            <p class="setting-help settings-intro" data-i18n="gui-language-help">Match the operating system or choose a language. Applies to the GUI, CLI, and doctor immediately.</p>
+            <div class="setting-row">
+              <label class="sr-only" for="config-ui.language" data-i18n="gui-language-legend">Interface language</label>
+              <select id="config-ui.language" class="dropdown" title="Interface language" data-i18n-title="gui-language-select-title">
+                <option value="auto">Match system</option>
+              </select>
+            </div>
+          </fieldset>
           <fieldset id="settings-windows" class="version-card settings-fieldset" hidden>
-            <legend>Windows</legend>
-            <p class="setting-help settings-intro">IDE discovery for managed interpreters on Windows.</p>
+            <legend data-i18n="gui-windows-legend">Windows</legend>
+            <p class="setting-help settings-intro" data-i18n="gui-windows-intro">IDE discovery for managed interpreters on Windows.</p>
             <div class="setting-row">
               <div>
-                <label class="setting-label" for="config-windows.registry_mode">Registry Mode</label>
-                <span class="setting-help" id="help-registry-mode">When enabled, pyenv-native writes HKCU PEP-514 keys under Software\Python\PyenvNative so IDEs can find managed interpreters. Official python.org PythonCore keys are not modified. No effect on Linux or macOS.</span>
+                <label class="setting-label" for="config-windows.registry_mode" data-i18n="gui-registry-mode">Registry Mode</label>
+                <span class="setting-help" id="help-registry-mode" data-i18n="gui-windows-help-long">When enabled, pyenv-native writes HKCU PEP-514 keys under Software\Python\PyenvNative so IDEs can find managed interpreters. Official python.org PythonCore keys are not modified. No effect on Linux or macOS.</span>
               </div>
               <select id="config-windows.registry_mode" class="dropdown" aria-describedby="help-registry-mode">
-                <option value="disabled">Disabled (default)</option>
-                <option value="pep514">PEP 514 (HKCU, this user)</option>
+                <option value="disabled" data-i18n="gui-registry-disabled-default">Disabled (default)</option>
+                <option value="pep514" data-i18n="gui-registry-pep514-hkcu">PEP 514 (HKCU, this user)</option>
               </select>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Install Defaults</legend>
+            <legend data-i18n="gui-install-defaults">Install Defaults</legend>
             <div class="setting-row">
               <div>
-                <label class="setting-label" for="config-install.arch">Architecture</label>
-                <span class="setting-help" id="help-install-arch">Target architecture for fetched Python packages.</span>
+                <label class="setting-label" for="config-install.arch" data-i18n="gui-architecture">Architecture</label>
+                <span class="setting-help" id="help-install-arch" data-i18n="gui-arch-help">Target architecture for fetched Python packages.</span>
               </div>
               <select id="config-install.arch" class="dropdown" aria-describedby="help-install-arch">
-                <option value="auto">Auto</option>
-                <option value="x64">x64</option>
-                <option value="arm64">arm64</option>
+                <option value="auto" data-i18n="gui-arch-auto">Auto</option>
+                <option value="x64" data-i18n="gui-arch-x64">x64</option>
+                <option value="arm64" data-i18n="gui-arch-arm64">arm64</option>
               </select>
             </div>
             <div class="setting-row">
               <label class="setting-toggle" for="config-install.bootstrap_pip">
                 <input type="checkbox" id="config-install.bootstrap_pip" aria-describedby="help-bootstrap-pip" />
                 <span>
-                  <span class="setting-label">Bootstrap &amp; upgrade pip</span>
-                  <span class="setting-help" id="help-bootstrap-pip">Ensure pip exists on new installs and upgrade it to the latest release.</span>
+                  <span class="setting-label" data-i18n="gui-bootstrap-pip">Bootstrap &amp; upgrade pip</span>
+                  <span class="setting-help" id="help-bootstrap-pip" data-i18n="gui-bootstrap-pip-help">Ensure pip exists on new installs and upgrade it to the latest release.</span>
                 </span>
               </label>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Virtual Environments</legend>
+            <legend data-i18n="gui-venv-legend">Virtual Environments</legend>
             <div class="setting-row">
               <label class="setting-toggle" for="config-venv.auto_create_base_venv">
                 <input type="checkbox" id="config-venv.auto_create_base_venv" aria-describedby="help-auto-create-venv" />
                 <span>
-                  <span class="setting-label">Auto-create base venv</span>
-                  <span class="setting-help" id="help-auto-create-venv">Off by default. When enabled, create a dedicated base virtual environment for every new Python install so packages are never added to the public runtime.</span>
+                  <span class="setting-label" data-i18n="gui-auto-create-base">Auto-create base venv</span>
+                  <span class="setting-help" id="help-auto-create-venv" data-i18n="gui-auto-create-base-help">Create a dedicated base virtual environment for every new Python install so packages are never added to the public runtime.</span>
                 </span>
               </label>
             </div>
@@ -525,54 +546,54 @@
               <label class="setting-toggle" for="config-venv.auto_use_base_venv">
                 <input type="checkbox" id="config-venv.auto_use_base_venv" aria-describedby="help-auto-use-venv" />
                 <span>
-                  <span class="setting-label">Prefer base venv when selected</span>
-                  <span class="setting-help" id="help-auto-use-venv">Off by default. When enabled, selecting a version activates its base venv instead of the bare interpreter.</span>
+                  <span class="setting-label" data-i18n="gui-auto-use-base">Prefer base venv when selected</span>
+                  <span class="setting-help" id="help-auto-use-venv" data-i18n="gui-auto-use-base-help">When a version is selected, activate its base venv instead of the bare interpreter.</span>
                 </span>
               </label>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Cache</legend>
-            <p class="setting-help settings-intro">Monitor download and build caches. Purge only removes cache files — installed runtimes and venvs are kept.</p>
+            <legend data-i18n="gui-cache-legend">Cache</legend>
+            <p class="setting-help settings-intro" data-i18n="gui-cache-intro">Monitor download and build caches. Purge only removes cache files — installed runtimes and venvs are kept.</p>
             <div id="cache-stats" class="cache-stats" aria-live="polite">
-              <div class="empty-state" style="padding: 12px;">Loading cache usage…</div>
+              <div class="empty-state" style="padding: 12px;" data-i18n="gui-loading-cache">Loading cache usage…</div>
             </div>
             <div class="setting-row cache-actions">
-              <button type="button" class="btn btn-outline" id="btn-refresh-cache" title="Reload cache sizes.">Refresh</button>
-              <button type="button" class="btn btn-outline" id="btn-purge-packages-cache" title="Delete cached downloads. Installed runtimes stay.">Purge downloads</button>
-              <button type="button" class="btn btn-outline" id="btn-purge-build-cache" title="Delete build cache. Installed runtimes stay.">Purge build cache</button>
-              <button type="button" class="btn btn-danger" id="btn-purge-all-cache" title="Delete all tracked cache. Installed runtimes stay.">Purge all cache</button>
+              <button type="button" class="btn btn-outline" id="btn-refresh-cache" title="Reload cache sizes." data-i18n="gui-refresh" data-i18n-title="gui-refresh-cache-title">Refresh</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-packages-cache" title="Delete cached downloads. Installed runtimes stay." data-i18n="gui-purge-downloads" data-i18n-title="gui-purge-downloads-title">Purge downloads</button>
+              <button type="button" class="btn btn-outline" id="btn-purge-build-cache" title="Delete build cache. Installed runtimes stay." data-i18n="gui-purge-build" data-i18n-title="gui-purge-build-title">Purge build cache</button>
+              <button type="button" class="btn btn-danger" id="btn-purge-all-cache" title="Delete all tracked cache. Installed runtimes stay." data-i18n="gui-purge-all" data-i18n-title="gui-purge-all-title">Purge all cache</button>
             </div>
           </fieldset>
           <fieldset class="version-card settings-fieldset">
-            <legend>Accessibility</legend>
-            <p class="setting-help settings-intro">Adjust contrast, motion, and readability. System reduced-motion is honored until you override it here.</p>
+            <legend data-i18n="gui-a11y-legend">Accessibility</legend>
+            <p class="setting-help settings-intro" data-i18n="gui-a11y-intro">Adjust contrast, motion, and readability. System reduced-motion is honored until you override it here.</p>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-high-contrast">
                 <input type="checkbox" id="a11y-high-contrast" />
-                High contrast surfaces
+                <span data-i18n="gui-a11y-contrast">High contrast surfaces</span>
               </label>
             </div>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-reduced-motion">
                 <input type="checkbox" id="a11y-reduced-motion" />
-                Reduce motion and transitions
+                <span data-i18n="gui-a11y-motion">Reduce motion and transitions</span>
               </label>
             </div>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-strong-focus">
                 <input type="checkbox" id="a11y-strong-focus" />
-                Stronger keyboard focus rings
+                <span data-i18n="gui-a11y-focus">Stronger keyboard focus rings</span>
               </label>
             </div>
             <div class="setting-row">
               <label class="setting-toggle" for="a11y-large-text">
                 <input type="checkbox" id="a11y-large-text" />
-                Larger interface text
+                <span data-i18n="gui-a11y-large-text">Larger interface text</span>
               </label>
             </div>
             <div class="setting-row">
-              <button type="button" class="btn btn-outline" id="btn-reset-a11y" title="Restore default accessibility settings.">Reset accessibility preferences</button>
+              <button type="button" class="btn btn-outline" id="btn-reset-a11y" title="Restore default accessibility settings." data-i18n="gui-a11y-reset" data-i18n-title="gui-a11y-reset-title">Reset accessibility preferences</button>
             </div>
           </fieldset>
         </div>
@@ -580,7 +601,7 @@
       </section>
       <!-- ABOUT VIEW -->
       <section id="view-about" class="view" style="display:none;">
-        <h1 class="page-title">About Pyenv-Native</h1>
+        <h1 class="page-title" data-i18n="gui-page-about">About Pyenv-Native</h1>
         <div class="card glass" style="padding: 32px;">
           <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
             <div class="brand-icon" style="width: 48px; height: 48px; border-radius: 14px; font-size: 20px;">
@@ -661,23 +682,25 @@
                   id="about-version">…</span></div>
             </div>
           </div>
-          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 16px 0; font-size: 14px;">
-            A specialized, zero-dependency <b style="color: var(--text-main);">cross-platform</b> engine that brings the
-            pyenv workflow to Linux, macOS, and Windows — fast shims, managed virtual environments, and a unified GUI.
+          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 16px 0; font-size: 14px;" data-i18n="gui-about-blurb-1">
+            A specialized, zero-dependency cross-platform engine that brings the pyenv workflow to Linux, macOS, and Windows — fast shims, managed virtual environments, and a unified GUI.
           </p>
-          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;">
-            Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging,
-            shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments,
-            and system configurations — all from one place.
+          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;" data-i18n="gui-about-blurb-2">
+            Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging, shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments, and system configurations — all from one place.
           </p>
           <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 8px;">
             <div
-              style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+              style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;" data-i18n="gui-created-by">
               Created by Roy Dawson IV</div>
             <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-primary" id="btn-open-website" title="Open imyourboyroy.com in your browser.">Website</button>
-              <button type="button" class="btn btn-outline" id="btn-open-github" title="Open the GitHub repository.">GitHub Repository</button>
-              <button type="button" class="btn btn-outline" id="btn-open-pypi" title="Open the PyPI profile.">PyPI Profile</button>
+              <button type="button" class="btn btn-primary" id="btn-open-website" title="Open the project website." data-i18n="gui-website" data-i18n-title="gui-website-title">Website</button>
+              <button type="button" class="btn btn-outline" id="btn-open-github" title="Open the GitHub repository." data-i18n="gui-github" data-i18n-title="gui-github-title">GitHub Repository</button>
+              <button type="button" class="btn btn-outline" id="btn-open-pypi" title="Open the PyPI profile." data-i18n="gui-pypi" data-i18n-title="gui-pypi-title">PyPI Profile</button>
+            </div>
+            <div class="about-credits">
+              <h3 class="about-credits-heading" data-i18n="gui-credits-heading">Credits</h3>
+              <p class="about-credits-body" data-i18n="gui-credits-kini">Simplified Chinese localization by KiniMail inspired first-class in-app language support here.</p>
+              <button type="button" class="btn btn-outline" id="btn-open-kinimail" title="Open KiniMail on GitHub." data-i18n="gui-credits-kini-link" data-i18n-title="gui-credits-kini-title">KiniMail on GitHub</button>
             </div>
           </div>
         </div>
@@ -686,14 +709,16 @@
     </main>
   </div>
 
+  <button type="button" id="drawer-backdrop" class="drawer-backdrop" hidden data-i18n-aria="gui-panel-closed" aria-label="Close panel"></button>
+
   <!-- Upgrade Environment Sliding Drawer -->
   <div id="drawer-venv-upgrader" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="upgrader-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title">Migrate Environment</h3>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle">Move this venv to another installed Python runtime</div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title" data-i18n="gui-migrate-title">Migrate Environment</h3>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle" data-i18n="gui-migrate-subtitle">Move this venv to another installed Python runtime</div>
       </div>
-      <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel" title="Close">
+      <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel" title="Close" data-i18n-aria="gui-close-upgrade" data-i18n-title="gui-close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -704,12 +729,12 @@
     <div class="drawer-content-container" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;">
       <!-- Step 1: Select target version -->
       <div id="upgrader-setup-card" class="glass" style="padding: 16px; border-radius: 8px;">
-        <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--text-heading); font-size: 13px;">Select Target Runtime</h4>
+        <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--text-heading); font-size: 13px;" data-i18n="gui-select-target-runtime">Select Target Runtime</h4>
         <div style="display: flex; flex-direction: column; gap: 12px;">
-          <select id="upgrader-target-version" class="dropdown" style="width: 100%;" title="Installed Python to migrate this venv onto.">
-            <option value="">Select Target...</option>
+          <select id="upgrader-target-version" class="dropdown" style="width: 100%;" title="Installed Python to migrate this venv onto." data-i18n-title="gui-upgrader-target-title">
+            <option value="" data-i18n="gui-select-target">Select Target…</option>
           </select>
-          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;" title="Recreate this venv on the selected runtime.">
+          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;" title="Recreate this venv on the selected runtime." data-i18n="gui-start-migration" data-i18n-title="gui-start-migration-title">
             Start Migration Wizard
           </button>
         </div>
@@ -717,15 +742,15 @@
 
       <!-- Progressive steps checklist card -->
       <div id="upgrader-progress-card" class="glass" style="padding: 16px; border-radius: 8px; display: none;">
-        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-heading); font-size: 13px;">Migration Progress</h4>
+        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-heading); font-size: 13px;" data-i18n="gui-migration-progress">Migration Progress</h4>
         
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <!-- Step: Backup -->
           <div class="upgrader-step-row" id="step-row-backup" style="display: flex; align-items: center; gap: 12px;">
             <div class="upgrader-step-icon" id="step-icon-backup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">1</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-backup">Inventory old environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-backup">Discovering installed packages...</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-backup" data-i18n="gui-step-inventory">Inventory old environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-backup" data-i18n="gui-step-inventory-desc">Discovering installed packages…</div>
             </div>
           </div>
 
@@ -733,8 +758,8 @@
           <div class="upgrader-step-row" id="step-row-recreate" style="display: flex; align-items: center; gap: 12px;">
             <div class="upgrader-step-icon" id="step-icon-recreate" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">2</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-recreate">Create fresh environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-recreate">Rebuilding venv under target version...</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-recreate" data-i18n="gui-step-create">Create fresh environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-recreate" data-i18n="gui-step-create-desc">Rebuilding venv under target version…</div>
             </div>
           </div>
 
@@ -742,8 +767,8 @@
           <div class="upgrader-step-row" id="step-row-restore" style="display: flex; align-items: center; gap: 12px;">
             <div class="upgrader-step-icon" id="step-icon-restore" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">3</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-restore">Restore packages</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-restore">Progressively reinstalling packages...</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-restore" data-i18n="gui-step-restore">Restore packages</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-restore" data-i18n="gui-step-restore-desc">Progressively reinstalling packages…</div>
             </div>
           </div>
 
@@ -751,8 +776,8 @@
           <div class="upgrader-step-row" id="step-row-verify" style="display: flex; align-items: center; gap: 12px;">
             <div class="upgrader-step-icon" id="step-icon-verify" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">4</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-verify">Dependency diagnostics</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-verify">Running pip check verification...</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-verify" data-i18n="gui-step-verify">Dependency diagnostics</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-verify" data-i18n="gui-step-verify-desc">Running pip check verification…</div>
             </div>
           </div>
 
@@ -760,8 +785,8 @@
           <div class="upgrader-step-row" id="step-row-cleanup" style="display: flex; align-items: center; gap: 12px;">
             <div class="upgrader-step-icon" id="step-icon-cleanup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">5</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-cleanup">Cleanup old environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-cleanup">Removing old virtual environment...</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-cleanup" data-i18n="gui-step-cleanup">Cleanup old environment</div>
+              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-cleanup" data-i18n="gui-step-cleanup-desc">Removing old virtual environment…</div>
             </div>
           </div>
         </div>
@@ -769,8 +794,8 @@
 
       <!-- Dark console log card -->
       <div id="upgrader-log-card" class="glass" style="padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 180px; max-height: 280px; box-sizing: border-box;">
-        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Migration Logs</div>
-        <div id="upgrader-console" style="background: rgba(0, 0, 0, 0.3); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 10px; color: #a3b3c2; overflow-y: auto; flex: 1; line-height: 1.5; white-space: pre-wrap; box-sizing: border-box;">Select a target Python version to begin migration.</div>
+        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="gui-migration-logs">Migration Logs</div>
+        <div id="upgrader-console" style="background: rgba(0, 0, 0, 0.3); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 10px; color: #a3b3c2; overflow-y: auto; flex: 1; line-height: 1.5; white-space: pre-wrap; box-sizing: border-box;" data-i18n="gui-migration-begin">Select a target Python version to begin migration.</div>
       </div>
     </div>
   </div>
@@ -779,10 +804,10 @@
   <div id="drawer-package-manager" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="drawer-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title">Package Explorer</h3>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle">Target Environment</div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title" data-i18n="gui-package-explorer">Package Explorer</h3>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle" data-i18n="gui-target-environment">Target Environment</div>
       </div>
-      <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer" title="Close">
+      <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer" title="Close" data-i18n-aria="gui-close-packages" data-i18n-title="gui-close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -790,10 +815,10 @@
       </button>
     </div>
 
-    <div class="drawer-tabs" role="tablist" aria-label="Package explorer sections">
-      <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed" title="Packages already in this environment.">Installed</button>
-      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates" title="Outdated packages that can be upgraded.">Updates <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
-      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import" title="Precheck a requirements file or scan a codebase.">Import (Precheck)</button>
+    <div class="drawer-tabs" role="tablist" aria-label="Package explorer sections" data-i18n-aria="gui-packages-sections">
+      <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed" title="Packages already in this environment." data-i18n-title="gui-tab-installed-title"><span data-i18n="gui-installed-label">Installed</span></button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates" title="Outdated packages that can be upgraded." data-i18n-title="gui-tab-updates-title"><span data-i18n="gui-drawer-updates">Updates</span> <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import" title="Precheck a requirements file or scan a codebase." data-i18n="gui-drawer-import" data-i18n-title="gui-drawer-import-title">Import (Precheck)</button>
     </div>
 
     <div class="drawer-content-container">
@@ -804,11 +829,11 @@
           <div style="display: flex; align-items: center; gap: 10px;">
             <span class="status-dot status-light-glow gold" style="width: 8px; height: 8px; border-radius: 50%;"></span>
             <div>
-              <div style="font-size: 12px; font-weight: 600; color: #ffd43b;">Pip Update Available</div>
-              <div style="font-size: 11px; color: var(--text-muted);" id="pip-self-update-versions">Upgrading pip enhances resolver stability.</div>
+              <div style="font-size: 12px; font-weight: 600; color: #ffd43b;" data-i18n="gui-pip-update-card">Pip Update Available</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="pip-self-update-versions" data-i18n="gui-pip-update-help">Upgrading pip enhances resolver stability.</div>
             </div>
           </div>
-          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;" title="Upgrade pip in this environment.">Update</button>
+          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;" title="Upgrade pip in this environment." data-i18n="gui-update" data-i18n-title="gui-upgrade-pip-title">Update</button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
@@ -817,28 +842,28 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <label class="sr-only" for="drawer-package-search">Search installed packages</label>
-            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" title="Filter installed packages by name." />
+            <label class="sr-only" for="drawer-package-search" data-i18n="gui-search-packages">Search installed packages</label>
+            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" title="Filter installed packages by name." data-i18n-placeholder="gui-search-packages" data-i18n-aria="gui-search-packages-aria" data-i18n-title="gui-search-packages-title" />
           </div>
         </div>
 
         <div class="table-container" style="max-height: calc(100vh - 240px);">
-          <table class="package-table" aria-label="Installed packages">
+          <table class="package-table" aria-label="Installed packages" data-i18n-aria="gui-installed-packages-aria">
             <thead>
               <tr>
-                <th scope="col">Package</th>
-                <th scope="col">Version</th>
-                <th scope="col">Status</th>
+                <th scope="col" data-i18n="gui-col-package">Package</th>
+                <th scope="col" data-i18n="gui-col-version">Version</th>
+                <th scope="col" data-i18n="gui-col-status">Status</th>
               </tr>
             </thead>
             <tbody id="drawer-package-list">
               <!-- Dynamically populated -->
             </tbody>
           </table>
-          <div id="drawer-package-empty" class="empty-state" style="display: none;">No packages found.</div>
+          <div id="drawer-package-empty" class="empty-state" style="display: none;" data-i18n="gui-no-packages">No packages found.</div>
           <div id="drawer-package-loading" class="empty-state">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;">Querying packages...</div>
+            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-querying-packages">Querying packages...</div>
           </div>
         </div>
       </div>
@@ -847,20 +872,20 @@
       <div id="tab-updates" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-updates" hidden>
         <div id="updates-scan-prompt" class="empty-state" style="padding: 30px 20px;">
           <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
-          <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Check for Outdated Packages</div>
-          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
-          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;" title="Check PyPI for newer package versions.">Scan Environment</button>
+          <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;" data-i18n="gui-check-outdated">Check for Outdated Packages</div>
+          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;" data-i18n="gui-check-outdated-body">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
+          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;" title="Check PyPI for newer package versions." data-i18n="gui-scan-environment" data-i18n-title="gui-scan-environment-title">Scan Environment</button>
         </div>
 
         <div id="updates-scanning" class="empty-state" style="display: none; padding: 40px 20px;">
           <div class="loader"></div>
-          <div style="font-size: 12px; margin-top: 12px;">Scanning PyPI catalog...</div>
+          <div style="font-size: 12px; margin-top: 12px;" data-i18n="gui-scanning-pypi">Scanning PyPI catalog...</div>
         </div>
 
         <div id="updates-checklist-view" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500;">
-              <input type="checkbox" id="chk-select-all-updates" /> Select All Packages
+              <input type="checkbox" id="chk-select-all-updates" /> <span data-i18n="gui-select-all-packages">Select All Packages</span>
             </label>
             <span style="color: var(--text-muted);" id="selected-updates-count">0 selected</span>
           </div>
@@ -874,7 +899,7 @@
           <!-- Progress Tracker for Package Updates -->
           <div id="pkg-update-progress-container" class="glass" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 11px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span id="pkg-update-progress-text" style="color: var(--text-main); font-weight: 500;">Upgrading packages...</span>
+              <span id="pkg-update-progress-text" style="color: var(--text-main); font-weight: 500;" data-i18n="gui-upgrading-packages">Upgrading packages...</span>
               <span id="pkg-update-progress-percent" style="color: var(--success); font-weight: 600;">0%</span>
             </div>
             <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
@@ -882,7 +907,7 @@
             </div>
           </div>
 
-          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled title="Upgrade the packages you checked.">
+          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled title="Upgrade the packages you checked." data-i18n="gui-update-selected-packages" data-i18n-title="gui-update-selected-title">
             Update Selected Packages
           </button>
         </div>
@@ -891,19 +916,19 @@
       <!-- IMPORT TAB CONTENT -->
       <div id="tab-import" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-import" hidden>
         <div style="margin-bottom: 16px;">
-          <label class="setting-label" for="import-requirements-path">Requirements File or URL</label>
+          <label class="setting-label" for="import-requirements-path" data-i18n="gui-requirements-label">Requirements File or URL</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" title="Local requirements file or GitHub URL." />
-            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;" title="Check requirements for conflicts before install.">Precheck</button>
+            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" title="Local requirements file or GitHub URL." data-i18n-placeholder="gui-requirements-placeholder" data-i18n-title="gui-requirements-path-title" />
+            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;" title="Check requirements for conflicts before install." data-i18n="gui-precheck" data-i18n-title="gui-precheck-title">Precheck</button>
           </div>
-          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
-            GitHub URLs are auto-translated (e.g. <code>github.com/.../blob/...</code> → <code>raw.githubusercontent.com</code>) for static conflict checking before install.
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;" data-i18n="gui-github-url-help">
+            GitHub URLs are auto-translated (for example github.com blob links become raw.githubusercontent.com) for static conflict checking before install.
           </div>
         </div>
 
         <div id="import-precheck-loading" class="empty-state" style="display: none; padding: 20px;">
           <div class="loader loader-sm"></div>
-          <div style="font-size: 11px; margin-top: 8px;">Running conflict analysis...</div>
+          <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-running-conflict">Running conflict analysis...</div>
         </div>
 
         <!-- Precheck Diagnostic Dashboard -->
@@ -916,7 +941,7 @@
 
           <!-- Active conflicts warnings list -->
           <div id="precheck-conflicts-section" style="display: none; margin-bottom: 16px;">
-            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--danger); letter-spacing: 0.5px; margin-bottom: 8px;">Version Mismatch Mappings</div>
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--danger); letter-spacing: 0.5px; margin-bottom: 8px;" data-i18n="gui-mismatch-mappings">Version Mismatch Mappings</div>
             <div class="import-issues-container" id="precheck-conflicts-list">
               <!-- Dynamically populated -->
             </div>
@@ -924,14 +949,14 @@
 
           <!-- Resolved packages summary -->
           <div>
-            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;">Resolved Dependencies</div>
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;" data-i18n="gui-resolved-deps">Resolved Dependencies</div>
             <div class="table-container" style="max-height: 180px;">
-              <table class="package-table" style="font-size: 11px;" aria-label="Resolved import dependencies">
+              <table class="package-table" style="font-size: 11px;" aria-label="Resolved import dependencies" data-i18n-aria="gui-import-deps-aria">
                 <thead>
                   <tr>
-                    <th scope="col">Package</th>
-                    <th scope="col">Target Version</th>
-                    <th scope="col">Current Status</th>
+                    <th scope="col" data-i18n="gui-col-package">Package</th>
+                    <th scope="col" data-i18n="gui-col-target-version">Target Version</th>
+                    <th scope="col" data-i18n="gui-col-current-status">Current Status</th>
                   </tr>
                 </thead>
                 <tbody id="precheck-resolved-list">
@@ -942,26 +967,26 @@
           </div>
         </div>
 
-        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled title="Install the prechecked requirements.">
+        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled title="Install the prechecked requirements." data-i18n="gui-install-dependencies" data-i18n-title="gui-install-deps-title">
           Install Dependencies
         </button>
 
         <!-- CODEBASE SCANNER SECTION -->
         <div style="margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
-            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin: 0;">Codebase Import Analyzer</label>
+            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin: 0;" data-i18n="gui-codebase-analyzer">Codebase Import Analyzer</label>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;" title="Choose a project folder to scan.">Select Folder</button>
-              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;" title="Find third-party imports missing from this environment.">Scan</button>
+              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;" title="Choose a project folder to scan." data-i18n="gui-select-folder" data-i18n-title="gui-select-folder-title">Select Folder</button>
+              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;" title="Find third-party imports missing from this environment." data-i18n="gui-scan" data-i18n-title="gui-scan-imports-title">Scan</button>
             </div>
           </div>
-          <p id="scan-folder-label" style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 8px; word-break: break-all;">
+          <p id="scan-folder-label" style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 8px; word-break: break-all;" data-i18n="gui-scan-folder-help">
             Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.
           </p>
 
           <div id="scan-imports-loading" class="empty-state" style="display: none; padding: 20px;">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;">Analyzing workspace AST...</div>
+            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-analyzing-ast">Analyzing workspace AST...</div>
           </div>
 
           <div id="scan-imports-results" style="display: none;">
@@ -969,15 +994,15 @@
             <div id="scan-missing-card" class="glass" style="padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(239, 68, 68, 0.15); background: rgba(239, 68, 68, 0.02);">
               <div style="font-weight: 600; color: #f87171; font-size: 11px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                Missing Dependencies Discovered
+                <span data-i18n="gui-missing-deps">Missing Dependencies Discovered</span>
               </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;" id="scan-missing-desc">
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;" id="scan-missing-desc" data-i18n="gui-missing-deps-body">
                 These libraries are used in the codebase but not currently installed.
               </div>
               <div id="scan-missing-badges" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
                 <!-- Missing package badges -->
               </div>
-              <button class="btn btn-gold" id="btn-install-missing-imports" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;" title="Install the missing third-party imports.">
+              <button class="btn btn-gold" id="btn-install-missing-imports" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;" title="Install the missing third-party imports." data-i18n="gui-install-missing" data-i18n-title="gui-install-missing-title">
                 Install Missing Dependencies
               </button>
             </div>
@@ -986,7 +1011,7 @@
             <div id="scan-installed-card" class="glass" style="padding: 12px; border-radius: 8px;">
               <div style="font-weight: 600; color: #34d399; font-size: 11px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Aligned Dependencies
+                <span data-i18n="gui-aligned-deps">Aligned Dependencies</span>
               </div>
               <div id="scan-installed-badges" style="display: flex; flex-wrap: wrap; gap: 4px;">
                 <!-- Installed package badges -->
@@ -1006,10 +1031,11 @@
       <span id="footer-app-status" style="color: var(--text-muted);"></span>
     </div>
     <div class="footer-right">
-      <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer pyenv-native.">Check for Updates</button>
+      <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer pyenv-native." data-i18n="gui-footer-check-updates" data-i18n-title="gui-footer-updates-title">Check for Updates</button>
     </div>
   </footer>
   <script src="dom-utils.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 

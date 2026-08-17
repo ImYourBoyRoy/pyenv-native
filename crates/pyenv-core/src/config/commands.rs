@@ -33,6 +33,9 @@ pub fn cmd_config_set(ctx: &mut AppContext, key: &str, value: &str) -> CommandRe
     match set_config_value(&mut config, key, value).and_then(|_| save_config(&ctx.root, &config)) {
         Ok(_) => {
             ctx.config = config;
+            if key == "ui.language" {
+                crate::i18n::apply(&ctx.config);
+            }
             CommandReport::empty_success()
         }
         Err(error) => CommandReport::failure(vec![error.to_string()], 1),

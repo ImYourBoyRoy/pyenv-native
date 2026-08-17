@@ -7,7 +7,7 @@
 
 Native Rust Python version manager inspired by `pyenv`. Ships **`pyenv`** (CLI), **`pyenv-mcp`** (agents), and **`pyenv gui`**.
 
-Windows is the primary platform. Linux and macOS are tested. Android/Termux is experimental (source builds).
+Windows, Linux, and macOS are supported. Android/Termux is experimental (source builds).
 
 ![Pyenv-Native GUI](docs/screenshots/animated_gui.webp)
 
@@ -109,13 +109,23 @@ Guides: [docs/agent-skills/README.md](./docs/agent-skills/README.md) · [getting
 
 ## GUI
 
-Launch with `pyenv gui` after a native install. Stable on Windows; experimental on Linux/macOS. Native bundles ship `pyenv-gui` next to `pyenv`. Standalone binaries and `.sha256` files are on [GitHub Releases](https://github.com/imyourboyroy/pyenv-native/releases/latest).
+Launch with `pyenv gui` after a native install. Native bundles for Windows, Linux, and macOS ship `pyenv-gui` next to `pyenv`. Standalone binaries and `.sha256` files are on [GitHub Releases](https://github.com/imyourboyroy/pyenv-native/releases/latest).
 
 | Dashboard | Install Runtimes | Installed | Venvs |
 | :---: | :---: | :---: | :---: |
 | ![Dashboard](docs/screenshots/Dashboard.webp) | ![Install Runtimes](docs/screenshots/Available.webp) | ![Installed](docs/screenshots/Installed_Versions.webp) | ![Venvs](docs/screenshots/VENVs.webp) |
 
 More views and feature notes: [docs/GUI.md](./docs/GUI.md)
+
+---
+
+## Languages
+
+The GUI, CLI, doctor, and installer follow the OS language, or a choice in Settings / the sidebar switcher (`ui.language`, or `PYENV_LANG`).
+
+**English** · **简体中文** · **Español** · **日本語** · **한국어** · **Português (Brasil)** · **Français** · **Deutsch** · **Русский** · **فارسی** · **العربية** · **हिन्दी** · **Italiano** · **Türkçe**
+
+`zh` and `zh-TW` use Simplified Chinese (no Traditional catalog). Command names, paths, and versions stay English. Product docs (`README.md`, `docs/*.md`) stay English. [I18N](./docs/I18N.md)
 
 ---
 
@@ -127,7 +137,7 @@ More views and feature notes: [docs/GUI.md](./docs/GUI.md)
 | [CLI](./docs/CLI.md) | Command reference |
 | [MCP](./docs/MCP.md) | Agent tools and recommended order |
 | [GUI](./docs/GUI.md) | Desktop companion |
-| [ARCHITECTURE](./docs/ARCHITECTURE.md) | Crate layout |
+| [I18N](./docs/I18N.md) | GUI/CLI/doctor languages, locale tags, fonts |
 
 ---
 
@@ -138,3 +148,5 @@ More views and feature notes: [docs/GUI.md](./docs/GUI.md)
 `pyenv-native` is an independent reimplementation inspired by `pyenv`. It is not affiliated with or endorsed by the official pyenv project.
 
 Created by: **Roy Dawson IV** | [GitHub](https://github.com/imyourboyroy) | [PyPI](https://pypi.org/user/ImYourBoyRoy/) | License: **MIT**
+
+Simplified Chinese localization by [KiniMail](https://github.com/KiniMail) inspired first-class in-app language support. That work is credited as motivation; this tree does not use KiniMail dictionaries or tagging.

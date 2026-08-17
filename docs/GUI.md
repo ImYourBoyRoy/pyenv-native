@@ -3,7 +3,7 @@
 The **Pyenv Native GUI** is a desktop dashboard built with Tauri v2 for managing Python environments visually.
 
 > [!IMPORTANT]
-> **Status:** Most stable on **Windows**. Native Linux x64 and macOS (arm64/x64) binaries ship on GitHub Releases and are experimental. Cross-compiled bundles (Windows ARM64, Linux ARM64, Android) do **not** include the GUI.
+> **Status:** Ships on **Windows x64**, **Linux x64**, and **macOS** (arm64/x64) native release bundles. Cross-compiled bundles (Windows ARM64, Linux ARM64, Android) do **not** include the GUI.
 
 ## Features
 
@@ -15,8 +15,8 @@ The **Pyenv Native GUI** is a desktop dashboard built with Tauri v2 for managing
 - **Conflict Pre-checker**: Resolves local files or HTTPS URLs (GitHub blob links translated to raw) before `pip install`.
 - **Visual Management**: Browse and install CPython 2.x / 3.x and PyPy. Latest patch per line is the default; Python 2 stays in the catalog for legacy projects.
 - **Venv Manager**: Create, list, delete, and migrate named virtual environments onto another installed runtime. Cards keep **Package Explorer** plus a **More** menu (global/local, migrate, delete). The GUI calls the same `venv upgrade` path as the CLI. Global badges and Make Global use the canonical `base/envs/name` spec (aliases such as `venv:name` still match). Rename, `venv use`, and shell-scoped `pyenv shell` remain CLI-only.
-- **Diagnostics & Self-Healing**: Runs doctor/preflight checks and can apply automated repairs. Warnings use the same `WARN` status as the CLI.
-- **Settings**: Architecture, pip bootstrap, and optional companion base-venv flags (`venv.auto_create_base_venv` and `venv.auto_use_base_venv` default **off**). On Windows, `windows.registry_mode=pep514` writes HKCU PEP-514 keys under `Software\Python\PyenvNative` (not `PythonCore`). The Windows settings block is hidden on Linux/macOS.
+- **Diagnostics & Self-Healing**: Runs doctor/preflight checks and can apply automated repairs. Warnings use the same `WARN` status as the CLI. Dock, Start Menu, and `.desktop` launches do not inherit interactive shell PATH. At startup the GUI prepends `PYENV_ROOT/bin` and `shims` onto **its own process PATH** so doctor, pip, and runtime lookups work inside the app. Shell Integration cards still describe **terminal / launch PATH** (profile configured vs not, and whether shims were already on PATH when the GUI started). If prepend cannot put those dirs on process PATH and profiles already have `pyenv init`, doctor reports Info rather than Warn and Self-Healing will not try to “repair” desktop PATH.
+- **Settings**: Interface language (`ui.language`, including Match system), architecture, pip bootstrap, and optional companion base-venv flags (`venv.auto_create_base_venv` and `venv.auto_use_base_venv` default **off**). On Windows, `windows.registry_mode=pep514` writes HKCU PEP-514 keys under `Software\Python\PyenvNative` (not `PythonCore`). The Windows settings block is hidden on Linux/macOS. Language can also be changed from the bottom of the sidebar.
 - **Self-Update**: Check for and install `pyenv-native` updates from the UI.
 
 ## Visual Tour

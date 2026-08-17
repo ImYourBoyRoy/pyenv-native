@@ -24,6 +24,43 @@ pub(super) fn shell_init_hint(ctx: &AppContext, platform: &str) -> String {
     }
 }
 
+pub(super) fn user_shell_profiles_configured() -> bool {
+    let home = env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .map(std::path::PathBuf::from);
+    let Some(home) = home else {
+        return false;
+    };
+    let candidates = [
+        home.join(".bashrc"),
+        home.join(".bash_profile"),
+        home.join(".profile"),
+        home.join(".zshrc"),
+        home.join(".zprofile"),
+        home.join(".config").join("fish").join("config.fish"),
+        home.join(".config")
+            .join("powershell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+        home.join("Documents")
+            .join("PowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+        home.join("Documents")
+            .join("WindowsPowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+    ];
+    candidates.into_iter().any(|path| {
+        path.is_file()
+            && std::fs::read_to_string(&path)
+                .map(|content| {
+                    let lower = content.to_ascii_lowercase();
+                    lower.contains("pyenv init")
+                        || lower.contains("pyenv-native")
+                        || (lower.contains("pyenv_root") && lower.contains("shims"))
+                })
+                .unwrap_or(false)
+    })
+}
+
 pub(super) fn is_termux_environment() -> bool {
     crate::preflight::is_termux_environment()
 }

@@ -9,6 +9,7 @@ mod doctor;
 mod error;
 mod executable;
 mod http;
+mod i18n;
 mod install;
 mod manage;
 mod meta;
@@ -37,17 +38,26 @@ pub use catalog::{
 };
 pub use command::CommandReport;
 pub use config::{
-    AppConfig, InstallConfig, PluginsConfig, RegistryMode, RuntimeArch, StorageConfig, VenvConfig,
-    WindowsConfig, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, config_path,
-    resolve_cache_dir,
+    AppConfig, InstallConfig, PluginsConfig, RegistryMode, RuntimeArch, StorageConfig, UiConfig,
+    VenvConfig, WindowsConfig, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
+    config_path, resolve_cache_dir,
 };
-pub use context::{AppContext, is_pyenv_win_root, resolve_dir, resolve_root};
+pub use context::{
+    AppContext, ensure_managed_path, is_pyenv_win_root, launch_path, path_with_managed_entries,
+    resolve_dir, resolve_root,
+};
 pub use doctor::{
-    DoctorCheck, DoctorFix, DoctorFixOutcome, DoctorStatus, apply_doctor_fixes, cmd_doctor,
-    collect_checks, doctor_fix_plan, install_powershell_7,
+    DoctorCheck, DoctorFix, DoctorFixOutcome, DoctorOptions, DoctorStatus, apply_doctor_fixes,
+    apply_doctor_fixes_with_options, cmd_doctor, collect_checks, collect_checks_with_options,
+    doctor_fix_plan, doctor_fix_plan_with_options, install_powershell_7,
 };
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
+pub use i18n::{
+    LocaleBundle, LocaleInfo, SUPPORTED_LOCALES, apply as apply_i18n, current_lang_tag,
+    format_message, init as init_i18n, locale_bundle, locale_info, lookup as lookup_i18n,
+    lookup_with_args as lookup_i18n_args, negotiate as negotiate_lang, set_lang_tag,
+};
 pub use install::{
     InstallCommandOptions, InstallOutcome, InstallPlan, cmd_available, cmd_install,
     install_runtime_plan, install_runtime_plan_with_progress, resolve_install_plan,

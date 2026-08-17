@@ -7,7 +7,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, FromArgMatches};
 use pyenv_core::{
     AppContext, CommandReport, DoctorFix, InstallCommandOptions, SelfUpdateOptions, VenvUseScope,
     VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_available, cmd_commands,
@@ -27,6 +27,11 @@ use pyenv_core::{
 use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
 
 pub(crate) fn run() -> ExitCode {
+    pyenv_core::init_i18n();
+    if let Ok(ctx) = AppContext::from_system() {
+        pyenv_core::apply_i18n(&ctx.config);
+    }
+
     if let Some(command_name) = shim_invocation_name() {
         let args = std::env::args().skip(1).collect::<Vec<_>>();
         let ctx = match AppContext::from_system() {
@@ -39,9 +44,9 @@ pub(crate) fn run() -> ExitCode {
         return emit_report(cmd_exec(&ctx, &command_name, &args));
     }
 
-    let cli = Cli::parse_from(normalize_cli_args(std::env::args_os()));
+    let cli = parse_localized_cli();
     let Some(command) = cli.command else {
-        let _ = Cli::command().print_help();
+        let _ = localize_clap(Cli::command()).print_help();
         let _ = writeln!(io::stdout());
         return ExitCode::from(1);
     };
@@ -55,6 +60,157 @@ pub(crate) fn run() -> ExitCode {
     };
 
     emit_report(dispatch_command(&mut ctx, command))
+}
+
+fn parse_localized_cli() -> Cli {
+    let args = normalize_cli_args(std::env::args_os());
+    let cmd = localize_clap(Cli::command());
+    match cmd.try_get_matches_from(&args) {
+        Ok(matches) => Cli::from_arg_matches(&matches).unwrap_or_else(|err| err.exit()),
+        Err(err) => err.exit(),
+    }
+}
+
+fn localize_clap(mut cmd: clap::Command) -> clap::Command {
+    cmd = cmd
+        .about(pyenv_core::lookup_i18n("cli-about"))
+        .after_help(pyenv_core::lookup_i18n("cli-help-concepts"))
+        .help_template(localized_help_template());
+    localize_command_tree(&mut cmd, None);
+    cmd
+}
+
+fn lookup_about(parent: Option<&str>, name: &str) -> Option<String> {
+    let candidates = match parent {
+        Some(parent_name) => vec![
+            format!("cli-{parent_name}-{name}-about"),
+            format!("cli-{name}-about"),
+        ],
+        None => vec![format!("cli-{name}-about")],
+    };
+    for id in candidates {
+        let about = pyenv_core::lookup_i18n(&id);
+        if about != id {
+            return Some(about);
+        }
+    }
+    None
+}
+
+fn localize_command_tree(cmd: &mut clap::Command, parent: Option<&str>) {
+    let name = cmd.get_name().to_string();
+    // Root already uses `cli-about`. Do not probe `cli-pyenv-about`.
+    if parent.is_some()
+        && let Some(about) = lookup_about(parent, &name)
+    {
+        *cmd = cmd.clone().about(about);
+    }
+    let children: Vec<String> = cmd
+        .get_subcommands()
+        .map(|child| child.get_name().to_string())
+        .collect();
+    for child_name in children {
+        if let Some(child) = cmd.find_subcommand_mut(&child_name) {
+            localize_command_tree(child, Some(&name));
+        }
+    }
+}
+
+fn help_row(name: &str, about_id: &str) -> String {
+    format!("  {name:<18} {}", pyenv_core::lookup_i18n(about_id))
+}
+
+fn help_section(heading_id: &str, rows: &[(&str, &str)]) -> String {
+    let mut lines = vec![format!("{}:", pyenv_core::lookup_i18n(heading_id))];
+    lines.extend(rows.iter().map(|(name, about_id)| help_row(name, about_id)));
+    lines.join("\n")
+}
+
+fn localized_help_template() -> String {
+    let body = [
+        help_section(
+            "cli-help-selection",
+            &[
+                ("global", "cli-global-about"),
+                ("local", "cli-local-about"),
+                ("shell", "cli-shell-about"),
+                ("latest", "cli-latest-about"),
+                ("version", "cli-version-about"),
+                ("version-name", "cli-version-name-about"),
+                ("version-origin", "cli-version-origin-about"),
+                ("prefix", "cli-prefix-about"),
+            ],
+        ),
+        help_section(
+            "cli-help-provisioning",
+            &[
+                ("install", "cli-install-about"),
+                ("available", "cli-available-about"),
+                ("versions", "cli-versions-about"),
+                ("uninstall", "cli-uninstall-about"),
+            ],
+        ),
+        help_section(
+            "cli-help-environment",
+            &[("venv", "cli-venv-about"), ("pip", "cli-pip-about")],
+        ),
+        help_section(
+            "cli-help-interface",
+            &[
+                ("init", "cli-init-about"),
+                ("gui", "cli-gui-about"),
+                ("rehash", "cli-rehash-about"),
+                ("shims", "cli-shims-about"),
+                ("prompt", "cli-prompt-about"),
+                ("exec", "cli-exec-about"),
+                ("completions", "cli-completions-about"),
+            ],
+        ),
+        help_section(
+            "cli-help-diagnostics",
+            &[
+                ("doctor", "cli-doctor-about"),
+                ("preflight", "cli-preflight-about"),
+                ("environment", "cli-environment-about"),
+                ("status", "cli-status-about"),
+                ("config", "cli-config-about"),
+                ("root", "cli-root-about"),
+                ("which", "cli-which-about"),
+                ("whence", "cli-whence-about"),
+                ("version-file", "cli-version-file-about"),
+                ("version-file-read", "cli-version-file-read-about"),
+            ],
+        ),
+        help_section(
+            "cli-help-maintenance",
+            &[
+                ("self-update", "cli-self-update-about"),
+                ("self-uninstall", "cli-self-uninstall-about"),
+            ],
+        ),
+        help_section(
+            "cli-help-support",
+            &[
+                ("help", "cli-help-about"),
+                ("commands", "cli-commands-about"),
+                ("hooks", "cli-hooks-about"),
+            ],
+        ),
+    ]
+    .join("\n\n");
+    format!(
+        "\
+{{before-help}}{{name}} {{version}}
+{{about-with-newline}}
+{{usage-heading}} {{usage}}
+
+{body}
+
+{{options}}
+
+{{after-help}}
+"
+    )
 }
 
 fn normalize_cli_args(args: impl IntoIterator<Item = OsString>) -> Vec<OsString> {

@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/doctor/fixes.rs
 //! Automated and manual doctor fix planning for shell, PATH, and source-build issues.
 
+use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 
@@ -13,10 +14,25 @@ use crate::version::resolve_selected_versions;
 
 use super::helpers::{
     is_termux_environment, path_contains, path_ext_for_platform, shell_init_hint,
+    user_shell_profiles_configured,
 };
-use super::types::{DoctorFix, DoctorFixOutcome};
+use super::types::{DoctorFix, DoctorFixOutcome, DoctorOptions};
+
+fn fix_text(id: &str) -> String {
+    crate::lookup_i18n(id)
+}
+
+fn fix_text_arg(id: &str, key: &str, value: impl ToString) -> String {
+    let mut args = HashMap::new();
+    args.insert(key.to_string(), value.to_string());
+    crate::lookup_i18n_args(id, &args)
+}
 
 pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
+    doctor_fix_plan_with_options(ctx, DoctorOptions::default())
+}
+
+pub fn doctor_fix_plan_with_options(ctx: &AppContext, options: DoctorOptions) -> Vec<DoctorFix> {
     let mut fixes = Vec::new();
     let platform = env::consts::OS;
 
@@ -28,10 +44,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
         fixes.push(DoctorFix {
             key: "ensure-managed-layout".to_string(),
             automated: true,
-            description: format!(
-                "Create missing managed directories under {}",
-                ctx.root.display()
-            ),
+            description: fix_text_arg("doctor-fix-ensure-layout", "path", ctx.root.display()),
             command_hint: None,
         });
     }
@@ -39,27 +52,29 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
     fixes.push(DoctorFix {
         key: "rehash-shims".to_string(),
         automated: true,
-        description: format!("Refresh shim launchers under {}", ctx.shims_dir().display()),
+        description: fix_text_arg("doctor-fix-rehash", "path", ctx.shims_dir().display()),
         command_hint: Some("Equivalent to `pyenv rehash`".to_string()),
     });
 
-    if !path_contains(ctx.path_env.as_ref(), &ctx.shims_dir()) {
+    let skip_process_path = options.desktop_session
+        && options
+            .profiles_configured
+            .unwrap_or_else(user_shell_profiles_configured);
+
+    if !skip_process_path && !path_contains(ctx.path_env.as_ref(), &ctx.shims_dir()) {
         fixes.push(DoctorFix {
             key: "path-shims-manual".to_string(),
             automated: false,
-            description: format!(
-                "Add {} to your shell PATH so python/pip resolve through pyenv shims",
-                ctx.shims_dir().display()
-            ),
+            description: fix_text_arg("doctor-fix-path-shims", "path", ctx.shims_dir().display()),
             command_hint: Some(shell_init_hint(ctx, platform)),
         });
     }
 
-    if !path_contains(ctx.path_env.as_ref(), &ctx.bin_dir()) {
+    if !skip_process_path && !path_contains(ctx.path_env.as_ref(), &ctx.bin_dir()) {
         fixes.push(DoctorFix {
             key: "path-bin-manual".to_string(),
             automated: false,
-            description: "Add the pyenv bin directory to your shell PATH".to_string(),
+            description: fix_text("doctor-fix-path-bin"),
             command_hint: Some(match platform {
                 "windows" => "Re-run the Windows installer or prepend PYENV_ROOT\\bin to your User PATH".to_string(),
                 _ => "Install pyenv with the web installer or add $PYENV_ROOT/bin in your shell profile before evaluating `pyenv init`".to_string(),
@@ -76,8 +91,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
             fixes.push(DoctorFix {
                 key: "pyenv-win-root-manual".to_string(),
                 automated: false,
-                description: "Remove the stale pyenv-win PYENV_ROOT environment variable"
-                    .to_string(),
+                description: fix_text("doctor-fix-pyenv-win-root"),
                 command_hint: Some(
                     "Delete PYENV_ROOT from your User environment variables".to_string(),
                 ),
@@ -90,12 +104,9 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
             fixes.push(DoctorFix {
                 key: "windows-store-alias-manual".to_string(),
                 automated: false,
-                description:
-                    "Disable the Microsoft Store Python App Execution Alias to avoid PATH interception"
-                        .to_string(),
+                description: fix_text("doctor-fix-store-alias"),
                 command_hint: Some(
-                    "Settings > Apps > Advanced app settings > App execution aliases"
-                        .to_string(),
+                    "Settings > Apps > Advanced app settings > App execution aliases".to_string(),
                 ),
             });
         }
@@ -105,8 +116,7 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
             fixes.push(DoctorFix {
                 key: "install-powershell-7".to_string(),
                 automated: winget_available,
-                description: "Install PowerShell 7 (pwsh) for plugin hooks and shell init"
-                    .to_string(),
+                description: fix_text("doctor-fix-pwsh7"),
                 command_hint: Some(
                     "winget install --id Microsoft.PowerShell --accept-package-agreements --accept-source-agreements"
                         .to_string(),
@@ -130,13 +140,14 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
                 fixes.push(DoctorFix {
                     key: "termux-compile-deps".to_string(),
                     automated: true,
-                    description: format!(
-                        "Install missing Termux compilation tools and headers ({})",
+                    description: fix_text_arg(
+                        "doctor-fix-termux-deps",
+                        "packages",
                         if state.missing.is_empty() {
                             packages.clone()
                         } else {
                             state.missing.join(", ")
-                        }
+                        },
                     ),
                     command_hint: Some(format!("pkg install {packages} -y")),
                 });
@@ -156,7 +167,7 @@ fn macos_toolchain_fixes() -> Vec<DoctorFix> {
         fixes.push(DoctorFix {
             key: "macos-xcode-clt".to_string(),
             automated: true,
-            description: "Install or update Xcode Command Line Tools required for CPython source builds".to_string(),
+            description: fix_text("doctor-fix-xcode-clt"),
             command_hint: Some(
                 "Prefer automated `softwareupdate` CLT install; falls back to `xcode-select --install` (may show a system dialog). Full Xcode.app still requires the App Store.".to_string(),
             ),
@@ -166,8 +177,7 @@ fn macos_toolchain_fixes() -> Vec<DoctorFix> {
         fixes.push(DoctorFix {
             key: "macos-openssl-brew".to_string(),
             automated: true,
-            description: "Install Homebrew OpenSSL headers required for TLS-capable CPython builds"
-                .to_string(),
+            description: fix_text("doctor-fix-openssl-brew"),
             command_hint: Some(
                 if state.brew_available {
                     "brew install openssl@3 pkg-config readline sqlite3 xz zlib bzip2".to_string()
@@ -181,7 +191,14 @@ fn macos_toolchain_fixes() -> Vec<DoctorFix> {
 }
 
 pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, PyenvError> {
-    let plan = doctor_fix_plan(ctx);
+    apply_doctor_fixes_with_options(ctx, DoctorOptions::default())
+}
+
+pub fn apply_doctor_fixes_with_options(
+    ctx: &AppContext,
+    options: DoctorOptions,
+) -> Result<DoctorFixOutcome, PyenvError> {
+    let plan = doctor_fix_plan_with_options(ctx, options);
     let has_termux_fix = plan.iter().any(|f| f.key == "termux-compile-deps");
     let has_macos_clt_fix = plan.iter().any(|f| f.key == "macos-xcode-clt");
     let has_macos_openssl_fix = plan.iter().any(|f| f.key == "macos-openssl-brew");
@@ -380,9 +397,7 @@ fn non_windows_manual_dependency_fixes(ctx: &AppContext, platform: &str) -> Vec<
     vec![DoctorFix {
         key: format!("{platform}-source-build-deps-manual"),
         automated: false,
-        description: format!(
-            "Install the native source-build prerequisites required on {platform}"
-        ),
+        description: fix_text_arg("doctor-fix-source-deps", "platform", platform),
         command_hint: Some(command_hint),
     }]
 }
@@ -396,9 +411,7 @@ fn selection_manual_fixes(ctx: &AppContext) -> Vec<DoctorFix> {
         .map(|value| DoctorFix {
             key: format!("missing-managed-venv-{value}"),
             automated: false,
-            description: format!(
-                "Recreate or repoint the missing managed venv selection `{value}`"
-            ),
+            description: fix_text_arg("doctor-fix-missing-venv", "value", &value),
             command_hint: Some(format!(
                 "Use `pyenv venv list`, `pyenv venv info {value}`, or update `.python-version` with `pyenv venv use <name>`"
             )),

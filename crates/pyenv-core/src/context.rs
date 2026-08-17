@@ -2,8 +2,9 @@
 //! Runtime context built from process environment and persisted configuration.
 
 use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::config::{AppConfig, load_config, resolve_cache_dir, resolve_versions_dir};
 use crate::error::PyenvError;
@@ -41,6 +42,7 @@ impl AppContext {
         let path_env = env::var_os("PATH");
         let path_ext = env::var_os("PATHEXT");
         let config = load_config(&root)?;
+        crate::i18n::apply(&config);
         Ok(Self {
             root,
             dir,
@@ -80,6 +82,56 @@ impl AppContext {
             .map(Path::to_path_buf)
             .unwrap_or_else(|| self.root.join("bin"))
     }
+}
+
+static LAUNCH_PATH: OnceLock<OsString> = OnceLock::new();
+
+/// PATH as it was when this process started, before managed entries were prepended.
+///
+/// Desktop launches (dock, Start Menu, `.desktop`) do not inherit interactive shell PATH.
+/// The GUI still prepends `bin`/`shims` onto the *process* PATH so doctor and runtime
+/// lookups work; shell-integration cards should keep using this snapshot so they describe
+/// terminals rather than the synthesized GUI PATH.
+pub fn launch_path() -> OsString {
+    LAUNCH_PATH
+        .get()
+        .cloned()
+        .unwrap_or_else(|| env::var_os("PATH").unwrap_or_default())
+}
+
+/// Prepend `extra` directories that are not already on `current`.
+pub fn path_with_managed_entries(current: &OsStr, extra: &[PathBuf]) -> OsString {
+    let existing: Vec<PathBuf> = env::split_paths(current).collect();
+    let mut prefix = Vec::new();
+    for path in extra {
+        if !existing.iter().any(|entry| paths_equivalent(entry, path)) {
+            prefix.push(path.clone());
+        }
+    }
+    if prefix.is_empty() {
+        return current.to_os_string();
+    }
+    prefix.extend(existing);
+    env::join_paths(&prefix).unwrap_or_else(|_| current.to_os_string())
+}
+
+/// Put `PYENV_ROOT/shims` and `PYENV_ROOT/bin` at the front of this process PATH.
+///
+/// Snapshots the launch PATH on first call. Updates `ctx.path_env` to the live value so
+/// doctor checks in this context see the synthesized PATH.
+pub fn ensure_managed_path(ctx: &mut AppContext) {
+    let current = env::var_os("PATH").unwrap_or_default();
+    let _ = LAUNCH_PATH.set(current.clone());
+    let extra = [ctx.shims_dir(), ctx.bin_dir()];
+    let joined = path_with_managed_entries(&current, &extra);
+    if joined != current {
+        // SAFETY: called from the GUI/MCP process to expose managed bin+shims to this
+        // session. First call snapshots launch PATH; later calls are idempotent.
+        unsafe {
+            env::set_var("PATH", &joined);
+        }
+    }
+    ctx.path_env = env::var_os("PATH");
 }
 
 fn cli_binary_name() -> &'static str {
@@ -380,5 +432,22 @@ mod tests {
             root.join("bin")
                 .join(if cfg!(windows) { "pyenv.exe" } else { "pyenv" })
         );
+    }
+
+    #[test]
+    fn path_with_managed_entries_prepends_missing_dirs() {
+        let current = if cfg!(windows) {
+            OsString::from(r"C:\Windows\System32")
+        } else {
+            OsString::from("/usr/bin")
+        };
+        let shims = PathBuf::from("/tmp/pyenv-shims");
+        let bin = PathBuf::from("/tmp/pyenv-bin");
+        let joined = super::path_with_managed_entries(&current, &[shims.clone(), bin.clone()]);
+        let parts: Vec<_> = std::env::split_paths(&joined).collect();
+        assert_eq!(parts.first(), Some(&shims));
+        assert_eq!(parts.get(1), Some(&bin));
+        let again = super::path_with_managed_entries(&joined, &[shims, bin]);
+        assert_eq!(again, joined);
     }
 }

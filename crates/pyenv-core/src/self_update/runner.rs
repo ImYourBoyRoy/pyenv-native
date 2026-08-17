@@ -3,6 +3,7 @@
 
 use crate::process::{PyenvCommandExt, windows_powershell_host};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, IsTerminal, Write};
@@ -98,11 +99,15 @@ fn ensure_portable_install(ctx: &AppContext, allow_gui_launcher: bool) -> Result
         return Ok(());
     }
 
-    Err(format!(
-        "pyenv: self-update only supports portable installs launched from `{}`; current executable is `{}`",
-        bin_dir.join("pyenv").display(),
-        current_exe.display()
-    ))
+    Err({
+        let mut args = HashMap::new();
+        args.insert(
+            "expected".into(),
+            bin_dir.join("pyenv").display().to_string(),
+        );
+        args.insert("current".into(), current_exe.display().to_string());
+        crate::lookup_i18n_args("error-self-update-portable", &args)
+    })
 }
 
 fn portable_executable_path(root: &Path) -> PathBuf {

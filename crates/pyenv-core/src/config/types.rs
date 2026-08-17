@@ -17,6 +17,8 @@ pub struct AppConfig {
     pub venv: VenvConfig,
     #[serde(default)]
     pub plugins: PluginsConfig,
+    #[serde(default)]
+    pub ui: UiConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -144,6 +146,25 @@ pub struct VenvConfig {
     pub auto_use_base_venv: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiConfig {
+    /// `"auto"` follows the OS UI language; otherwise a BCP-47 tag we ship.
+    #[serde(default = "default_auto_language")]
+    pub language: String,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            language: default_auto_language(),
+        }
+    }
+}
+
 fn default_true() -> bool {
     true
+}
+
+fn default_auto_language() -> String {
+    "auto".to_string()
 }

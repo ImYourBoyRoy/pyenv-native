@@ -57,4 +57,28 @@ if ! has_match 'fonts/InterVariable.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css
     fail 'styles.css or styles/*.css must load the vendored Inter variable font'
 fi
 
+if ! has_match 'fonts/NotoSansSC-400.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'CJK Noto Sans SC must be vendored and loaded locally'
+fi
+
+if ! has_match 'fonts/NotoSansJP-400.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'Japanese Noto Sans JP must be vendored and loaded locally'
+fi
+
+if ! has_match 'fonts/NotoSansKR-400.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'Korean Noto Sans KR must be vendored and loaded locally'
+fi
+
+if ! has_match 'fonts/NotoNaskhArabic-400.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'Arabic Noto Naskh must be vendored and loaded locally'
+fi
+
+if ! has_match 'fonts/NotoSansDevanagari-400.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'Devanagari Noto Sans must be vendored and loaded locally'
+fi
+
+if ! has_pattern 'i18n\.js' "$ROOT/crates/pyenv-gui/ui/index.html"; then
+    fail 'index.html must load i18n.js'
+fi
+
 printf 'GUI pattern checks passed.\n'

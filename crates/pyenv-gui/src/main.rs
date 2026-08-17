@@ -14,6 +14,7 @@ use pyenv_core::PyenvCommandExt;
 
 fn get_context_with_dir(workspace_dir: Option<String>) -> Result<pyenv_core::AppContext, String> {
     let mut ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+    pyenv_core::ensure_managed_path(&mut ctx);
     if let Some(dir_str) = workspace_dir
         && !dir_str.trim().is_empty()
     {
@@ -559,12 +560,11 @@ fn get_home_dir() -> Result<std::path::PathBuf, String> {
 
 fn shell_path_label(is_configured: bool, shims_in_path: bool) -> String {
     if shims_in_path {
-        "PATH Active".to_string()
+        pyenv_core::lookup_i18n("gui-shell-path-active")
     } else if is_configured {
-        // Desktop apps often don't inherit shell-profile PATH; profiles can still be correct.
-        "Restart terminal to activate".to_string()
+        pyenv_core::lookup_i18n("gui-shell-restart-terminal")
     } else {
-        "Shims not on PATH".to_string()
+        pyenv_core::lookup_i18n("gui-shell-shims-missing")
     }
 }
 
@@ -625,7 +625,7 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
     let ctx = get_context_with_dir(workspace_dir)?;
     let mut statuses = Vec::new();
     let shims_dir = ctx.shims_dir();
-    let path_val = std::env::var("PATH").unwrap_or_default();
+    let path_val = pyenv_core::launch_path().to_string_lossy().into_owned();
     let shims_in_path = path_has_entry(&path_val, &shims_dir);
 
     // Resolve home directory
@@ -1005,8 +1005,8 @@ fn check_install_status_sync() -> InstallStatus {
                 cli_on_path,
                 profiles_configured,
                 shims_on_gui_path,
-                // GUI PATH is intentionally ignored: .desktop / dock launches rarely inherit
-                // shell-profile PATH even when pyenv is fully configured for terminals.
+                // Shell setup is about terminal profiles, not this GUI process PATH.
+                // The app prepends bin/shims onto its own PATH at startup.
                 needs_shell_setup: needs_shell_setup(binaries, profiles_configured),
                 platform,
             }
@@ -1037,7 +1037,7 @@ fn check_install_status_sync() -> InstallStatus {
 
 #[tauri::command]
 async fn install_local_pyenv() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| {
+    let result = tokio::task::spawn_blocking(|| {
         let exe_path = std::env::current_exe().unwrap_or_default();
         let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
 
@@ -1132,7 +1132,13 @@ async fn install_local_pyenv() -> Result<String, String> {
         }
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+    if result.is_ok()
+        && let Ok(mut ctx) = pyenv_core::AppContext::from_system()
+    {
+        pyenv_core::ensure_managed_path(&mut ctx);
+    }
+    result
 }
 
 #[derive(serde::Serialize)]
@@ -1146,7 +1152,13 @@ struct DoctorCheckGui {
 async fn run_doctor(workspace_dir: Option<String>) -> Result<Vec<DoctorCheckGui>, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let checks = pyenv_core::collect_checks(&ctx);
+        let checks = pyenv_core::collect_checks_with_options(
+            &ctx,
+            pyenv_core::DoctorOptions {
+                desktop_session: true,
+                profiles_configured: None,
+            },
+        );
         let gui_checks = checks
             .into_iter()
             .map(|c| DoctorCheckGui {
@@ -1165,7 +1177,14 @@ async fn run_doctor(workspace_dir: Option<String>) -> Result<Vec<DoctorCheckGui>
 async fn run_doctor_fix(workspace_dir: Option<String>) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let outcome = pyenv_core::apply_doctor_fixes(&ctx).map_err(|e| e.to_string())?;
+        let outcome = pyenv_core::apply_doctor_fixes_with_options(
+            &ctx,
+            pyenv_core::DoctorOptions {
+                desktop_session: true,
+                profiles_configured: None,
+            },
+        )
+        .map_err(|e| e.to_string())?;
         Ok(outcome.applied)
     })
     .await
@@ -1231,6 +1250,7 @@ async fn get_platform_intelligence(
 
 #[derive(serde::Serialize)]
 struct CacheEntryGui {
+    id: String,
     name: String,
     path: String,
     bytes: u64,
@@ -1259,7 +1279,7 @@ fn dir_size_bytes(path: &std::path::Path) -> u64 {
     total
 }
 
-fn cache_entry(name: &str, path: std::path::PathBuf) -> CacheEntryGui {
+fn cache_entry(id: &str, name: &str, path: std::path::PathBuf) -> CacheEntryGui {
     let exists = path.exists();
     let bytes = if exists {
         if path.is_dir() {
@@ -1271,6 +1291,7 @@ fn cache_entry(name: &str, path: std::path::PathBuf) -> CacheEntryGui {
         0
     };
     CacheEntryGui {
+        id: id.to_string(),
         name: name.to_string(),
         path: path.to_string_lossy().to_string(),
         bytes,
@@ -1287,9 +1308,17 @@ fn get_cache_stats_sync(workspace_dir: Option<String>) -> Result<CacheStatsGui, 
     let ctx = get_context_with_dir(workspace_dir)?;
     let cache_root = ctx.cache_dir();
     let mut entries = vec![
-        cache_entry("Python downloads / packages", cache_root.join("packages")),
-        cache_entry("python-build cache", cache_root.join("python-build")),
-        cache_entry("Metadata cache", cache_root.join("metadata")),
+        cache_entry(
+            "packages",
+            "Python downloads / packages",
+            cache_root.join("packages"),
+        ),
+        cache_entry(
+            "python-build",
+            "python-build cache",
+            cache_root.join("python-build"),
+        ),
+        cache_entry("metadata", "Metadata cache", cache_root.join("metadata")),
     ];
 
     // Best-effort pip cache via `pip cache dir` for the active global interpreter.
@@ -1305,6 +1334,7 @@ fn get_cache_stats_sync(workspace_dir: Option<String>) -> Result<CacheStatsGui, 
         let pip_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if !pip_dir.is_empty() {
             entries.push(cache_entry(
+                "pip",
                 "Pip cache (active runtime)",
                 std::path::PathBuf::from(pip_dir),
             ));
@@ -1312,7 +1342,7 @@ fn get_cache_stats_sync(workspace_dir: Option<String>) -> Result<CacheStatsGui, 
     }
 
     let total_bytes = entries.iter().map(|e| e.bytes).sum();
-    entries.insert(0, cache_entry("All pyenv cache", cache_root.clone()));
+    entries.insert(0, cache_entry("all", "All pyenv cache", cache_root.clone()));
     Ok(CacheStatsGui {
         total_bytes,
         entries,
@@ -1374,7 +1404,46 @@ async fn install_powershell_7() -> Result<String, String> {
     run_blocking(|| pyenv_core::install_powershell_7().map_err(|error| error.to_string())).await
 }
 
+#[tauri::command]
+async fn i18n_bundle() -> Result<pyenv_core::LocaleBundle, String> {
+    run_blocking(|| {
+        if let Ok(ctx) = pyenv_core::AppContext::from_system() {
+            pyenv_core::apply_i18n(&ctx.config);
+        }
+        Ok(pyenv_core::locale_bundle())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn i18n_format(
+    id: String,
+    args: std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    Ok(pyenv_core::format_message(&id, &args))
+}
+
+#[tauri::command]
+async fn set_ui_language(tag: String) -> Result<pyenv_core::LocaleBundle, String> {
+    run_blocking(move || {
+        let mut ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+        let report = pyenv_core::cmd_config_set(&mut ctx, "ui.language", &tag);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        pyenv_core::apply_i18n(&ctx.config);
+        Ok(pyenv_core::locale_bundle())
+    })
+    .await
+}
+
 fn main() {
+    pyenv_core::init_i18n();
+    if let Ok(mut ctx) = pyenv_core::AppContext::from_system() {
+        pyenv_core::apply_i18n(&ctx.config);
+        pyenv_core::ensure_managed_path(&mut ctx);
+    }
+
     #[cfg(target_os = "linux")]
     desktop_integration::prepare_linux_runtime();
 
@@ -1413,6 +1482,9 @@ fn main() {
             get_shell_statuses,
             configure_shell,
             install_powershell_7,
+            i18n_bundle,
+            i18n_format,
+            set_ui_language,
             analyze_codebase_imports,
             run_doctor,
             run_doctor_fix,

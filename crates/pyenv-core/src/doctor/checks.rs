@@ -11,17 +11,41 @@ use crate::runtime::search_path_entries;
 use crate::version::{SelectedVersions, resolve_selected_versions};
 
 use super::helpers::{path_contains, path_ext_for_platform, paths_equal};
-use super::types::{DoctorCheck, DoctorStatus};
+use super::types::{DoctorCheck, DoctorOptions, DoctorStatus};
 
-pub fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
-    collect_checks_for_platform(ctx, env::consts::OS)
+fn i18n(id: &str) -> String {
+    crate::i18n::lookup(id)
 }
 
-pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> Vec<DoctorCheck> {
+fn i18n_args(id: &str, pairs: &[(&str, String)]) -> String {
+    let mut args = std::collections::HashMap::new();
+    for (key, value) in pairs {
+        args.insert((*key).to_string(), value.clone());
+    }
+    crate::i18n::lookup_with_args(id, &args)
+}
+
+pub fn collect_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
+    collect_checks_with_options(ctx, DoctorOptions::default())
+}
+
+pub fn collect_checks_with_options(ctx: &AppContext, options: DoctorOptions) -> Vec<DoctorCheck> {
+    collect_checks_for_platform(ctx, env::consts::OS, options)
+}
+
+pub(super) fn collect_checks_for_platform(
+    ctx: &AppContext,
+    platform: &str,
+    options: DoctorOptions,
+) -> Vec<DoctorCheck> {
     let mut checks = Vec::new();
     let exe_dir = ctx.bin_dir();
     let shims_dir = ctx.shims_dir();
     let versions_dir = ctx.versions_dir();
+    let desktop_profiles_ok = options.desktop_session
+        && options
+            .profiles_configured
+            .unwrap_or_else(super::helpers::user_shell_profiles_configured);
 
     checks.push(DoctorCheck {
         name: "root-directory".to_string(),
@@ -30,32 +54,31 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
         } else {
             DoctorStatus::Warn
         },
-        detail: if ctx.root.exists() {
-            format!("root exists at {}", ctx.root.display())
-        } else {
-            format!("root does not exist yet at {}", ctx.root.display())
-        },
+        detail: path_detail(
+            ctx.root.exists(),
+            "doctor-root-ok",
+            "doctor-root-missing",
+            &ctx.root,
+        ),
     });
 
-    checks.push(DoctorCheck {
-        name: "pyenv-bin-on-path".to_string(),
-        status: if path_contains(ctx.path_env.as_ref(), &exe_dir) {
-            DoctorStatus::Ok
-        } else {
-            DoctorStatus::Warn
-        },
-        detail: format!("expected {} on PATH", exe_dir.display()),
-    });
+    checks.push(path_membership_check(
+        "pyenv-bin-on-path",
+        path_contains(ctx.path_env.as_ref(), &exe_dir),
+        desktop_profiles_ok,
+        &exe_dir,
+        "doctor-bin-on-path",
+        "doctor-bin-on-path-desktop",
+    ));
 
-    checks.push(DoctorCheck {
-        name: "shims-on-path".to_string(),
-        status: if path_contains(ctx.path_env.as_ref(), &shims_dir) {
-            DoctorStatus::Ok
-        } else {
-            DoctorStatus::Warn
-        },
-        detail: format!("expected {} on PATH", shims_dir.display()),
-    });
+    checks.push(path_membership_check(
+        "shims-on-path",
+        path_contains(ctx.path_env.as_ref(), &shims_dir),
+        desktop_profiles_ok,
+        &shims_dir,
+        "doctor-shims-on-path",
+        "doctor-shims-on-path-desktop",
+    ));
 
     checks.push(DoctorCheck {
         name: "versions-directory".to_string(),
@@ -64,14 +87,24 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
         } else {
             DoctorStatus::Info
         },
-        detail: format!("managed runtimes live under {}", versions_dir.display()),
+        detail: {
+            let mut args = std::collections::HashMap::new();
+            args.insert("path".to_string(), versions_dir.display().to_string());
+            crate::i18n::lookup_with_args("doctor-versions-dir", &args)
+        },
     });
 
     let selected = resolve_selected_versions(ctx, false);
     let selected_detail = if selected.versions.is_empty() {
-        "no selected versions".to_string()
+        i18n("doctor-no-selected-versions")
     } else {
-        format!("{} (from {})", selected.versions.join(" "), selected.origin)
+        i18n_args(
+            "doctor-selected-versions",
+            &[
+                ("versions", selected.versions.join(" ")),
+                ("origin", selected.origin.to_string()),
+            ],
+        )
     };
     checks.push(DoctorCheck {
         name: "selected-version".to_string(),
@@ -224,12 +257,9 @@ fn termux_compile_environment_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
                 DoctorStatus::Warn
             },
             detail: if found {
-                format!("Termux library {} is installed", lib)
+                i18n_args("doctor-termux-lib-ok", &[("lib", lib.to_string())])
             } else {
-                format!(
-                    "Termux library package {} is missing; please install it",
-                    lib
-                )
+                i18n_args("doctor-termux-lib-missing", &[("lib", lib.to_string())])
             },
         });
     }
@@ -245,9 +275,7 @@ fn selected_env_checks(selected: &SelectedVersions) -> Vec<DoctorCheck> {
         .map(|value| DoctorCheck {
             name: "managed-venv-selection".to_string(),
             status: DoctorStatus::Warn,
-            detail: format!(
-                "selected managed venv `{value}` is missing; run `pyenv venv list` to inspect available envs or `pyenv venv create <runtime> <name>` to recreate it"
-            ),
+            detail: i18n_args("doctor-venv-missing", &[("value", value.clone())]),
         })
         .collect()
 }
@@ -260,10 +288,7 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
         return DoctorCheck {
             name: "shim-launcher-integrity".to_string(),
             status: DoctorStatus::Warn,
-            detail: format!(
-                "pyenv CLI launcher not found at {}; reinstall pyenv-native or run the installer",
-                cli.display()
-            ),
+            detail: i18n_args("doctor-cli-missing", &[("path", cli.display().to_string())]),
         };
     }
 
@@ -278,7 +303,7 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
             return DoctorCheck {
                 name: "shim-launcher-integrity".to_string(),
                 status: DoctorStatus::Warn,
-                detail: "python shim is a copy of pyenv-gui.exe and will open the GUI instead of running Python; run `pyenv rehash` to repair".to_string(),
+                detail: i18n("doctor-shim-gui-copy"),
             };
         }
 
@@ -286,10 +311,12 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
             return DoctorCheck {
                 name: "shim-launcher-integrity".to_string(),
                 status: DoctorStatus::Warn,
-                detail: format!(
-                    "python shim at {} does not match the pyenv CLI launcher at {}; run `pyenv rehash` to refresh shims",
-                    shim.display(),
-                    cli.display()
+                detail: i18n_args(
+                    "doctor-shim-mismatch",
+                    &[
+                        ("shim", shim.display().to_string()),
+                        ("cli", cli.display().to_string()),
+                    ],
                 ),
             };
         }
@@ -304,7 +331,7 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
             return DoctorCheck {
                 name: "shim-launcher-integrity".to_string(),
                 status: DoctorStatus::Warn,
-                detail: "python shim references pyenv-gui and will open the GUI instead of running Python; run `pyenv rehash` to repair".to_string(),
+                detail: i18n("doctor-shim-gui-ref"),
             };
         }
 
@@ -312,10 +339,12 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
             return DoctorCheck {
                 name: "shim-launcher-integrity".to_string(),
                 status: DoctorStatus::Warn,
-                detail: format!(
-                    "python shim at {} does not reference the pyenv CLI launcher at {}; run `pyenv rehash` to refresh shims",
-                    shim.display(),
-                    cli.display()
+                detail: i18n_args(
+                    "doctor-shim-mismatch",
+                    &[
+                        ("shim", shim.display().to_string()),
+                        ("cli", cli.display().to_string()),
+                    ],
                 ),
             };
         }
@@ -324,7 +353,10 @@ fn shim_launcher_integrity_check(ctx: &AppContext) -> DoctorCheck {
     DoctorCheck {
         name: "shim-launcher-integrity".to_string(),
         status: DoctorStatus::Ok,
-        detail: format!("shim launchers reference {}", cli.display()),
+        detail: i18n_args(
+            "doctor-shim-launchers-ok",
+            &[("path", cli.display().to_string())],
+        ),
     }
 }
 
@@ -363,15 +395,44 @@ fn plugin_path_search_check(ctx: &AppContext) -> DoctorCheck {
         DoctorCheck {
             name: "plugin-path-search".to_string(),
             status: DoctorStatus::Info,
-            detail: "plugin discovery includes PATH; set plugins.search_path=false to restrict to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH".to_string(),
+            detail: crate::i18n::lookup("doctor-plugin-path-search-on"),
         }
     } else {
         DoctorCheck {
             name: "plugin-path-search".to_string(),
             status: DoctorStatus::Ok,
-            detail: "plugin discovery is limited to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH"
-                .to_string(),
+            detail: crate::i18n::lookup("doctor-plugin-path-search-off"),
         }
+    }
+}
+
+fn path_detail(ok: bool, ok_id: &str, missing_id: &str, path: &Path) -> String {
+    let mut args = std::collections::HashMap::new();
+    args.insert("path".to_string(), path.display().to_string());
+    crate::i18n::lookup_with_args(if ok { ok_id } else { missing_id }, &args)
+}
+
+fn path_membership_check(
+    name: &str,
+    on_path: bool,
+    desktop_profiles_ok: bool,
+    path: &Path,
+    warn_id: &str,
+    desktop_id: &str,
+) -> DoctorCheck {
+    let mut args = std::collections::HashMap::new();
+    args.insert("path".to_string(), path.display().to_string());
+    let (status, id) = if on_path {
+        (DoctorStatus::Ok, warn_id)
+    } else if desktop_profiles_ok {
+        (DoctorStatus::Info, desktop_id)
+    } else {
+        (DoctorStatus::Warn, warn_id)
+    };
+    DoctorCheck {
+        name: name.to_string(),
+        status,
+        detail: crate::i18n::lookup_with_args(id, &args),
     }
 }
 
@@ -380,7 +441,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
         return DoctorCheck {
             name: "functional-shim-check".to_string(),
             status: DoctorStatus::Info,
-            detail: "skipped functional test; no python version selected".to_string(),
+            detail: i18n("doctor-func-skip-no-version"),
         };
     }
 
@@ -388,7 +449,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
         return DoctorCheck {
             name: "functional-shim-check".to_string(),
             status: DoctorStatus::Info,
-            detail: "skipped functional test; selected versions are missing".to_string(),
+            detail: i18n("doctor-func-skip-missing"),
         };
     }
 
@@ -399,7 +460,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
         return DoctorCheck {
             name: "functional-shim-check".to_string(),
             status: DoctorStatus::Warn,
-            detail: "python shim not found; run `pyenv rehash` to generate it".to_string(),
+            detail: i18n("doctor-func-shim-missing"),
         };
     }
 
@@ -420,7 +481,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
             DoctorCheck {
                 name: "functional-shim-check".to_string(),
                 status: DoctorStatus::Ok,
-                detail: format!("shim functional; successfully invoked {version_str}"),
+                detail: i18n_args("doctor-func-ok", &[("version", version_str)]),
             }
         }
         Ok(out) => {
@@ -428,19 +489,21 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
             DoctorCheck {
                 name: "functional-shim-check".to_string(),
                 status: DoctorStatus::Warn,
-                detail: format!(
-                    "shim invocation failed (exit status {}): {}",
-                    out.status, error
+                detail: i18n_args(
+                    "doctor-func-failed",
+                    &[("status", out.status.to_string()), ("error", error)],
                 ),
             }
         }
         Err(e) => DoctorCheck {
             name: "functional-shim-check".to_string(),
             status: DoctorStatus::Warn,
-            detail: format!(
-                "failed to launch python shim at {}: {}",
-                python_shim.display(),
-                e
+            detail: i18n_args(
+                "doctor-func-launch-failed",
+                &[
+                    ("path", python_shim.display().to_string()),
+                    ("error", e.to_string()),
+                ],
             ),
         },
     }
@@ -455,10 +518,7 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
         checks.push(DoctorCheck {
             name: "pyenv-win-root-conflict".to_string(),
             status: DoctorStatus::Warn,
-            detail: format!(
-                "PYENV_ROOT is set to `{}` which looks like a pyenv-win path; pyenv-native overrides this at runtime, but removing the env var is recommended: remove PYENV_ROOT from your User environment variables",
-                env_root
-            ),
+            detail: i18n_args("doctor-pyenv-win-root", &[("path", env_root)]),
         });
     }
 
@@ -492,9 +552,9 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
                 checks.push(DoctorCheck {
                     name: "pyenv-win-path-conflict".to_string(),
                     status: DoctorStatus::Warn,
-                    detail: format!(
-                        "pyenv-win PATH entries appear before pyenv-native in PATH; this can cause pyenv-win to intercept commands. Remove pyenv-win entries from your User PATH: {}",
-                        entries[pw_pos].display()
+                    detail: i18n_args(
+                        "doctor-pyenv-win-path",
+                        &[("path", entries[pw_pos].display().to_string())],
                     ),
                 });
             }
@@ -505,18 +565,22 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
 }
 
 fn windows_store_alias_check(ctx: &AppContext) -> DoctorCheck {
-    let detail = match find_system_python_command(ctx) {
-        Some(path) if path.to_string_lossy().contains("WindowsApps") => format!(
-            "system python resolves to WindowsApps alias at {}; this 'trap' can intercept commands and should be disabled in 'Settings > Apps > App Execution Aliases'",
-            path.display()
+    let (status, detail) = match find_system_python_command(ctx) {
+        Some(path) if path.to_string_lossy().contains("WindowsApps") => (
+            DoctorStatus::Warn,
+            i18n_args(
+                "doctor-store-alias",
+                &[("path", path.display().to_string())],
+            ),
         ),
-        Some(path) => format!("system python resolves to {}", path.display()),
-        None => "no system python found on PATH".to_string(),
-    };
-    let status = if detail.contains("WindowsApps") {
-        DoctorStatus::Warn
-    } else {
-        DoctorStatus::Info
+        Some(path) => (
+            DoctorStatus::Info,
+            i18n_args(
+                "doctor-system-python",
+                &[("path", path.display().to_string())],
+            ),
+        ),
+        None => (DoctorStatus::Info, i18n("doctor-no-system-python")),
     };
     DoctorCheck {
         name: "system-python".to_string(),
@@ -530,13 +594,13 @@ fn windows_powershell_7_check(ctx: &AppContext) -> DoctorCheck {
         DoctorCheck {
             name: "powershell-7".to_string(),
             status: DoctorStatus::Ok,
-            detail: "PowerShell 7 (pwsh) is on PATH".to_string(),
+            detail: i18n("doctor-pwsh-ok"),
         }
     } else {
         DoctorCheck {
             name: "powershell-7".to_string(),
             status: DoctorStatus::Warn,
-            detail: "PowerShell 7 (pwsh) was not found. pyenv-native prefers pwsh for .ps1 plugins, shell init, and doctor --fix. Install with: winget install --id Microsoft.PowerShell".to_string(),
+            detail: i18n("doctor-pwsh-missing"),
         }
     }
 }
@@ -546,12 +610,18 @@ fn non_windows_python_build_check(ctx: &AppContext) -> DoctorCheck {
         Ok(path) => DoctorCheck {
             name: "python-build-backend".to_string(),
             status: DoctorStatus::Ok,
-            detail: format!("python-build available at {}", path.display()),
+            detail: i18n_args(
+                "doctor-python-build-ok",
+                &[("path", path.display().to_string())],
+            ),
         },
         Err(error) => DoctorCheck {
             name: "python-build-backend".to_string(),
             status: DoctorStatus::Info,
-            detail: format!("{error} (native CPython source builds do not require it)"),
+            detail: i18n_args(
+                "doctor-python-build-optional",
+                &[("error", error.to_string())],
+            ),
         },
     }
 }
@@ -563,21 +633,21 @@ fn non_windows_source_build_checks(ctx: &AppContext, platform: &str) -> Vec<Doct
         ctx,
         "source-build-shell",
         &["sh", "bash"],
-        "required for configure-script execution",
+        "doctor-reason-shell",
         platform,
     ));
     checks.push(command_presence_check(
         ctx,
         "source-build-make",
         &["make", "gmake"],
-        "required for native CPython source builds",
+        "doctor-reason-make",
         platform,
     ));
     checks.push(command_presence_check(
         ctx,
         "source-build-compiler",
         &["cc", "clang", "gcc"],
-        "required for native CPython source builds",
+        "doctor-reason-compiler",
         platform,
     ));
 
@@ -585,7 +655,7 @@ fn non_windows_source_build_checks(ctx: &AppContext, platform: &str) -> Vec<Doct
         ctx,
         "source-build-pkg-config",
         &["pkg-config"],
-        "recommended for locating native library dependencies",
+        "doctor-reason-pkg-config",
         platform,
     );
     checks.push(DoctorCheck {
@@ -607,11 +677,12 @@ fn non_windows_source_build_checks(ctx: &AppContext, platform: &str) -> Vec<Doct
             DoctorStatus::Ok
         },
         detail: if toolchain_missing {
-            format!(
-                "{platform} source builds may fail until the required shell, make, and compiler tooling are available"
+            i18n_args(
+                "doctor-source-may-fail",
+                &[("platform", platform.to_string())],
             )
         } else {
-            format!("{platform} source-build prerequisites look available on PATH")
+            i18n_args("doctor-source-ok", &[("platform", platform.to_string())])
         },
     });
 
@@ -641,7 +712,13 @@ fn command_presence_check(
             return DoctorCheck {
                 name: name.to_string(),
                 status: DoctorStatus::Ok,
-                detail: format!("{} available at {}", command, path.display()),
+                detail: i18n_args(
+                    "doctor-command-ok",
+                    &[
+                        ("command", command.to_string()),
+                        ("path", path.display().to_string()),
+                    ],
+                ),
             };
         }
     }
@@ -649,7 +726,13 @@ fn command_presence_check(
     DoctorCheck {
         name: name.to_string(),
         status: DoctorStatus::Warn,
-        detail: format!("{}; searched for {}", missing_detail, commands.join(", ")),
+        detail: i18n_args(
+            "doctor-command-missing",
+            &[
+                ("reason", i18n(missing_detail)),
+                ("commands", commands.join(", ")),
+            ],
+        ),
     }
 }
 

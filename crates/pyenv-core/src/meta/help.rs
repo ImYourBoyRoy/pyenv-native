@@ -73,46 +73,26 @@ struct ExternalCommandDoc {
 
 fn render_top_level_help(usage_only: bool) -> CommandReport {
     if usage_only {
-        return CommandReport::success_one("Usage: pyenv <command> [<args>]");
+        return CommandReport::success_one(crate::lookup_i18n("cli-help-usage"));
     }
 
     let mut stdout = vec![
-        "Usage: pyenv <command> [<args>]".to_string(),
+        crate::lookup_i18n("cli-help-usage"),
         String::new(),
-        "Some useful pyenv commands are:".to_string(),
+        crate::lookup_i18n("cli-help-useful"),
     ];
-    stdout.extend(
-        PUBLIC_COMMAND_DOCS
-            .iter()
-            .map(|doc| format!("   {:<12} {}", doc.name, doc.summary)),
-    );
+    stdout.extend(PUBLIC_COMMAND_DOCS.iter().map(|doc| {
+        let id = format!("cli-{}-about", doc.name);
+        let about = crate::lookup_i18n(&id);
+        let summary = if about != id {
+            about
+        } else {
+            doc.summary.to_string()
+        };
+        format!("   {:<12} {}", doc.name, summary)
+    }));
     stdout.push(String::new());
-    stdout.push("CORE CONCEPTS:".to_string());
-    stdout.push("  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands".to_string());
-    stdout.push("               and route them to the correct Python version based on your current environment.".to_string());
-    stdout.push(
-        "               Run `pyenv rehash` to refresh these after installing new pip packages."
-            .to_string(),
-    );
-    stdout.push("  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.".to_string());
-    stdout.push("  Managed envs: Named virtual environments can live under `~/.pyenv/venvs/<runtime>/<name>`.".to_string());
-    stdout.push("               Use `pyenv venv create 3.14 api` and bind a folder with `pyenv venv use api`.".to_string());
-    stdout.push("  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.".to_string());
-    stdout.push("  Selection:   Pyenv decides which Python version to use in this order (highest priority first):".to_string());
-    stdout.push(
-        "                 1. PYENV_VERSION environment variable (set via `pyenv shell`)"
-            .to_string(),
-    );
-    stdout.push(
-        "                 2. .python-version file in the current directory (set via `pyenv local`)"
-            .to_string(),
-    );
-    stdout.push("                 3. The global version file (set via `pyenv global`)".to_string());
-    stdout.push(String::new());
-    stdout.push("See `pyenv help <command>` for information on a specific command.".to_string());
-    stdout.push(
-        "For full documentation, see: https://github.com/imyourboyroy/pyenv-native".to_string(),
-    );
+    stdout.push(crate::lookup_i18n("cli-help-concepts"));
     CommandReport::success(stdout)
 }
 

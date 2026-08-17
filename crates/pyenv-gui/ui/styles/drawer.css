@@ -48,6 +48,21 @@
 .drawer.open {
   right: 0;
 }
+.drawer-backdrop {
+  position: fixed;
+  top: var(--titlebar-height);
+  right: 0;
+  bottom: var(--footer-height);
+  left: 0;
+  z-index: 1990;
+  background: rgba(0, 0, 0, 0.4);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.drawer-backdrop[hidden] {
+  display: none !important;
+}
 .drawer-header {
   display: flex;
   align-items: center;

@@ -20,11 +20,62 @@ param(
     [string]$LogPath,
     [switch]$Force,
     [switch]$Yes,
+    [string]$Lang,
     [ValidateSet('auto', 'true', 'false')]
     [string]$InstallPowerShell7 = 'auto'
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $Lang) {
+    if ($env:PYENV_LANG) { $Lang = $env:PYENV_LANG }
+    elseif ($env:LANG) { $Lang = $env:LANG }
+    else { $Lang = 'en-US' }
+}
+
+$installStrings = Join-Path $PSScriptRoot 'i18n/install-strings.ps1'
+if (Test-Path -LiteralPath $installStrings) {
+    . $installStrings
+}
+
+function Get-InstallText {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [string]$Arg = ''
+    )
+    if (Get-Command Get-PyenvInstallString -ErrorAction SilentlyContinue) {
+        return Get-PyenvInstallString -Key $Key -Lang $Lang -Arg $Arg
+    }
+    $fallback = @{
+        'install-downloading' = 'Downloading { $version }'
+        'install-extracting' = 'Extracting release bundle'
+        'install-installing' = 'Installing into { $path }'
+        'install-done' = 'pyenv-native installed. Open a new terminal, then run `pyenv doctor`.'
+        'install-failed' = 'Installation failed'
+        'install-summary-title' = 'pyenv-native install summary'
+        'install-network-summary-title' = 'pyenv-native network install summary'
+        'install-summary-blurb' = 'This will create or update a portable pyenv-native installation under the selected root.'
+        'install-summary-blurb-detail' = 'It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks.'
+        'install-network-blurb' = 'This will download a published pyenv-native bundle, verify its SHA-256 checksum, and install it into the selected portable root.'
+        'install-profile-yes' = 'Your shell profile will be updated so future sessions can find pyenv-native automatically.'
+        'install-profile-yes-pwsh' = 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.'
+        'install-profile-no' = 'No shell profile changes will be made.'
+        'install-profile-no-pwsh' = 'No PowerShell profile changes will be made.'
+        'install-continue' = 'Continue with install? [y/N]'
+        'install-need-yes' = 'Confirmation is required for interactive installs. Re-run with --yes for non-interactive use.'
+        'install-need-yes-pwsh' = 'Confirmation is required for interactive installs. Re-run with -Yes for non-interactive use.'
+        'install-cancelled' = 'Install cancelled.'
+        'install-installed-to' = 'Installed pyenv-native to { $path }'
+        'install-installed-command' = 'Installed command: { $path }'
+        'install-installed-mcp' = 'Installed MCP server: { $path }'
+        'install-mcp-helper' = 'MCP config helper: { $command }'
+        'install-installed-gui' = 'Installed GUI: { $path }'
+        'install-log-file' = 'Log file: { $path }'
+    }
+    $template = $fallback[$Key]
+    if (-not $template) { return $Key }
+    return [regex]::Replace($template, '\{\s*\$[A-Za-z0-9_-]+\s*\}', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $Arg })
+}
 
 function Convert-ToBoolean {
     param(
@@ -333,18 +384,18 @@ function Write-InstallSummary {
     )
 
     Write-Host ''
-    Write-Host 'pyenv-native install summary'
+    Write-Host (Get-InstallText -Key 'install-summary-title')
     Write-Host '============================'
     foreach ($entry in $Summary.GetEnumerator()) {
         Write-Host ('{0,-18}: {1}' -f $entry.Key, $entry.Value)
     }
     Write-Host ''
-    Write-Host 'This will create or update a portable pyenv-native installation under the selected root.'
-    Write-Host 'It installs pyenv plus the agent-friendly pyenv-mcp server and the GUI companion when available, writes an install log, and runs basic sanity checks.'
+    Write-Host (Get-InstallText -Key 'install-summary-blurb')
+    Write-Host (Get-InstallText -Key 'install-summary-blurb-detail')
     if ($Summary.update_profile -eq $true) {
-        Write-Host 'Your PowerShell profile will be updated so future sessions can find pyenv-native automatically.'
+        Write-Host (Get-InstallText -Key 'install-profile-yes-pwsh')
     } else {
-        Write-Host 'No PowerShell profile changes will be made.'
+        Write-Host (Get-InstallText -Key 'install-profile-no-pwsh')
     }
     Write-Host ''
 }
@@ -397,19 +448,20 @@ function Confirm-Install {
     }
 
     try {
-        $answer = Read-Host 'Continue with install? [y/N]'
+        $prompt = (Get-InstallText -Key 'install-continue').Trim().TrimEnd(':')
+        $answer = Read-Host $prompt
     } catch {
-        throw 'Confirmation is required for interactive installs. Re-run with -Yes for non-interactive use.'
+        throw (Get-InstallText -Key 'install-need-yes-pwsh')
     }
 
     if ($null -eq $answer -or $answer.Trim().Length -eq 0) {
-        throw 'Install cancelled.'
+        throw (Get-InstallText -Key 'install-cancelled')
     }
 
     switch ($answer.Trim().ToLowerInvariant()) {
         'y' { return }
         'yes' { return }
-        default { throw 'Install cancelled.' }
+        default { throw (Get-InstallText -Key 'install-cancelled') }
     }
 }
 
@@ -507,7 +559,7 @@ Write-InstallSummary -Summary $summary
 Confirm-Install
 Install-PowerShell7IfNeeded -Mode $InstallPowerShell7 -AssumeYes:($Yes -or $Force.IsPresent)
 Initialize-InstallLog -ResolvedLogPath $resolvedLogPath
-Write-InstallLog -Level 'INFO' -Message 'Starting portable pyenv-native install.' -ResolvedLogPath $resolvedLogPath
+Write-InstallLog -Level 'INFO' -Message (Get-InstallText -Key 'install-installing' -Arg $resolvedInstallRoot) -ResolvedLogPath $resolvedLogPath
 
 New-Item -ItemType Directory -Force -Path $installBin | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $resolvedInstallRoot 'shims') | Out-Null
@@ -572,17 +624,18 @@ if ($resolvedGuiSource) {
 }
 
 Write-InstallLog -Level 'INFO' -Message 'Install completed successfully.' -ResolvedLogPath $resolvedLogPath
+Write-Host (Get-InstallText -Key 'install-done')
 Write-Host ''
-Write-Host "Installed pyenv-native to $resolvedInstallRoot"
-Write-Host "Installed command: $installedExe"
+Write-Host (Get-InstallText -Key 'install-installed-to' -Arg $resolvedInstallRoot)
+Write-Host (Get-InstallText -Key 'install-installed-command' -Arg $installedExe)
 if ($resolvedMcpSource) {
-    Write-Host "Installed MCP server: $installedMcpExe"
-    Write-Host "MCP config helper: & '$installedMcpExe' print-config"
+    Write-Host (Get-InstallText -Key 'install-installed-mcp' -Arg $installedMcpExe)
+    Write-Host (Get-InstallText -Key 'install-mcp-helper' -Arg "& '$installedMcpExe' print-config")
 }
 if ($resolvedGuiSource) {
-    Write-Host "Installed GUI: $installedGuiExe"
+    Write-Host (Get-InstallText -Key 'install-installed-gui' -Arg $installedGuiExe)
 }
-Write-Host "Log file: $resolvedLogPath"
+Write-Host (Get-InstallText -Key 'install-log-file' -Arg $resolvedLogPath)
 if ($Shell -eq 'cmd') {
     Write-Host "CMD note: run '$installBin\pyenv-init.cmd' in each interactive CMD session, or wire it into your preferred startup flow."
 }

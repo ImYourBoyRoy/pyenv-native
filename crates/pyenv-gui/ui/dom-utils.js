@@ -92,6 +92,9 @@
         if (!container) return;
         container.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         if (isLoading) {
+            if (container.querySelector('.version-card, .status-card, .cache-row')) {
+                return;
+            }
             container.replaceChildren();
             const state = document.createElement('div');
             state.className = 'empty-state';
