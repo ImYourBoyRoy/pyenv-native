@@ -10,7 +10,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.3.2"
+version = "0.4.0"
 # Shared direct deps. Keep caret/minimum operators so `cargo update` can take
 # the newest compatible crates.io releases without pinning exact versions.
 [workspace.dependencies]

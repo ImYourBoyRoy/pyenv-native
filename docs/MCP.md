@@ -153,7 +153,7 @@ Current high-value tools include:
 - `get_install_instructions`
 - `preflight` (OS/toolchain intelligence and install readiness)
 - `doctor`
-- `doctor_fix` (safe automated repairs; `force=false` returns the plan without applying)
+- `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; `force=false` returns the plan without applying)
 - `inspect_environment` (structured status overview: versions, origins, venvs)
 - `resolve_project_environment`
 - `list_available_versions`

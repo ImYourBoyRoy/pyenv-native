@@ -123,7 +123,7 @@ pyenv pip update --all 3.14.7/envs/api
 
 - `pyenv doctor` — Run a suite of health checks to verify your installation, PATH, and platform prerequisites.
   - **Android/Termux Auditing:** On Termux environments, the doctor will automatically audit the state of required compiler toolchains (`clang`, `make`, `pkg-config`) and system header libraries (`libffi`, `openssl`, `readline`, `ncurses`) to verify source-compilation readiness.
-- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`). Windows Store App Execution Aliases are not changed automatically; doctor prints the Settings path when the stub is ahead of shims.
+- `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`). On Windows, `--fix` (and GUI Self-Healing) removes App Installer `python.exe` / `python3.exe` stubs from `%LOCALAPPDATA%\Microsoft\WindowsApps` when those stubs sit ahead of pyenv shims. That is the functional fix; Windows does not expose a public API to flip the Settings toggles. Turning **App Installer python.exe** and **python3.exe** off in Settings is optional and only prevents Windows from recreating the stubs. Windows 11: Settings > Apps > Advanced app settings > App execution aliases (`ms-settings:advanced-apps`). Windows 10: Settings > Apps > App execution aliases.
 - `pyenv preflight` / `pyenv environment` — Report OS, toolchain, and source-build readiness before compiling Python.
 
 ## Shell Integration

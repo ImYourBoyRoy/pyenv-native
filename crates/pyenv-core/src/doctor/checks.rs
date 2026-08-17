@@ -11,8 +11,8 @@ use crate::runtime::search_path_entries;
 use crate::version::{SelectedVersions, resolve_selected_versions};
 
 use super::helpers::{
-    find_windows_store_python_alias, path_contains, path_ext_for_platform, paths_equal,
-    windows_store_alias_precedes_shims,
+    find_windows_store_python_alias_in, path_contains, path_ext_for_platform, paths_equal,
+    store_alias_path_env, windows_store_alias_precedes_shims_in,
 };
 use super::types::{DoctorCheck, DoctorOptions, DoctorStatus};
 
@@ -121,7 +121,7 @@ pub(super) fn collect_checks_for_platform(
 
     if platform == "windows" {
         checks.extend(pyenv_win_conflict_checks(ctx));
-        checks.push(windows_store_alias_check(ctx));
+        checks.push(windows_store_alias_check(ctx, options.desktop_session));
         checks.push(windows_powershell_7_check(ctx));
     } else {
         checks.extend(non_windows_source_build_checks(ctx, platform));
@@ -567,9 +567,11 @@ fn pyenv_win_conflict_checks(ctx: &AppContext) -> Vec<DoctorCheck> {
     checks
 }
 
-fn windows_store_alias_check(ctx: &AppContext) -> DoctorCheck {
-    if let Some(alias) = find_windows_store_python_alias(ctx) {
-        let intercepts = windows_store_alias_precedes_shims(ctx);
+fn windows_store_alias_check(ctx: &AppContext, desktop_session: bool) -> DoctorCheck {
+    let path_env = store_alias_path_env(ctx, desktop_session);
+    if let Some(alias) = find_windows_store_python_alias_in(path_env.as_deref()) {
+        let intercepts =
+            windows_store_alias_precedes_shims_in(&ctx.shims_dir(), path_env.as_deref());
         let (status, detail) = if intercepts {
             (
                 DoctorStatus::Warn,

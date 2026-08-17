@@ -637,7 +637,7 @@ pyenv doctor --fix
 - root detection,
 - shim visibility,
 - system Python visibility,
-- Windows Store alias conflicts (Warn when the Store stub is ahead of pyenv shims; Info when shims already take precedence — `doctor --fix` cannot disable App Execution Aliases),
+- Windows Store alias conflicts (Warn when the App Installer stub is ahead of pyenv shims; Info when shims already take precedence — `doctor --fix` / GUI Self-Healing removes the `python.exe` / `python3.exe` stubs; turning the aliases off in Settings is optional),
 - Linux/macOS/Android source-build readiness,
 - missing managed env selections,
 - shell init / PATH repair hints.

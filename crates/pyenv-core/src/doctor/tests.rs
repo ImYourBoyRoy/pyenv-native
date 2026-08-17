@@ -231,7 +231,10 @@ mod tests {
             "got {}",
             system_python.detail
         );
-        assert!(!super::super::helpers::windows_store_alias_needs_manual_fix(&ctx));
+        assert!(!super::super::helpers::windows_store_alias_needs_fix_in(
+            &ctx,
+            ctx.path_env.as_deref()
+        ));
     }
 
     #[test]
@@ -252,8 +255,57 @@ mod tests {
             "got {}",
             system_python.detail
         );
-        assert!(super::super::helpers::windows_store_alias_needs_manual_fix(
-            &ctx
+        assert!(super::super::helpers::windows_store_alias_needs_fix_in(
+            &ctx,
+            ctx.path_env.as_deref()
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_store_alias_fix_plan_removes_stubs_without_settings_manual() {
+        crate::i18n::set_lang_tag("en-US");
+        let (_temp, mut ctx) = test_context();
+        let alias_dir = windowsapps_python_stub(_temp.path());
+        ctx.path_env = Some(env::join_paths([alias_dir, ctx.shims_dir()]).expect("path env"));
+        let plan = crate::doctor_fix_plan_with_options(&ctx, DoctorOptions::default());
+        let stubs = plan
+            .iter()
+            .find(|fix| fix.key == "windows-store-alias-stubs")
+            .expect("stub removal fix");
+        assert!(stubs.automated);
+        assert!(
+            plan.iter()
+                .all(|fix| fix.key != "windows-store-alias-settings"),
+            "Settings toggle is optional and must not block self-healing"
+        );
+    }
+
+    #[test]
+    fn remove_windows_store_python_stubs_only_deletes_python_aliases() {
+        let temp = TempDir::new().expect("tempdir");
+        let alias_dir = temp.path().join("Microsoft").join("WindowsApps");
+        fs::create_dir_all(&alias_dir).expect("windowsapps dir");
+        let python = alias_dir.join("python.exe");
+        let python3 = alias_dir.join("python3.exe");
+        let winget = alias_dir.join("winget.exe");
+        fs::write(&python, "").expect("python stub");
+        fs::write(&python3, "").expect("python3 stub");
+        fs::write(&winget, "keep").expect("winget");
+
+        let removed = super::super::helpers::remove_windows_store_python_stubs_in(&alias_dir)
+            .expect("remove stubs");
+        assert!(removed.iter().any(|path| path.ends_with("python.exe")));
+        assert!(removed.iter().any(|path| path.ends_with("python3.exe")));
+        assert!(!python.exists());
+        assert!(!python3.exists());
+        assert_eq!(fs::read_to_string(&winget).expect("winget kept"), "keep");
+
+        let other = temp.path().join("not-windowsapps");
+        fs::create_dir_all(&other).expect("other dir");
+        fs::write(other.join("python.exe"), "").expect("other python");
+        let refused = super::super::helpers::remove_windows_store_python_stubs_in(&other);
+        assert!(refused.is_err(), "got {refused:?}");
+        assert!(other.join("python.exe").is_file());
     }
 }

@@ -846,13 +846,44 @@ function doctorIssueStatus(status) {
 }
 
 const MANUAL_ONLY_DOCTOR_CHECKS = new Set([
-    'system-python',
     'pyenv-win-root-conflict',
     'pyenv-win-path-conflict',
 ]);
 
 function doctorIssueIsAutoHealable(issue) {
     return issue && !MANUAL_ONLY_DOCTOR_CHECKS.has(String(issue.name || '').toLowerCase());
+}
+
+function isWindowsPlatform() {
+    return String(window.__installPlatform || '').toLowerCase() === 'windows';
+}
+
+function syncWindowsDoctorAliasButtons(showOnIssuesCard = false) {
+    const isWindows = isWindowsPlatform();
+    const header = document.getElementById('btn-doctor-open-aliases');
+    if (header) {
+        header.hidden = !isWindows;
+    }
+    const card = document.getElementById('btn-doctor-open-aliases-card');
+    if (card) {
+        card.hidden = !(isWindows && showOnIssuesCard);
+    }
+}
+
+async function openAppExecutionAliases() {
+    try {
+        await invoke('open_app_execution_aliases');
+    } catch (err) {
+        const detail = err ? String(err) : 'unknown error';
+        showAlert(
+            t('gui-doctor-open-aliases-title', null, 'Open Windows Settings to App execution aliases'),
+            `${t(
+                'gui-doctor-open-aliases-failed',
+                null,
+                'Could not open App execution aliases. On Windows 11, open Settings > Apps > Advanced app settings > App execution aliases and turn off App Installer python.exe and python3.exe.'
+            )}<br><code style="font-size:11px;">${escapeHtml(detail)}</code>`
+        );
+    }
 }
 
 function normalizeDoctorFixOutcome(raw) {
@@ -1700,6 +1731,8 @@ async function loadConfig() {
         const platform = window.__installPlatform || 'linux';
         window.__installPlatform = platform;
 
+        syncWindowsDoctorAliasButtons();
+
         const windowsBlock = document.getElementById('settings-windows');
         if (windowsBlock) {
             windowsBlock.hidden = platform !== 'windows';
@@ -1822,6 +1855,7 @@ async function checkInstallation() {
         const body = document.getElementById('setup-banner-body');
         const actionBtn = document.getElementById('btn-run-setup-banner');
         window.__installPlatform = status.platform || 'linux';
+        syncWindowsDoctorAliasButtons();
 
         const showBanner = !status.is_installed || status.needs_shell_setup;
         if (banner) banner.style.display = showBanner ? 'block' : 'none';
@@ -3337,8 +3371,10 @@ async function runDoctorDiagnostics() {
                 btnDoctorFix.disabled = true;
                 btnDoctorFix.textContent = t('gui-doctor-repair-unavailable', null, 'Repair unavailable');
             }
+            syncWindowsDoctorAliasButtons(true);
         } else if (issues.length === 0) {
             if (doctorHealthyCard) doctorHealthyCard.style.display = 'block';
+            syncWindowsDoctorAliasButtons(false);
         } else {
             if (doctorIssuesCard) doctorIssuesCard.style.display = 'block';
             if (doctorIssuesList) {
@@ -3358,6 +3394,7 @@ async function runDoctorDiagnostics() {
                     ? t('gui-doctor-fix', null, 'Attempt Self-Healing Repair')
                     : t('gui-doctor-fix-manual', null, 'Manual steps required');
             }
+            syncWindowsDoctorAliasButtons(true);
         }
         
         if (doctorResults) doctorResults.style.display = 'block';
@@ -3366,6 +3403,7 @@ async function runDoctorDiagnostics() {
         showAlert(t('gui-diagnostics-failed', null, 'Diagnostics Failed'), `${t('gui-doctor-could-not-complete', null, 'Doctor could not complete:')}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
         if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
         if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
+        syncWindowsDoctorAliasButtons(false);
     } finally {
         if (doctorLoading) doctorLoading.style.display = 'none';
         btnRunDoctor.disabled = false;
@@ -3426,3 +3464,7 @@ const btnDoctorFix = document.getElementById('btn-doctor-fix');
 if (btnDoctorFix) {
     btnDoctorFix.addEventListener('click', attemptDoctorFix);
 }
+
+document.querySelectorAll('[data-open-app-aliases]').forEach((btn) => {
+    btn.addEventListener('click', openAppExecutionAliases);
+});

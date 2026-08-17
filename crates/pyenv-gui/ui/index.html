@@ -398,7 +398,10 @@
               </svg>
               <span data-i18n="gui-doctor-title">System Health & Self-Healing Diagnostics</span>
             </h3>
-            <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks." data-i18n="gui-doctor-run" data-i18n-title="gui-doctor-run-title">Run Diagnostics</button>
+            <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+              <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases" hidden style="font-size: 11px; padding: 4px 10px;" title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">Open App execution aliases</button>
+              <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks." data-i18n="gui-doctor-run" data-i18n-title="gui-doctor-run-title">Run Diagnostics</button>
+            </div>
           </div>
           
           <div id="doctor-loading" class="empty-state" style="display: none; padding: 20px;">
@@ -415,9 +418,14 @@
               <div id="doctor-issues-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
                 <!-- Dynamically populated issues -->
               </div>
-              <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor." data-i18n="gui-doctor-fix" data-i18n-title="gui-doctor-fix-title">
-                Attempt Self-Healing Repair
-              </button>
+              <div class="doctor-actions">
+                <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor." data-i18n="gui-doctor-fix" data-i18n-title="gui-doctor-fix-title">
+                  Attempt Self-Healing Repair
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases-card" hidden style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">
+                  Open App execution aliases
+                </button>
+              </div>
             </div>
             
             <div id="doctor-healthy-card" class="glass" style="padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02); display: none;">

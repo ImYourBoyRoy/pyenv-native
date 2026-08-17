@@ -97,13 +97,15 @@ pub fn doctor_fix_plan_with_options(ctx: &AppContext, options: DoctorOptions) ->
             });
         }
 
-        if super::helpers::windows_store_alias_needs_manual_fix(ctx) {
+        let alias_path = super::helpers::store_alias_path_env(ctx, options.desktop_session);
+        if super::helpers::windows_store_alias_needs_fix_in(ctx, alias_path.as_deref()) {
             fixes.push(DoctorFix {
-                key: "windows-store-alias-manual".to_string(),
-                automated: false,
+                key: "windows-store-alias-stubs".to_string(),
+                automated: true,
                 description: fix_text("doctor-fix-store-alias"),
                 command_hint: Some(
-                    "Settings > Apps > Advanced app settings > App execution aliases".to_string(),
+                    r#"Remove-Item -LiteralPath @("$env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe","$env:LOCALAPPDATA\Microsoft\WindowsApps\python3.exe") -Force -ErrorAction SilentlyContinue"#
+                        .to_string(),
                 ),
             });
         }
@@ -202,6 +204,9 @@ pub fn apply_doctor_fixes_with_options(
     let has_powershell_7_fix = plan
         .iter()
         .any(|f| f.key == "install-powershell-7" && f.automated);
+    let has_windows_store_alias_fix = plan
+        .iter()
+        .any(|f| f.key == "windows-store-alias-stubs" && f.automated);
     let manual = plan
         .into_iter()
         .filter(|item| !item.automated)
@@ -310,6 +315,28 @@ pub fn apply_doctor_fixes_with_options(
         "Ensured the managed directory layout exists under {}",
         ctx.root.display()
     ));
+
+    if has_windows_store_alias_fix {
+        match super::helpers::remove_windows_store_python_alias_stubs(ctx) {
+            Ok(removed) if removed.is_empty() => applied.push(format!(
+                "No Microsoft Store python.exe / python3.exe stubs were present to remove. {}",
+                fix_text("doctor-fix-store-alias-settings")
+            )),
+            Ok(removed) => applied.push(format!(
+                "Removed Store python alias stub(s): {}. {}",
+                removed
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                fix_text("doctor-fix-store-alias-settings")
+            )),
+            Err(error) => applied.push(format!(
+                "Could not remove Store python alias stubs ({error}). {}",
+                fix_text("doctor-fix-store-alias-settings")
+            )),
+        }
+    }
 
     let count = rehash_shims(ctx)?;
     applied.push(format!(

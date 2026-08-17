@@ -467,4 +467,9 @@ html[data-reduced-motion="true"] .btn-primary:hover {
 .doctor-issue strong {
   color: var(--accent-gold);
 }
+.doctor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 

@@ -508,6 +508,39 @@ fn open_url(url: String) -> Result<(), String> {
     opener::open(url).map_err(|error| format!("failed to open URL: {error}"))
 }
 
+#[cfg(windows)]
+fn open_ms_settings(uri: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    const ALLOWED: &[&str] = &["ms-settings:advanced-apps", "ms-settings:appsfeatures"];
+    if !ALLOWED.contains(&uri) {
+        return Err("unsupported Windows Settings page".to_string());
+    }
+    let status = std::process::Command::new("cmd")
+        .args(["/c", "start", "", uri])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .map_err(|error| format!("failed to open Windows Settings: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("Windows Settings returned {status}"))
+    }
+}
+
+#[tauri::command]
+fn open_app_execution_aliases() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        open_ms_settings("ms-settings:advanced-apps")
+            .or_else(|_| open_ms_settings("ms-settings:appsfeatures"))
+    }
+    #[cfg(not(windows))]
+    {
+        Err("App execution aliases are only available in Windows Settings".to_string())
+    }
+}
+
 #[derive(serde::Serialize)]
 struct ShellStatus {
     name: String,
@@ -1492,6 +1525,7 @@ fn main() {
             uninstall_version,
             get_app_version,
             open_url,
+            open_app_execution_aliases,
             check_install_status,
             install_local_pyenv,
             get_pip_packages,

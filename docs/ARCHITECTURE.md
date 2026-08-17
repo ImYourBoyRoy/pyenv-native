@@ -393,7 +393,7 @@ Current checks include:
 - root visibility,
 - shims visibility,
 - system Python detection,
-- Windows Store alias warnings (only when the Store stub can intercept `python` before pyenv shims),
+- Windows Store alias warnings (Warn when the App Installer stub can intercept `python` before pyenv shims; `--fix` / GUI Self-Healing removes those stubs; Settings is optional persistence only),
 - Linux/macOS source-build readiness:
   - shell,
   - `make` / `gmake`,
