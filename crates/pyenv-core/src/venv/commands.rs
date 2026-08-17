@@ -5,6 +5,8 @@ use crate::process::PyenvCommandExt;
 use std::fs;
 use std::process::Command;
 
+use crate::pip::cmd_pip_list;
+
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
@@ -356,13 +358,11 @@ pub fn cmd_venv_upgrade(
     force: bool,
     set_local: bool,
 ) -> CommandReport {
-    // 1. Resolve old managed venv
     let info = match resolve_managed_venv(ctx, spec) {
         Ok(i) => i,
         Err(e) => return CommandReport::failure(vec![e.to_string()], 1),
     };
 
-    // 2. Resolve target Python version
     let resolved_new_version = match resolve_installed_runtime_version(ctx, new_runtime) {
         Ok(ver) => ver,
         Err(e) => {
@@ -377,35 +377,38 @@ pub fn cmd_venv_upgrade(
         }
     };
 
-    // 3. Query installed pip packages in old venv
-    let py_path = match &info.python_path {
-        Some(p) if p.exists() => p,
-        _ => {
+    if info.base_version == resolved_new_version {
+        return CommandReport::failure(
+            vec![format!(
+                "pyenv: managed venv {} is already using runtime {}",
+                info.spec, resolved_new_version
+            )],
+            1,
+        );
+    }
+
+    let inventory_report = cmd_pip_list(ctx, &info.spec, true);
+    if inventory_report.exit_code != 0 {
+        let mut lines = vec![
+            "pyenv: cannot inventory packages in the source venv; refusing to migrate.".to_string(),
+        ];
+        lines.extend(inventory_report.stderr);
+        lines.extend(inventory_report.stdout);
+        return CommandReport::failure(lines, 1);
+    }
+    let packages: Vec<crate::pip::PipPackage> = match serde_json::from_str(
+        &inventory_report.stdout.join("\n"),
+    ) {
+        Ok(value) => value,
+        Err(error) => {
             return CommandReport::failure(
                 vec![format!(
-                    "pyenv: python interpreter for managed venv `{}` is missing from disk.",
-                    info.spec
+                    "pyenv: cannot inventory packages in the source venv; outdated or unreadable pip list JSON: {error}"
                 )],
                 1,
             );
         }
     };
-
-    let mut packages = Vec::new();
-    let mut backup_success = false;
-    if let Some(output) = Command::new(py_path)
-        .headless()
-        .args(["-m", "pip", "list", "--format=json"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-    {
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        if let Ok(pkgs) = serde_json::from_str::<Vec<crate::pip::PipPackage>>(&stdout_str) {
-            packages = pkgs;
-            backup_success = true;
-        }
-    }
 
     let pkgs_to_install: Vec<String> = packages
         .iter()
@@ -419,10 +422,9 @@ pub fn cmd_venv_upgrade(
         .map(|pkg| format!("{}=={}", pkg.name, pkg.version))
         .collect();
 
-    // 4. Confirm upgrade with user
     if !force {
         let msg = format!(
-            "pyenv: migrate managed venv {} to runtime {}? (this will recreate the environment and attempt to reinstall {} packages) [y/N] ",
+            "pyenv: migrate managed venv {} to runtime {}? (this will recreate the environment and reinstall {} packages) [y/N] ",
             info.spec,
             resolved_new_version,
             pkgs_to_install.len()
@@ -435,37 +437,34 @@ pub fn cmd_venv_upgrade(
         }
     }
 
-    let mut stdout = vec!["Progress:".to_string()];
-    if backup_success {
-        stdout.push(format!(
-            "  - backup: captured {} custom packages from {}",
-            pkgs_to_install.len(),
-            info.spec
-        ));
-    } else {
-        stdout.push(
-            "  - [WARNING] failed to query old packages list; creating clean environment"
-                .to_string(),
-        );
-    }
+    let temp_name = match allocate_migrating_name(ctx, &info.name) {
+        Ok(name) => name,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
 
-    // 5. Recreate environment under new target runtime
+    let mut stdout = vec!["Progress:".to_string()];
+    stdout.push(format!(
+        "  - backup: captured {} custom packages from {}",
+        pkgs_to_install.len(),
+        info.spec
+    ));
+
     let (new_info, _local_written, create_steps) =
-        match create_managed_venv(ctx, &resolved_new_version, &info.name, true, set_local) {
+        match create_managed_venv(ctx, &resolved_new_version, &temp_name, false, false) {
             Ok(res) => res,
             Err(e) => {
                 return CommandReport::failure(
-                    vec![format!("pyenv: failed to create new venv: {e}")],
+                    vec![format!("pyenv: failed to create migration venv: {e}")],
                     1,
                 );
             }
         };
-
     stdout.extend(create_steps.into_iter().map(|s| format!("  - {s}")));
 
     let new_py_path = match &new_info.python_path {
-        Some(p) if p.exists() => p,
+        Some(p) if p.exists() => p.clone(),
         _ => {
+            let _ = fs::remove_dir_all(&new_info.path);
             return CommandReport::failure(
                 vec![format!(
                     "pyenv: new python interpreter was not found on disk at {:?}",
@@ -476,9 +475,8 @@ pub fn cmd_venv_upgrade(
         }
     };
 
-    // 6. Cozy self-update for pip in new environment
     stdout.push("  - pip: updating pip to the latest version...".to_string());
-    let pip_upgrade = Command::new(new_py_path)
+    let pip_upgrade = Command::new(&new_py_path)
         .headless()
         .args(["-m", "pip", "install", "-U", "pip"])
         .status();
@@ -487,13 +485,17 @@ pub fn cmd_venv_upgrade(
             stdout.push("    - pip updated successfully".to_string());
         }
         _ => {
-            stdout.push(
-                "    - [WARNING] pip update failed, continuing with default version".to_string(),
+            let _ = fs::remove_dir_all(&new_info.path);
+            return CommandReport::failure(
+                vec![
+                    "pyenv: pip self-update failed in the new environment; leaving the source venv unchanged."
+                        .to_string(),
+                ],
+                1,
             );
         }
     }
 
-    // 7. Reinstall the backed up packages progressively
     let total_pkgs = pkgs_to_install.len();
     if total_pkgs > 0 {
         stdout.push(format!(
@@ -506,7 +508,7 @@ pub fn cmd_venv_upgrade(
                 total_pkgs,
                 pkg_spec
             ));
-            let install_status = Command::new(new_py_path)
+            let install_status = Command::new(&new_py_path)
                 .headless()
                 .args(["-m", "pip", "install", pkg_spec])
                 .status();
@@ -515,29 +517,36 @@ pub fn cmd_venv_upgrade(
                     stdout.push(format!("      - installed {}", pkg_spec));
                 }
                 Ok(status) => {
-                    stdout.push(format!(
-                        "      - [WARNING] failed to install {} (exit code {:?})",
-                        pkg_spec,
-                        status.code()
-                    ));
+                    let _ = fs::remove_dir_all(&new_info.path);
+                    return CommandReport::failure(
+                        vec![format!(
+                            "pyenv: failed to install {pkg_spec} into the new environment (exit code {:?}); leaving the source venv unchanged.",
+                            status.code()
+                        )],
+                        1,
+                    );
                 }
                 Err(e) => {
-                    stdout.push(format!(
-                        "      - [WARNING] failed to launch pip install for {}: {}",
-                        pkg_spec, e
-                    ));
+                    let _ = fs::remove_dir_all(&new_info.path);
+                    return CommandReport::failure(
+                        vec![format!(
+                            "pyenv: failed to launch pip install for {pkg_spec}: {e}; leaving the source venv unchanged."
+                        )],
+                        1,
+                    );
                 }
             }
         }
+    } else {
+        stdout.push("  - restore: no custom packages to reinstall".to_string());
     }
 
-    // 8. Verify dependency health via pip check
     stdout.push("  - verify: checking dependency constraints...".to_string());
-    let check_status = Command::new(new_py_path)
+    match Command::new(&new_py_path)
         .headless()
         .args(["-m", "pip", "check"])
-        .output();
-    match check_status {
+        .output()
+    {
         Ok(output) if output.status.success() => {
             stdout.push(
                 "    - verification success: all dependency constraints satisfied!".to_string(),
@@ -547,37 +556,128 @@ pub fn cmd_venv_upgrade(
             stdout.push("    - [WARNING] dependency conflicts detected:".to_string());
             let err_str = String::from_utf8_lossy(&output.stdout);
             for line in err_str.lines() {
-                stdout.push(format!("      ! {}", line));
+                stdout.push(format!("      ! {line}"));
             }
         }
         Err(e) => {
-            stdout.push(format!("    - failed to run verification check: {}", e));
+            stdout.push(format!(
+                "    - [WARNING] failed to run verification check: {e}"
+            ));
         }
     }
 
-    // 9. Cleanup old venv if target is different from source
-    if info.path != new_info.path {
-        stdout.push("  - cleanup: removing old virtual environment...".to_string());
-        match fs::remove_dir_all(&info.path) {
-            Ok(_) => {
-                stdout.push(format!(
-                    "    - removed old managed venv at {}",
-                    info.path.display()
-                ));
-            }
-            Err(e) => {
-                stdout.push(format!(
-                    "    - [WARNING] failed to remove old venv at {}: {}",
-                    info.path.display(),
-                    e
-                ));
-            }
+    stdout.push("  - cleanup: removing old virtual environment...".to_string());
+    if let Err(error) = fs::remove_dir_all(&info.path) {
+        stdout.push(format!(
+            "    - [WARNING] failed to remove old venv at {}: {error}",
+            info.path.display()
+        ));
+        stdout.push(format!(
+            "pyenv: migration venv is ready at {}. Remove the old env and rename when ready.",
+            new_info.spec
+        ));
+        return CommandReport::failure(stdout, 1);
+    }
+    stdout.push(format!(
+        "    - removed old managed venv at {}",
+        info.path.display()
+    ));
+
+    let rename_report = cmd_venv_rename(ctx, &new_info.spec, &info.name);
+    if rename_report.exit_code != 0 {
+        stdout.extend(rename_report.stderr);
+        stdout.push(format!(
+            "pyenv: packages were migrated to {}, but renaming to `{}` failed. Use that spec until rename succeeds.",
+            new_info.spec, info.name
+        ));
+        return CommandReport::failure(stdout, 1);
+    }
+    stdout.extend(rename_report.stdout);
+
+    let final_spec = managed_venv_spec(&resolved_new_version, &info.name);
+    retarget_selection_files(ctx, &info.spec, &final_spec, &mut stdout);
+
+    if set_local {
+        let report = cmd_local(ctx, std::slice::from_ref(&final_spec), false, true);
+        if report.exit_code != 0 {
+            stdout.extend(report.stderr);
+            stdout.push(format!(
+                "pyenv: migrated to {final_spec}, but writing .python-version failed."
+            ));
+            return CommandReport::failure(stdout, 1);
         }
+        stdout.push(format!(
+            "  - selection: wrote local .python-version for {final_spec}"
+        ));
     }
 
     stdout.push(format!(
-        "Managed venv successfully upgraded to: {}",
-        new_info.spec
+        "Managed venv successfully upgraded to: {final_spec}"
     ));
     CommandReport::success(stdout)
+}
+
+fn allocate_migrating_name(ctx: &AppContext, original: &str) -> Result<String, PyenvError> {
+    for suffix in 0..100u32 {
+        let candidate = if suffix == 0 {
+            format!("{original}-migrating")
+        } else {
+            format!("{original}-migrating-{suffix}")
+        };
+        if !is_safe_env_name(&candidate) {
+            continue;
+        }
+        if find_env_name_matches(ctx, &candidate)?.is_empty() {
+            return Ok(candidate);
+        }
+    }
+    Err(PyenvError::Io(format!(
+        "pyenv: could not allocate a temporary migration name for `{original}`"
+    )))
+}
+
+fn retarget_selection_files(
+    ctx: &AppContext,
+    old_spec: &str,
+    new_spec: &str,
+    stdout: &mut Vec<String>,
+) {
+    let local = ctx.dir.join(".python-version");
+    if replace_spec_in_file(&local, old_spec, new_spec) {
+        stdout.push(format!(
+            "  - selection: updated {} from {old_spec} to {new_spec}",
+            local.display()
+        ));
+    }
+    let global = ctx.root.join("version");
+    if replace_spec_in_file(&global, old_spec, new_spec) {
+        stdout.push(format!(
+            "  - selection: updated global version file from {old_spec} to {new_spec}"
+        ));
+    }
+}
+
+fn replace_spec_in_file(path: &std::path::Path, old_spec: &str, new_spec: &str) -> bool {
+    let Ok(contents) = fs::read_to_string(path) else {
+        return false;
+    };
+    let mut changed = false;
+    let mut lines = Vec::new();
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed == old_spec {
+            lines.push(new_spec.to_string());
+            changed = true;
+        } else {
+            lines.push(line.to_string());
+        }
+    }
+    if !changed {
+        return false;
+    }
+    let mut next = lines.join("\n");
+    if contents.ends_with('\n') {
+        next.push('\n');
+    }
+    fs::write(path, next).is_ok()
 }

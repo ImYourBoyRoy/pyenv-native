@@ -27,7 +27,7 @@ Native Rust Python version manager (pyenv-compatible). Human CLI: `pyenv`. Agent
 ### 2. Resolve environment
 
 ```
-MCP:  resolve_project_environment → list_available_versions (if needed) → ensure_runtime
+MCP:  preflight (source builds) → doctor_fix if needed → inspect_environment (optional) → resolve_project_environment → list_available_versions (if needed) → ensure_runtime
 CLI:  pyenv version && pyenv which python && cat .python-version (if present)
 ```
 
@@ -41,26 +41,32 @@ CLI:  pyenv venv create <runtime> <name>  OR  pyenv local <runtime>/envs/<name>
 ### 4. Dependencies (only after interpreter is known)
 
 ```
-MCP:  pip_analyze_imports → pip_precheck → pip_install / pip_update → pip_check
-CLI:  pyenv exec pip install -r requirements.txt
+MCP:  pip_analyze_imports → pip_precheck → pip_install / pip_outdated → pip_update → pip_check
+CLI:  pyenv pip precheck <target> -r requirements.txt && pyenv pip install <target> -r requirements.txt
+      pyenv pip outdated <target> --json && pyenv pip update [--all] <target> [packages...]
 ```
 
 ### 5. Diagnose failures
 
 ```
-MCP:  doctor
+MCP:  doctor / doctor_fix
 CLI:  pyenv doctor [--json] [--fix]
 ```
 
 ## Recommended MCP tool order
 
 1. `get_toolkit_guide`
-2. `resolve_project_environment`
-3. `list_available_versions`
-4. `ensure_runtime`
-5. `ensure_project_venv`
-6. `pip_analyze_imports` / `pip_precheck` / `pip_install` as needed
-7. `doctor` on failure
+2. `get_install_instructions` if pyenv-native is not installed
+3. `preflight` before source installs on macOS / Linux / Android
+4. `doctor_fix` when preflight reports automated blockers
+5. `inspect_environment` for a status snapshot
+6. `resolve_project_environment`
+7. `list_available_versions`
+8. `ensure_runtime`
+9. `set_local_version` / `set_global_version` when pinning
+10. `ensure_project_venv`
+11. `pip_analyze_imports` / `pip_precheck` / `pip_install` as needed
+12. `doctor` on failure
 
 Register MCP: `pyenv-mcp print-config` → paste into Cursor MCP settings.
 
@@ -92,9 +98,14 @@ Register MCP: `pyenv-mcp print-config` → paste into Cursor MCP settings.
 
 ## Install this skill
 
+From a clone of this repository:
+
 ```powershell
-pwsh -File "$env:USERPROFILE\.cursor\scripts\install-cursor-skills.ps1" `
-  -RepoUrl "https://github.com/imyourboyroy/pyenv-native"
+pwsh -NoLogo -NoProfile -File .\scripts\install-agent-skills.ps1 -Agent all
 ```
 
-See `docs/cursor-setup.md` in the repo.
+```sh
+sh ./scripts/install-agent-skills.sh --agent all
+```
+
+See [docs/agent-skills/README.md](../../docs/agent-skills/README.md) and [docs/cursor-setup.md](../../docs/cursor-setup.md).

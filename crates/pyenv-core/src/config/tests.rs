@@ -74,6 +74,33 @@ mod tests {
     }
 
     #[test]
+    fn default_registry_mode_is_disabled_and_plugins_search_path() {
+        let config = AppConfig::default();
+        assert_eq!(
+            get_config_value(&config, "windows.registry_mode").expect("get"),
+            "disabled"
+        );
+        assert_eq!(
+            get_config_value(&config, "plugins.search_path").expect("get"),
+            "true"
+        );
+        assert_eq!(
+            get_config_value(&config, "venv.auto_create_base_venv").expect("get"),
+            "false"
+        );
+        assert_eq!(
+            get_config_value(&config, "venv.auto_use_base_venv").expect("get"),
+            "false"
+        );
+        let mut config = config;
+        set_config_value(&mut config, "plugins.search_path", "false").expect("set");
+        assert_eq!(
+            get_config_value(&config, "plugins.search_path").expect("get"),
+            "false"
+        );
+    }
+
+    #[test]
     fn load_config_tolerates_utf8_bom() {
         let temp = TempDir::new().expect("tempdir");
         let root = temp.path().join(".pyenv");
@@ -86,5 +113,17 @@ mod tests {
 
         let loaded = load_config(&root).expect("load bom config");
         assert!(!loaded.install.bootstrap_pip);
+    }
+
+    #[test]
+    fn omitted_venv_keys_default_off() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        fs::create_dir_all(&root).expect("root");
+        fs::write(config_path(&root), "[install]\nbootstrap_pip = true\n").expect("write config");
+
+        let loaded = load_config(&root).expect("load");
+        assert!(!loaded.venv.auto_create_base_venv);
+        assert!(!loaded.venv.auto_use_base_venv);
     }
 }

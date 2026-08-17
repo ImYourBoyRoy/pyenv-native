@@ -3,10 +3,11 @@
 //! and global version files.
 
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::path_safety::is_safe_relative_path;
 
 use super::types::{GLOBAL_VERSION_FILE, LOCAL_VERSION_FILE, ParsedVersionFile};
 
@@ -57,7 +58,7 @@ pub(super) fn parse_version_file(path: &Path) -> Result<ParsedVersionFile, Vec<P
             continue;
         };
 
-        if is_version_safe(version) {
+        if is_safe_relative_path(version) {
             versions.push(version.to_string());
         } else {
             errors.push(PyenvError::InvalidVersion(
@@ -90,28 +91,4 @@ pub(super) fn write_version_file(path: &Path, versions: &[String]) -> Result<(),
     contents.push('\n');
     fs::write(path, contents).map_err(|error| PyenvError::Io(format!("pyenv: {error}")))?;
     Ok(())
-}
-
-fn is_version_safe(version: &str) -> bool {
-    let path = Path::new(version);
-    if path.is_absolute() {
-        return false;
-    }
-
-    let mut depth = 0usize;
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::Normal(_) => depth += 1,
-            Component::ParentDir => {
-                if depth == 0 {
-                    return false;
-                }
-                depth -= 1;
-            }
-            Component::RootDir | Component::Prefix(_) => return false,
-        }
-    }
-
-    true
 }

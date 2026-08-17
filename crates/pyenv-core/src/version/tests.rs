@@ -221,3 +221,42 @@ fn version_origin_hook_can_override_origin_text() {
     assert_eq!(report.exit_code, 0);
     assert_eq!(report.stdout, vec!["hooked-origin"]);
 }
+
+fn create_fake_managed_env(ctx: &AppContext, version: &str, name: &str) {
+    let env_dir = ctx.root.join("venvs").join(version).join(name);
+    if cfg!(windows) {
+        fs::create_dir_all(env_dir.join("Scripts")).expect("scripts");
+        fs::write(env_dir.join("Scripts").join("python.exe"), "").expect("python");
+    } else {
+        fs::create_dir_all(env_dir.join("bin")).expect("bin");
+        fs::write(env_dir.join("bin").join("python"), "").expect("python");
+    }
+}
+
+#[test]
+fn global_venv_alias_writes_canonical_spec() {
+    let (_temp, ctx) = test_context();
+    fs::create_dir_all(installed_version_dir(&ctx, "3.12.6")).expect("runtime");
+    create_fake_managed_env(&ctx, "3.12.6", "demo");
+
+    let report = cmd_global(&ctx, &[String::from("venv:demo")], false);
+    assert_eq!(report.exit_code, 0, "stderr={:?}", report.stderr);
+    assert_eq!(
+        fs::read_to_string(ctx.root.join("version")).expect("global file"),
+        "3.12.6/envs/demo\n"
+    );
+}
+
+#[test]
+fn global_short_venv_name_writes_canonical_spec() {
+    let (_temp, ctx) = test_context();
+    fs::create_dir_all(installed_version_dir(&ctx, "3.12.6")).expect("runtime");
+    create_fake_managed_env(&ctx, "3.12.6", "demo");
+
+    let report = cmd_global(&ctx, &[String::from("demo")], false);
+    assert_eq!(report.exit_code, 0, "stderr={:?}", report.stderr);
+    assert_eq!(
+        fs::read_to_string(ctx.root.join("version")).expect("global file"),
+        "3.12.6/envs/demo\n"
+    );
+}

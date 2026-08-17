@@ -60,6 +60,40 @@ fn install_list_defaults_to_provider_backed_catalog() {
             .iter()
             .any(|line| line.trim() == "pypy3.11-7.3.20")
     );
+    assert!(
+        report.stdout.iter().any(|line| line.trim() == "2.7.18"),
+        "legacy CPython 2.x from the known catalog should remain installable"
+    );
+}
+
+#[test]
+fn windows_provider_catalog_includes_known_python2_when_nuget_only_has_python3() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.12.10"]);
+    seed_pypy_index(
+        &ctx,
+        &[pypy_release(
+            "7.3.20",
+            "3.11.13",
+            "win64",
+            "x64",
+            "pypy3.11-v7.3.20-win64.zip",
+        )],
+    );
+
+    let entries = provider_catalog_entries_for_platform(&ctx, Some("cpython"), None, "windows")
+        .expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.12.10"));
+    assert!(
+        entries.iter().any(|entry| entry.version == "2.7.18"),
+        "Python 2.7 must stay visible for legacy projects"
+    );
+    let python2 = entries
+        .iter()
+        .find(|entry| entry.version == "2.7.18")
+        .expect("2.7.18");
+    assert_eq!(python2.provider, "windows-python-build");
 }
 
 #[test]
@@ -142,6 +176,7 @@ fn cpython_source_entries_include_free_threaded_variants() {
     let (_temp, ctx) = test_context();
     let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
     assert!(entries.iter().any(|entry| entry.version.ends_with('t')));
+    assert!(entries.iter().any(|entry| entry.version == "2.7.18"));
     assert!(
         entries
             .iter()

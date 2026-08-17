@@ -12,6 +12,7 @@ mod http;
 mod install;
 mod manage;
 mod meta;
+mod path_safety;
 mod pip;
 mod plugin;
 mod preflight;
@@ -25,8 +26,9 @@ mod venv;
 mod venv_compat;
 mod venv_paths;
 mod version;
+mod windows_registry;
 
-pub use process::PyenvCommandExt;
+pub use process::{PyenvCommandExt, windows_powershell_host};
 
 pub use catalog::{
     CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions, cmd_install_list,
@@ -35,14 +37,14 @@ pub use catalog::{
 };
 pub use command::CommandReport;
 pub use config::{
-    AppConfig, InstallConfig, RegistryMode, RuntimeArch, StorageConfig, VenvConfig, WindowsConfig,
-    cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, config_path,
+    AppConfig, InstallConfig, PluginsConfig, RegistryMode, RuntimeArch, StorageConfig, VenvConfig,
+    WindowsConfig, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show, config_path,
     resolve_cache_dir,
 };
 pub use context::{AppContext, is_pyenv_win_root, resolve_dir, resolve_root};
 pub use doctor::{
     DoctorCheck, DoctorFix, DoctorFixOutcome, DoctorStatus, apply_doctor_fixes, cmd_doctor,
-    collect_checks, doctor_fix_plan,
+    collect_checks, doctor_fix_plan, install_powershell_7,
 };
 pub use error::PyenvError;
 pub use executable::{cmd_whence, cmd_which};
@@ -88,4 +90,7 @@ pub use version::{
     cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
     cmd_version_origin, find_local_version_file, installed_version_dir, read_version_file,
     resolve_selected_versions, version_file_path, version_origin,
+};
+pub use windows_registry::{
+    PEP514_COMPANY, Pep514Spec, apply_pep514_registration, remove_pep514_registration,
 };

@@ -12,13 +12,18 @@
 //! platforms including Android/Termux.
 
 use reqwest::blocking::{Client, ClientBuilder};
+use reqwest::redirect::Policy;
 
 pub(crate) fn build_blocking_client() -> Result<Client, reqwest::Error> {
     blocking_client_builder().build()
 }
 
 pub(crate) fn blocking_client_builder() -> ClientBuilder {
-    Client::builder().user_agent(user_agent())
+    // Unit tests use mockito on loopback HTTP. Production clients refuse http://.
+    Client::builder()
+        .user_agent(user_agent())
+        .https_only(!cfg!(test))
+        .redirect(Policy::limited(10))
 }
 
 fn user_agent() -> String {

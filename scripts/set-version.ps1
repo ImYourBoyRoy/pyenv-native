@@ -1,9 +1,9 @@
 # ./scripts/set-version.ps1
 <#
 Purpose: Synchronizes the project version across the Rust workspace and Python install package metadata files.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/set-version.ps1 -Version 0.2.0
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/set-version.ps1 -Version 0.2.0
 Inputs: Target semantic version string.
-Outputs/side effects: Rewrites version fields in Cargo.toml, python-package/pyproject.toml, and python-package/src/pyenv_native_bootstrap/__init__.py.
+Outputs/side effects: Rewrites version fields in Cargo.toml, python-package/pyproject.toml, python-package/src/pyenv_native_bootstrap/__init__.py, and crates/pyenv-gui/tauri.conf.json.
 Notes: Intended for release preparation so native and Python install-package artifacts stay aligned.
       Pair with scripts/check-version-sync.ps1 / check-version-sync.sh before tagging.
 #>
@@ -56,16 +56,19 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $cargoToml = Join-Path $repoRoot 'Cargo.toml'
 $pyproject = Join-Path $repoRoot 'python-package\pyproject.toml'
 $pythonInit = Join-Path $repoRoot 'python-package\src\pyenv_native_bootstrap\__init__.py'
+$tauriConf = Join-Path $repoRoot 'crates\pyenv-gui\tauri.conf.json'
 
 Update-FileText -Path $cargoToml -Pattern '(?m)^version\s*=\s*"[^"]+"\s*$' -Replacement "version = `"$Version`""
 Update-FileText -Path $pyproject -Pattern '(?m)^version\s*=\s*"[^"]+"\s*$' -Replacement "version = `"$Version`""
 Update-FileText -Path $pythonInit -Pattern '(?m)^__version__\s*=\s*"[^"]+"\s*$' -Replacement "__version__ = `"$Version`""
+Update-FileText -Path $tauriConf -Pattern '(?m)^  "version": "[^"]+"' -Replacement "  `"version`": `"$Version`""
 
 $summary = [ordered]@{
     version = $Version
     cargo_toml = $cargoToml
     pyproject = $pyproject
     python_init = $pythonInit
+    tauri_conf = $tauriConf
 }
 
 $summary.GetEnumerator() | ForEach-Object {

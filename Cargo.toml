@@ -1,11 +1,41 @@
 [workspace]
 members = [
     "crates/pyenv-cli",
-    "crates/pyenv-core", "crates/pyenv-mcp", "crates/pyenv-gui"
+    "crates/pyenv-core",
+    "crates/pyenv-mcp",
+    "crates/pyenv-gui",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.2.38"
+version = "0.3.0"
+
+# Shared direct deps. Keep caret/minimum operators so `cargo update` can take
+# the newest compatible crates.io releases without pinning exact versions.
+[workspace.dependencies]
+anyhow = "^1.0.104"
+base64 = "^0.23.1"
+bzip2 = "^0.6.1"
+clap = { version = "^4.6.6", features = ["derive"] }
+flate2 = "^1.1.9"
+hex = "^0.4.3"
+mockito = "^1.7.2"
+opener = "^0.8.5"
+reqwest = { version = "^0.13.4", default-features = false }
+rfd = "^0.17.2"
+rmcp = { version = "^3.1.2", features = ["transport-io"] }
+schemars = "^1.2.2"
+sha2 = "^0.11.0"
+serde = { version = "^1.0.229", features = ["derive"] }
+serde_json = "^1.0.151"
+tar = "^0.4.46"
+tauri = "^2.11.5"
+tauri-build = "^2.6.3"
+tempfile = "^3.27.0"
+thiserror = "^2.0.20"
+tokio = "^1.53.1"
+toml = "^1.1.4"
+winreg = "^0.56.0"
+zip = { version = "^8.6.0", default-features = false }

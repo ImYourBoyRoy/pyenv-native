@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/self_update/runner.rs
 //! Self-update execution flow, installer download, and platform-specific launcher handling.
 
-use crate::process::PyenvCommandExt;
+use crate::process::{PyenvCommandExt, windows_powershell_host};
 use std::cmp::Ordering;
 use std::env;
 use std::fs;
@@ -13,6 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::http::build_blocking_client;
+use sha2::{Digest, Sha256};
 
 use super::github::{DEFAULT_GITHUB_REPO, resolve_release_target};
 use super::types::{ReleaseTarget, SelfUpdateOptions};
@@ -86,14 +87,14 @@ fn ensure_portable_install(ctx: &AppContext, allow_gui_launcher: bool) -> Result
     let current_exe = env::current_exe()
         .map_err(|error| format!("pyenv: failed to resolve current executable path: {error}"))?;
 
-    // We allow self-update to be triggered from either the CLI (pyenv) or the GUI companion (pyenv-gui)
-    // provided they are running from the expected installation directory.
     let bin_dir = ctx.root.join("bin");
-
     let is_pyenv = same_path(&current_exe, &portable_executable_path(&ctx.root));
     let is_gui = is_gui_launch(&current_exe, &bin_dir);
+    if is_pyenv || is_gui {
+        return Ok(());
+    }
 
-    if is_pyenv || is_gui || allow_gui_launcher {
+    if allow_gui_launcher && path_is_under(&current_exe, &ctx.root) {
         return Ok(());
     }
 
@@ -128,18 +129,14 @@ fn same_path(left: &Path, right: &Path) -> bool {
 }
 
 fn is_gui_launch(current_exe: &Path, bin_dir: &Path) -> bool {
-    if same_path(current_exe, &gui_executable_path(bin_dir)) {
-        return true;
-    }
+    same_path(current_exe, &gui_executable_path(bin_dir))
+}
 
-    current_exe
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| {
-            let lowered = name.to_ascii_lowercase();
-            lowered == "pyenv-gui" || lowered == "pyenv-gui.exe"
-        })
-        .unwrap_or(false)
+fn path_is_under(path: &Path, root: &Path) -> bool {
+    match (fs::canonicalize(path), fs::canonicalize(root)) {
+        (Ok(resolved), Ok(root)) => resolved.starts_with(&root),
+        _ => path.starts_with(root),
+    }
 }
 
 fn render_check_lines(target: &ReleaseTarget) -> Vec<String> {
@@ -209,12 +206,9 @@ fn confirm_self_update(
 
 fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
     let extension = if cfg!(windows) { "ps1" } else { "sh" };
-
-    // Primary: Try fetching from the release assets (stable)
     let release_asset_url =
         format!("https://github.com/{repo}/releases/download/{tag}/install.{extension}");
-    // Secondary: Fallback to raw GitHub content (useful for dev/main installs if assets are missing)
-    let raw_url = format!("https://raw.githubusercontent.com/{repo}/{tag}/install.{extension}");
+    let checksum_url = format!("{release_asset_url}.sha256");
 
     let temp_dir = env::temp_dir().join(format!(
         "pyenv-native-self-update-{}-{}",
@@ -228,27 +222,46 @@ fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
     let client = build_blocking_client()
         .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))?;
 
-    // Try primary URL first
-    let response = match client
+    let checksum_text = client
+        .get(&checksum_url)
+        .send()
+        .and_then(|response| response.error_for_status())
+        .and_then(|response| response.text())
+        .map_err(|error| {
+            format!(
+                "pyenv: missing installer checksum at {checksum_url} (self-update requires a published .sha256 sidecar): {error}"
+            )
+        })?;
+    let expected = parse_sha256_token(&checksum_text)
+        .ok_or_else(|| format!("pyenv: invalid installer checksum at {checksum_url}"))?;
+
+    let bytes = client
         .get(&release_asset_url)
         .send()
-        .and_then(|r| r.error_for_status())
-    {
-        Ok(r) => Ok(r),
-        Err(e) => {
-            // Fallback to raw URL
-            client.get(&raw_url).send().and_then(|r| r.error_for_status()).map_err(|fallback_err| {
-                format!("pyenv: failed to download installer from either {release_asset_url} ({e}) or {raw_url} ({fallback_err})")
-            })
-        }
-    }?;
+        .and_then(|response| response.error_for_status())
+        .and_then(|response| response.bytes())
+        .map_err(|error| {
+            format!("pyenv: failed to download installer from {release_asset_url}: {error}")
+        })?;
+    let actual = hex::encode(Sha256::digest(&bytes));
+    if actual != expected {
+        return Err(format!(
+            "pyenv: installer checksum mismatch for {release_asset_url}: expected {expected}, got {actual}"
+        ));
+    }
 
-    let bytes = response
-        .bytes()
-        .map_err(|error| format!("pyenv: failed to read installer download: {error}"))?;
     fs::write(&installer_path, &bytes)
         .map_err(|error| format!("pyenv: failed to write installer script: {error}"))?;
     Ok(installer_path)
+}
+
+fn parse_sha256_token(body: &str) -> Option<String> {
+    let token = body.split_whitespace().next()?.trim();
+    if token.len() == 64 && token.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        Some(token.to_ascii_lowercase())
+    } else {
+        None
+    }
 }
 
 fn spawn_windows_update(
@@ -265,7 +278,7 @@ fn spawn_windows_update(
     fs::write(&launcher_path, launcher)
         .map_err(|error| format!("pyenv: failed to write Windows updater helper: {error}"))?;
 
-    Command::new("powershell.exe")
+    Command::new(windows_powershell_host())
         .headless()
         .args([
             "-NoProfile",
@@ -336,7 +349,9 @@ fn render_windows_launcher(
            Start-Sleep -Milliseconds 500\n\
          }}\n\
          $installerArgs = @({rendered_args})\n\
-         & powershell.exe @installerArgs\n\
+         $installerHost = (Get-Command pwsh -ErrorAction SilentlyContinue).Source\n\
+         if (-not $installerHost) {{ $installerHost = 'powershell.exe' }}\n\
+         & $installerHost @installerArgs\n\
          {restart_script}\n\
          exit $LASTEXITCODE\n"
     )
@@ -511,4 +526,24 @@ fn timestamp_suffix() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_sha256_token;
+
+    #[test]
+    fn parse_sha256_token_reads_sum_file_line() {
+        assert_eq!(
+            parse_sha256_token(
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  install.sh\n"
+            ),
+            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_sha256_token_rejects_short_values() {
+        assert_eq!(parse_sha256_token("deadbeef"), None);
+    }
 }

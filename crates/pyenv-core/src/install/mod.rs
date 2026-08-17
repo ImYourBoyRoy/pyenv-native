@@ -2,6 +2,7 @@
 //! Install planning, provider discovery, download/extraction, and runtime provisioning.
 
 mod archive;
+pub(crate) mod checksum;
 mod fetch;
 mod plans;
 mod platform;

@@ -15,14 +15,18 @@ fail() {
 
 if command -v rg >/dev/null 2>&1; then
     has_match() {
-        rg -n "$1" "$2" >/dev/null 2>&1
+        pattern=$1
+        shift
+        rg -n "$pattern" "$@" >/dev/null 2>&1
     }
     has_pattern() {
         rg -q "$1" "$2"
     }
 else
     has_match() {
-        grep -nE "$1" "$2" >/dev/null 2>&1
+        pattern=$1
+        shift
+        grep -nE "$pattern" "$@" >/dev/null 2>&1
     }
     has_pattern() {
         grep -qE "$1" "$2"
@@ -43,6 +47,14 @@ fi
 
 if ! has_pattern 'createElement' "$DOM_UTILS"; then
     fail 'dom-utils.js must provide safe DOM helpers'
+fi
+
+if has_match 'JetBrains Mono|fonts\\.googleapis\\.com|fonts\\.gstatic\\.com' "$ROOT/crates/pyenv-gui/ui/index.html" "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css "$ROOT/crates/pyenv-gui/ui/app.js"; then
+    fail 'remote or unvendored webfonts are not allowed; use local Inter and --font-mono'
+fi
+
+if ! has_match 'fonts/InterVariable.woff2' "$ROOT/crates/pyenv-gui/ui/styles.css" "$ROOT/crates/pyenv-gui/ui/styles"/*.css; then
+    fail 'styles.css or styles/*.css must load the vendored Inter variable font'
 fi
 
 printf 'GUI pattern checks passed.\n'

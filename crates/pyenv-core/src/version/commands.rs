@@ -258,8 +258,12 @@ fn write_requested_versions(
     versions: &[String],
     force: bool,
 ) -> CommandReport {
-    match ensure_versions_exist(ctx, versions, force, &path.display().to_string())
-        .and_then(|_| write_version_file(path, versions))
+    let canonical: Vec<String> = versions
+        .iter()
+        .map(|token| super::selection::canonicalize_selection_token(ctx, token))
+        .collect();
+    match ensure_versions_exist(ctx, &canonical, force, &path.display().to_string())
+        .and_then(|_| write_version_file(path, &canonical))
     {
         Ok(_) => {
             let scope =
@@ -268,11 +272,12 @@ fn write_requested_versions(
                 } else {
                     "globally"
                 };
-            let formatted_versions = versions.join(":");
-            let verb = if formatted_versions.contains("venv:")
+            let formatted_versions = canonical.join(":");
+            let verb = if formatted_versions.contains("/envs/")
+                || formatted_versions.contains("venv:")
                 || crate::venv::resolve_managed_venv(
                     ctx,
-                    versions.first().unwrap_or(&String::new()),
+                    canonical.first().unwrap_or(&String::new()),
                 )
                 .is_ok()
             {

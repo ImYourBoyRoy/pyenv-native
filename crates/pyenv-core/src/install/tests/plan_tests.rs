@@ -240,3 +240,16 @@ fn resolve_python_build_path_can_search_path_environment() {
         final_script.to_string_lossy().to_ascii_lowercase()
     );
 }
+
+#[test]
+fn resolve_install_plan_falls_back_to_python_build_for_windows_python2() {
+    let (temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.12.10"]);
+    let script = write_fake_python_build(&temp, &["2.7.18", "3.12.10"]);
+    ctx.config.install.python_build_path = Some(script);
+
+    let plan = resolve_install_plan_for_platform(&ctx, "2.7.18", "windows").expect("plan");
+    assert_eq!(plan.resolved_version, "2.7.18");
+    assert_eq!(plan.provider, "windows-python-build");
+}

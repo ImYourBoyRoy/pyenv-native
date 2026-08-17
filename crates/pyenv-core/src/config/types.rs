@@ -15,6 +15,8 @@ pub struct AppConfig {
     pub install: InstallConfig,
     #[serde(default)]
     pub venv: VenvConfig,
+    #[serde(default)]
+    pub plugins: PluginsConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -93,19 +95,21 @@ impl RuntimeArch {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct WindowsConfig {
     #[serde(default)]
     pub registry_mode: RegistryMode,
 }
 
-impl Default for WindowsConfig {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginsConfig {
+    #[serde(default = "default_true")]
+    pub search_path: bool,
+}
+
+impl Default for PluginsConfig {
     fn default() -> Self {
-        Self {
-            // Helps IDEs discover managed interpreters on Windows via PEP-514.
-            // The GUI hides this section on non-Windows platforms.
-            registry_mode: RegistryMode::Pep514,
-        }
+        Self { search_path: true }
     }
 }
 
@@ -132,21 +136,12 @@ impl Default for InstallConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VenvConfig {
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub auto_create_base_venv: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub auto_use_base_venv: bool,
-}
-
-impl Default for VenvConfig {
-    fn default() -> Self {
-        Self {
-            auto_create_base_venv: true,
-            auto_use_base_venv: true,
-        }
-    }
 }
 
 fn default_true() -> bool {

@@ -1,7 +1,7 @@
 # ./scripts/build-release-bundle.ps1
 <#
 Purpose: Builds release binaries and assembles a portable Windows distribution bundle for pyenv-native.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/build-release-bundle.ps1 [-OutputRoot ./dist] [-TargetTriple x86_64-pc-windows-msvc]
 Inputs: Optional output root, bundle name override, and Windows target triple.
 Outputs/side effects: Builds the release binaries, writes a bundle directory under dist/, and creates a zip archive with installers, MCP server, and user-facing docs.
 Notes: Intended for native Windows packaging; defaults to the MSVC ABI and derives the bundle architecture from the requested target triple.

@@ -7,6 +7,15 @@ use std::process::{Command, Stdio};
 
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::executable::find_system_command;
+
+pub(crate) fn preferred_powershell_host(_ctx: &AppContext) -> &'static str {
+    crate::process::windows_powershell_host()
+}
+
+pub(crate) fn powershell_7_available(ctx: &AppContext) -> bool {
+    find_system_command(ctx, "pwsh").is_some()
+}
 
 pub(super) fn run_process(
     path: &Path,
@@ -22,7 +31,8 @@ pub(super) fn run_process(
 
     let mut command = match extension.as_deref() {
         Some("ps1") => {
-            let mut command = Command::new("powershell");
+            let host = preferred_powershell_host(ctx);
+            let mut command = Command::new(host);
             command
                 .headless()
                 .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]);

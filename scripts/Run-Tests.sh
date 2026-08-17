@@ -11,7 +11,7 @@ fi
 if [ $FULL_CLEAN -eq 1 ]; then
     echo -e "\033[36m--- Running full clean ---\033[0m"
     cargo clean
-    rm -rf ~/.pyenv
+    echo -e "\033[33m--- Skipping PYENV_ROOT wipe (refusing to delete ~/.pyenv) ---\033[0m"
 fi
 
 echo -e "\033[36m--- Running all tests (workspace) ---\033[0m"

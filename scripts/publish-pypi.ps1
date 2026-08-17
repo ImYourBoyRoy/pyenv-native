@@ -1,7 +1,7 @@
 ﻿# ./scripts/publish-pypi.ps1
 <#
 Purpose: Validates and optionally uploads the pyenv-native wheel/sdist to PyPI or TestPyPI using a repeatable local release script.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/publish-pypi.ps1 -PythonPath <python> [-Repository testpypi] [-DryRun]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/publish-pypi.ps1 -PythonPath <python> [-Repository testpypi] [-DryRun]
 Inputs: Python interpreter path, target repository/repository URL, and switches controlling local tests/build/check-only behavior.
 Outputs/side effects: Optionally runs tests, rebuilds wheel/sdist artifacts, performs Twine checks, and uploads the artifacts with token-based authentication.
 Notes: Intended as the final manual fallback path; the GitHub Actions release workflow remains the preferred public publish path once credentials are configured.

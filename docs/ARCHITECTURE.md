@@ -182,7 +182,7 @@ This is why `install --list` defaults to provider-backed installable versions in
 
 ### Fallback compatibility path
 
-- **Linux/macOS optional fallback**: upstream `python-build` via explicit config or discovered path
+- **Linux/macOS optional fallback**: upstream `python-build` via explicit config or discovered path. Native CPython/PyPy archives are publisher-checksummed (live metadata first; local `.digest` sidecars only if the publisher cannot be reached). NuGet SHA-512 is taken from `api.nuget.org`; a download-URL sidecar is used only when the nupkg host is nuget.org and the catalog cannot be reached. python-build CPython installs prefetch and verify the official source tarball in `PYTHON_BUILD_CACHE_PATH` and fail closed on mismatch or missing digest. Non-CPython python-build definitions warn if no tarball is present.
 
 This gives the project a native path for the most important cases while keeping a broader compatibility escape hatch on POSIX systems.
 
@@ -244,7 +244,7 @@ Default layout:
 
 Key decisions:
 
-- Windows registry integration defaults to **disabled**.
+- Windows registry integration defaults to **disabled**. When `windows.registry_mode=pep514`, installs write HKCU PEP-514 keys under company `PyenvNative` and uninstall removes them. Official `PythonCore` keys are never overwritten.
 - install/cache locations are configurable,
 - receipts are written for installed runtimes,
 - package metadata and downloads are cached,
@@ -334,7 +334,8 @@ The runtime supports:
 - completion passthrough for plugin commands,
 - upstream-style help parsing from plugin header comments,
 - structured hook output directives,
-- shell-style environment assignment compatibility.
+- shell-style environment assignment compatibility,
+- `.ps1` hooks launched with `pwsh` when PowerShell 7 is on PATH (Windows PowerShell 5.1 is the fallback).
 
 This is more structured than upstream's shell-sourcing behavior, but intentionally so.
 
@@ -349,8 +350,11 @@ The project is designed to distribute through native assets first.
 - Windows portable ZIP bundle
 - Linux portable `.tar.gz` bundle
 - macOS portable `.tar.gz` bundle
-- SHA-256 checksum files
+- SHA-256 checksum files (bundles, standalone GUI binaries, and installer scripts)
 - bundle manifest metadata
+- generated Winget YAML and Homebrew formula (uploaded as release extras; not yet submitted to winget-pkgs or a public tap)
+
+Native GUI binary is included only on Windows x64, Linux x64, and macOS (not cross Windows ARM64 / Linux ARM64 / Android).
 
 ### Installer entrypoints
 
@@ -416,6 +420,14 @@ When enabled:
 - command lookup can optionally prefer that venv.
 
 This is intentionally an enhancement, not a forced behavior change.
+
+---
+
+## Pip update policy
+
+`pyenv pip outdated --json` (and MCP `pip_outdated`) returns `{name, version, latest_version}`.
+
+`pyenv pip update` / MCP `pip_update` then takes names, optional `name==version` pins, or `--all` / `all: true`. `--all` fails closed if the outdated scan cannot run. Outdated `pip` is upgraded first. There is no command that accepts the outdated JSON blob as input.
 
 ---
 

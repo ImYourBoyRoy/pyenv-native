@@ -1,7 +1,7 @@
 ﻿# ./scripts/build-homebrew-formula.ps1
 <#
 Purpose: Generates a Homebrew formula from release asset checksum files so Homebrew support can be prepared before public tap publishing.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-homebrew-formula.ps1 -GitHubRepo <owner/repo> -Tag <vX.Y.Z>
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/build-homebrew-formula.ps1 -GitHubRepo <owner/repo> -Tag <vX.Y.Z>
 Inputs: GitHub repo/tag metadata, one or more asset roots containing .tar.gz.sha256 files, and an optional output path.
 Outputs/side effects: Writes a formula file under packaging/homebrew/Formula/ with URL/sha blocks for every detected Linux/macOS bundle.
 Notes: The formula is generator-backed and can be committed later or submitted to a tap after the release assets are public.

@@ -5,13 +5,13 @@ This folder holds generated or generator-backed Winget manifests for the Windows
 ## Generate manifests
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1
+pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1
 ```
 
 Common overrides:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 `
+pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 `
   -GitHubRepo imyourboyroy/pyenv-native `
   -Tag vX.Y.Z `
   -ManifestVersion 1.12.0 `
@@ -23,7 +23,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 `
 If `winget` is available locally, the script can run a strict manifest validation pass:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 -Validate
+pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 -Validate
 ```
 
 ## Output layout

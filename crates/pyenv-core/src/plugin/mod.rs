@@ -14,4 +14,5 @@ pub use commands::{
 };
 pub use discovery::find_plugin_command;
 pub use hooks::{DEFAULT_HOOK_COMMANDS, parse_hook_actions, run_hook_scripts};
+pub(crate) use process::powershell_7_available;
 pub use types::HookResult;

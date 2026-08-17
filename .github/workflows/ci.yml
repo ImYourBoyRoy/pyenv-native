@@ -18,6 +18,11 @@ concurrency:
 jobs:
   quality-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      issues: read
+      pull-requests: read
 
     steps:
       - name: Checkout
@@ -34,7 +39,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           
       - name: Install dependencies (Linux)
         run: |
@@ -62,20 +67,31 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: GUI accessibility audit
         shell: bash
         run: |
           cd scripts/gui-a11y
-          npm install --no-audit --no-fund
-          npm run check
+          pnpm install --frozen-lockfile
+          pnpm audit --prod
+          pnpm run check
+
+      - name: Rust advisory audit
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clippy
         shell: bash
-        run: cargo clippy --workspace --exclude pyenv-gui -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -107,7 +123,7 @@ jobs:
         with:
           toolchain: stable-x86_64-pc-windows-msvc
           targets: x86_64-pc-windows-msvc
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -115,15 +131,19 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
+
+      - name: Clippy
+        shell: pwsh
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Test Rust workspace
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
+        run: .\scripts\dev-cargo.ps1 test
 
       - name: Test Python install package
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath python
+        run: .\scripts\test-python-bootstrap.ps1 -PythonPath python
 
       - name: Build CLI for Windows shell smoke tests
         shell: pwsh
@@ -131,22 +151,22 @@ jobs:
 
       - name: Smoke test PowerShell and CMD integration
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\smoke-shells.ps1
+        run: .\scripts\smoke-shells.ps1
 
       - name: Build Windows x64 release bundle smoke test
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
+        run: .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
 
       - name: Build Winget manifests smoke test
         shell: pwsh
         run: |
-          powershell -ExecutionPolicy Bypass -File .\scripts\build-winget-manifests.ps1 `
+          .\scripts\build-winget-manifests.ps1 `
             -ReleaseBaseUrl https://example.invalid/releases/download/test `
             -OutputRoot .\packaging\winget
 
       - name: Build Python install package smoke test
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
+        run: .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
   windows-arm64-smoke:
     runs-on: windows-latest
@@ -168,7 +188,7 @@ jobs:
 
       - name: Build Windows ARM64 release bundle smoke test
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+        run: .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
 
   linux-arm64-smoke:
     runs-on: ubuntu-latest
@@ -237,6 +257,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -244,11 +266,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
+
+      - name: Clippy
+        shell: bash
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -257,6 +283,10 @@ jobs:
       - name: Build macOS arm64 release bundle smoke test
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+
+      - name: Confirm GUI binary in bundle
+        shell: bash
+        run: test -f dist/pyenv-native-macos-arm64/pyenv-gui
 
   macos-x64-smoke:
     runs-on: macos-15-intel
@@ -267,6 +297,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -274,11 +306,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
+
+      - name: Clippy
+        shell: bash
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -287,3 +323,7 @@ jobs:
       - name: Build macOS x64 release bundle smoke test
         shell: bash
         run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+
+      - name: Confirm GUI binary in bundle
+        shell: bash
+        run: test -f dist/pyenv-native-macos-x64/pyenv-gui

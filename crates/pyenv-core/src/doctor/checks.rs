@@ -86,6 +86,7 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     if platform == "windows" {
         checks.extend(pyenv_win_conflict_checks(ctx));
         checks.push(windows_store_alias_check(ctx));
+        checks.push(windows_powershell_7_check(ctx));
     } else {
         checks.extend(non_windows_source_build_checks(ctx, platform));
         checks.extend(termux_compile_environment_checks(ctx));
@@ -100,6 +101,7 @@ pub(super) fn collect_checks_for_platform(ctx: &AppContext, platform: &str) -> V
     checks.extend(selected_env_checks(&selected));
     checks.push(shim_launcher_integrity_check(ctx));
     checks.push(functional_shim_check(ctx, &selected));
+    checks.push(plugin_path_search_check(ctx));
 
     checks
 }
@@ -342,6 +344,37 @@ fn contents_embed_cli_launcher(shim: &Path, cli: &Path) -> Result<bool, std::io:
     Ok(contents.contains(&cli.display().to_string()))
 }
 
+fn python_shim_path(shims_dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        for name in ["python.exe", "python.cmd", "python.bat"] {
+            let candidate = shims_dir.join(name);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+        shims_dir.join("python.exe")
+    } else {
+        shims_dir.join("python")
+    }
+}
+
+fn plugin_path_search_check(ctx: &AppContext) -> DoctorCheck {
+    if ctx.config.plugins.search_path {
+        DoctorCheck {
+            name: "plugin-path-search".to_string(),
+            status: DoctorStatus::Info,
+            detail: "plugin discovery includes PATH; set plugins.search_path=false to restrict to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH".to_string(),
+        }
+    } else {
+        DoctorCheck {
+            name: "plugin-path-search".to_string(),
+            status: DoctorStatus::Ok,
+            detail: "plugin discovery is limited to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH"
+                .to_string(),
+        }
+    }
+}
+
 fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> DoctorCheck {
     if selected.versions.is_empty() {
         return DoctorCheck {
@@ -360,11 +393,7 @@ fn functional_shim_check(ctx: &AppContext, selected: &SelectedVersions) -> Docto
     }
 
     let shims_dir = ctx.shims_dir();
-    let python_shim = if cfg!(windows) {
-        shims_dir.join("python.bat")
-    } else {
-        shims_dir.join("python")
-    };
+    let python_shim = python_shim_path(&shims_dir);
 
     if !python_shim.exists() {
         return DoctorCheck {
@@ -496,6 +525,22 @@ fn windows_store_alias_check(ctx: &AppContext) -> DoctorCheck {
     }
 }
 
+fn windows_powershell_7_check(ctx: &AppContext) -> DoctorCheck {
+    if crate::plugin::powershell_7_available(ctx) {
+        DoctorCheck {
+            name: "powershell-7".to_string(),
+            status: DoctorStatus::Ok,
+            detail: "PowerShell 7 (pwsh) is on PATH".to_string(),
+        }
+    } else {
+        DoctorCheck {
+            name: "powershell-7".to_string(),
+            status: DoctorStatus::Warn,
+            detail: "PowerShell 7 (pwsh) was not found. pyenv-native prefers pwsh for .ps1 plugins, shell init, and doctor --fix. Install with: winget install --id Microsoft.PowerShell".to_string(),
+        }
+    }
+}
+
 fn non_windows_python_build_check(ctx: &AppContext) -> DoctorCheck {
     match resolve_python_build_path(ctx) {
         Ok(path) => DoctorCheck {
@@ -605,5 +650,29 @@ fn command_presence_check(
         name: name.to_string(),
         status: DoctorStatus::Warn,
         detail: format!("{}; searched for {}", missing_detail, commands.join(", ")),
+    }
+}
+
+#[cfg(test)]
+mod python_shim_path_tests {
+    use super::python_shim_path;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn prefers_python_exe_over_bat_on_windows() {
+        let temp = TempDir::new().expect("tempdir");
+        fs::write(temp.path().join("python.bat"), b"bat").expect("bat");
+        fs::write(temp.path().join("python.exe"), b"exe").expect("exe");
+        let name = python_shim_path(temp.path())
+            .file_name()
+            .expect("name")
+            .to_string_lossy()
+            .into_owned();
+        if cfg!(windows) {
+            assert_eq!(name, "python.exe");
+        } else {
+            assert_eq!(name, "python");
+        }
     }
 }

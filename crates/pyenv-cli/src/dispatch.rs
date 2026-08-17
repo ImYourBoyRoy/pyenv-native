@@ -13,15 +13,15 @@ use pyenv_core::{
     VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_available, cmd_commands,
     cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
     cmd_deactivate, cmd_doctor, cmd_environment, cmd_exec, cmd_external, cmd_global, cmd_help,
-    cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local, cmd_pip_check, cmd_pip_install,
-    cmd_pip_list, cmd_pip_outdated, cmd_pip_update, cmd_prefix, cmd_preflight, cmd_prompt,
-    cmd_rehash, cmd_root, cmd_self_uninstall, cmd_self_update, cmd_sh_activate, cmd_sh_cmd,
-    cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status,
-    cmd_uninstall, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename,
-    cmd_venv_upgrade, cmd_venv_use, cmd_version, cmd_version_file, cmd_version_file_read,
-    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_virtualenv,
-    cmd_virtualenv_delete, cmd_virtualenv_init, cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence,
-    cmd_which, doctor_fix_plan,
+    cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local, cmd_pip_analyze_imports,
+    cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements,
+    cmd_pip_update, cmd_prefix, cmd_preflight, cmd_prompt, cmd_rehash, cmd_root,
+    cmd_self_uninstall, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
+    cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status, cmd_uninstall, cmd_venv_create,
+    cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use,
+    cmd_version, cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
+    cmd_version_origin, cmd_versions, cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_init,
+    cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan,
 };
 
 use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
@@ -356,6 +356,14 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
         PipCommands::List { json, target } => cmd_pip_list(ctx, &target, json),
         PipCommands::Outdated { json, target } => cmd_pip_outdated(ctx, &target, json),
         PipCommands::Check { json, target } => cmd_pip_check(ctx, &target, json),
+        PipCommands::Precheck {
+            requirement,
+            target,
+        } => cmd_pip_precheck_requirements(ctx, &target, &requirement),
+        PipCommands::Analyze { target, dir } => {
+            let dir = dir.unwrap_or_else(|| ctx.dir.display().to_string());
+            cmd_pip_analyze_imports(ctx, &target, &dir)
+        }
         PipCommands::Install {
             requirement,
             target,

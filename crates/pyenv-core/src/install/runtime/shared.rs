@@ -169,6 +169,8 @@ pub(super) fn finalize_install(
         "shims",
         format!("refreshed shims under {}", ctx.shims_dir().display()),
     );
+    let detail = crate::windows_registry::apply_pep514_registration(ctx, plan)?;
+    progress.push("registry", detail);
     run_after_install_hooks(ctx, plan)?;
 
     Ok(InstallOutcome {

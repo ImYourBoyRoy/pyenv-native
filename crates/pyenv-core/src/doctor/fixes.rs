@@ -99,6 +99,20 @@ pub fn doctor_fix_plan(ctx: &AppContext) -> Vec<DoctorFix> {
                 ),
             });
         }
+
+        if !crate::plugin::powershell_7_available(ctx) {
+            let winget_available = crate::executable::find_system_command(ctx, "winget").is_some();
+            fixes.push(DoctorFix {
+                key: "install-powershell-7".to_string(),
+                automated: winget_available,
+                description: "Install PowerShell 7 (pwsh) for plugin hooks and shell init"
+                    .to_string(),
+                command_hint: Some(
+                    "winget install --id Microsoft.PowerShell --accept-package-agreements --accept-source-agreements"
+                        .to_string(),
+                ),
+            });
+        }
     } else {
         fixes.extend(non_windows_manual_dependency_fixes(ctx, platform));
 
@@ -171,11 +185,19 @@ pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, PyenvErr
     let has_termux_fix = plan.iter().any(|f| f.key == "termux-compile-deps");
     let has_macos_clt_fix = plan.iter().any(|f| f.key == "macos-xcode-clt");
     let has_macos_openssl_fix = plan.iter().any(|f| f.key == "macos-openssl-brew");
+    let has_powershell_7_fix = plan
+        .iter()
+        .any(|f| f.key == "install-powershell-7" && f.automated);
     let manual = plan
         .into_iter()
         .filter(|item| !item.automated)
         .collect::<Vec<_>>();
     let mut applied = Vec::new();
+
+    if has_powershell_7_fix {
+        let message = install_powershell_7()?;
+        applied.push(message);
+    }
 
     if has_macos_clt_fix {
         match crate::preflight::try_install_or_update_macos_clt() {
@@ -282,6 +304,40 @@ pub fn apply_doctor_fixes(ctx: &AppContext) -> Result<DoctorFixOutcome, PyenvErr
     ));
 
     Ok(DoctorFixOutcome { applied, manual })
+}
+
+pub fn install_powershell_7() -> Result<String, PyenvError> {
+    if cfg!(not(windows)) {
+        return Err(PyenvError::Io(
+            "pyenv: winget PowerShell 7 install is only available on Windows".to_string(),
+        ));
+    }
+
+    let output = std::process::Command::new("winget")
+        .args([
+            "install",
+            "--id",
+            "Microsoft.PowerShell",
+            "-e",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+            "--disable-interactivity",
+        ])
+        .output()
+        .map_err(|error| {
+            PyenvError::Io(format!(
+                "pyenv: winget is required to install PowerShell 7: {error}"
+            ))
+        })?;
+    if output.status.success() {
+        Ok("Installed PowerShell 7 (pwsh) via winget (Microsoft.PowerShell). Restart the terminal to refresh PATH.".to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(PyenvError::Io(format!(
+            "pyenv: winget failed to install PowerShell 7 (exit {}): {stderr}",
+            output.status
+        )))
+    }
 }
 
 fn non_windows_manual_dependency_fixes(ctx: &AppContext, platform: &str) -> Vec<DoctorFix> {

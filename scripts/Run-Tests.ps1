@@ -1,7 +1,7 @@
 # ./scripts/Run-Tests.ps1
 <#
 Purpose: Runs the full local Windows quality gate for pyenv-native, including Rust tests, Python bootstrap validation, lint checks, and shell smoke tests.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/Run-Tests.ps1 [-FullClean]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/Run-Tests.ps1 [-FullClean]
 Inputs: Optional -FullClean switch to clear caches before validation.
 Outputs/side effects: Executes workspace tests, may bootstrap a temporary local Python runtime when no usable interpreter is available, and removes any temporary bootstrap root before exiting.
 Notes: Intended for local release validation; on Windows it can self-bootstrap a temporary Python via the local pyenv-native CLI instead of relying on the Microsoft Store alias.
@@ -111,11 +111,11 @@ try {
 
     if ($null -ne $resolvedPython) {
         Write-Host "--- Running Python bootstrap tests ---" -ForegroundColor Cyan
-        powershell -ExecutionPolicy Bypass -File "$PSScriptRoot/test-python-bootstrap.ps1" -PythonPath $resolvedPython
+        pwsh -NoLogo -NoProfile -File "$PSScriptRoot/test-python-bootstrap.ps1" -PythonPath $resolvedPython
         Assert-LastExitCode -Message '--- Python bootstrap tests FAILED ---'
 
         Write-Host "--- Building Python bootstrap package smoke test ---" -ForegroundColor Cyan
-        powershell -ExecutionPolicy Bypass -File "$PSScriptRoot/build-python-bootstrap.ps1" -PythonPath $resolvedPython
+        pwsh -NoLogo -NoProfile -File "$PSScriptRoot/build-python-bootstrap.ps1" -PythonPath $resolvedPython
         Assert-LastExitCode -Message '--- Python bootstrap build FAILED ---'
     }
 
@@ -131,7 +131,7 @@ try {
         cargo build -p pyenv-cli
         Assert-LastExitCode -Message '--- Windows smoke build FAILED ---'
 
-        powershell -ExecutionPolicy Bypass -File "$PSScriptRoot/smoke-shells.ps1"
+        pwsh -NoLogo -NoProfile -File "$PSScriptRoot/smoke-shells.ps1"
         Assert-LastExitCode -Message '--- Windows shell smoke tests FAILED ---'
     }
 

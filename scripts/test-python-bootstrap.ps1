@@ -1,7 +1,7 @@
 # ./scripts/test-python-bootstrap.ps1
 <#
 Purpose: Runs the Python install package unit tests with a chosen Python interpreter.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/test-python-bootstrap.ps1 -PythonPath <python.exe>
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/test-python-bootstrap.ps1 -PythonPath <python.exe>
 Inputs: Optional Python interpreter path.
 Outputs/side effects: Executes stdlib unittest discovery against python-package/tests with PYTHONPATH set to python-package/src.
 Notes: Intended for local validation and CI; requires Python 3.8+.

@@ -1,7 +1,7 @@
 # ./scripts/Check-Env.ps1
 <#
 Purpose: Verifies the local Windows development environment for pyenv-native, including optional Android cross-build prerequisites.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/Check-Env.ps1 [-RequireAndroid]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/Check-Env.ps1 [-RequireAndroid]
 Inputs: Optional switch requiring Android build readiness in addition to the base Rust/PowerShell checks.
 Outputs/side effects: Prints a readiness summary for Rust, Cargo, pyenv visibility, and Android tooling such as rustup targets, cargo-ndk, and Android NDK discovery.
 Notes: Intended for contributors on Windows; Android checks are advisory by default and become required only when -RequireAndroid is supplied.

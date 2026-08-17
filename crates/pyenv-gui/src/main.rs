@@ -25,49 +25,75 @@ fn get_context_with_dir(workspace_dir: Option<String>) -> Result<pyenv_core::App
     Ok(ctx)
 }
 
-#[tauri::command]
-fn get_status(workspace_dir: Option<String>) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_status(&ctx, true);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn run_blocking<T, F>(work: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|e| format!("Task panicked: {e}"))?
 }
 
 #[tauri::command]
-fn get_available_versions(
+async fn get_status(workspace_dir: Option<String>) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_status(&ctx, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+async fn get_available_versions(
     workspace_dir: Option<String>,
     family: Option<String>,
     pattern: Option<String>,
 ) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_available(&ctx, family, pattern, false, true);
-    if report.exit_code != 0 {
-        let errs = report.stderr.join("\n");
-        if errs.is_empty() {
-            return Err("Failed to fetch available versions.".to_string());
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_available(&ctx, family, pattern, false, true);
+        if report.exit_code != 0 {
+            let errs = report.stderr.join("\n");
+            if errs.is_empty() {
+                return Err("Failed to fetch available versions.".to_string());
+            }
+            return Err(errs);
         }
-        return Err(errs);
-    }
-    Ok(report.stdout.join("\n"))
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
 }
 
 #[tauri::command]
-fn get_installed_versions(workspace_dir: Option<String>) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let names = pyenv_core::installed_version_names(&ctx).map_err(|e| e.to_string())?;
-    serde_json::to_string(&names).map_err(|e| e.to_string())
+async fn get_installed_versions(workspace_dir: Option<String>) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let names = pyenv_core::installed_version_names(&ctx).map_err(|e| e.to_string())?;
+        serde_json::to_string(&names).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
 }
 
 #[tauri::command]
-fn get_managed_venvs(workspace_dir: Option<String>) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_venv_list(&ctx, false, true);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn get_managed_venvs(workspace_dir: Option<String>) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_venv_list(&ctx, false, true);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
 }
 
 #[tauri::command]
@@ -144,44 +170,60 @@ fn select_directory() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn set_global(workspace_dir: Option<String>, version: String) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_global(&ctx, &[version], false);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    let rehash = pyenv_core::cmd_rehash(&ctx);
-    if rehash.exit_code != 0 {
-        return Err(rehash.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn set_global(workspace_dir: Option<String>, version: String) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_global(&ctx, &[version], false);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        let rehash = pyenv_core::cmd_rehash(&ctx);
+        if rehash.exit_code != 0 {
+            return Err(rehash.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
 }
 
 #[tauri::command]
-fn set_local(version: String, path: String) -> Result<String, String> {
-    let ctx = get_context_with_dir(Some(path.clone()))?;
-    let target = std::path::Path::new(&path).join(".python-version");
-    let report = pyenv_core::cmd_version_file_write(&ctx, &target, &[version], false);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn set_local(version: String, path: String) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(Some(path.clone()))?;
+        let target = std::path::Path::new(&path).join(".python-version");
+        let report = pyenv_core::cmd_version_file_write(&ctx, &target, &[version], false);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
 }
 
 #[tauri::command]
-fn get_config(workspace_dir: Option<String>) -> Result<String, String> {
-    let ctx = get_context_with_dir(workspace_dir)?;
-    serde_json::to_string(&ctx.config).map_err(|e| e.to_string())
+async fn get_config(workspace_dir: Option<String>) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        serde_json::to_string(&ctx.config).map_err(|e| e.to_string())
+    })
+    .await
 }
 
 #[tauri::command]
-fn set_config(workspace_dir: Option<String>, key: String, value: String) -> Result<String, String> {
-    let mut ctx = get_context_with_dir(workspace_dir)?;
-    let report = pyenv_core::cmd_config_set(&mut ctx, &key, &value);
-    if report.exit_code != 0 {
-        return Err(report.stderr.join("\n"));
-    }
-    Ok(report.stdout.join("\n"))
+async fn set_config(
+    workspace_dir: Option<String>,
+    key: String,
+    value: String,
+) -> Result<String, String> {
+    run_blocking(move || {
+        let mut ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_config_set(&mut ctx, &key, &value);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
+        }
+        Ok(report.stdout.join("\n"))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -211,6 +253,33 @@ async fn delete_venv(workspace_dir: Option<String>, spec: String) -> Result<Stri
             return Err(report.stderr.join("\n"));
         }
         Ok(report.stdout.join("\n"))
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn upgrade_venv(
+    workspace_dir: Option<String>,
+    spec: String,
+    new_runtime: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let report = pyenv_core::cmd_venv_upgrade(&ctx, &spec, &new_runtime, true, false);
+        let output = [report.stdout.join("\n"), report.stderr.join("\n")]
+            .into_iter()
+            .filter(|block| !block.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        if report.exit_code != 0 {
+            return Err(if output.is_empty() {
+                "pyenv: venv upgrade failed".to_string()
+            } else {
+                output
+            });
+        }
+        Ok(output)
     })
     .await
     .map_err(|e| format!("Task failed: {e}"))?
@@ -258,62 +327,6 @@ async fn perform_update(workspace_dir: Option<String>) -> Result<String, String>
             return Err(report.stderr.join("\n"));
         }
         Ok(report.stdout.join("\n"))
-    })
-    .await
-    .map_err(|e| format!("Task panicked: {e}"))?
-}
-
-#[derive(serde::Serialize)]
-struct VenvUpgradeInfo {
-    name: String,
-    base_version: String,
-    packages: Vec<String>,
-}
-
-#[tauri::command]
-async fn get_venv_upgrade_info(
-    workspace_dir: Option<String>,
-    spec: String,
-) -> Result<VenvUpgradeInfo, String> {
-    tokio::task::spawn_blocking(move || {
-        let ctx = get_context_with_dir(workspace_dir)?;
-        let info = pyenv_core::resolve_managed_venv(&ctx, &spec).map_err(|e| e.to_string())?;
-
-        let py_path = info
-            .python_path
-            .as_ref()
-            .ok_or_else(|| format!("pyenv: interpreter for managed venv '{}' is missing.", spec))?;
-
-        let mut packages = Vec::new();
-        if let Ok(output) = std::process::Command::new(py_path)
-            .headless()
-            .args(["-m", "pip", "list", "--format=json"])
-            .output()
-            && output.status.success()
-        {
-            let stdout_str = String::from_utf8_lossy(&output.stdout);
-            if let Ok(pkgs) = serde_json::from_str::<Vec<pyenv_core::PipPackage>>(&stdout_str) {
-                packages = pkgs;
-            }
-        }
-
-        let custom_packages: Vec<String> = packages
-            .into_iter()
-            .filter(|p| {
-                let name_lower = p.name.to_lowercase();
-                name_lower != "pip"
-                    && name_lower != "setuptools"
-                    && name_lower != "wheel"
-                    && name_lower != "distribute"
-            })
-            .map(|p| format!("{}=={}", p.name, p.version))
-            .collect();
-
-        Ok(VenvUpgradeInfo {
-            name: info.name,
-            base_version: info.base_version,
-            packages: custom_packages,
-        })
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?
@@ -479,23 +492,22 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+fn is_safe_http_url(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("https://") || lower.starts_with("http://")) {
+        return false;
+    }
+    !url.chars()
+        .any(|c| c.is_control() || matches!(c, '"' | '\'' | '|' | '&' | '<' | '>' | '`'))
+}
+
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("cmd")
-            .args(["/C", "start", &url])
-            .spawn();
+    let url = url.trim();
+    if !is_safe_http_url(url) {
+        return Err("only plain http(s) URLs can be opened".to_string());
     }
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(&url).spawn();
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
-    }
-    Ok(())
+    opener::open(url).map_err(|error| format!("failed to open URL: {error}"))
 }
 
 #[derive(serde::Serialize)]
@@ -556,8 +568,60 @@ fn shell_path_label(is_configured: bool, shims_in_path: bool) -> String {
     }
 }
 
+fn known_shell_profile_paths(home: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if cfg!(windows) {
+        paths.push(
+            home.join("Documents")
+                .join("PowerShell")
+                .join("Microsoft.PowerShell_profile.ps1"),
+        );
+        paths.push(
+            home.join("Documents")
+                .join("WindowsPowerShell")
+                .join("Microsoft.PowerShell_profile.ps1"),
+        );
+    } else {
+        paths.push(
+            home.join(".config")
+                .join("powershell")
+                .join("Microsoft.PowerShell_profile.ps1"),
+        );
+    }
+    paths.push(home.join(".zshrc"));
+    paths.push(home.join(".bashrc"));
+    paths.push(home.join(".config").join("fish").join("config.fish"));
+    paths
+}
+
+fn profile_paths_equal(left: &std::path::Path, right: &std::path::Path) -> bool {
+    let left_s = left.to_string_lossy().replace('\\', "/");
+    let right_s = right.to_string_lossy().replace('\\', "/");
+    if cfg!(windows) {
+        left_s.eq_ignore_ascii_case(&right_s)
+    } else {
+        left_s == right_s
+    }
+}
+
+fn profile_path_is_allowed(home: &std::path::Path, requested: &std::path::Path) -> bool {
+    if requested
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return false;
+    }
+    known_shell_profile_paths(home)
+        .iter()
+        .any(|allowed| profile_paths_equal(allowed, requested))
+}
+
 #[tauri::command]
-fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>, String> {
+async fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>, String> {
+    run_blocking(move || get_shell_statuses_sync(workspace_dir)).await
+}
+
+fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>, String> {
     let ctx = get_context_with_dir(workspace_dir)?;
     let mut statuses = Vec::new();
     let shims_dir = ctx.shims_dir();
@@ -667,8 +731,18 @@ fn get_shell_statuses(workspace_dir: Option<String>) -> Result<Vec<ShellStatus>,
 }
 
 #[tauri::command]
-fn configure_shell(shell_name: String, profile_path: String) -> Result<(), String> {
-    let path = std::path::PathBuf::from(&profile_path);
+async fn configure_shell(shell_name: String, profile_path: String) -> Result<(), String> {
+    run_blocking(move || configure_shell_impl(&shell_name, &profile_path)).await
+}
+
+fn configure_shell_impl(shell_name: &str, profile_path: &str) -> Result<(), String> {
+    let home = get_home_dir()?;
+    let path = std::path::PathBuf::from(profile_path);
+    if !profile_path_is_allowed(&home, &path) {
+        return Err(
+            "Refusing to write a shell profile outside the known user profile set.".to_string(),
+        );
+    }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create parent directory: {e}"))?;
@@ -852,7 +926,7 @@ fn finalize_managed_install(ctx: &pyenv_core::AppContext) -> Result<String, Stri
         if already {
             continue;
         }
-        if let Ok(()) = configure_shell(name.to_string(), profile.to_string_lossy().to_string()) {
+        if let Ok(()) = configure_shell_impl(name, &profile.to_string_lossy()) {
             configured.push(name.to_string());
         }
     }
@@ -876,7 +950,11 @@ fn finalize_managed_install(ctx: &pyenv_core::AppContext) -> Result<String, Stri
 }
 
 #[tauri::command]
-fn check_install_status() -> InstallStatus {
+async fn check_install_status() -> Result<InstallStatus, String> {
+    run_blocking(|| Ok(check_install_status_sync())).await
+}
+
+fn check_install_status_sync() -> InstallStatus {
     let platform = if cfg!(windows) {
         "windows"
     } else if cfg!(target_os = "macos") {
@@ -985,6 +1063,7 @@ async fn install_local_pyenv() -> Result<String, String> {
             let gui_bin = parent.join("pyenv-gui.exe");
 
             let mut args = vec![
+                "-NoProfile".to_string(),
                 "-ExecutionPolicy".to_string(),
                 "Bypass".to_string(),
                 "-File".to_string(),
@@ -1005,7 +1084,7 @@ async fn install_local_pyenv() -> Result<String, String> {
                 args.push(gui_bin.to_string_lossy().to_string());
             }
 
-            let output = std::process::Command::new("powershell")
+            let output = std::process::Command::new(pyenv_core::windows_powershell_host())
                 .headless()
                 .args(&args)
                 .output()
@@ -1200,7 +1279,11 @@ fn cache_entry(name: &str, path: std::path::PathBuf) -> CacheEntryGui {
 }
 
 #[tauri::command]
-fn get_cache_stats(workspace_dir: Option<String>) -> Result<CacheStatsGui, String> {
+async fn get_cache_stats(workspace_dir: Option<String>) -> Result<CacheStatsGui, String> {
+    run_blocking(move || get_cache_stats_sync(workspace_dir)).await
+}
+
+fn get_cache_stats_sync(workspace_dir: Option<String>) -> Result<CacheStatsGui, String> {
     let ctx = get_context_with_dir(workspace_dir)?;
     let cache_root = ctx.cache_dir();
     let mut entries = vec![
@@ -1237,7 +1320,11 @@ fn get_cache_stats(workspace_dir: Option<String>) -> Result<CacheStatsGui, Strin
 }
 
 #[tauri::command]
-fn purge_cache(workspace_dir: Option<String>, target: String) -> Result<String, String> {
+async fn purge_cache(workspace_dir: Option<String>, target: String) -> Result<String, String> {
+    run_blocking(move || purge_cache_sync(workspace_dir, target)).await
+}
+
+fn purge_cache_sync(workspace_dir: Option<String>, target: String) -> Result<String, String> {
     let ctx = get_context_with_dir(workspace_dir)?;
     let cache_root = ctx.cache_dir();
     let allowed = [
@@ -1282,6 +1369,11 @@ fn purge_cache(workspace_dir: Option<String>, target: String) -> Result<String, 
     Ok(format!("Purged cache: {target} ({})", path.display()))
 }
 
+#[tauri::command]
+async fn install_powershell_7() -> Result<String, String> {
+    run_blocking(|| pyenv_core::install_powershell_7().map_err(|error| error.to_string())).await
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     desktop_integration::prepare_linux_runtime();
@@ -1299,6 +1391,7 @@ fn main() {
             set_local,
             create_venv,
             delete_venv,
+            upgrade_venv,
             check_for_updates,
             perform_update,
             get_config,
@@ -1319,15 +1412,55 @@ fn main() {
             update_pip_packages,
             get_shell_statuses,
             configure_shell,
+            install_powershell_7,
             analyze_codebase_imports,
             run_doctor,
             run_doctor_fix,
             get_platform_intelligence,
-            get_venv_upgrade_info,
             install_pip_packages,
             get_cache_stats,
             purge_cache
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_http_url;
+
+    #[test]
+    fn accepts_plain_https_urls() {
+        assert!(is_safe_http_url(
+            "https://github.com/imyourboyroy/pyenv-native"
+        ));
+        assert!(is_safe_http_url("http://127.0.0.1:8080/docs"));
+    }
+
+    #[test]
+    fn rejects_non_http_and_unsafe_characters() {
+        assert!(!is_safe_http_url("javascript:alert(1)"));
+        assert!(!is_safe_http_url("file:///etc/passwd"));
+        assert!(!is_safe_http_url("https://example.com/\"onclick"));
+        assert!(!is_safe_http_url("https://example.com/path?q=1&x=2"));
+        assert!(!is_safe_http_url("https://example.com/\nnext"));
+    }
+
+    #[test]
+    fn shell_profile_allowlist_rejects_escape_paths() {
+        use super::{known_shell_profile_paths, profile_path_is_allowed};
+        use std::path::PathBuf;
+
+        let home = PathBuf::from("/home/tester");
+        let allowed = known_shell_profile_paths(&home);
+        assert!(profile_path_is_allowed(&home, &allowed[0]));
+        assert!(!profile_path_is_allowed(
+            &home,
+            &home.join("..").join("etc").join("profile")
+        ));
+        assert!(!profile_path_is_allowed(
+            &home,
+            &PathBuf::from("/tmp/evil.rc")
+        ));
+    }
 }

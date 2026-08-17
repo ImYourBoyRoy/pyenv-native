@@ -1,12 +1,15 @@
 {
   "productName": "Pyenv Native",
-  "version": "0.2.38",
+  "version": "0.3.0",
   "identifier": "com.pyenv-native.gui",
   "build": {
     "frontendDist": "ui"
   },
   "app": {
     "withGlobalTauri": true,
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
+    },
     "windows": [
       {
         "label": "main",

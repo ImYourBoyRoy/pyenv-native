@@ -36,7 +36,7 @@ pub(super) fn install_runtime_via_archive(
         plan,
         format!("fetching package from {}", plan.download_url),
     );
-    download_package(plan, Some(&mut |step| progress.push("download", step)))?;
+    download_package(ctx, plan, Some(&mut |step| progress.push("download", step)))?;
 
     let outcome = (|| {
         extract_archive(plan, &staging_dir)?;

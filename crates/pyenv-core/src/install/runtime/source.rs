@@ -37,7 +37,7 @@ pub(super) fn install_runtime_via_cpython_source(
     );
 
     let outcome = (|| {
-        download_package(plan, Some(&mut |step| progress.push("download", step)))?;
+        download_package(ctx, plan, Some(&mut |step| progress.push("download", step)))?;
         extract_archive(plan, &source_dir)?;
         progress.push(
             "extract",

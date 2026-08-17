@@ -53,6 +53,31 @@ mod tests {
     }
 
     #[test]
+    fn toolkit_guide_includes_lifecycle_tools() {
+        let guide = super::super::docs::build_toolkit_guide(
+            "imyourboyroy/pyenv-native",
+            Some(Path::new("/tmp/.pyenv")),
+            "pyenv-native",
+            Path::new("/tmp/pyenv-mcp"),
+            Path::new("/tmp/.pyenv"),
+        );
+        let names: Vec<&str> = guide
+            .tool_summaries
+            .iter()
+            .map(|summary| summary.tool_name.as_str())
+            .collect();
+        for expected in [
+            "get_config",
+            "set_config",
+            "self_update",
+            "venv_upgrade",
+            "doctor_fix",
+        ] {
+            assert!(names.contains(&expected), "missing tool {expected}");
+        }
+    }
+
+    #[test]
     fn venv_python_path_uses_platform_layout() {
         let temp = TempDir::new().expect("tempdir");
         let path = venv_python_path(temp.path());

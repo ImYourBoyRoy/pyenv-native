@@ -1,9 +1,10 @@
 # ./scripts/check-version-sync.ps1
 <#
 Purpose: Fail CI/release when Cargo workspace, Python package, and bootstrap __version__ diverge.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/check-version-sync.ps1
-            powershell -ExecutionPolicy Bypass -File ./scripts/check-version-sync.ps1 -ExpectedVersion 0.2.34
-Inputs: Cargo.toml, python-package/pyproject.toml, python-package/src/pyenv_native_bootstrap/__init__.py;
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/check-version-sync.ps1
+            pwsh -NoLogo -NoProfile -File ./scripts/check-version-sync.ps1 -ExpectedVersion 0.2.34
+Inputs: Cargo.toml, python-package/pyproject.toml, python-package/src/pyenv_native_bootstrap/__init__.py,
+        crates/pyenv-gui/tauri.conf.json;
         optional -ExpectedVersion (or EXPECTED_VERSION env) for tag release gates.
 Outputs/side effects: Prints the shared version; throws on mismatch.
 Notes: Keep in sync with scripts/set-version.ps1 and scripts/check-version-sync.sh.
@@ -34,18 +35,21 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $cargoToml = Join-Path $repoRoot 'Cargo.toml'
 $pyproject = Join-Path $repoRoot 'python-package\pyproject.toml'
 $pythonInit = Join-Path $repoRoot 'python-package\src\pyenv_native_bootstrap\__init__.py'
+$tauriConf = Join-Path $repoRoot 'crates\pyenv-gui\tauri.conf.json'
 
 $cargoVersion = Get-FirstMatchValue -Path $cargoToml -Pattern '(?m)^version\s*=\s*"([^"]+)"\s*$' -Label 'Cargo.toml version'
 $pyVersion = Get-FirstMatchValue -Path $pyproject -Pattern '(?m)^version\s*=\s*"([^"]+)"\s*$' -Label 'pyproject.toml version'
 $initVersion = Get-FirstMatchValue -Path $pythonInit -Pattern '(?m)^__version__\s*=\s*"([^"]+)"\s*$' -Label '__version__'
+$tauriVersion = Get-FirstMatchValue -Path $tauriConf -Pattern '(?m)^\s*"version"\s*:\s*"([^"]+)"' -Label 'tauri.conf.json version'
 
-if ($cargoVersion -ne $pyVersion -or $cargoVersion -ne $initVersion) {
+if ($cargoVersion -ne $pyVersion -or $cargoVersion -ne $initVersion -or $cargoVersion -ne $tauriVersion) {
     throw @"
 Version mismatch across release metadata:
   Cargo.toml:           $cargoVersion
   python-package/pyproject.toml: $pyVersion
   __init__.__version__: $initVersion
-Fix with: powershell -ExecutionPolicy Bypass -File ./scripts/set-version.ps1 -Version <semver>
+  tauri.conf.json:      $tauriVersion
+Fix with: pwsh -NoLogo -NoProfile -File ./scripts/set-version.ps1 -Version <semver>
 "@
 }
 

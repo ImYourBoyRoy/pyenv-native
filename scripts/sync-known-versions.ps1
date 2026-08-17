@@ -1,7 +1,7 @@
 ﻿# ./scripts/sync-known-versions.ps1
 <#
 Purpose: Regenerates the embedded known-versions catalog from an upstream pyenv clone.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/sync-known-versions.ps1 [-UpstreamRoot ..\..\pyenv]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/sync-known-versions.ps1 [-UpstreamRoot ..\..\pyenv]
 Inputs: Optional upstream pyenv root containing plugins/python-build/share/python-build definitions.
 Outputs/side effects: Writes crates/pyenv-core/data/known_versions.txt with sorted definition names.
 Notes: This is a maintenance helper for syncing the local catalog seed with upstream pyenv.

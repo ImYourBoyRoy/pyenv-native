@@ -10,19 +10,22 @@ use rmcp::{
 };
 
 use crate::model::{
-    AvailableVersionsParams, DoctorFixParams, EnsureProjectVenvParams, EnsureRuntimeParams,
-    InstallInstructionParams, JsonForwardResponse, PipAnalyzeParams, PipInstallParams,
-    PipListParams, PipPrecheckParams, PipUpdateParams, ProjectPathParams, ProjectVenvResponse,
-    RuntimeInventory, SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide,
+    AvailableVersionsParams, ConfigGetParams, ConfigSetParams, DoctorFixParams,
+    EnsureProjectVenvParams, EnsureRuntimeParams, InstallInstructionParams, JsonForwardResponse,
+    PipAnalyzeParams, PipInstallParams, PipListParams, PipPrecheckParams, PipUpdateParams,
+    ProjectPathParams, ProjectVenvResponse, RuntimeInventory, SelfUpdateParams,
+    SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide, VenvUpgradeParams,
     VersionCatalogResponse, VersionSelectionResponse,
 };
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
     build_toolkit_guide, doctor_fix_response, doctor_response, ensure_project_venv_response,
-    ensure_runtime_response, inspect_environment_response, list_available_versions_response,
-    pip_analyze_imports_response, pip_check_response, pip_install_response, pip_list_response,
-    pip_outdated_response, pip_precheck_response, pip_update_response, preflight_response,
-    resolve_runtime_inventory, set_global_versions_response, set_local_versions_response,
+    ensure_runtime_response, get_config_response, inspect_environment_response,
+    list_available_versions_response, pip_analyze_imports_response, pip_check_response,
+    pip_install_response, pip_list_response, pip_outdated_response, pip_precheck_response,
+    pip_update_response, preflight_response, resolve_runtime_inventory, self_update_response,
+    set_config_response, set_global_versions_response, set_local_versions_response,
+    venv_upgrade_response,
 };
 
 #[derive(Debug, Clone)]
@@ -133,15 +136,14 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "doctor_fix",
-        description = "Apply safe automated doctor repairs (shims/layout, Termux packages, best-effort macOS CLT/OpenSSL). Returns applied actions plus remaining manual fixes."
+        description = "Apply safe automated doctor repairs (shims/layout, Termux packages, best-effort macOS CLT/OpenSSL). Set force=false to return the planned fixes without applying them. Default is to apply (MCP has no confirmation prompt)."
     )]
     pub async fn doctor_fix(
         &self,
         Parameters(params): Parameters<DoctorFixParams>,
     ) -> Result<Json<JsonForwardResponse>, String> {
-        let _ = params.force;
         let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
-        doctor_fix_response(&ctx)
+        doctor_fix_response(&ctx, params.force != Some(false))
             .map(Json)
             .map_err(|error| error.to_string())
     }
@@ -284,7 +286,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "pip_outdated",
-        description = "Audit outdated pip packages in a target environment against the upstream PyPI package catalog."
+        description = "Audit outdated pip packages in a target environment against PyPI. Returns {name, version, latest_version}. Copy names or pins into pip_update; this JSON is not a pip_update argument."
     )]
     pub async fn pip_outdated(
         &self,
@@ -312,7 +314,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "pip_precheck",
-        description = "Perform a static version dependency analysis before installation, comparing an incoming requirements.txt file or remote URL against currently installed packages to identify potential version conflicts. Auto-resolves GitHub URLs to raw content."
+        description = "Perform a static version dependency analysis before installation, comparing an incoming requirements.txt file or remote HTTPS URL against currently installed packages to identify potential version conflicts. Auto-resolves GitHub URLs to raw content. http:// is rejected."
     )]
     pub async fn pip_precheck(
         &self,
@@ -326,7 +328,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "pip_install",
-        description = "Install pip requirements packages in a target environment from a local requirements.txt path or remote URL. Always run pip_precheck before triggering this."
+        description = "Install pip requirements packages in a target environment from a local requirements.txt path or remote HTTPS URL. Always run pip_precheck before triggering this. http:// is rejected."
     )]
     pub async fn pip_install(
         &self,
@@ -340,7 +342,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "pip_update",
-        description = "Upgrade pip packages in a target environment. Supports batch upgrade checklist or updating all. Upgrades pip itself first if pip itself is outdated."
+        description = "Upgrade named packages or name==version pins, or set all=true to upgrade every outdated package. Upgrades pip first when pip is outdated. all=true fails if the outdated scan cannot run."
     )]
     pub async fn pip_update(
         &self,
@@ -366,5 +368,74 @@ impl PyenvNativeMcpServer {
         pip_analyze_imports_response(&ctx, &params.target, &params.dir_path)
             .map(Json)
             .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "get_config",
+        description = "Read pyenv-native configuration. Omit key to return the full TOML. Use a dotted key such as windows.registry_mode to read one value."
+    )]
+    pub async fn get_config(
+        &self,
+        Parameters(params): Parameters<ConfigGetParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(None).map_err(|error| error.to_string())?;
+        get_config_response(&ctx, params.key.as_deref())
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "set_config",
+        description = "Persist a pyenv-native config key. Example keys: install.bootstrap_pip, windows.registry_mode, plugins.search_path."
+    )]
+    pub async fn set_config(
+        &self,
+        Parameters(params): Parameters<ConfigSetParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let mut ctx = build_context(None).map_err(|error| error.to_string())?;
+        set_config_response(&mut ctx, &params.key, &params.value)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "self_update",
+        description = "Check for or apply a pyenv-native self-update from GitHub Releases. yes defaults to false so agents cannot upgrade without an explicit confirmation flag. Use check=true for a read-only version comparison."
+    )]
+    pub async fn self_update(
+        &self,
+        Parameters(params): Parameters<SelfUpdateParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(None).map_err(|error| error.to_string())?;
+        self_update_response(
+            &ctx,
+            params.check.unwrap_or(false),
+            params.yes.unwrap_or(false),
+            params.force.unwrap_or(false),
+            params.github_repo,
+            params.tag,
+        )
+        .map(Json)
+        .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "venv_upgrade",
+        description = "Migrate a managed venv onto another installed Python runtime. Inventories packages first and fails closed if that scan cannot run. Restores packages into a temporary env, then removes the old env and renames."
+    )]
+    pub async fn venv_upgrade(
+        &self,
+        Parameters(params): Parameters<VenvUpgradeParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        venv_upgrade_response(
+            &ctx,
+            &params.spec,
+            &params.new_runtime,
+            params.force.unwrap_or(false),
+            params.set_local.unwrap_or(false),
+        )
+        .map(Json)
+        .map_err(|error| error.to_string())
     }
 }

@@ -1,5 +1,6 @@
 mod context;
 mod docs;
+mod lifecycle;
 mod pip;
 mod project;
 mod runtime;
@@ -9,6 +10,9 @@ pub(crate) use context::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_client_config, build_context,
 };
 pub(crate) use docs::{build_install_instructions, build_toolkit_guide};
+pub(crate) use lifecycle::{
+    get_config_response, self_update_response, set_config_response, venv_upgrade_response,
+};
 pub(crate) use pip::{
     pip_analyze_imports_response, pip_check_response, pip_install_response, pip_list_response,
     pip_outdated_response, pip_precheck_response, pip_update_response,

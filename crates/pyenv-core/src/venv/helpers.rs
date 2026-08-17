@@ -32,10 +32,16 @@ pub(super) fn pip_for_prefix(prefix: &Path) -> Option<PathBuf> {
 }
 
 pub(super) fn is_safe_env_name(value: &str) -> bool {
-    !value.trim().is_empty()
-        && value
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+        return false;
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return false;
+    }
+    trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
 }
 
 pub(super) fn format_collision_error(name: &str, collisions: &[ManagedVenvInfo]) -> String {

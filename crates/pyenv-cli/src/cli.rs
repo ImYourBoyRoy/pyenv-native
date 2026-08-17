@@ -36,6 +36,7 @@ PROVISIONING:
 
 ENVIRONMENT:
   venv               Create, inspect, and assign managed virtual environments
+  pip                List, check, install, and update packages for a runtime or venv
 
 INTERFACE:
   init               Configure the shell environment for pyenv
@@ -75,7 +76,7 @@ CORE CONCEPTS:
                Run `pyenv rehash` to refresh these after installing new pip packages.
   Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.
   Managed envs: Named virtual environments can live under `~/.pyenv/venvs/<runtime>/<name>`.
-               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.
+               Use `pyenv venv create 3.14 api` and bind a folder with `pyenv venv use api`.
                Compatibility aliases like `pyenv virtualenv` and `pyenv activate` are supported,
                but `pyenv venv ...` plus `.python-version` remains the preferred workflow.
   Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.
@@ -102,7 +103,7 @@ pub(crate) enum Commands {
     Global {
         #[arg(long = "unset", help = "Remove the global version file")]
         unset: bool,
-        #[arg(help = "Version(s) to set globally (e.g. 3.13.12, 3.12)")]
+        #[arg(help = "Version(s) to set globally (e.g. 3.14, 3.13)")]
         versions: Vec<String>,
     },
     #[command(about = "Set or show the local directory Python version")]
@@ -115,7 +116,7 @@ pub(crate) enum Commands {
         force: bool,
         #[arg(long = "unset", help = "Remove the .python-version file")]
         unset: bool,
-        #[arg(help = "Version(s) to set locally (e.g. 3.13.12, 3.12)")]
+        #[arg(help = "Version(s) to set locally (e.g. 3.14, 3.13)")]
         versions: Vec<String>,
     },
     #[command(
@@ -171,7 +172,7 @@ pub(crate) enum Commands {
         known: bool,
         #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
         family: Option<String>,
-        #[arg(help = "Version(s) to install (e.g. 3.13.12, 3.12, pypy3.11)")]
+        #[arg(help = "Version(s) to install (e.g. 3.14, 3.13, pypy3.11)")]
         versions: Vec<String>,
     },
     #[command(about = "List installable Python versions from native providers")]
@@ -501,7 +502,7 @@ pub(crate) enum ConfigCommands {
 pub(crate) enum VenvCommands {
     #[command(about = "List managed virtual environments under PYENV_ROOT/venvs/<runtime>/<name>")]
     List {
-        #[arg(long = "bare", help = "Print only env specs like 3.13.12/envs/demo")]
+        #[arg(long = "bare", help = "Print only env specs like 3.14.7/envs/demo")]
         bare: bool,
         #[arg(long = "json", help = "Output the env inventory as JSON")]
         json: bool,
@@ -510,7 +511,7 @@ pub(crate) enum VenvCommands {
     Info {
         #[arg(long = "json", help = "Output the env details as JSON")]
         json: bool,
-        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
     },
     #[command(about = "Create a managed virtual environment under a specific runtime")]
@@ -526,7 +527,7 @@ pub(crate) enum VenvCommands {
             help = "Write the new env spec into the current directory's .python-version file"
         )]
         set_local: bool,
-        #[arg(help = "Installed runtime version or prefix, such as 3.12 or 3.13.12")]
+        #[arg(help = "Installed runtime version or prefix, such as 3.12 or 3.14.7")]
         version: String,
         #[arg(help = "Managed env name, such as app or tooling")]
         name: String,
@@ -535,12 +536,12 @@ pub(crate) enum VenvCommands {
     Delete {
         #[arg(short = 'f', long = "force", help = "Skip the confirmation prompt")]
         force: bool,
-        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
     },
     #[command(about = "Rename a managed virtual environment")]
     Rename {
-        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
         #[arg(help = "New env name")]
         new_name: String,
@@ -552,7 +553,7 @@ pub(crate) enum VenvCommands {
             help = "Write the env spec into the global version file"
         )]
         global: bool,
-        #[arg(help = "Env name or full env spec like 3.13.12/envs/demo")]
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
     },
     #[command(
@@ -573,7 +574,7 @@ pub(crate) enum VenvCommands {
         #[arg(help = "The old env name or full spec (e.g. demo or 3.12.1/envs/demo) to migrate")]
         spec: String,
         #[arg(
-            help = "The target Python runtime version or prefix (e.g. 3.13 or 3.13.12) to upgrade to"
+            help = "The target Python runtime version or prefix (e.g. 3.13 or 3.14.7) to upgrade to"
         )]
         new_runtime: String,
     },
@@ -588,7 +589,10 @@ pub(crate) enum PipCommands {
         #[arg(help = "Runtime version or venv name")]
         target: String,
     },
-    #[command(about = "List outdated pip packages in a target environment")]
+    #[command(
+        about = "List outdated pip packages in a target environment",
+        long_about = "Query PyPI for upgrades. Use --json for {name, version, latest_version} objects that can be passed to `pyenv pip update`."
+    )]
     Outdated {
         #[arg(long = "json", help = "Output results as JSON")]
         json: bool,
@@ -602,24 +606,48 @@ pub(crate) enum PipCommands {
         #[arg(help = "Runtime version or venv name")]
         target: String,
     },
-    #[command(about = "Install packages from requirements.txt file or remote URL")]
-    Install {
+    #[command(about = "Statically pre-check a requirements file or HTTPS URL before install")]
+    Precheck {
         #[arg(
             short = 'r',
             long = "requirement",
-            help = "Local path or remote URL to a requirements.txt file"
+            help = "Local path or HTTPS URL to a requirements.txt file"
         )]
         requirement: String,
         #[arg(help = "Runtime version or venv name")]
         target: String,
     },
-    #[command(about = "Update pip packages inside a target environment")]
+    #[command(about = "Scan Python sources for third-party imports missing from the target")]
+    Analyze {
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+        #[arg(help = "Workspace directory to scan (defaults to the current directory)")]
+        dir: Option<String>,
+    },
+    #[command(about = "Install packages from a requirements.txt file or HTTPS URL")]
+    Install {
+        #[arg(
+            short = 'r',
+            long = "requirement",
+            help = "Local path or HTTPS URL to a requirements.txt file"
+        )]
+        requirement: String,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(
+        about = "Update pip packages inside a target environment",
+        long_about = "Upgrade named packages, optional name==version pins, or every outdated package with --all. Outdated pip is upgraded first. --all fails if the outdated scan cannot run."
+    )]
     Update {
-        #[arg(long = "all", help = "Update all outdated packages")]
+        #[arg(
+            long = "all",
+            help = "Update all outdated packages; fails if the outdated scan cannot run"
+        )]
         all: bool,
         #[arg(help = "Runtime version or venv name")]
         target: String,
-        #[arg(help = "List of package names to update")]
+        #[arg(help = "Package names or name==version pins to update")]
         packages: Vec<String>,
     },
 }

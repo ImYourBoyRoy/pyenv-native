@@ -167,3 +167,19 @@ fn completions_include_help_and_dynamic_values() {
     assert!(hooks.stdout.iter().any(|line| line == "install"));
     assert!(hooks.stdout.iter().any(|line| line == "rehash"));
 }
+
+#[test]
+fn help_includes_pip_update_fail_closed_docs() {
+    let (_temp, ctx) = test_context();
+    let report = cmd_help(&ctx, Some("pip"), false);
+    assert_eq!(report.exit_code, 0);
+    let joined = report.stdout.join("\n");
+    assert!(joined.contains("update --all"));
+    assert!(joined.contains("fails closed"));
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.contains("pyenv pip update --all"))
+    );
+}

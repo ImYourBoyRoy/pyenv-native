@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# ./.githooks/pre-push
+# Run the workspace quality gate before pushing.
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+if [ -f "$ROOT/scripts/check-all.sh" ]; then
+  sh "$ROOT/scripts/check-all.sh"
+else
+  echo "pre-push: scripts/check-all.sh missing" >&2
+  exit 1
+fi

@@ -20,6 +20,7 @@ use crate::version::installed_version_dir;
 use super::types::{DependencyConflict, OutdatedPackage, PipPackage};
 
 /// Build a pip subprocess with flags/env that keep stdout machine-readable.
+/// Never pass `pip -q` here: quiet mode on pip 26+ swallows `--format=json` output.
 fn pip_subcommand(py_path: &Path) -> Command {
     let mut command = Command::new(py_path);
     command
@@ -39,23 +40,26 @@ fn trim_json_array_line(line: &str) -> &str {
     }
 }
 
-fn extract_json_array_payload(stdout: &str) -> &str {
+fn extract_json_array_payload(stdout: &str) -> Result<&str, serde_json::Error> {
     let trimmed = stdout.trim();
     if trimmed.is_empty() {
-        return "[]";
+        return Err(serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "pip produced no JSON (empty stdout); quiet mode or a failed listing would look like an empty package list",
+        )));
     }
 
     for line in trimmed.lines() {
         let line = line.trim();
         if line == "[]" || line.starts_with("[{") {
-            return trim_json_array_line(line);
+            return Ok(trim_json_array_line(line));
         }
     }
 
     if let Some(start) = trimmed.find("[{")
         && let Some(rel_end) = trimmed[start..].rfind(']')
     {
-        return trim_json_array_line(&trimmed[start..start + rel_end + 1]);
+        return Ok(trim_json_array_line(&trimmed[start..start + rel_end + 1]));
     }
 
     if let (Some(start), Some(end)) = (trimmed.find('['), trimmed.rfind(']'))
@@ -63,11 +67,11 @@ fn extract_json_array_payload(stdout: &str) -> &str {
     {
         let slice = &trimmed[start..=end];
         if slice == "[]" || slice.starts_with("[{") {
-            return slice;
+            return Ok(slice);
         }
     }
 
-    trimmed
+    Ok(trimmed)
 }
 
 fn parse_pip_json_array<T>(stdout: &[u8]) -> Result<Vec<T>, serde_json::Error>
@@ -76,7 +80,7 @@ where
 {
     let text = String::from_utf8_lossy(stdout);
     let text = crate::text::strip_utf8_bom(&text);
-    serde_json::from_str(extract_json_array_payload(text))
+    serde_json::from_str(extract_json_array_payload(text)?)
 }
 
 /// Resolves the absolute path to the Python interpreter for a given target spec (runtime version or managed venv name).
@@ -126,7 +130,6 @@ pub fn cmd_pip_list(ctx: &AppContext, target: &str, json: bool) -> CommandReport
         .args([
             "-m",
             "pip",
-            "-q",
             "--disable-pip-version-check",
             "list",
             "--format=json",
@@ -194,7 +197,6 @@ pub fn cmd_pip_outdated(ctx: &AppContext, target: &str, json: bool) -> CommandRe
         .args([
             "-m",
             "pip",
-            "-q",
             "--disable-pip-version-check",
             "list",
             "--outdated",
@@ -283,40 +285,15 @@ pub fn cmd_pip_check(ctx: &AppContext, target: &str, json: bool) -> CommandRepor
     };
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let mut conflicts = Vec::new();
-
-    // Parse standard pip check lines:
-    // "package version has requirement req, but you have installed."
-    for line in stdout_str.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.contains("No broken requirements found") {
-            continue;
-        }
-
-        // Quick fallback parsing split
-        let parts: Vec<&str> = trimmed.split(" has requirement ").collect();
-        if parts.len() == 2 {
-            let left: Vec<&str> = parts[0].split_whitespace().collect();
-            let right: Vec<&str> = parts[1].split(", but you have ").collect();
-            if left.len() >= 2 && right.len() == 2 {
-                conflicts.push(DependencyConflict {
-                    package: left[0].to_string(),
-                    requirement: right[0].to_string(),
-                    installed: right[1].trim_end_matches('.').to_string(),
-                    message: trimmed.to_string(),
-                });
-                continue;
-            }
-        }
-
-        // Generic conflict mapping if parsing fails
-        conflicts.push(DependencyConflict {
-            package: "unknown".to_string(),
-            requirement: "unknown".to_string(),
-            installed: "unknown".to_string(),
-            message: trimmed.to_string(),
-        });
-    }
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    let conflicts = match pip_check_from_process(
+        output.status.success(),
+        stdout_str.as_ref(),
+        stderr_str.as_ref(),
+    ) {
+        Ok(value) => value,
+        Err(error) => return CommandReport::failure(vec![error], 1),
+    };
 
     if json {
         match serde_json::to_string_pretty(&conflicts) {
@@ -338,6 +315,64 @@ pub fn cmd_pip_check(ctx: &AppContext, target: &str, json: bool) -> CommandRepor
             lines.push(format!("  - {}", conflict.message));
         }
         CommandReport::success(lines)
+    }
+}
+
+fn parse_pip_check_conflicts(stdout: &str) -> Vec<DependencyConflict> {
+    let mut conflicts = Vec::new();
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.contains("No broken requirements found") {
+            continue;
+        }
+
+        let parts: Vec<&str> = trimmed.split(" has requirement ").collect();
+        if parts.len() == 2 {
+            let left: Vec<&str> = parts[0].split_whitespace().collect();
+            let right: Vec<&str> = parts[1].split(", but you have ").collect();
+            if left.len() >= 2 && right.len() == 2 {
+                conflicts.push(DependencyConflict {
+                    package: left[0].to_string(),
+                    requirement: right[0].to_string(),
+                    installed: right[1].trim_end_matches('.').to_string(),
+                    message: trimmed.to_string(),
+                });
+                continue;
+            }
+        }
+
+        conflicts.push(DependencyConflict {
+            package: "unknown".to_string(),
+            requirement: "unknown".to_string(),
+            installed: "unknown".to_string(),
+            message: trimmed.to_string(),
+        });
+    }
+    conflicts
+}
+
+fn pip_check_from_process(
+    success: bool,
+    stdout: &str,
+    stderr: &str,
+) -> Result<Vec<DependencyConflict>, String> {
+    let conflicts = parse_pip_check_conflicts(stdout);
+    if success {
+        return Ok(conflicts);
+    }
+    if !conflicts.is_empty() {
+        return Ok(conflicts);
+    }
+    let detail = stderr.trim();
+    if detail.is_empty() {
+        Err(
+            "pyenv: pip check failed without reporting conflicts (empty stdout); refusing to treat the environment as healthy"
+                .to_string(),
+        )
+    } else {
+        Err(format!(
+            "pyenv: pip check failed without reporting conflicts: {detail}"
+        ))
     }
 }
 
@@ -460,7 +495,13 @@ pub fn cmd_pip_install(ctx: &AppContext, target: &str, path_or_url: &str) -> Com
     };
 
     // If it's a URL, we will download it using our Python script helper or save it locally first.
-    let is_url = path_or_url.starts_with("http://") || path_or_url.starts_with("https://");
+    if path_or_url.starts_with("http://") {
+        return CommandReport::failure(
+            vec!["pyenv: remote requirements must use https://".to_string()],
+            1,
+        );
+    }
+    let is_url = path_or_url.starts_with("https://");
     let resolved_path = if is_url {
         // Download it to a temporary file via standard fetch first
         let helper_script = include_str!("helper.py");
@@ -590,45 +631,53 @@ pub fn cmd_pip_update(
     let mut pkgs_to_update = Vec::new();
     let mut update_pip_first = false;
 
-    // Retrieve outdated packages
     let outdated_report = cmd_pip_outdated(ctx, target, true);
-    if outdated_report.exit_code == 0 {
-        let outdated_str = outdated_report.stdout.join("\n");
-        if let Ok(outdated_pkgs) = serde_json::from_str::<Vec<OutdatedPackage>>(&outdated_str) {
-            // Check if pip needs self-update
-            for pkg in &outdated_pkgs {
-                if pkg.name.to_lowercase() == "pip" {
-                    update_pip_first = true;
-                }
-            }
-
-            if all {
-                for pkg in outdated_pkgs {
-                    if pkg.name.to_lowercase() != "pip" {
-                        pkgs_to_update.push(pkg.name);
-                    }
-                }
-            } else {
-                for requested in packages {
-                    let req_lower = requested.to_lowercase();
-                    if req_lower == "pip" {
-                        update_pip_first = true;
-                    } else if outdated_pkgs
-                        .iter()
-                        .any(|p| p.name.to_lowercase() == req_lower)
-                    {
-                        pkgs_to_update.push(requested.clone());
-                    } else {
-                        // Let them update regardless if they requested it explicitly
-                        pkgs_to_update.push(requested.clone());
-                    }
-                }
-            }
+    if outdated_report.exit_code != 0 {
+        if all {
+            let mut lines =
+                vec!["pyenv: cannot update --all because the outdated scan failed.".to_string()];
+            lines.extend(outdated_report.stderr);
+            return CommandReport::failure(lines, 1);
         }
+        pkgs_to_update.extend(packages.iter().cloned());
     } else {
-        // Fallback to updating requested packages if outdated check failed
-        if !all {
-            pkgs_to_update.extend(packages.iter().cloned());
+        let outdated_str = outdated_report.stdout.join("\n");
+        match serde_json::from_str::<Vec<OutdatedPackage>>(&outdated_str) {
+            Ok(outdated_pkgs) => {
+                for pkg in &outdated_pkgs {
+                    if pkg.name.to_lowercase() == "pip" {
+                        update_pip_first = true;
+                    }
+                }
+
+                if all {
+                    for pkg in outdated_pkgs {
+                        if pkg.name.to_lowercase() != "pip" {
+                            pkgs_to_update.push(pkg.name);
+                        }
+                    }
+                } else {
+                    for requested in packages {
+                        let req_lower = requested.to_lowercase();
+                        if req_lower == "pip" {
+                            update_pip_first = true;
+                        } else {
+                            pkgs_to_update.push(requested.clone());
+                        }
+                    }
+                }
+            }
+            Err(error) => {
+                if all {
+                    return CommandReport::failure(
+                        vec![format!(
+                            "pyenv: cannot update --all because outdated JSON was unreadable: {error}"
+                        )],
+                        1,
+                    );
+                }
+                pkgs_to_update.extend(packages.iter().cloned());
+            }
         }
     }
 
@@ -725,8 +774,14 @@ mod parse_tests {
     use crate::pip::types::{OutdatedPackage, PipPackage};
 
     #[test]
-    fn parse_pip_json_array_treats_empty_stdout_as_empty_list() {
-        let packages: Vec<PipPackage> = parse_pip_json_array(b"").expect("empty stdout");
+    fn parse_pip_json_array_rejects_empty_stdout() {
+        let error = parse_pip_json_array::<PipPackage>(b"").expect_err("empty stdout");
+        assert!(error.to_string().contains("empty stdout"));
+    }
+
+    #[test]
+    fn parse_pip_json_array_treats_empty_json_array_as_empty_list() {
+        let packages: Vec<PipPackage> = parse_pip_json_array(b"[]\n").expect("empty array");
         assert!(packages.is_empty());
     }
 
@@ -748,7 +803,33 @@ mod parse_tests {
     }
 
     #[test]
-    fn extract_json_array_payload_returns_empty_array_for_blank_output() {
-        assert_eq!(extract_json_array_payload("   \n"), "[]");
+    fn extract_json_array_payload_returns_empty_array_for_blank_json() {
+        assert_eq!(
+            extract_json_array_payload("[]\n").expect("blank json"),
+            "[]"
+        );
+    }
+
+    #[test]
+    fn pip_check_from_process_fails_closed_on_empty_failure() {
+        let error = super::pip_check_from_process(false, "", "No module named pip")
+            .expect_err("empty failed check");
+        assert!(error.contains("No module named pip"));
+    }
+
+    #[test]
+    fn pip_check_from_process_treats_nonzero_conflicts_as_results() {
+        let stdout = "requests 2.31.0 has requirement urllib3<2, but you have urllib3 2.2.1.";
+        let conflicts = super::pip_check_from_process(false, stdout, "")
+            .expect("conflicts should parse on nonzero exit");
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].package, "requests");
+    }
+
+    #[test]
+    fn pip_check_from_process_success_with_no_broken_is_empty() {
+        let conflicts = super::pip_check_from_process(true, "No broken requirements found.\n", "")
+            .expect("healthy");
+        assert!(conflicts.is_empty());
     }
 }

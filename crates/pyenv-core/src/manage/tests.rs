@@ -207,4 +207,23 @@ mod tests {
         assert!(!version_dir.exists());
         assert!(!managed_env.exists());
     }
+
+    #[test]
+    fn uninstall_rejects_parent_directory_escape() {
+        let (_temp, ctx) = test_context();
+        let marker = ctx.root.join("keep-me");
+        fs::write(&marker, "ok").expect("marker");
+        fs::create_dir_all(ctx.versions_dir().join("3.12.6")).expect("version");
+
+        let report = cmd_uninstall(&ctx, &[String::from("..")], true);
+        assert_ne!(report.exit_code, 0);
+        assert!(
+            report
+                .stderr
+                .iter()
+                .any(|line| line.contains("not a safe version path"))
+        );
+        assert!(marker.exists(), "uninstall .. must not delete PYENV_ROOT");
+        assert!(ctx.versions_dir().join("3.12.6").is_dir());
+    }
 }

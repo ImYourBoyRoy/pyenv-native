@@ -13,7 +13,7 @@ This folder contains generator-backed Homebrew packaging assets for `pyenv-nativ
 After you have Linux/macOS release assets and their `.sha256` files available, run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-homebrew-formula.ps1 `
+pwsh -NoLogo -NoProfile -File .\scripts\build-homebrew-formula.ps1 `
   -GitHubRepo imyourboyroy/pyenv-native `
   -Tag vX.Y.Z
 ```

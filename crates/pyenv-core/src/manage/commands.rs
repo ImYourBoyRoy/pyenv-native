@@ -7,6 +7,7 @@ use std::fs;
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::path_safety::{is_safe_relative_path, path_stays_under};
 use crate::plugin::run_hook_scripts;
 use crate::runtime::{collect_shim_names_from_prefix, inventory_roots_for_version};
 use crate::shim::rehash_shims;
@@ -123,7 +124,20 @@ pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> Comm
             continue;
         }
 
+        if !is_safe_relative_path(version) {
+            stderr.push(format!(
+                "pyenv: refusing to uninstall `{version}` because it is not a safe version path"
+            ));
+            continue;
+        }
+
         let version_dir = installed_version_dir(ctx, version);
+        if !path_stays_under(&ctx.versions_dir(), &version_dir) {
+            stderr.push(format!(
+                "pyenv: refusing to uninstall `{version}` because it resolves outside the versions directory"
+            ));
+            continue;
+        }
         if !version_dir.exists() {
             if !force {
                 stderr.push(format!("pyenv: version `{version}` not installed"));
@@ -188,6 +202,9 @@ pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> Comm
             Ok(_) => {
                 removed_any = true;
                 stdout.push(format!("pyenv: {version} uninstalled"));
+                if let Err(error) = crate::windows_registry::remove_pep514_registration(version) {
+                    stderr.push(error.to_string());
+                }
                 if let Err(error) = run_hook_scripts(
                     ctx,
                     "uninstall",

@@ -8,13 +8,14 @@ use std::path::PathBuf;
 use crate::catalog::{compare_version_names, latest_installed_version};
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::path_safety::{is_safe_relative_path, path_stays_under};
 use crate::venv_paths::{
     managed_venv_dir, managed_venv_entries_for_base, managed_venv_spec, managed_venvs_root,
     split_managed_venv_spec,
 };
 use crate::version::installed_version_dir;
 
-use super::helpers::{interpreter_for_prefix, io_error, pip_for_prefix};
+use super::helpers::{interpreter_for_prefix, io_error, is_safe_env_name, pip_for_prefix};
 use super::types::ManagedVenvInfo;
 
 pub fn list_managed_venvs(ctx: &AppContext) -> Result<Vec<ManagedVenvInfo>, PyenvError> {
@@ -53,11 +54,18 @@ pub fn resolve_managed_venv(ctx: &AppContext, spec: &str) -> Result<ManagedVenvI
     }
 
     if let Some((base_version, name)) = split_managed_venv_spec(trimmed) {
-        let info = build_managed_venv_info(
-            base_version.clone(),
-            name.clone(),
-            managed_venv_dir(ctx, &base_version, &name),
-        );
+        if !is_safe_relative_path(&base_version) || !is_safe_env_name(&name) {
+            return Err(PyenvError::Io(format!(
+                "pyenv: managed venv spec `{trimmed}` is not a safe path"
+            )));
+        }
+        let path = managed_venv_dir(ctx, &base_version, &name);
+        if !path_stays_under(&managed_venvs_root(ctx), &path) {
+            return Err(PyenvError::Io(format!(
+                "pyenv: managed venv spec `{trimmed}` resolves outside the venv registry"
+            )));
+        }
+        let info = build_managed_venv_info(base_version, name, path);
         if info.path.is_dir() {
             return Ok(info);
         }
@@ -126,7 +134,20 @@ pub fn resolve_installed_runtime_version(
         .unwrap_or(requested_version)
         .trim();
 
-    if installed_version_dir(ctx, normalized).is_dir() {
+    if !is_safe_relative_path(normalized) {
+        return Err(PyenvError::Io(format!(
+            "pyenv: refusing runtime `{normalized}` because it is not a safe version path"
+        )));
+    }
+
+    let version_dir = installed_version_dir(ctx, normalized);
+    if !path_stays_under(&ctx.versions_dir(), &version_dir) {
+        return Err(PyenvError::Io(format!(
+            "pyenv: refusing runtime `{normalized}` because it resolves outside the versions directory"
+        )));
+    }
+
+    if version_dir.is_dir() {
         return Ok(normalized.to_string());
     }
 

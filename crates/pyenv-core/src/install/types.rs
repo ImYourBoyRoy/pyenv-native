@@ -68,6 +68,12 @@ pub(super) struct InstallReceipt {
     pub bootstrap_pip: bool,
     pub base_venv_path: Option<PathBuf>,
     pub installed_at_epoch_seconds: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digest_algorithm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digest_hex: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digest_source: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

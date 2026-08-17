@@ -1,7 +1,7 @@
 ﻿# ./scripts/publish-github-release.ps1
 <#
 Purpose: Orchestrates the local preflight, tagging, and optional push steps that trigger the workflow-driven GitHub release flow for pyenv-native.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/publish-github-release.ps1 -Version <semver> [-PushCurrentBranch] [-PushTag] [-WatchWorkflow]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/publish-github-release.ps1 -Version <semver> [-PushCurrentBranch] [-PushTag] [-WatchWorkflow]
 Inputs: Release version, optional repo/remote info, Python path for bootstrap validation, and switches controlling version sync, local validation/build steps, and git pushes.
 Outputs/side effects: Optionally syncs versions, runs validation/build scripts, creates a git tag, pushes the branch/tag, and can watch the GitHub Actions release workflow.
 Notes: The actual public GitHub Release is produced by .github/workflows/release.yml after the pushed tag lands on GitHub.
@@ -124,21 +124,21 @@ if (-not $AllowDirty) {
 
 if ($SyncVersion) {
     Write-Step "Syncing workspace/package version to $Version"
-    Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'set-version.ps1'), '-Version', $Version)
+    Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'set-version.ps1'), '-Version', $Version)
 }
 
 if (-not $SkipValidation) {
     Write-Step 'Running release validation checks'
-    Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'dev-cargo.ps1'), 'test')
-    Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'test-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
+    Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'dev-cargo.ps1'), 'test')
+    Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'test-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
 }
 
 if (-not $SkipBuild) {
     Write-Step 'Building local release artifacts for a final pre-publish sanity check'
-    Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'build-release-bundle.ps1'), '-OutputRoot', (Join-Path $repoRoot 'dist'))
-    Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'build-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
+    Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'build-release-bundle.ps1'), '-OutputRoot', (Join-Path $repoRoot 'dist'))
+    Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'build-python-bootstrap.ps1'), '-PythonPath', $PythonPath)
     if ($GitHubRepo) {
-        Invoke-OrReport -Command @('powershell', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'build-winget-manifests.ps1'), '-GitHubRepo', $GitHubRepo, '-Tag', $tag, '-OutputRoot', (Join-Path $repoRoot 'packaging\winget'), '-Validate')
+        Invoke-OrReport -Command @('pwsh', '-NoLogo', '-NoProfile', '-File', (Join-Path $PSScriptRoot 'build-winget-manifests.ps1'), '-GitHubRepo', $GitHubRepo, '-Tag', $tag, '-OutputRoot', (Join-Path $repoRoot 'packaging\winget'), '-Validate')
     }
 }
 

@@ -108,7 +108,9 @@ fn plugin_search_dirs(ctx: &AppContext) -> Vec<PathBuf> {
     }
 
     roots.extend(default_plugin_bin_dirs(ctx));
-    if let Some(path_env) = &ctx.path_env {
+    if ctx.config.plugins.search_path
+        && let Some(path_env) = &ctx.path_env
+    {
         roots.extend(env::split_paths(path_env));
     }
     dedup_paths(roots)

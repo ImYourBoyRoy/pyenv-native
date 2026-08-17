@@ -36,13 +36,7 @@ pub(super) fn load_or_fetch_nuget_package_versions(
             write_nuget_index_cache(&cache_path, &versions)?;
             Ok(versions)
         }
-        Err(error) => {
-            if cache_path.is_file() {
-                read_nuget_index_cache(&cache_path).or(Err(error))
-            } else {
-                Err(error)
-            }
-        }
+        Err(error) => Err(error),
     }
 }
 
@@ -85,7 +79,7 @@ pub(super) fn nuget_index_cache_path(ctx: &AppContext, package_name: &str) -> Pa
         .join(format!("{}.index.json", package_name.to_ascii_lowercase()))
 }
 
-fn cache_is_fresh_with_ttl(path: &Path, ttl_secs: u64) -> bool {
+pub(super) fn cache_is_fresh_with_ttl(path: &Path, ttl_secs: u64) -> bool {
     path.metadata()
         .and_then(|metadata| metadata.modified())
         .ok()
@@ -202,13 +196,7 @@ pub(super) fn load_or_fetch_pypy_releases(
             write_pypy_index_cache(&cache_path, &releases)?;
             Ok(releases)
         }
-        Err(error) => {
-            if cache_path.is_file() {
-                read_pypy_index_cache(&cache_path).or(Err(error))
-            } else {
-                Err(error)
-            }
-        }
+        Err(error) => Err(error),
     }
 }
 

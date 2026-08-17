@@ -13,25 +13,40 @@ use flate2::read::GzDecoder;
 use tar::Archive;
 use zip::ZipArchive;
 
+use crate::context::AppContext;
 use crate::error::PyenvError;
 use crate::http::build_blocking_client;
 use crate::process::PyenvCommandExt;
 
+use super::checksum::{read_digest_sidecar, verify_package_digest};
 use super::report::{io_error, pip_wrapper_names, sanitize_for_fs};
 use super::types::{INSTALL_RECEIPT_FILE, InstallPlan, InstallReceipt};
 
 pub(super) fn download_package(
+    ctx: &AppContext,
     plan: &InstallPlan,
     mut on_progress: Option<&mut dyn FnMut(String)>,
 ) -> Result<(), PyenvError> {
     if plan.cache_path.is_file() {
-        if let Some(callback) = on_progress.as_mut() {
-            callback(format!(
-                "using cached package at {}",
-                plan.cache_path.display()
-            ));
+        match verify_package_digest(ctx, plan, &plan.cache_path) {
+            Ok(()) => {
+                if let Some(callback) = on_progress.as_mut() {
+                    callback(format!(
+                        "using cached package at {}",
+                        plan.cache_path.display()
+                    ));
+                }
+                return Ok(());
+            }
+            Err(error) => {
+                if let Some(callback) = on_progress.as_mut() {
+                    callback(format!(
+                        "cached package failed verification ({error}); re-downloading"
+                    ));
+                }
+                let _ = fs::remove_file(&plan.cache_path);
+            }
         }
-        return Ok(());
     }
 
     let parent = plan
@@ -112,6 +127,16 @@ pub(super) fn download_package(
     fs::rename(&partial_path, &plan.cache_path).map_err(io_error)?;
     if let Some(callback) = on_progress.as_mut() {
         callback(format!("download complete → {}", plan.cache_path.display()));
+    }
+    if let Some(callback) = on_progress.as_mut() {
+        callback(format!(
+            "verifying checksum for {}",
+            plan.cache_path.display()
+        ));
+    }
+    if let Err(error) = verify_package_digest(ctx, plan, &plan.cache_path) {
+        let _ = fs::remove_file(&plan.cache_path);
+        return Err(error);
     }
     Ok(())
 }
@@ -247,30 +272,16 @@ pub(super) fn extract_tar_root_archive(
         || file_name.ends_with(".tbz")
     {
         let decoder = BzDecoder::new(BufReader::new(file));
-        let mut archive = Archive::new(decoder);
-        archive.unpack(destination).map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to extract {}: {error}",
-                archive_path.display()
-            ))
-        })?;
+        unpack_tar_entries(Archive::new(decoder), destination, archive_path)?;
     } else if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
         let decoder = GzDecoder::new(BufReader::new(file));
-        let mut archive = Archive::new(decoder);
-        archive.unpack(destination).map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to extract {}: {error}",
-                archive_path.display()
-            ))
-        })?;
+        unpack_tar_entries(Archive::new(decoder), destination, archive_path)?;
     } else if file_name.ends_with(".tar") {
-        let mut archive = Archive::new(BufReader::new(file));
-        archive.unpack(destination).map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to extract {}: {error}",
-                archive_path.display()
-            ))
-        })?;
+        unpack_tar_entries(
+            Archive::new(BufReader::new(file)),
+            destination,
+            archive_path,
+        )?;
     } else {
         return Err(PyenvError::Io(format!(
             "pyenv: unsupported archive format: {}",
@@ -286,6 +297,33 @@ fn prepare_clean_directory(destination: &Path) -> Result<(), PyenvError> {
         fs::remove_dir_all(destination).map_err(io_error)?;
     }
     fs::create_dir_all(destination).map_err(io_error)
+}
+
+fn unpack_tar_entries<R: Read>(
+    mut archive: Archive<R>,
+    destination: &Path,
+    archive_path: &Path,
+) -> Result<(), PyenvError> {
+    for entry in archive.entries().map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to read {}: {error}",
+            archive_path.display()
+        ))
+    })? {
+        let mut entry = entry.map_err(|error| {
+            PyenvError::Io(format!(
+                "pyenv: failed to read archive entry in {}: {error}",
+                archive_path.display()
+            ))
+        })?;
+        entry.unpack_in(destination).map_err(|error| {
+            PyenvError::Io(format!(
+                "pyenv: refused to extract unsafe path from {}: {error}",
+                archive_path.display()
+            ))
+        })?;
+    }
+    Ok(())
 }
 
 fn flatten_single_top_level_directory(destination: &Path) -> Result<(), PyenvError> {
@@ -422,6 +460,7 @@ fn render_command(executable: &Path, args: &[&str]) -> String {
 }
 
 pub(super) fn write_install_receipt(plan: &InstallPlan) -> Result<PathBuf, PyenvError> {
+    let digest = read_digest_sidecar(&plan.cache_path);
     let receipt = InstallReceipt {
         requested_version: plan.requested_version.clone(),
         resolved_version: plan.resolved_version.clone(),
@@ -440,6 +479,9 @@ pub(super) fn write_install_receipt(plan: &InstallPlan) -> Result<PathBuf, Pyenv
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs(),
+        digest_algorithm: digest.as_ref().map(|value| value.alg.as_str().to_string()),
+        digest_hex: digest.as_ref().map(|value| hex::encode(&value.bytes)),
+        digest_source: digest.as_ref().map(|value| value.source.clone()),
     };
 
     let receipt_path = plan.install_dir.join(INSTALL_RECEIPT_FILE);

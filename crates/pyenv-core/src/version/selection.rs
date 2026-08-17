@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use crate::catalog::latest_installed_version;
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::path_safety::{is_safe_relative_path, path_stays_under};
 use crate::venv_paths::managed_venv_dir_from_spec;
 
 use super::files::{read_version_file, version_file_path};
@@ -107,17 +108,32 @@ fn version_exists(ctx: &AppContext, version: &str) -> bool {
     if version == "system" {
         return true;
     }
-    if installed_version_dir(ctx, version).is_dir() {
+    // Resolve venv aliases (`venv:name`, unique short names, `base/envs/name`)
+    // before the relative-path check. On Windows `venv:name` is a volume prefix
+    // and would otherwise be rejected as an unsafe path.
+    let trimmed = version.strip_prefix("venv:").unwrap_or(version);
+    if crate::venv::resolve_managed_venv(ctx, trimmed).is_ok() {
+        return true;
+    }
+    if !is_safe_relative_path(version) {
+        return false;
+    }
+    let version_dir = installed_version_dir(ctx, version);
+    if path_stays_under(&ctx.versions_dir(), &version_dir) && version_dir.is_dir() {
         return true;
     }
     if managed_venv_dir_from_spec(ctx, version).is_some_and(|path| path.is_dir()) {
         return true;
     }
-    let trimmed = version.strip_prefix("venv:").unwrap_or(version);
-    if crate::venv::resolve_managed_venv(ctx, trimmed).is_ok() {
-        return true;
-    }
     false
+}
+
+pub(super) fn canonicalize_selection_token(ctx: &AppContext, token: &str) -> String {
+    let trimmed = token.trim();
+    if let Ok(info) = crate::venv::resolve_managed_venv(ctx, trimmed) {
+        return info.spec;
+    }
+    trimmed.to_string()
 }
 
 fn normalize_version_name(version: &str) -> String {

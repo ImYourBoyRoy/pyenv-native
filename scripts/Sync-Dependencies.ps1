@@ -1,6 +1,7 @@
 # ./scripts/Sync-Dependencies.ps1
-# Maintenance script to find and optionally update Cargo.toml dependencies 
+# Maintenance script to find and optionally update Cargo.toml dependencies
 # based on the latest resolved (or registry) versions.
+# Never strips ^, >=, ~, or = operators from version strings.
 
 Param(
     [Parameter(Mandatory=$false)]
@@ -38,7 +39,7 @@ if ($CheckLatest) {
     
     foreach ($TomlFile in $AllTomlFiles) {
         $RawTomlContent = Get-Content $TomlFile.FullName -Raw
-        $DependencyIdentRegex = '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*(?:\"([0-9.]+)\"|\{\s*version\s*=\s*\"([0-9.]+)\")'
+        $DependencyIdentRegex = '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*(?:\"(?:\^|>=|~|=)?([0-9][0-9.]*)\"|\{\s*version\s*=\s*\"(?:\^|>=|~|=)?([0-9][0-9.]*)\")'
         $DiscoveryMatchesResult = [regex]::Matches($RawTomlContent, $DependencyIdentRegex)
         foreach ($DiscMatchObj in $DiscoveryMatchesResult) { 
             $FoundNameVarStr = $DiscMatchObj.Groups[2].Value
@@ -93,27 +94,30 @@ foreach ($TargetFileProcessItem in $TomlFilesToProcessLoop) {
     $FileLevelUpdateCountTracker = 0
 
     $FetchPatternsListArray = @(
-        '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*\"([0-9.]+)\"',
-        '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*\{\s*version\s*=\s*\"([0-9.]+)\"'
+        '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*\"((?:\^|>=|~|=)?)([0-9][0-9.]*)\"',
+        '(?m)^(\s*)([a-zA-Z0-9_-]+)\s*=\s*\{\s*version\s*=\s*\"((?:\^|>=|~|=)?)([0-9][0-9.]*)\"'
     )
 
     foreach ($PatternStrItemValue in $FetchPatternsListArray) {
         $UpdateMatchesFoundInFileResult = [regex]::Matches($OriginalFileContentRawStr, $PatternStrItemValue)
         foreach ($UpdMatchObject in $UpdateMatchesFoundInFileResult) {
             $KeyNameFoundStr = $UpdMatchObject.Groups[2].Value
-            $DeclVerFoundStr = $UpdMatchObject.Groups[3].Value
+            $OperatorFoundStr = $UpdMatchObject.Groups[3].Value
+            $DeclVerFoundStr = $UpdMatchObject.Groups[4].Value
 
             if ($KeyNameFoundStr -notin $MetadataKeysToSkip -and $TargetVersions.ContainsKey($KeyNameFoundStr)) {
                 $NewerVerFoundInMapStr = $TargetVersions[$KeyNameFoundStr]
                 
                 if ($DeclVerFoundStr -ne $NewerVerFoundInMapStr -and $DeclVerFoundStr -notlike "*workspace*") {
-                    Write-Host "  [UPDATE] $KeyNameFoundStr : $DeclVerFoundStr -> $NewerVerFoundInMapStr" -ForegroundColor Green
+                    Write-Host "  [UPDATE] $KeyNameFoundStr : $OperatorFoundStr$DeclVerFoundStr -> $OperatorFoundStr$NewerVerFoundInMapStr" -ForegroundColor Green
                     $TotalUpdatesFoundAcrossAllFiles++
                     $FileLevelUpdateCountTracker++
 
                     if ($Fix) {
                         $MatchLineTextStr = $UpdMatchObject.Value
-                        $NewLineTextResolvedStr = $MatchLineTextStr.Replace($DeclVerFoundStr, $NewerVerFoundInMapStr)
+                        $QuotedOld = '"' + $OperatorFoundStr + $DeclVerFoundStr + '"'
+                        $QuotedNew = '"' + $OperatorFoundStr + $NewerVerFoundInMapStr + '"'
+                        $NewLineTextResolvedStr = $MatchLineTextStr.Replace($QuotedOld, $QuotedNew)
                         $UpdatedContentResultStr = $UpdatedContentResultStr.Replace($MatchLineTextStr, $NewLineTextResolvedStr)
                     }
                 }

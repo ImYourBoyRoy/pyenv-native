@@ -1,7 +1,7 @@
 # ./scripts/uninstall-pyenv-native.ps1
 <#
 Purpose: Removes a portable pyenv-native Windows installation and optionally cleans PATH/profile integration.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/uninstall-pyenv-native.ps1 [-InstallRoot <dir>] [-RemoveRoot]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/uninstall-pyenv-native.ps1 [-InstallRoot <dir>] [-RemoveRoot]
 Inputs: Optional install root plus booleans controlling user PATH cleanup, profile cleanup, and root deletion.
 Outputs/side effects: Removes installed wrappers/binary and optionally removes PATH entries, profile blocks, and the entire install root.
 Notes: Avoids registry cleanup because the installer keeps pyenv-native portable and registry-free by default.

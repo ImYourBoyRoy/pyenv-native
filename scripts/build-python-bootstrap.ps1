@@ -1,7 +1,7 @@
 # ./scripts/build-python-bootstrap.ps1
 <#
 Purpose: Builds the Python install package wheel and sdist for pip/pipx distribution.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-python-bootstrap.ps1 -PythonPath <python.exe>
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/build-python-bootstrap.ps1 -PythonPath <python.exe>
 Inputs: Optional Python interpreter path and output directory override.
 Outputs/side effects: Installs/updates the Python build backend for that interpreter and writes wheel/sdist artifacts under python-package/dist.
 Notes: Intended for development and release packaging; requires an available Python 3.8+ interpreter.

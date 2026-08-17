@@ -33,6 +33,7 @@ pub fn get_config_value(config: &AppConfig, key: &str) -> Result<String, PyenvEr
         "install.bootstrap_pip" => Ok(config.install.bootstrap_pip.to_string()),
         "venv.auto_create_base_venv" => Ok(config.venv.auto_create_base_venv.to_string()),
         "venv.auto_use_base_venv" => Ok(config.venv.auto_use_base_venv.to_string()),
+        "plugins.search_path" => Ok(config.plugins.search_path.to_string()),
         _ => Err(PyenvError::UnknownConfigKey(key.to_string())),
     }
 }
@@ -81,6 +82,10 @@ pub fn set_config_value(config: &mut AppConfig, key: &str, value: &str) -> Resul
         }
         "venv.auto_use_base_venv" => {
             config.venv.auto_use_base_venv = parse_bool(key, value)?;
+            Ok(())
+        }
+        "plugins.search_path" => {
+            config.plugins.search_path = parse_bool(key, value)?;
             Ok(())
         }
         _ => Err(PyenvError::UnknownConfigKey(key.to_string())),

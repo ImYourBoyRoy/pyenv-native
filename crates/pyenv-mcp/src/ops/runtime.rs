@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use pyenv_core::{
     AppContext, BASE_VENV_DIR_NAME, InstallCommandOptions, InstallOutcome, InstallPlan,
-    apply_doctor_fixes, build_platform_intelligence, cmd_doctor, cmd_install,
+    apply_doctor_fixes, build_platform_intelligence, cmd_doctor, cmd_install, doctor_fix_plan,
     install_runtime_plan_with_progress, installed_version_dir, installed_version_names,
     resolve_install_plan, resolve_selected_versions, version_file_path,
 };
@@ -75,7 +75,16 @@ pub fn doctor_response(ctx: &AppContext) -> Result<JsonForwardResponse> {
     Ok(JsonForwardResponse { payload })
 }
 
-pub fn doctor_fix_response(ctx: &AppContext) -> Result<JsonForwardResponse> {
+pub fn doctor_fix_response(ctx: &AppContext, apply: bool) -> Result<JsonForwardResponse> {
+    if !apply {
+        let plan = doctor_fix_plan(ctx);
+        return Ok(JsonForwardResponse {
+            payload: serde_json::json!({
+                "applied": false,
+                "plan": plan,
+            }),
+        });
+    }
     let outcome = apply_doctor_fixes(ctx).map_err(|error| anyhow!(error.to_string()))?;
     Ok(JsonForwardResponse {
         payload: serde_json::to_value(outcome).context("failed to serialize doctor fix outcome")?,

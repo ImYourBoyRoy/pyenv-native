@@ -33,6 +33,17 @@ pub enum PyenvError {
         "pyenv: unable to locate python-build backend; set install.python_build_path or add python-build to PATH"
     )]
     MissingPythonBuildBackend,
+    #[error(
+        "pyenv: checksum mismatch for `{url}` ({algorithm}): expected {expected}, got {actual}"
+    )]
+    ChecksumMismatch {
+        url: String,
+        algorithm: String,
+        expected: String,
+        actual: String,
+    },
+    #[error("pyenv: unable to obtain a publisher checksum for `{0}`")]
+    MissingChecksum(String),
     #[error("{0}")]
     Io(String),
 }

@@ -153,20 +153,24 @@ Current high-value tools include:
 - `get_install_instructions`
 - `preflight` (OS/toolchain intelligence and install readiness)
 - `doctor`
-- `doctor_fix` (safe automated repairs: shims/layout, Termux pkgs, best-effort macOS CLT/OpenSSL)
+- `doctor_fix` (safe automated repairs; `force=false` returns the plan without applying)
+- `inspect_environment` (structured status overview: versions, origins, venvs)
 - `resolve_project_environment`
 - `list_available_versions`
 - `ensure_runtime` (streams progress to `~/.pyenv/logs/install-progress.jsonl` and returns `progress_steps`)
 - `set_local_version`
 - `set_global_version`
 - `ensure_project_venv`
+- `get_config` / `set_config`
+- `self_update` (`yes` defaults to false; use `check=true` for a read-only comparison)
+- `venv_upgrade`
 - `pip_list` (lists installed environment packages)
-- `pip_outdated` (audits outdated environment packages)
+- `pip_outdated` (JSON `{name, version, latest_version}` for a runtime or managed venv)
 - `pip_check` (runs active post-install diagnostics)
-- `pip_precheck` (statically resolves requirements files and checks conflicts before install)
+- `pip_precheck` (statically resolves requirements files and HTTPS URLs and checks conflicts before install; `http://` is rejected)
 - `pip_analyze_imports` (statically parses codebase Python source files using AST to identify missing dependencies)
-- `pip_install` (installs packages from a file or remote URL)
-- `pip_update` (safely upgrades packages, updating pip itself first if needed)
+- `pip_install` (installs packages from a file or HTTPS URL; `http://` is rejected)
+- `pip_update` (named packages or pins, or `all: true`; outdated `pip` first; `all` fails if the outdated scan cannot run)
 
 These are intentionally higher-level than raw shell commands.
 
@@ -179,15 +183,16 @@ When possible, use this order:
 1. `get_toolkit_guide`
 2. `preflight` before source installs on macOS / Linux / Android
 3. `doctor_fix` when preflight reports automated blockers
-4. `resolve_project_environment`
-5. `list_available_versions` if a runtime decision is needed
-6. `ensure_runtime`
-7. `ensure_project_venv`
-8. `pip_analyze_imports` to check which libraries the codebase actually uses and find missing ones
-9. `pip_precheck` if importing dependency files
-10. `pip_install` or `pip_update` to manage libraries
-11. `pip_check` to audit constraints
-12. `doctor` when something looks wrong
+4. `inspect_environment` when you need a status snapshot
+5. `resolve_project_environment`
+6. `list_available_versions` if a runtime decision is needed
+7. `ensure_runtime`
+8. `ensure_project_venv`
+9. `pip_analyze_imports` to check which libraries the codebase actually uses and find missing ones
+10. `pip_precheck` if importing dependency files
+11. `pip_install` or `pip_update` to manage libraries
+12. `pip_check` to audit constraints
+13. `doctor` when something looks wrong
 
 This keeps the workflow structured and predictable.
 
@@ -247,6 +252,17 @@ Use:
 
 1. `pip_analyze_imports` (scans all `.py` files inside the target workspace directory, detects imported modules, checks them against installed packages, and lists missing dependencies)
 2. `pip_install` or `pip_update` (progressive install to resolve the missing dependencies)
+
+### 7. Query and apply pip upgrades
+
+Use:
+
+1. `pip_outdated` with `{ "target": "3.14.7/envs/api" }` (or a runtime version)
+2. `pip_update` with either:
+   - `{ "target": "...", "packages": ["certifi", "certifi==2026.7.22"] }` for a selected list or pins, or
+   - `{ "target": "...", "all": true }` to upgrade every outdated package
+
+`all: true` fails closed if the outdated scan cannot run. There is no tool that accepts the outdated JSON blob as input; copy names or pins into `packages`.
 
 ---
 

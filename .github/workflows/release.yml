@@ -36,7 +36,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Version sync check
         shell: pwsh
@@ -45,30 +45,32 @@ jobs:
           if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -match '^v(.+)$') {
             $expected = $Matches[1]
           }
-          powershell -ExecutionPolicy Bypass -File .\scripts\check-version-sync.ps1 -ExpectedVersion $expected
+          .\scripts\check-version-sync.ps1 -ExpectedVersion $expected
 
       - name: Test Rust workspace
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\dev-cargo.ps1 test
+        run: .\scripts\dev-cargo.ps1 test
 
       - name: Test Python install package
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\test-python-bootstrap.ps1 -PythonPath python
+        run: .\scripts\test-python-bootstrap.ps1 -PythonPath python
 
       - name: Build Windows x64 release bundle
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
+        run: .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
 
       - name: Build Python install package
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-python-bootstrap.ps1 -PythonPath python
+        run: .\scripts\build-python-bootstrap.ps1 -PythonPath python
 
       - name: Prepare standalone GUI asset (Windows x64)
         shell: pwsh
         run: |
-          if (Test-Path "dist/pyenv-native-windows-x64/pyenv-gui.exe") {
-            Copy-Item "dist/pyenv-native-windows-x64/pyenv-gui.exe" "dist/pyenv-gui-windows-x64.exe"
-          }
+          $src = "dist/pyenv-native-windows-x64/pyenv-gui.exe"
+          if (-not (Test-Path $src)) { throw "missing $src" }
+          Copy-Item $src "dist/pyenv-gui-windows-x64.exe"
+          $hash = (Get-FileHash "dist/pyenv-gui-windows-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          Set-Content -NoNewline -Path "dist/pyenv-gui-windows-x64.exe.sha256" -Value $hash
 
       - name: Upload Windows x64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -78,6 +80,7 @@ jobs:
             dist/pyenv-native-windows-x64.zip
             dist/pyenv-native-windows-x64.zip.sha256
             dist/pyenv-gui-windows-x64.exe
+            dist/pyenv-gui-windows-x64.exe.sha256
 
       - name: Upload Python install package artifact
         uses: actions/upload-artifact@v7
@@ -105,7 +108,16 @@ jobs:
 
       - name: Build Windows ARM64 release bundle
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+        run: .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+
+      - name: Prepare standalone GUI asset (Windows ARM64)
+        shell: pwsh
+        run: |
+          $src = "dist/pyenv-native-windows-arm64/pyenv-gui.exe"
+          if (-not (Test-Path $src)) { throw "missing $src" }
+          Copy-Item $src "dist/pyenv-gui-windows-arm64.exe"
+          $hash = (Get-FileHash "dist/pyenv-gui-windows-arm64.exe" -Algorithm SHA256).Hash.ToLower()
+          Set-Content -NoNewline -Path "dist/pyenv-gui-windows-arm64.exe.sha256" -Value $hash
 
       - name: Upload Windows ARM64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -114,6 +126,8 @@ jobs:
           path: |
             dist/pyenv-native-windows-arm64.zip
             dist/pyenv-native-windows-arm64.zip.sha256
+            dist/pyenv-gui-windows-arm64.exe
+            dist/pyenv-gui-windows-arm64.exe.sha256
 
   linux-bundle:
     runs-on: ubuntu-latest
@@ -131,7 +145,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           
       - name: Install dependencies (Linux)
         run: |
@@ -140,7 +154,7 @@ jobs:
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -152,9 +166,13 @@ jobs:
 
       - name: Prepare standalone GUI asset (Linux x64)
         run: |
-          if [ -f "dist/pyenv-native-linux-x64/pyenv-gui" ]; then
-            cp "dist/pyenv-native-linux-x64/pyenv-gui" "dist/pyenv-gui-linux-x64"
+          src="dist/pyenv-native-linux-x64/pyenv-gui"
+          if [ ! -f "$src" ]; then
+            echo "error: missing $src" >&2
+            exit 1
           fi
+          cp "$src" "dist/pyenv-gui-linux-x64"
+          sha256sum "dist/pyenv-gui-linux-x64" | awk '{print $1}' > "dist/pyenv-gui-linux-x64.sha256"
 
       - name: Upload Linux bundle artifact
         uses: actions/upload-artifact@v7
@@ -164,6 +182,7 @@ jobs:
             dist/pyenv-native-linux-*.tar.gz
             dist/pyenv-native-linux-*.tar.gz.sha256
             dist/pyenv-gui-linux-x64
+            dist/pyenv-gui-linux-x64.sha256
 
   linux-arm64-bundle:
     runs-on: ubuntu-latest
@@ -255,11 +274,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -271,9 +290,13 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS arm64)
         run: |
-          if [ -f "dist/pyenv-native-macos-arm64/pyenv-gui" ]; then
-            cp "dist/pyenv-native-macos-arm64/pyenv-gui" "dist/pyenv-gui-macos-arm64"
+          src="dist/pyenv-native-macos-arm64/pyenv-gui"
+          if [ ! -f "$src" ]; then
+            echo "error: missing $src" >&2
+            exit 1
           fi
+          cp "$src" "dist/pyenv-gui-macos-arm64"
+          shasum -a 256 "dist/pyenv-gui-macos-arm64" | awk '{print $1}' > "dist/pyenv-gui-macos-arm64.sha256"
 
       - name: Upload macOS arm64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -283,6 +306,7 @@ jobs:
             dist/pyenv-native-macos-arm64.tar.gz
             dist/pyenv-native-macos-arm64.tar.gz.sha256
             dist/pyenv-gui-macos-arm64
+            dist/pyenv-gui-macos-arm64.sha256
 
   macos-x64-bundle:
     runs-on: macos-15-intel
@@ -300,11 +324,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Test Rust workspace
         shell: bash
-        run: cargo test --workspace --exclude pyenv-gui
+        run: cargo test --workspace
 
       - name: Test Python install package
         shell: bash
@@ -316,9 +340,13 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS x64)
         run: |
-          if [ -f "dist/pyenv-native-macos-x64/pyenv-gui" ]; then
-            cp "dist/pyenv-native-macos-x64/pyenv-gui" "dist/pyenv-gui-macos-x64"
+          src="dist/pyenv-native-macos-x64/pyenv-gui"
+          if [ ! -f "$src" ]; then
+            echo "error: missing $src" >&2
+            exit 1
           fi
+          cp "$src" "dist/pyenv-gui-macos-x64"
+          shasum -a 256 "dist/pyenv-gui-macos-x64" | awk '{print $1}' > "dist/pyenv-gui-macos-x64.sha256"
 
       - name: Upload macOS x64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -328,6 +356,7 @@ jobs:
             dist/pyenv-native-macos-x64.tar.gz
             dist/pyenv-native-macos-x64.tar.gz.sha256
             dist/pyenv-gui-macos-x64
+            dist/pyenv-gui-macos-x64.sha256
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -418,19 +447,31 @@ jobs:
             -AssetRoots @('./dist/linux', './dist/macos') `
             -OutputPath ./dist/homebrew/pyenv-native.rb
 
+      - name: Hash installer scripts
+        shell: bash
+        run: |
+          for f in install.ps1 install.sh uninstall.ps1 uninstall.sh; do
+            sha256sum "$f" | awk '{print $1}' > "$f.sha256"
+          done
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v3.0.2
         with:
           files: |
             install.ps1
+            install.ps1.sha256
             install.sh
+            install.sh.sha256
             uninstall.ps1
+            uninstall.ps1.sha256
             uninstall.sh
+            uninstall.sh.sha256
             dist/windows/**
             dist/linux/**
             dist/android/**
             dist/macos/**
             dist/homebrew/**
+            dist/winget/**
             dist/python/*
 
   publish-python:

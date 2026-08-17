@@ -1,7 +1,7 @@
 # ./scripts/install-pyenv-native.ps1
 <#
 Purpose: Installs the native pyenv executables into a portable Windows root and optionally updates PATH/profile integration.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-SourceGuiPath <pyenv-gui.exe>] [-InstallRoot <dir>] [-Yes]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/install-pyenv-native.ps1 [-SourcePath <pyenv.exe>] [-SourceMcpPath <pyenv-mcp.exe>] [-SourceGuiPath <pyenv-gui.exe>] [-InstallRoot <dir>] [-Yes]
 Inputs: Optional source binary paths, install root, shell preference, PATH/profile toggles, logging location, and a force-overwrite flag.
 Outputs/side effects: Copies pyenv.exe plus pyenv-mcp.exe into <InstallRoot>\bin, creates shims/versions/cache folders, optionally updates user PATH and PowerShell profile, and writes an install log.
 Notes: Keeps the install portable under a pyenv-managed root, avoids registry-based installation flows, and performs post-install sanity checks.
@@ -19,7 +19,9 @@ param(
     [string]$RefreshShims = 'true',
     [string]$LogPath,
     [switch]$Force,
-    [switch]$Yes
+    [switch]$Yes,
+    [ValidateSet('auto', 'true', 'false')]
+    [string]$InstallPowerShell7 = 'auto'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -347,6 +349,48 @@ function Write-InstallSummary {
     Write-Host ''
 }
 
+function Install-PowerShell7IfNeeded {
+    param(
+        [string]$Mode,
+        [bool]$AssumeYes
+    )
+
+    if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        return
+    }
+
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        Write-Warning "PowerShell 7 (pwsh) is not installed and winget was not found. Install later with: winget install --id Microsoft.PowerShell"
+        return
+    }
+
+    $shouldInstall = switch ($Mode.Trim().ToLowerInvariant()) {
+        'true' { $true }
+        'false' { $false }
+        default {
+            if ($AssumeYes) { $true } else {
+                try {
+                    $answer = Read-Host 'PowerShell 7 is recommended for pyenv-native. Install with winget now? [Y/n]'
+                } catch { $true }
+                if ($null -eq $answer -or $answer.Trim().Length -eq 0) { $true }
+                else { $answer.Trim().ToLowerInvariant() -notin @('n', 'no') }
+            }
+        }
+    }
+
+    if (-not $shouldInstall) {
+        Write-Warning "Skipping PowerShell 7 install. You can run: winget install --id Microsoft.PowerShell"
+        return
+    }
+
+    Write-Host 'Installing PowerShell 7 via winget (Microsoft.PowerShell)...'
+    & winget install --id Microsoft.PowerShell -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+    if ($LASTEXITCODE -ne 0) {
+        throw "winget failed to install PowerShell 7 (exit $LASTEXITCODE)."
+    }
+}
+
 function Confirm-Install {
     if ($Yes -or $Force.IsPresent) {
         return
@@ -461,6 +505,7 @@ $summary = [ordered]@{
 }
 Write-InstallSummary -Summary $summary
 Confirm-Install
+Install-PowerShell7IfNeeded -Mode $InstallPowerShell7 -AssumeYes:($Yes -or $Force.IsPresent)
 Initialize-InstallLog -ResolvedLogPath $resolvedLogPath
 Write-InstallLog -Level 'INFO' -Message 'Starting portable pyenv-native install.' -ResolvedLogPath $resolvedLogPath
 

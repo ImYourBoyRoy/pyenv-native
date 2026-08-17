@@ -56,3 +56,121 @@ fn test_github_url_translation() {
         "https://raw.githubusercontent.com/imyourboyroy/pyenv-native/main/requirements.txt"
     );
 }
+
+#[test]
+fn helper_exits_nonzero_on_error_payload() {
+    use std::fs;
+    use std::process::Command;
+
+    let python = ["python3", "python"].into_iter().find(|bin| {
+        Command::new(bin)
+            .arg("-c")
+            .arg("import sys; sys.exit(0)")
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    });
+    let Some(python) = python else {
+        eprintln!("skipping helper exit test: no python interpreter on PATH");
+        return;
+    };
+
+    let temp = tempfile::NamedTempFile::new().expect("helper temp");
+    fs::write(temp.path(), include_str!("helper.py")).expect("write helper");
+    let output = Command::new(python)
+        .arg(temp.path())
+        .output()
+        .expect("run helper");
+    assert!(
+        !output.status.success(),
+        "helper must fail closed when invoked without arguments"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"error\""), "stdout={stdout}");
+}
+
+fn python_bin() -> Option<&'static str> {
+    use std::process::Command;
+
+    ["python3", "python"].into_iter().find(|bin| {
+        Command::new(bin)
+            .arg("-c")
+            .arg("import sys; sys.exit(0)")
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    })
+}
+
+#[test]
+fn helper_rejects_pip_option_and_unparsed_lines() {
+    use std::fs;
+    use std::process::Command;
+
+    let Some(python) = python_bin() else {
+        eprintln!("skipping helper option-line test: no python interpreter on PATH");
+        return;
+    };
+
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let helper = dir.path().join("helper.py");
+    let reqs = dir.path().join("requirements.txt");
+    fs::write(&helper, include_str!("helper.py")).expect("write helper");
+    fs::write(&reqs, "requests>=2.0\n-r other.txt\n").expect("write reqs");
+
+    let output = Command::new(python)
+        .arg(&helper)
+        .arg(&reqs)
+        .output()
+        .expect("run helper");
+    assert!(
+        !output.status.success(),
+        "precheck must fail closed on pip option lines, stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"error\""), "stdout={stdout}");
+    assert!(stdout.contains("-r other.txt"), "stdout={stdout}");
+}
+
+#[test]
+fn helper_compare_versions_fails_closed_on_unparseable() {
+    use std::fs;
+    use std::process::Command;
+
+    let Some(python) = python_bin() else {
+        eprintln!("skipping helper compare_versions test: no python interpreter on PATH");
+        return;
+    };
+
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let helper = dir.path().join("helper.py");
+    fs::write(&helper, include_str!("helper.py")).expect("write helper");
+    let script = format!(
+        r#"
+import importlib.util
+spec = importlib.util.spec_from_file_location("helper", r"{path}")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+assert mod.compare_versions("1.0.0", "==", "1.0.0") is True
+assert mod.compare_versions("2.0", ">=", "1.0") is True
+assert mod.compare_versions("not-a-version", ">=", "1.0") is False
+assert mod.compare_versions("1.0", "??", "2.0") is False
+print("ok")
+"#,
+        path = helper.display().to_string().replace('\\', "\\\\")
+    );
+
+    let output = Command::new(python)
+        .arg("-c")
+        .arg(script)
+        .output()
+        .expect("run compare_versions assertions");
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

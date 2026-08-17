@@ -30,11 +30,15 @@ COMP_RE = re.compile(r'^([a-zA-Z0-9_\-\[\]]+)\s*(>=|<=|==|!=|>|<|~=)\s*([a-zA-Z0
 
 def parse_requirement(line):
     line = line.strip()
-    if not line or line.startswith(('#', '-', '_')):
+    if not line or line.startswith('#'):
         return None
     # Strip inline comments
     if ' #' in line:
         line = line.split(' #')[0].strip()
+        if not line:
+            return None
+    if line.startswith('-'):
+        return {"kind": "directive", "original": line}
     m = COMP_RE.match(line)
     if m:
         name = m.group(1).split('[')[0].lower() # Strip extras
@@ -46,7 +50,7 @@ def parse_requirement(line):
     if name_only:
         name = name_only.group(1).split('[')[0].lower()
         return {"name": name, "op": "", "ver": "", "original": line}
-    return None
+    return {"kind": "unparsed", "original": line}
 
 def compare_versions(v1, op, v2):
     # Parse dotted version into tuple of ints/strings
@@ -65,12 +69,14 @@ def compare_versions(v1, op, v2):
                 return False
             return t1 >= t2 and t1[:len(t2)-1] == t2[:len(t2)-1]
     except Exception:
-        pass
-    return True
+        return False
+    return False
 
 def get_requirements(path_or_url):
     lines = []
-    if path_or_url.startswith(('http://', 'https://')):
+    if path_or_url.startswith('http://'):
+        raise ValueError('pyenv: remote requirements must use https://')
+    if path_or_url.startswith('https://'):
         url = path_or_url
         if 'github.com' in url and '/blob/' in url:
             url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
@@ -82,10 +88,21 @@ def get_requirements(path_or_url):
             lines = f.readlines()
     
     parsed = []
+    problems = []
     for line in lines:
         p = parse_requirement(line)
-        if p:
+        if not p:
+            continue
+        kind = p.get("kind")
+        if kind in ("directive", "unparsed"):
+            problems.append(p["original"])
+        else:
             parsed.append(p)
+    if problems:
+        raise ValueError(
+            "pyenv: requirements contain pip options or lines that cannot be checked safely: "
+            + "; ".join(problems)
+        )
     return parsed
 
 def stdlib_module_names():
@@ -204,23 +221,25 @@ def scan_workspace_imports(dir_path):
         "skipped_non_pip": True,
     }
 
+def fail(message):
+    print(json.dumps({"error": message}))
+    sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "Missing path or URL argument"}))
-        return
+        fail("Missing path or URL argument")
     
     first_arg = sys.argv[1]
     
     if first_arg == '--scan':
         if len(sys.argv) < 3:
-            print(json.dumps({"error": "Missing workspace directory path for scan"}))
-            return
+            fail("Missing workspace directory path for scan")
         workspace_dir = sys.argv[2]
         try:
             result = scan_workspace_imports(workspace_dir)
             print(json.dumps(result))
         except Exception as e:
-            print(json.dumps({"error": str(e)}))
+            fail(str(e))
         return
         
     try:
@@ -258,7 +277,7 @@ def main():
             "potential_conflicts": conflicts
         }))
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
+        fail(str(e))
 
 if __name__ == '__main__':
     main()

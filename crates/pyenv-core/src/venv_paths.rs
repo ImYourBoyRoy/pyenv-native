@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::path_safety::{is_safe_relative_path, path_stays_under};
 
 pub const MANAGED_VENVS_DIR_NAME: &str = "venvs";
 
@@ -35,7 +36,11 @@ pub fn managed_venv_dir(ctx: &AppContext, base_version: &str, name: &str) -> Pat
 
 pub fn managed_venv_dir_from_spec(ctx: &AppContext, spec: &str) -> Option<PathBuf> {
     let (base_version, name) = split_managed_venv_spec(spec)?;
-    Some(managed_venv_dir(ctx, &base_version, &name))
+    if !is_safe_relative_path(&base_version) || !is_safe_relative_path(&name) {
+        return None;
+    }
+    let path = managed_venv_dir(ctx, &base_version, &name);
+    path_stays_under(&managed_venvs_root(ctx), &path).then_some(path)
 }
 
 pub fn managed_venv_entries_for_base(

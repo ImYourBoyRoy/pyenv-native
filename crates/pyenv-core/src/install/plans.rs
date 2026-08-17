@@ -283,12 +283,28 @@ pub(super) fn resolve_install_plan_for_platform(
     }
 
     ensure_supported_cpython_version(&normalized_request)?;
+    match resolve_windows_nuget_cpython_plan(ctx, requested, &normalized_request) {
+        Ok(plan) => Ok(plan),
+        Err(native_error) => {
+            if let Ok(plan) = resolve_python_build_install_plan(ctx, requested, platform) {
+                Ok(plan)
+            } else {
+                Err(native_error)
+            }
+        }
+    }
+}
 
-    let free_threaded = is_free_threaded(&normalized_request);
+fn resolve_windows_nuget_cpython_plan(
+    ctx: &AppContext,
+    requested: &str,
+    normalized_request: &str,
+) -> Result<InstallPlan, PyenvError> {
+    let free_threaded = is_free_threaded(normalized_request);
     let effective_arch = ctx.config.install.arch.effective();
     let package_name = nuget_package_name(effective_arch, free_threaded).to_string();
     let resolved_version =
-        resolve_provider_version(ctx, &package_name, &normalized_request, free_threaded)?;
+        resolve_provider_version(ctx, &package_name, normalized_request, free_threaded)?;
     let package_version = resolved_version.trim_end_matches('t').to_string();
 
     let base_url = ctx

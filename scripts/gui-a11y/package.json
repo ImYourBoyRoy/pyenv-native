@@ -2,6 +2,7 @@
   "name": "pyenv-native-gui-a11y",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "check": "node check-a11y.mjs"
   },

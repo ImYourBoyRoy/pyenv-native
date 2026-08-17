@@ -112,6 +112,31 @@ fn extract_tar_root_archive_strips_top_level_directory() {
 }
 
 #[test]
+fn extract_root_archive_skips_zip_slip_entries() {
+    let temp = TempDir::new().expect("tempdir");
+    let archive_path = temp.path().join("slip.zip");
+    let output_dir = temp.path().join("out");
+    let outside = temp.path().join("evil.txt");
+    let file = fs::File::create(&archive_path).expect("archive");
+    let mut writer = zip::ZipWriter::new(file);
+    let options = FileOptions::<()>::default();
+    writer
+        .start_file("../evil.txt", options)
+        .expect("slip entry");
+    writer.write_all(b"pwned").expect("write");
+    writer
+        .start_file("runtime/safe.txt", options)
+        .expect("safe entry");
+    writer.write_all(b"ok").expect("write");
+    writer.finish().expect("finish");
+
+    extract_root_archive(&archive_path, &output_dir).expect("extract");
+
+    assert!(!outside.exists());
+    assert!(output_dir.join("safe.txt").is_file());
+}
+
+#[test]
 fn pip_wrapper_names_include_versioned_commands() {
     assert_eq!(
         pip_wrapper_names("3.13.12"),

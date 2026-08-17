@@ -1,7 +1,7 @@
 // ./crates/pyenv-core/src/install/providers/catalog.rs
 //! Provider-backed catalog discovery and rendering helpers for installable runtimes.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::catalog::{VersionFamily, known_version_names};
 use crate::command::CommandReport;
@@ -137,6 +137,12 @@ pub(crate) fn provider_catalog_entries_for_platform(
         entries
     };
 
+    let entries = if include_cpython {
+        merge_known_cpython_gaps(ctx, platform, entries)
+    } else {
+        entries
+    };
+
     Ok(entries
         .into_iter()
         .filter(|entry| {
@@ -154,6 +160,41 @@ pub(crate) fn provider_catalog_entries_for_platform(
             })
         })
         .collect())
+}
+
+fn merge_known_cpython_gaps(
+    ctx: &AppContext,
+    platform: &str,
+    mut entries: Vec<ProviderCatalogEntry>,
+) -> Vec<ProviderCatalogEntry> {
+    let Some(provider) = cpython_gap_provider(platform) else {
+        return entries;
+    };
+    let existing: HashSet<String> = entries.iter().map(|entry| entry.version.clone()).collect();
+    let architecture = ctx.config.install.arch.effective().as_str().to_string();
+    for version in cpython_source_provider_versions() {
+        if existing.contains(&version) {
+            continue;
+        }
+        entries.push(ProviderCatalogEntry {
+            family: "CPython".to_string(),
+            family_slug: "cpython".to_string(),
+            provider: provider.clone(),
+            architecture: architecture.clone(),
+            version,
+        });
+    }
+    entries
+}
+
+fn cpython_gap_provider(platform: &str) -> Option<String> {
+    if let Some(provider) = cpython_source_provider_name(platform) {
+        return Some(provider.to_string());
+    }
+    if is_windows_platform(platform) {
+        return Some(python_build_provider_name(platform));
+    }
+    None
 }
 
 fn python_build_provider_entries(

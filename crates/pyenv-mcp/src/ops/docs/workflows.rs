@@ -81,5 +81,21 @@ pub(super) fn build_common_workflows() -> Vec<WorkflowRecipe> {
                 },
             ],
         },
+        WorkflowRecipe {
+            name: "update_environment_packages".to_string(),
+            goal: "List outdated packages in a runtime or managed venv, then upgrade selected packages or everything outdated.".to_string(),
+            steps: vec![
+                WorkflowStep {
+                    tool_name: Some("pip_outdated".to_string()),
+                    description: "Read-only PyPI audit. Returns {name, version, latest_version}; copy names or pins into pip_update.".to_string(),
+                    example_input: Some(json!({ "target": "3.14.7/envs/api" })),
+                },
+                WorkflowStep {
+                    tool_name: Some("pip_update".to_string()),
+                    description: "Upgrade named packages or pins. Use all=true to upgrade every outdated package; that path fails if the outdated scan cannot run.".to_string(),
+                    example_input: Some(json!({ "target": "3.14.7/envs/api", "packages": ["certifi", "cryptography"] })),
+                },
+            ],
+        },
     ]
 }

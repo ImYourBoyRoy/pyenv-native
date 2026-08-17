@@ -101,7 +101,39 @@ pub struct ProjectPathParams {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct DoctorFixParams {
     pub project_dir: Option<PathBuf>,
+    /// When `false`, return the planned fixes without applying them.
+    /// When omitted or `true`, apply safe automated repairs (MCP has no prompt).
     pub force: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct ConfigGetParams {
+    pub key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ConfigSetParams {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct SelfUpdateParams {
+    pub check: Option<bool>,
+    /// Must be `true` to apply an update. Defaults to `false`.
+    pub yes: Option<bool>,
+    pub force: Option<bool>,
+    pub github_repo: Option<String>,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VenvUpgradeParams {
+    pub spec: String,
+    pub new_runtime: String,
+    pub force: Option<bool>,
+    pub set_local: Option<bool>,
+    pub project_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]

@@ -1,7 +1,7 @@
 # ./scripts/smoke-shells.ps1
 <#
 Purpose: Smoke-test Windows shell integration for pyenv-native across PowerShell 7, Windows PowerShell 5.1, and CMD using a temporary portable root.
-How to run: powershell -ExecutionPolicy Bypass -File .\scripts\smoke-shells.ps1 [-PyenvExe <path>]
+How to run: pwsh -NoLogo -NoProfile -File .\scripts\smoke-shells.ps1 [-PyenvExe <path>]
 Inputs: Optional path to a built pyenv.exe binary. Defaults to ../target/debug/pyenv.exe.
 Outputs/side effects: Launches each target shell in a temporary workspace, evaluates generated init code, and verifies that `pyenv shell 3.13.12` resolves correctly.
 Notes: Designed for CI smoke coverage of shell wrappers and dotted-version forwarding behavior on Windows.

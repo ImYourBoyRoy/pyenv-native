@@ -96,7 +96,7 @@ fn render_top_level_help(usage_only: bool) -> CommandReport {
     );
     stdout.push("  Versions:    Python environments installed via `pyenv install`. Located in `~/.pyenv/versions`.".to_string());
     stdout.push("  Managed envs: Named virtual environments can live under `~/.pyenv/venvs/<runtime>/<name>`.".to_string());
-    stdout.push("               Use `pyenv venv create 3.13 api` and bind a folder with `pyenv venv use api`.".to_string());
+    stdout.push("               Use `pyenv venv create 3.14 api` and bind a folder with `pyenv venv use api`.".to_string());
     stdout.push("  Discovery:   Search installable runtimes with `pyenv install --list 3.13` or `pyenv available 3.13`.".to_string());
     stdout.push("  Selection:   Pyenv decides which Python version to use in this order (highest priority first):".to_string());
     stdout.push(

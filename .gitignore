@@ -51,3 +51,6 @@ Thumbs.db
 /temp_*.rs
 /clippy_errors.txt
 *.tmp
+/scripts/wcagate/node_modules/
+/scripts/wcagate/wcag-audit/
+/scripts/gui-a11y/node_modules/

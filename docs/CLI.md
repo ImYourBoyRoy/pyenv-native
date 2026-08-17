@@ -29,6 +29,7 @@ PROVISIONING:
 
 ENVIRONMENT:
   venv               Create, inspect, and assign managed virtual environments
+  pip                List, check, install, and update packages for a runtime or venv
 
 INTERFACE:
   init               Configure the shell environment for pyenv
@@ -41,6 +42,8 @@ INTERFACE:
 
 DIAGNOSTICS & CONFIG:
   doctor             Verify pyenv installation and environment health
+  preflight          Platform intelligence and install readiness
+  environment        Alias for preflight
   status             Show the comprehensive environment status (versions, origins, venvs)
   config             Display or modify pyenv-native configuration
   root               Display the root directory where versions and shims are kept
@@ -88,25 +91,40 @@ Unlike upstream `pyenv` which requires a plugin (`pyenv-virtualenv`), `pyenv-nat
 
 - `pyenv venv create <version> <name>` — Create a named venv under the managed root.
 - `pyenv venv list` — List all managed venvs.
-- `pyenv venv use <name>` — Activate a managed venv in the current shell.
-- `pyenv venv upgrade <spec> <new_runtime>` — Migrate/upgrade a managed venv to a new base runtime version.
+- `pyenv venv info <spec>` — Show details for a managed venv.
+- `pyenv venv use <name>` — Assign local (default) or global selection to a managed venv spec. This writes a version file; it does not activate a shell session.
+- `pyenv venv rename <spec> <new-name>` — Rename a managed venv.
+- `pyenv venv delete <spec>` — Remove a managed venv.
+- `pyenv venv upgrade <spec> <new_runtime>` — Migrate a managed venv to another installed runtime. Inventories packages first and fails closed if that scan cannot run. Creates a temporary env, restores packages, then removes the old env and renames.
 - `pyenv local <version>/envs/<name>` — Bind a project to a managed venv by writing it to `.python-version`.
 
 ### Pip Package Management & Diagnostics (`pip`)
 
 `pyenv-native` includes a robust, conflict-safe `pip` integration suite to manage environment dependencies cleanly.
 
-* `pyenv pip list <target>` — List all installed third-party libraries and versions inside a runtime version or managed venv target.
-* `pyenv pip outdated <target>` — Check PyPI for available upgrades across all installed packages in the target.
-* `pyenv pip check <target>` — Run active diagnostics (`pip check`) to inspect and output broken requirements.
-* `pyenv pip install <target> [-r requirements.txt]` — Idempotently install packages from a local file path or remote HTTP/HTTPS URL (which supports auto-translated GitHub repository paths).
-* `pyenv pip update <target> [--all] [packages...]` — Perform cozy individual or batch updates inside the environment. If `pip` itself is outdated, the engine will safely self-update `pip` first to improve resolution reliability.
+* `pyenv pip list <target> [--json]` — List installed third-party libraries and versions inside a runtime version or managed venv target.
+* `pyenv pip outdated <target> [--json]` — Check PyPI for available upgrades. JSON objects are `{name, version, latest_version}`.
+* `pyenv pip check <target> [--json]` — Run `pip check` for broken requirements.
+* `pyenv pip precheck <target> -r <requirements>` — Statically resolve a local file or HTTPS URL and report conflicts before install. Pip option lines (`-r`, `--index-url`, …) and unparseable versions fail closed.
+* `pyenv pip analyze <target> [dir]` — Scan Python sources for third-party imports missing from the target environment.
+* `pyenv pip install <target> [-r requirements.txt]` — Idempotently install packages from a local file path or remote HTTPS URL (GitHub blob paths are translated to raw). `http://` is rejected.
+* `pyenv pip update <target> [--all] [packages...]` — Upgrade named packages, optional `name==version` pins, or every outdated package with `--all`. Outdated `pip` is upgraded first. `--all` fails closed if the outdated scan cannot run.
+
+```text
+pyenv pip outdated 3.14.7/envs/api --json
+pyenv pip update 3.14.7/envs/api certifi cryptography
+pyenv pip update 3.14.7/envs/api certifi==2026.7.22
+pyenv pip update --all 3.14.7/envs/api
+```
+
+`pip_outdated` JSON is `{name, version, latest_version}`. There is no "submit this JSON blob" command: copy names or pins into `pip update`, or use `--all`.
 
 ### Diagnostics & Self-Healing
 
 - `pyenv doctor` — Run a suite of health checks to verify your installation, PATH, and platform prerequisites.
   - **Android/Termux Auditing:** On Termux environments, the doctor will automatically audit the state of required compiler toolchains (`clang`, `make`, `pkg-config`) and system header libraries (`libffi`, `openssl`, `readline`, `ncurses`) to verify source-compilation readiness.
 - `pyenv doctor --fix` — Attempt to automatically resolve common configuration issues and self-heal missing Termux build dependencies via automated package installation (`pkg install ...`).
+- `pyenv preflight` / `pyenv environment` — Report OS, toolchain, and source-build readiness before compiling Python.
 
 ## Shell Integration
 

@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/process.rs
 //! Subprocess execution helpers and Windows window-suppression extensions.
 
+use std::env;
 use std::process::Command;
 
 /// Extension trait for `std::process::Command` to handle headless execution on Windows.
@@ -23,4 +24,21 @@ impl PyenvCommandExt for Command {
         }
         self
     }
+}
+
+/// Prefer PowerShell 7 (`pwsh`) when it is on PATH; otherwise Windows PowerShell.
+pub fn windows_powershell_host() -> &'static str {
+    if command_on_path("pwsh") {
+        "pwsh"
+    } else {
+        "powershell.exe"
+    }
+}
+
+fn command_on_path(name: &str) -> bool {
+    let Some(path) = env::var_os("PATH") else {
+        return false;
+    };
+    env::split_paths(&path)
+        .any(|dir| dir.join(name).is_file() || dir.join(format!("{name}.exe")).is_file())
 }

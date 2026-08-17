@@ -1,7 +1,7 @@
 # ./scripts/build-winget-manifests.ps1
 <#
 Purpose: Generates Winget portable-package manifests for one or more built Windows pyenv-native bundles.
-How to run: powershell -ExecutionPolicy Bypass -File ./scripts/build-winget-manifests.ps1 [-BundlePath ./dist/pyenv-native-windows-x64.zip] [-BundlePaths <paths...>] [-GitHubRepo imyourboyroy/pyenv-native] [-Validate]
+How to run: pwsh -NoLogo -NoProfile -File ./scripts/build-winget-manifests.ps1 [-BundlePath ./dist/pyenv-native-windows-x64.zip] [-BundlePaths <paths...>] [-GitHubRepo imyourboyroy/pyenv-native] [-Validate]
 Inputs: One or more built Windows bundle zips/checksums, package metadata, and either a release base URL or GitHub repo/tag for installer URL generation.
 Outputs/side effects: Writes version/defaultLocale/installer YAML manifests under packaging/winget/manifests/... and can optionally run winget validate.
 Notes: This prepares publish-ready Winget metadata without submitting anything to winget-pkgs, and can emit multi-architecture installer entries.

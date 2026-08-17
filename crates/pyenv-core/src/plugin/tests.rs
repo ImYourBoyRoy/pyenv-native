@@ -126,6 +126,30 @@ mod tests {
     }
 
     #[test]
+    fn path_plugin_search_can_be_disabled() {
+        let (_temp, mut ctx) = test_context();
+        let path_dir = ctx.root.join("path plugins");
+        fs::create_dir_all(&path_dir).expect("path dir");
+        let plugin_path = if cfg!(windows) {
+            path_dir.join("pyenv-frompath.cmd")
+        } else {
+            path_dir.join("pyenv-frompath.sh")
+        };
+        write_plugin_script(
+            &plugin_path,
+            if cfg!(windows) {
+                "@echo off\r\n"
+            } else {
+                "#!/usr/bin/env sh\n"
+            },
+        );
+        ctx.path_env = Some(env::join_paths([path_dir]).expect("join path"));
+        assert!(find_plugin_command(&ctx, "frompath").is_some());
+        ctx.config.plugins.search_path = false;
+        assert!(find_plugin_command(&ctx, "frompath").is_none());
+    }
+
+    #[test]
     fn hooks_lists_sorted_supported_scripts() {
         let (_temp, ctx) = test_context();
         let hook_dir = ctx.root.join("pyenv.d").join("rehash");

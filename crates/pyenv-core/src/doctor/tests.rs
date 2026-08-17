@@ -150,4 +150,22 @@ mod tests {
         assert_eq!(integrity.status, DoctorStatus::Warn);
         assert!(integrity.detail.contains("pyenv-gui"));
     }
+
+    #[test]
+    fn doctor_reports_plugin_path_search() {
+        let (_temp, mut ctx) = test_context();
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let enabled = checks
+            .iter()
+            .find(|check| check.name == "plugin-path-search")
+            .expect("plugin path check");
+        assert_eq!(enabled.status, DoctorStatus::Info);
+        ctx.config.plugins.search_path = false;
+        let checks = collect_checks_for_platform(&ctx, env::consts::OS);
+        let disabled = checks
+            .iter()
+            .find(|check| check.name == "plugin-path-search")
+            .expect("plugin path check");
+        assert_eq!(disabled.status, DoctorStatus::Ok);
+    }
 }
