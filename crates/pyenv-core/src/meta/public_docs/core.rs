@@ -115,7 +115,7 @@ pub(super) const CORE_COMMAND_DOCS: &[CommandDoc] = &[
             "",
             "Flags:",
             "  -l, --list         List all installable versions from native providers",
-            "  --known            List from the embedded known-versions catalog instead",
+            "  --known            List the broader catalog, including the live CPython index",
             "  --family <name>    Filter --list by runtime family (cpython, pypy)",
             "  --dry-run          Show what would be installed without downloading anything",
             "  --json             Output results as JSON",

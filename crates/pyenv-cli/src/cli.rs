@@ -168,7 +168,10 @@ pub(crate) enum Commands {
         dry_run: bool,
         #[arg(long = "json", help = "Output results as JSON")]
         json: bool,
-        #[arg(long = "known", help = "Use embedded catalog instead of providers")]
+        #[arg(
+            long = "known",
+            help = "List the broader catalog instead of provider builds"
+        )]
         known: bool,
         #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
         family: Option<String>,
@@ -181,7 +184,7 @@ pub(crate) enum Commands {
         json: bool,
         #[arg(
             long = "known",
-            help = "Use the embedded known catalog instead of providers"
+            help = "List the broader catalog instead of provider builds"
         )]
         known: bool,
         #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]

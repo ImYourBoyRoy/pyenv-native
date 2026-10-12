@@ -16,15 +16,16 @@ static KNOWN_VERSION_NAMES: OnceLock<Vec<String>> = OnceLock::new();
 
 pub fn known_version_names() -> &'static [String] {
     KNOWN_VERSION_NAMES
-        .get_or_init(|| {
-            include_str!("../../data/known_versions.txt")
-                .lines()
-                .map(|line: &str| line.trim_start_matches('\u{feff}').trim())
-                .filter(|line: &&str| !line.is_empty() && !line.starts_with('#'))
-                .map(ToOwned::to_owned)
-                .collect()
-        })
+        .get_or_init(|| parse_known_version_lines(include_str!("../../data/known_versions.txt")))
         .as_slice()
+}
+
+pub(crate) fn parse_known_version_lines(text: &str) -> Vec<String> {
+    text.lines()
+        .map(|line: &str| line.trim_start_matches('\u{feff}').trim())
+        .filter(|line: &&str| !line.is_empty() && !line.starts_with('#'))
+        .map(ToOwned::to_owned)
+        .collect()
 }
 
 pub fn installed_version_names(ctx: &AppContext) -> Result<Vec<String>, PyenvError> {
@@ -48,10 +49,9 @@ pub fn installed_version_names(ctx: &AppContext) -> Result<Vec<String>, PyenvErr
     Ok(versions)
 }
 
-pub(crate) fn known_catalog_entries() -> Vec<CatalogEntry> {
-    known_version_names()
-        .iter()
-        .cloned()
+pub(crate) fn known_catalog_entries(ctx: &AppContext) -> Vec<CatalogEntry> {
+    super::remote::merged_known_version_names(ctx)
+        .into_iter()
         .map(|name| catalog_entry(name, CatalogSourceKind::Known))
         .collect()
 }
@@ -120,10 +120,38 @@ pub(crate) fn filter_catalog_entries(
         })
         .filter(|entry| {
             pattern_filter.as_ref().is_none_or(|filter| {
-                entry.name.to_ascii_lowercase().contains(filter)
-                    || entry.family.to_ascii_lowercase().contains(filter)
-                    || entry.family_slug.contains(filter)
+                matches_catalog_pattern(&entry.name, filter)
+                    || matches_catalog_pattern(&entry.family, filter)
+                    || matches_catalog_pattern(&entry.family_slug, filter)
             })
         })
         .collect()
+}
+
+pub(crate) fn matches_catalog_pattern(haystack: &str, filter: &str) -> bool {
+    let haystack = haystack.to_ascii_lowercase();
+    let filter = filter.to_ascii_lowercase();
+    if filter.is_empty() {
+        return true;
+    }
+    if !filter.starts_with(|ch: char| ch.is_ascii_digit()) {
+        return haystack.contains(&filter);
+    }
+
+    let ends_with_digit = filter.ends_with(|ch: char| ch.is_ascii_digit());
+    let mut start = 0;
+    while let Some(relative) = haystack[start..].find(&filter) {
+        let index = start + relative;
+        let after = &haystack[index + filter.len()..];
+        let next_ok = after
+            .chars()
+            .next()
+            .is_none_or(|ch| !(ends_with_digit && ch.is_ascii_digit()));
+        let previous_ok = index == 0 || !haystack.as_bytes()[index - 1].is_ascii_digit();
+        if next_ok && previous_ok {
+            return true;
+        }
+        start = index + 1;
+    }
+    false
 }

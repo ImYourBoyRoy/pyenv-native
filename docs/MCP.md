@@ -156,7 +156,7 @@ Current high-value tools include:
 - `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; `force=false` returns the plan without applying)
 - `inspect_environment` (structured status overview: versions, origins, venvs)
 - `resolve_project_environment`
-- `list_available_versions`
+- `list_available_versions` (CPython is refreshed from python.org or NuGet and cached for 24 hours, so new revisions appear without a toolkit update)
 - `ensure_runtime` (streams progress to `~/.pyenv/logs/install-progress.jsonl` and returns `progress_steps`)
 - `set_local_version`
 - `set_global_version`

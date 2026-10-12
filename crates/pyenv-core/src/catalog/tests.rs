@@ -186,4 +186,84 @@ mod tests {
         assert_eq!(latest_version_from_names("3.12", &names), None);
         assert_eq!(latest_version_from_names("4", &names), None);
     }
+
+    #[test]
+    fn python_org_index_keeps_release_directories_only() {
+        let html = r#"
+            <a href="../">../</a>
+            <a href="src/">src/</a>
+            <a href="3.14.8/">3.14.8/</a>
+            <a href="3.15.0a1/">3.15.0a1/</a>
+            <a href="3.15.0rc2/">3.15.0rc2/</a>
+            <a href="README">README</a>
+            <a href="https://example.com/3.12.0/">3.12.0/</a>
+        "#;
+        assert_eq!(
+            super::super::remote::parse_python_org_ftp_index(html),
+            vec![
+                "3.12.0".to_string(),
+                "3.14.8".to_string(),
+                "3.15.0a1".to_string(),
+                "3.15.0rc2".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn cached_publisher_index_adds_revisions_missing_from_the_seed() {
+        let (_temp, ctx) = test_context();
+        let cache_path = super::super::remote::cpython_index_cache_path(&ctx);
+        super::super::remote::write_cpython_index_cache(&cache_path, &["9.9.1".to_string()])
+            .expect("seed cache");
+
+        let report = cmd_latest(&ctx, "9.9", true, false, false);
+        assert_eq!(report.exit_code, 0);
+        assert_eq!(report.stdout, vec!["9.9.1".to_string()]);
+        assert!(
+            !known_version_names()
+                .iter()
+                .any(|version| version == "9.9.1"),
+            "9.9.1 must come from the publisher cache, not known_versions.txt"
+        );
+
+        let listed = cmd_install_list(
+            &ctx,
+            &InstallListOptions {
+                family: Some("cpython".to_string()),
+                json: false,
+                pattern: Some("9.9.1".to_string()),
+            },
+        );
+        assert_eq!(listed.exit_code, 0);
+        assert!(listed.stdout.iter().any(|line| line.trim() == "9.9.1"));
+        assert!(listed.stdout.iter().any(|line| line.trim() == "9.9.1t"));
+
+        let store = fs::read_to_string(super::super::remote::known_versions_store_path(&ctx))
+            .expect("runtime known versions");
+        assert!(store.lines().any(|line| line == "9.9.1"));
+        assert!(store.lines().any(|line| line == "2.7.18"));
+        assert!(
+            !known_version_names()
+                .iter()
+                .any(|version| version == "9.9.1")
+        );
+
+        fs::remove_file(cache_path).expect("drop publisher cache");
+        let again = cmd_latest(&ctx, "9.9", true, false, false);
+        assert_eq!(again.stdout, vec!["9.9.1".to_string()]);
+    }
+
+    #[test]
+    fn version_patterns_do_not_match_inside_a_later_component() {
+        use super::super::entries::matches_catalog_pattern;
+
+        assert!(matches_catalog_pattern("3.15.0", "3.15"));
+        assert!(matches_catalog_pattern("3.15.0t", "3.15"));
+        assert!(matches_catalog_pattern("3.15.0rc1", "3.15.0rc"));
+        assert!(!matches_catalog_pattern("3.13.15", "3.15"));
+        assert!(!matches_catalog_pattern("3.13.14", "3.14"));
+        assert!(matches_catalog_pattern("3.14.8", "3.14"));
+        assert!(matches_catalog_pattern("pypy3.11-7.3.20", "pypy"));
+        assert!(matches_catalog_pattern("CPython", "cpython"));
+    }
 }

@@ -148,7 +148,7 @@ pub fn cmd_pip_list(ctx: &AppContext, target: &str, json: bool) -> CommandReport
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: pip list process exited with failure."),
+                "pyenv: pip list process exited with failure.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,
@@ -216,7 +216,7 @@ pub fn cmd_pip_outdated(ctx: &AppContext, target: &str, json: bool) -> CommandRe
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: pip outdated process exited with failure."),
+                "pyenv: pip outdated process exited with failure.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,
@@ -423,7 +423,7 @@ pub fn cmd_pip_precheck_requirements(
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: requirements precheck process failed."),
+                "pyenv: requirements precheck process failed.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,
@@ -476,7 +476,7 @@ pub fn cmd_pip_analyze_imports(ctx: &AppContext, target: &str, dir_path: &str) -
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: codebase scanner process failed."),
+                "pyenv: codebase scanner process failed.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,
@@ -605,7 +605,7 @@ pub fn cmd_pip_install(ctx: &AppContext, target: &str, path_or_url: &str) -> Com
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: pip install requirements process failed."),
+                "pyenv: pip install requirements process failed.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,
@@ -703,7 +703,7 @@ pub fn cmd_pip_update(
         if !pip_up_output.status.success() {
             return CommandReport::failure(
                 vec![
-                    format!("pyenv: pip self-update process failed."),
+                    "pyenv: pip self-update process failed.".to_string(),
                     String::from_utf8_lossy(&pip_up_output.stderr).to_string(),
                 ],
                 1,
@@ -756,7 +756,7 @@ pub fn cmd_pip_update(
     if !output.status.success() {
         return CommandReport::failure(
             vec![
-                format!("pyenv: pip batch update process failed."),
+                "pyenv: pip batch update process failed.".to_string(),
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ],
             1,

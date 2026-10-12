@@ -5,7 +5,8 @@ use std::cmp::Ordering;
 
 use crate::context::AppContext;
 
-use super::entries::{installed_version_names, known_version_names};
+use super::entries::installed_version_names;
+use super::remote::merged_known_version_names;
 
 pub fn latest_installed_version(ctx: &AppContext, prefix: &str) -> Option<String> {
     installed_version_names(ctx)
@@ -13,8 +14,8 @@ pub fn latest_installed_version(ctx: &AppContext, prefix: &str) -> Option<String
         .and_then(|versions| latest_version_from_names(prefix, &versions))
 }
 
-pub fn latest_known_version(prefix: &str) -> Option<String> {
-    latest_version_from_names(prefix, known_version_names())
+pub fn latest_known_version(ctx: &AppContext, prefix: &str) -> Option<String> {
+    latest_version_from_names(prefix, &merged_known_version_names(ctx))
 }
 
 pub fn compare_version_names(lhs: &str, rhs: &str) -> Ordering {

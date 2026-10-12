@@ -429,6 +429,8 @@ pyenv available 3
 pyenv available 3.12
 ```
 
+CPython names come from the live python.org release index and are cached for 24 hours, so later patch and prerelease revisions appear without a new pyenv-native build. Windows uses the NuGet index. PyPy uses the upstream PyPy version manifest. The compiled `known_versions.txt` is the base seed. Newly discovered names are merged into `PYENV_ROOT/cache/metadata/known_versions.txt`.
+
 ### Install a runtime
 
 ```powershell

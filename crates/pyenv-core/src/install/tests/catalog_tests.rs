@@ -183,3 +183,28 @@ fn cpython_source_entries_include_free_threaded_variants() {
             .all(|entry| entry.provider == "linux-cpython-source")
     );
 }
+
+#[test]
+fn cpython_source_catalog_reads_publisher_cache_instead_of_the_seed_file() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(
+        &cache_path,
+        &["9.9.1".to_string(), "2.7.18".to_string()],
+    )
+    .expect("seed cpython index");
+
+    let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "9.9.1"));
+    assert!(entries.iter().any(|entry| entry.version == "9.9.1t"));
+    assert!(entries.iter().any(|entry| entry.version == "2.7.18"));
+    assert!(
+        !entries.iter().any(|entry| entry.version == "3.12.0"),
+        "a fresh publisher cache replaces the embedded seed"
+    );
+    assert!(
+        !crate::catalog::known_version_names()
+            .iter()
+            .any(|version| version == "9.9.1")
+    );
+}

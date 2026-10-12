@@ -151,9 +151,11 @@ This answers:
 - what runtime families exist,
 - what prefixes map to what concrete versions.
 
-The project keeps an embedded upstream-derived known-version seed in:
+CPython revisions are not compiled into the binary. `pyenv install --list`, `pyenv available`, and `pyenv latest --known` read the live directory index at `https://www.python.org/ftp/python/`, cache it for 24 hours under `PYENV_ROOT/cache/metadata/cpython/releases.json`, and reuse that cache when a refresh fails. Free-threaded names (`3.13t` and newer) are derived from those release directories. A new python.org patch, prerelease, or major line shows up on the next refresh without editing the repo.
 
-- `crates/pyenv-core/data/known_versions.txt`
+`crates/pyenv-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `PYENV_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `scripts/sync-known-versions.ps1` only refreshes the compiled seed from an upstream pyenv checkout.
+
+Windows CPython builds still come from the NuGet package index, and PyPy still comes from `https://downloads.python.org/pypy/versions.json`. Those indexes are cached the same way, and their version names are merged into the runtime known-versions file. Versions python.org publishes that NuGet does not carry stay visible through the live CPython index.
 
 ### Provider availability
 

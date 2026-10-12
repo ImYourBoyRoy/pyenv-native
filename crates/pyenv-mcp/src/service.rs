@@ -190,7 +190,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "list_available_versions",
-        description = "List installable Python runtimes grouped by family. By default this is provider-backed. Set known=true to ask for the broader known catalog instead."
+        description = "List installable Python runtimes grouped by family. CPython versions are refreshed from the publisher index (python.org, or NuGet on Windows) and cached, so new patch releases appear without a toolkit update. Set known=true for the broader family catalog."
     )]
     pub async fn list_available_versions(
         &self,

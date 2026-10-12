@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::catalog::{VersionFamily, installed_version_names, known_version_names};
+use crate::catalog::{VersionFamily, installed_version_names, merged_known_version_names};
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::plugin::{DEFAULT_HOOK_COMMANDS, complete_plugin_command, discover_plugin_commands};
@@ -71,7 +71,7 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
             }
             values
         }
-        "latest" => known_version_names().to_vec(),
+        "latest" => merged_known_version_names(ctx),
         "hooks" => DEFAULT_HOOK_COMMANDS
             .iter()
             .map(|value| (*value).to_string())
@@ -83,11 +83,11 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
                 .find(|value| !value.trim().is_empty())
                 .is_some_and(|value| value == "--family")
             {
-                return known_family_slugs();
+                return known_family_slugs(ctx);
             }
 
-            let mut values = known_family_slugs();
-            values.extend(known_version_names().iter().cloned());
+            let mut values = known_family_slugs(ctx);
+            values.extend(merged_known_version_names(ctx));
             values
         }
         "venv" | "virtualenv" | "virtualenvs" => vec![
@@ -108,10 +108,10 @@ fn dynamic_builtin_completions(ctx: &AppContext, command: &str, args: &[String])
     }
 }
 
-fn known_family_slugs() -> Vec<String> {
+fn known_family_slugs(ctx: &AppContext) -> Vec<String> {
     let mut families = BTreeSet::new();
-    for version in known_version_names() {
-        families.insert(VersionFamily::classify(version).slug());
+    for version in merged_known_version_names(ctx) {
+        families.insert(VersionFamily::classify(&version).slug());
     }
     families.into_iter().collect()
 }

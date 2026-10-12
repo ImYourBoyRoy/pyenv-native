@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use crate::catalog::{VersionFamily, known_version_names};
+use crate::catalog::{VersionFamily, load_cpython_catalog_names, matches_catalog_pattern};
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
@@ -41,7 +41,7 @@ pub(crate) fn cmd_provider_install_list(
             vec!["pyenv: no installable versions match the requested filters".to_string()];
         if let Some(pattern) = pattern.as_deref() {
             stderr.push(format!(
-                "hint: try `pyenv install --list --known {pattern}` to inspect the broader embedded catalog"
+                "hint: try `pyenv install --list --known {pattern}` to inspect the broader catalog"
             ));
         }
         return CommandReport::failure(stderr, 1);
@@ -154,9 +154,9 @@ pub(crate) fn provider_catalog_entries_for_platform(
         })
         .filter(|entry| {
             pattern_filter.as_ref().is_none_or(|filter| {
-                entry.version.to_ascii_lowercase().contains(filter)
-                    || entry.family.to_ascii_lowercase().contains(filter)
-                    || entry.provider.to_ascii_lowercase().contains(filter)
+                matches_catalog_pattern(&entry.version, filter)
+                    || matches_catalog_pattern(&entry.family, filter)
+                    || matches_catalog_pattern(&entry.provider, filter)
             })
         })
         .collect())
@@ -172,7 +172,7 @@ fn merge_known_cpython_gaps(
     };
     let existing: HashSet<String> = entries.iter().map(|entry| entry.version.clone()).collect();
     let architecture = ctx.config.install.arch.effective().as_str().to_string();
-    for version in cpython_source_provider_versions() {
+    for version in cpython_source_provider_versions(ctx) {
         if existing.contains(&version) {
             continue;
         }
@@ -246,14 +246,10 @@ fn cpython_provider_entries(ctx: &AppContext) -> Result<Vec<ProviderCatalogEntry
         .collect())
 }
 
-pub(crate) fn cpython_source_provider_versions() -> Vec<String> {
-    let mut versions = known_version_names()
-        .iter()
-        .filter(|version| {
-            matches!(VersionFamily::classify(version), VersionFamily::CPython)
-                && is_stable_runtime_version(version)
-        })
-        .cloned()
+pub(crate) fn cpython_source_provider_versions(ctx: &AppContext) -> Vec<String> {
+    let mut versions = load_cpython_catalog_names(ctx)
+        .into_iter()
+        .filter(|version| is_stable_runtime_version(version))
         .collect::<Vec<_>>();
     versions.sort_by(|lhs, rhs| crate::catalog::compare_version_names(lhs, rhs).reverse());
     versions.dedup();
@@ -268,7 +264,7 @@ pub(crate) fn cpython_source_provider_entries(
         return Ok(Vec::new());
     };
     let arch = ctx.config.install.arch.effective();
-    Ok(cpython_source_provider_versions()
+    Ok(cpython_source_provider_versions(ctx)
         .into_iter()
         .map(|version| ProviderCatalogEntry {
             family: "CPython".to_string(),
@@ -290,6 +286,7 @@ fn pypy_provider_entries(
         None => return Ok(Vec::new()),
     };
     let versions = pypy_provider_names(&load_or_fetch_pypy_releases(ctx)?, arch, platform);
+    crate::catalog::sync_known_version_store(ctx, &versions);
 
     Ok(versions
         .into_iter()

@@ -86,5 +86,6 @@ pub(super) fn available_package_versions(
             .map(|version| format!("{version}t"))
             .collect();
     }
+    crate::catalog::sync_known_version_store(ctx, &versions);
     Ok(versions)
 }

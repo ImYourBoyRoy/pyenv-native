@@ -36,7 +36,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
         help: &[
             "Resolves version prefixes such as `3.12` or `pypy3.11` to the latest",
             "matching version. By default, searches installed versions; use `--known`",
-            "to search the full catalog instead.",
+            "to search the publisher-backed catalog instead.",
             "",
             "Examples:",
             "  pyenv latest 3.12             Latest installed 3.12.x",

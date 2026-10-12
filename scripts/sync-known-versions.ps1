@@ -4,7 +4,7 @@ Purpose: Regenerates the embedded known-versions catalog from an upstream pyenv 
 How to run: pwsh -NoLogo -NoProfile -File ./scripts/sync-known-versions.ps1 [-UpstreamRoot ..\..\pyenv]
 Inputs: Optional upstream pyenv root containing plugins/python-build/share/python-build definitions.
 Outputs/side effects: Writes crates/pyenv-core/data/known_versions.txt with sorted definition names.
-Notes: This is a maintenance helper for syncing the local catalog seed with upstream pyenv.
+Notes: This refreshes the offline seed used when python.org cannot be reached, plus non-CPython family names. Installable CPython revisions are discovered at runtime from https://www.python.org/ftp/python/ and cached; do not treat this file as the live catalog.
 #>
 
 param(

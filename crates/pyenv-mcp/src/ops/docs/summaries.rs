@@ -51,9 +51,9 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
         },
         ToolSummary {
             tool_name: "list_available_versions".to_string(),
-            use_when: "You need installable runtime choices or the broader known catalog before choosing a version.".to_string(),
+            use_when: "You need installable runtime choices. CPython comes from the live publisher index, so new revisions appear without a toolkit update.".to_string(),
             returns: "Grouped runtime families with optional provider, architecture, and source metadata.".to_string(),
-            side_effects: "Read-only.".to_string(),
+            side_effects: "May refresh the cached publisher index under the pyenv cache directory.".to_string(),
             arguments: vec![
                 ToolArgument { name: "family".to_string(), required: false, data_type: "string".to_string(), description: "Optional family filter such as cpython or pypy.".to_string() },
                 ToolArgument { name: "pattern".to_string(), required: false, data_type: "string".to_string(), description: "Optional prefix or pattern filter such as 3.13 or pypy3.11.".to_string() },

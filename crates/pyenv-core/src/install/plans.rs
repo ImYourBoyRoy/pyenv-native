@@ -184,13 +184,9 @@ fn prompt_interactive_install(
     ctx: &AppContext,
     base_options: &InstallCommandOptions,
 ) -> CommandReport {
-    let mut candidates = Vec::new();
-    let curated = [
-        "3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "pypy3.10", "pypy3.9",
-    ];
-
-    for prefix in curated {
-        if let Some(latest) = crate::catalog::latest_known_version(prefix) {
+    let mut candidates = cpython_quick_install_versions(ctx);
+    for prefix in ["pypy3.11", "pypy3.10", "pypy3.9"] {
+        if let Some(latest) = crate::catalog::latest_known_version(ctx, prefix) {
             candidates.push(latest);
         }
     }
@@ -237,6 +233,34 @@ fn prompt_interactive_install(
         }
         _ => CommandReport::failure(vec!["pyenv: invalid selection".to_string()], 1),
     }
+}
+
+fn cpython_quick_install_versions(ctx: &AppContext) -> Vec<String> {
+    use std::cmp::Ordering;
+    use std::collections::BTreeMap;
+
+    let mut best = BTreeMap::<(u32, u32), String>::new();
+    for version in cpython_source_provider_versions(ctx) {
+        if is_free_threaded(&version) {
+            continue;
+        }
+        let Some((major, minor)) = crate::catalog::cpython_major_minor(&version) else {
+            continue;
+        };
+        let offered = (major == 2 && minor == 7) || major > 3 || (major == 3 && minor >= 9);
+        if !offered {
+            continue;
+        }
+        best.entry((major, minor))
+            .and_modify(|current| {
+                if crate::catalog::compare_version_names(&version, current) == Ordering::Greater {
+                    *current = version.clone();
+                }
+            })
+            .or_insert(version);
+    }
+
+    best.into_iter().rev().map(|(_, version)| version).collect()
 }
 
 pub fn resolve_install_plan(ctx: &AppContext, requested: &str) -> Result<InstallPlan, PyenvError> {
@@ -362,7 +386,7 @@ fn resolve_cpython_source_install_plan(
         .ok_or_else(|| PyenvError::UnsupportedInstallTarget(requested.to_string()))?;
     ensure_supported_cpython_version(normalized_request)?;
 
-    let provider_versions = cpython_source_provider_versions();
+    let provider_versions = cpython_source_provider_versions(ctx);
     let resolved_version = if provider_versions
         .iter()
         .any(|candidate| candidate == normalized_request)

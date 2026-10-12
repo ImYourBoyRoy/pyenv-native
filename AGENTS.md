@@ -26,6 +26,7 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 - Every install path must ship **both** `pyenv` and `pyenv-mcp`.
 - Run `cargo test` in affected crates before claiming success.
 - Do not break the version-selection precedence: shell → local `.python-version` → parents → global → system.
+- CPython install catalogs are live. Read `https://www.python.org/ftp/python/` (24h cache). The compiled `crates/pyenv-core/data/known_versions.txt` is only the base seed. Publisher caches merge new names into `PYENV_ROOT/cache/metadata/known_versions.txt` and do not rewrite the shipped seed. Windows CPython still uses NuGet, and PyPy still uses the PyPy version manifest.
 - Managed venvs live under `PYENV_ROOT/venvs/<runtime>/<name>`; prefer `pyenv venv` over ad-hoc `.venv` when documenting agent flows.
 
 ## When USING pyenv-native on another project

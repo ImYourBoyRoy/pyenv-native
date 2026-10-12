@@ -8,8 +8,8 @@ use super::entries::{filter_catalog_entries, group_entries, known_catalog_entrie
 use super::latest::{latest_installed_version, latest_known_version};
 use super::types::InstallListOptions;
 
-pub fn cmd_install_list(_ctx: &AppContext, options: &InstallListOptions) -> CommandReport {
-    let entries = filter_catalog_entries(known_catalog_entries(), options);
+pub fn cmd_install_list(ctx: &AppContext, options: &InstallListOptions) -> CommandReport {
+    let entries = filter_catalog_entries(known_catalog_entries(ctx), options);
     if entries.is_empty() {
         return CommandReport::failure(
             vec!["pyenv: no known versions match the requested filters".to_string()],
@@ -47,7 +47,7 @@ pub fn cmd_latest(
     force: bool,
 ) -> CommandReport {
     let resolved = if known {
-        latest_known_version(prefix)
+        latest_known_version(ctx, prefix)
     } else {
         latest_installed_version(ctx, prefix)
     };
