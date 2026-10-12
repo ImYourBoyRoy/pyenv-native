@@ -39,7 +39,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Install dependencies (Linux)
         run: |
@@ -67,9 +67,9 @@ jobs:
         run: sh ./scripts/check-i18n.sh
 
       - name: Setup pnpm and Node.js
-        uses: pnpm/setup@v2
+        uses: pnpm/setup@v3
         with:
-          version: 11.22.0
+          version: 12.12.1
           runtime: node@26
           install: false
 
@@ -132,7 +132,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Clippy
         shell: pwsh
@@ -267,7 +267,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Clippy
         shell: bash
@@ -307,7 +307,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Clippy
         shell: bash

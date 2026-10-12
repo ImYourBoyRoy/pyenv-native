@@ -36,7 +36,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Version sync check
         shell: pwsh
@@ -136,7 +136,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
           
       - name: Install dependencies (Linux)
         run: |
@@ -265,7 +265,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Test Rust workspace
         shell: bash
@@ -315,7 +315,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Test Rust workspace
         shell: bash
@@ -446,7 +446,7 @@ jobs:
           done
 
       - name: Publish release assets
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           files: |
             install.ps1
