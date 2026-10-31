@@ -709,5 +709,9 @@
   "error-self-update-portable": "pyenv：自更新仅支持从 `{ $expected }` 启动的便携安装；当前可执行文件是 `{ $current }`",
   "doctor-store-alias-shadowed": "Microsoft Store 的 python 存根位于 { $path }；pyenv shims 优先，因此删除它是可选的。Windows 11：设置 > 应用 > 高级应用设置 > 应用执行别名",
   "gui-manual-follow-up": "仍建议手动跟进：",
-  "gui-doctor-fix-manual": "需要手动步骤"
+  "gui-doctor-fix-manual": "需要手动步骤",
+  "gui-release-alpha": "Alpha",
+  "gui-release-beta": "Beta",
+  "gui-release-rc": "Release candidate",
+  "gui-release-channel-title": "This is a { $channel } pre-release build."
 }

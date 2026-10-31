@@ -429,7 +429,7 @@ pyenv available 3
 pyenv available 3.12
 ```
 
-CPython names come from the live python.org release index and are cached for 24 hours, so later patch and prerelease revisions appear without a new pyenv-native build. Windows uses the NuGet index. PyPy uses the upstream PyPy version manifest. The compiled `known_versions.txt` is the base seed. Newly discovered names are merged into `PYENV_ROOT/cache/metadata/known_versions.txt`.
+CPython names come from the live python.org release index, per-release source-artifact listings, and prerelease release metadata, then are cached for 24 hours, so later patch and prerelease revisions appear without a new pyenv-native build. Alpha, beta, and release-candidate entries are shown as prereleases; a stable prefix such as `3.16` does not select an alpha automatically, but an exact request such as `pyenv install 3.16.0a1` does. Windows uses the NuGet index and accepts its equivalent hyphenated prerelease names. PyPy uses the upstream PyPy version manifest. The compiled `known_versions.txt` is the base seed. Newly discovered names are merged into `PYENV_ROOT/cache/metadata/known_versions.txt`.
 
 ### Install a runtime
 
@@ -466,10 +466,10 @@ pyenv venv list
 pyenv venv info api
 pyenv venv use api
 pyenv local 3.14.7/envs/api
-pyenv venv upgrade api 3.14
+pyenv venv upgrade api 3.15
 ```
 
-`venv upgrade` inventories packages first and stops if that scan cannot run, so the original env is not deleted on a failed migrate.
+`venv upgrade` requires the target runtime to be installed first. It snapshots `pip freeze --all`, creates a replacement under the target runtime, and first restores the original requirement lines. If ordinary exact version pins are incompatible with the target Python, it recreates the staging environment and retries those pins as lower bounds (`>=`) so pip can choose a compatible release; direct URLs, VCS, editable, marker, and option lines remain unchanged. `pip check` is a hard gate. The original environment is not deleted if inventory, restoration, compatibility resolution, verification, or activation fails. With `--force`, an existing target venv is moved to a rollback path until the new environment is active. This command migrates pyenv-native managed venvs; it does not adopt an arbitrary standalone `.venv` directory.
 
 Managed envs live under `PYENV_ROOT/venvs/<runtime>/<name>`.
 That gives you predictable names, avoids hidden project-specific duplication, and lets
@@ -697,6 +697,24 @@ On Windows, you can override the Rust ABI target when needed:
 
 ```powershell
 pwsh -NoLogo -NoProfile -File .\scripts\dev-cargo.ps1 -TargetTriple x86_64-pc-windows-msvc test
+```
+
+### Test compatibility-aware venv migration
+
+The migration smoke tests create local wheel fixtures whose Python requirement
+boundary is derived from the requested target runtime. They cover exact restore,
+lower-bound fallback, `pip check`, replacement of an existing target, and
+source preservation after an incompatible retry. Both scripts use a temporary
+`PYENV_ROOT` and symlink/junction existing runtimes, so the installed pyenv root
+is not changed. The PowerShell script accepts `INSTALLED_PYENV_ROOT` when its
+runtime fixtures live outside the default installed root.
+
+```sh
+./scripts/test-venv-migration.sh 3.14.3 3.15.2
+```
+
+```powershell
+.\scripts\test-venv-migration.ps1 -SourceRuntime 3.14.3 -TargetRuntime 3.15.0
 ```
 
 ### Build the Windows release bundle

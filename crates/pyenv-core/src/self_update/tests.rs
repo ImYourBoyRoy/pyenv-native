@@ -2,7 +2,7 @@
 //! Regression coverage for self-update tag normalization, version comparison, and release parsing.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use mockito::Server;
 
     use super::super::github::fetch_latest_release_info;

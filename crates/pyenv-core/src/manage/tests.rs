@@ -2,7 +2,7 @@
 //! Regression tests for installed-version listing, prefix resolution, and uninstall behavior.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::env;
     use std::ffi::OsString;
     use std::fs;

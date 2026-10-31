@@ -5,7 +5,7 @@ use crate::command::CommandReport;
 use crate::context::AppContext;
 
 use super::entries::{filter_catalog_entries, group_entries, known_catalog_entries};
-use super::latest::{latest_installed_version, latest_known_version};
+use super::latest::{display_version_name, latest_installed_version, latest_known_version};
 use super::types::InstallListOptions;
 
 pub fn cmd_install_list(ctx: &AppContext, options: &InstallListOptions) -> CommandReport {
@@ -33,7 +33,12 @@ pub fn cmd_install_list(ctx: &AppContext, options: &InstallListOptions) -> Comma
         for group in &groups {
             stdout.push(String::new());
             stdout.push(group.family.clone());
-            stdout.extend(group.versions.iter().map(|version| format!("  {version}")));
+            stdout.extend(
+                group
+                    .versions
+                    .iter()
+                    .map(|version| format!("  {}", display_version_name(version))),
+            );
         }
         CommandReport::success(stdout)
     }

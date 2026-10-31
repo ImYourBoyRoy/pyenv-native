@@ -1201,7 +1201,37 @@ function runtimeFamilyLabel(family) {
 }
 
 function versionNumericParts(name) {
-    return String(name).split(/[^\d]+/).filter(Boolean).map((part) => Number.parseInt(part, 10));
+    const probe = String(name).replace(/t$/i, '').replace(/-?(?:rc|a|b)\d+$/i, '');
+    return probe.split(/[^\d]+/).filter(Boolean).map((part) => Number.parseInt(part, 10));
+}
+
+function releaseStage(spec) {
+    const probe = String(spec || '').replace(/t$/i, '').toLowerCase();
+    const match = probe.match(/-?(rc|a|b)(\d+)$/);
+    if (!match) return { rank: 3, sequence: 0, key: 'stable' };
+    const channel = match[1] === 'a'
+        ? 'alpha'
+        : (match[1] === 'b' ? 'beta' : 'release-candidate');
+    const rank = channel === 'alpha' ? 0 : (channel === 'beta' ? 1 : 2);
+    return { rank, sequence: Number.parseInt(match[2], 10), key: channel };
+}
+
+function releaseChannelLabel(spec) {
+    const stage = releaseStage(spec);
+    if (stage.key === 'alpha') return t('gui-release-alpha');
+    if (stage.key === 'beta') return t('gui-release-beta');
+    if (stage.key === 'release-candidate') return t('gui-release-rc');
+    return null;
+}
+
+function releaseChannelTitle(spec) {
+    const label = releaseChannelLabel(spec);
+    return label ? t('gui-release-channel-title', { channel: label }) : null;
+}
+
+function runtimeDisplayLabel(spec) {
+    const label = releaseChannelLabel(spec);
+    return label ? `${spec} (${label})` : spec;
 }
 
 function compareVersionsDesc(left, right) {
@@ -1212,6 +1242,10 @@ function compareVersionsDesc(left, right) {
         const delta = (rightParts[i] || 0) - (leftParts[i] || 0);
         if (delta) return delta;
     }
+    const leftStage = releaseStage(left);
+    const rightStage = releaseStage(right);
+    if (leftStage.rank !== rightStage.rank) return rightStage.rank - leftStage.rank;
+    if (leftStage.sequence !== rightStage.sequence) return rightStage.sequence - leftStage.sequence;
     return String(right).localeCompare(String(left));
 }
 
@@ -1335,6 +1369,10 @@ function renderAvailable(items) {
         const nameEl = document.createElement('div');
         nameEl.className = 'version-name';
         nameEl.textContent = spec;
+        const releaseLabel = releaseChannelLabel(spec);
+        if (releaseLabel) {
+            appendBadge(nameEl, releaseLabel, 'badge badge-muted', releaseChannelTitle(spec));
+        }
         if (installedVersionsSet.includes(spec)) {
             appendBadge(nameEl, t('gui-installed-label', null, 'Installed'), 'badge badge-success', t('gui-already-installed-title', null, 'Already installed on this machine.'));
         }
@@ -2127,10 +2165,10 @@ function applyUpgradeProgressLog(log, success) {
 window.openVenvUpgradeWizard = async function(spec, baseVersion) {
     upgraderSourceSpec = spec;
     upgraderSourceName = venvDisplayName(spec);
-    upgraderSourceBase = baseVersion;
+    upgraderSourceBase = baseVersion || String(spec).split('/envs/')[0];
     
     upgraderTargetTitle.textContent = `${t('gui-migrate-runtime', null, 'Migrate Runtime')} ${upgraderSourceName}`;
-    upgraderTargetSubtitle.textContent = t('gui-current-base', { version: baseVersion }, `Current Base: ${baseVersion}`);
+    upgraderTargetSubtitle.textContent = t('gui-current-base', { version: upgraderSourceBase }, `Current Base: ${upgraderSourceBase}`);
     
     // Reset wizard view
     upgraderSetupCard.style.display = 'block';
@@ -2149,10 +2187,13 @@ window.openVenvUpgradeWizard = async function(spec, baseVersion) {
     try {
         const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
         const bases = JSON.parse(sysInfo);
+        const targetOptions = bases
+            .filter((version) => version !== upgraderSourceBase)
+            .map((version) => ({ value: version, label: runtimeDisplayLabel(version) }));
         fillSelectOptions(
             upgraderTargetVersionSel,
-            bases.filter((b) => b !== baseVersion),
-            { placeholder: 'Select Target...' },
+            targetOptions,
+            { placeholder: t('gui-select-target', null, 'Select Target…') },
         );
     } catch (err) {
         console.error("Failed to load targets for upgrade:", err);
@@ -2161,7 +2202,7 @@ window.openVenvUpgradeWizard = async function(spec, baseVersion) {
     // Open drawer
     setDrawerState(upgraderDrawer, true, {
         closeButton: upgraderCloseBtn,
-        announce: `Opened upgrade panel for ${name}`,
+        announce: `Opened upgrade panel for ${upgraderSourceName}`,
     });
 };
 

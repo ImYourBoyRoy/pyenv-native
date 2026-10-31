@@ -2,7 +2,7 @@
 //! Regression tests for MCP client-config generation, install docs, and venv-path helpers.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::path::Path;
 
     use tempfile::TempDir;

@@ -3,6 +3,7 @@
 
 use std::fs;
 
+use crate::catalog::release_directory_name;
 use crate::context::AppContext;
 use crate::error::PyenvError;
 
@@ -115,6 +116,7 @@ fn prefetch_cpython_source_for_python_build(
     let cache_dir = ctx.cache_dir().join("python-build");
     fs::create_dir_all(&cache_dir).map_err(io_error)?;
     let version = plan.resolved_version.trim();
+    let release_directory = release_directory_name(version);
     let names = [
         format!("Python-{version}.tar.xz"),
         format!("Python-{version}.tgz"),
@@ -127,7 +129,8 @@ fn prefetch_cpython_source_for_python_build(
         probe.package_name = name.clone();
         probe.package_version = version.to_string();
         probe.cache_path = cache_dir.join(&name);
-        probe.download_url = format!("{DEFAULT_CPYTHON_SOURCE_BASE_URL}/{version}/{name}");
+        probe.download_url =
+            format!("{DEFAULT_CPYTHON_SOURCE_BASE_URL}/{release_directory}/{name}");
         let mut download_progress = |step: String| {
             progress.push("download", step);
         };

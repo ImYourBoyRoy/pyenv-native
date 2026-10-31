@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use crate::catalog::is_cpython_version;
 use crate::config::RuntimeArch;
 use crate::context::AppContext;
 use crate::error::PyenvError;
@@ -17,9 +18,8 @@ use super::types::{
     PYPY_VERSIONS_URL, PypyReleaseFile, PypyReleaseManifest,
 };
 
-pub(super) fn is_stable_runtime_version(version: &str) -> bool {
-    let probe = version.trim_end_matches('t');
-    !probe.is_empty() && probe.chars().all(|ch| ch.is_ascii_digit() || ch == '.')
+pub(super) fn is_cpython_runtime_version(version: &str) -> bool {
+    is_cpython_version(version)
 }
 
 pub(super) fn load_or_fetch_nuget_package_versions(

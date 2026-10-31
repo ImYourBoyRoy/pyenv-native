@@ -208,3 +208,71 @@ fn cpython_source_catalog_reads_publisher_cache_instead_of_the_seed_file() {
             .any(|version| version == "9.9.1")
     );
 }
+
+#[test]
+fn prerelease_cpython_versions_are_listed_and_labeled_as_alpha() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(
+        &cache_path,
+        &["3.16.0a1".to_string(), "3.15.0".to_string()],
+    )
+    .expect("seed cpython prerelease cache");
+
+    let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.16.0a1"));
+    assert!(!entries.iter().any(|entry| entry.version == "3.16.0"));
+
+    let report = cmd_provider_install_list(
+        &ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: Some("cpython".to_string()),
+            versions: vec!["3.16".to_string()],
+        },
+        "linux",
+    );
+    assert_eq!(report.exit_code, 0);
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.trim() == "3.16.0a1 (alpha)")
+    );
+}
+
+#[test]
+fn windows_nuget_prereleases_remain_installable_and_visible() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.16.0-a1", "3.15.0"]);
+
+    let entries = provider_catalog_entries_for_platform(&ctx, Some("cpython"), None, "windows")
+        .expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.16.0-a1"));
+
+    let report = cmd_provider_install_list(
+        &ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: Some("cpython".to_string()),
+            versions: vec!["3.16".to_string()],
+        },
+        "windows",
+    );
+    assert_eq!(report.exit_code, 0);
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.trim() == "3.16.0-a1 (alpha)")
+    );
+}

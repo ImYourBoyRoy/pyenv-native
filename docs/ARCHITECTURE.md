@@ -137,6 +137,29 @@ The same selection logic is shared by:
 
 This is one of the most important compatibility decisions in the project.
 
+## Managed venv migration
+
+Managed virtual environments live at `PYENV_ROOT/venvs/<runtime>/<name>`. The core
+`cmd_venv_upgrade` flow migrates one of these environments without treating a venv as
+portable across Python runtimes: it snapshots `pip freeze --all` requirement lines from the
+source interpreter, resolves the target to an installed runtime (a prefix such as `3.15`
+selects the newest installed `3.15.x`), and creates a temporary target-based venv. It first
+restores the snapshot as-is, preserving exact versions and direct/VCS/editable requirement
+lines. If the target Python rejects that set, it recreates the staging venv and retries
+ordinary `name==version` lines as `name>=version` with pip's eager resolver; direct URLs,
+VCS, editable, marker, and option lines remain unchanged. Both paths must pass `pip check`.
+Only after verification does the migration activate the replacement, remove the old source,
+and clean any forced-replacement rollback copy. Inventory, restoration, verification,
+activation, and cleanup failures leave the source environment in place where possible.
+A successful migration also retargets selection files that referenced the old managed-venv
+spec; the CLI `--set-local` option can additionally write the final spec to the current
+directory.
+
+The CLI, Tauri GUI, and MCP `venv_upgrade` operation all call this same core path. The
+GUI exposes it from each managed-venv card's **More → Migrate Runtime** menu and offers
+installed target runtimes, including prerelease channel labels. Standalone project
+directories such as `.venv` are intentionally not adopted or overwritten by this flow.
+
 ---
 
 ## Install provider model
@@ -151,7 +174,9 @@ This answers:
 - what runtime families exist,
 - what prefixes map to what concrete versions.
 
-CPython revisions are not compiled into the binary. `pyenv install --list`, `pyenv available`, and `pyenv latest --known` read the live directory index at `https://www.python.org/ftp/python/`, cache it for 24 hours under `PYENV_ROOT/cache/metadata/cpython/releases.json`, and reuse that cache when a refresh fails. Free-threaded names (`3.13t` and newer) are derived from those release directories. A new python.org patch, prerelease, or major line shows up on the next refresh without editing the repo.
+CPython revisions are not compiled into the binary. `pyenv install --list`, `pyenv available`, and `pyenv latest --known` read the live directory index at `https://www.python.org/ftp/python/`, inspect the source-artifact index inside zero-patch release directories, and query python.org's prerelease release metadata so patch-level prereleases are not missed. The catalog caches actual installable archive records for 24 hours under `PYENV_ROOT/cache/metadata/cpython/releases.json`. A legacy cache schema is discarded and refreshed so a numeric prerelease directory cannot become a phantom stable release. Free-threaded names (`3.13t` and newer) are derived from those release records. A new python.org patch, prerelease, or major line shows up on the next refresh without editing the repo.
+
+Provider-backed listings include alpha, beta, and release-candidate names with an explicit human-readable channel label. Stable prefix resolution remains conservative: `3.16` never falls forward to `3.16.0a1`, while an exact request for `3.16.0a1` resolves to its recorded archive. The resolver accepts both compact CPython spellings (`3.16.0a1`) and NuGet’s hyphenated spelling (`3.16.0-a1`) when the provider uses the latter.
 
 `crates/pyenv-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `PYENV_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `scripts/sync-known-versions.ps1` only refreshes the compiled seed from an upstream pyenv checkout.
 

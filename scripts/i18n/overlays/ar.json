@@ -709,5 +709,9 @@
   "error-self-update-portable": "pyenv: التحديث الذاتي يدعم فقط التثبيتات المحمولة المُشغَّلة من `{ $expected }`؛ الملف التنفيذي الحالي هو `{ $current }`",
   "doctor-store-alias-shadowed": "يوجد stub بايثون من Microsoft Store في { $path }؛ شيمات pyenv لها الأولوية، لذا حذفه اختياري. Windows 11: Settings > Apps > Advanced app settings > App execution aliases",
   "gui-manual-follow-up": "ما زال المتابعة اليدوية موصى بها:",
-  "gui-doctor-fix-manual": "مطلوبة خطوات يدوية"
+  "gui-doctor-fix-manual": "مطلوبة خطوات يدوية",
+  "gui-release-alpha": "Alpha",
+  "gui-release-beta": "Beta",
+  "gui-release-rc": "Release candidate",
+  "gui-release-channel-title": "This is a { $channel } pre-release build."
 }

@@ -72,7 +72,7 @@ SUPPORT:
 
 ### Installation
 
-- `pyenv install --list` — List all installable Python versions.
+- `pyenv install --list` — List all installable Python versions, including explicitly labeled alpha, beta, and release-candidate builds.
 - `pyenv install <version>` — Download and install a specific Python version.
 - `pyenv uninstall <version>` — Remove an installed version.
 
@@ -95,7 +95,7 @@ Unlike upstream `pyenv` which requires a plugin (`pyenv-virtualenv`), `pyenv-nat
 - `pyenv venv use <name>` — Assign local (default) or global selection to a managed venv spec. This writes a version file; it does not activate a shell session.
 - `pyenv venv rename <spec> <new-name>` — Rename a managed venv.
 - `pyenv venv delete <spec>` — Remove a managed venv.
-- `pyenv venv upgrade <spec> <new_runtime>` — Migrate a managed venv to another installed runtime. Inventories packages first and fails closed if that scan cannot run. Creates a temporary env, restores packages, then removes the old env and renames.
+- `pyenv venv upgrade <spec> <new_runtime>` — Migrate a managed venv to another installed runtime. A prefix such as `3.15` resolves to the newest installed `3.15.x`. Snapshots `pip freeze --all` requirements, tries exact restoration first, then retries ordinary version pins as lower bounds when the target Python rejects them. Direct/VCS/editable requirements remain intact. The staged environment must pass `pip check`; only then is the old environment removed and the replacement activated. `--force` permits replacing an existing target venv through a rollback path. Use `--set-local` to write the final managed-venv spec into the current directory's `.python-version`.
 - `pyenv local <version>/envs/<name>` — Bind a project to a managed venv by writing it to `.python-version`.
 
 ### Pip Package Management & Diagnostics (`pip`)

@@ -2,7 +2,7 @@
 //! Regression coverage for doctor reporting and non-Windows prerequisite diagnostics.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::env;
     use std::ffi::OsString;
     use std::fs;

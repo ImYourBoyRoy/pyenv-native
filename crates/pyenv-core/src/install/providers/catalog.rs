@@ -3,13 +3,16 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use crate::catalog::{VersionFamily, load_cpython_catalog_names, matches_catalog_pattern};
+use crate::catalog::{
+    VersionFamily, display_version_name, is_cpython_version, load_cpython_catalog_names,
+    matches_catalog_pattern,
+};
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
 
 use super::super::fetch::{
-    is_stable_runtime_version, load_or_fetch_pypy_releases, pypy_provider_names,
+    is_cpython_runtime_version, load_or_fetch_pypy_releases, pypy_provider_names,
 };
 use super::super::platform::{
     cpython_source_provider_name, family_filter_matches_provider, is_windows_platform,
@@ -63,7 +66,7 @@ pub(crate) fn cmd_provider_install_list(
             group
                 .versions
                 .into_iter()
-                .map(|version| format!("  {version}")),
+                .map(|version| format!("  {}", display_version_name(&version))),
         );
     }
     CommandReport::success(stdout)
@@ -224,12 +227,12 @@ fn cpython_provider_entries(ctx: &AppContext) -> Result<Vec<ProviderCatalogEntry
     let arch = ctx.config.install.arch.effective();
     let mut versions = available_package_versions(ctx, nuget_package_name(arch, false), false)?
         .into_iter()
-        .filter(|version| is_stable_runtime_version(version))
+        .filter(|version| is_cpython_runtime_version(version))
         .collect::<Vec<_>>();
     versions.extend(
         available_package_versions(ctx, nuget_package_name(arch, true), true)?
             .into_iter()
-            .filter(|version| is_stable_runtime_version(version)),
+            .filter(|version| is_cpython_runtime_version(version)),
     );
     versions.sort_by(|lhs, rhs| crate::catalog::compare_version_names(lhs, rhs).reverse());
     versions.dedup();
@@ -249,7 +252,7 @@ fn cpython_provider_entries(ctx: &AppContext) -> Result<Vec<ProviderCatalogEntry
 pub(crate) fn cpython_source_provider_versions(ctx: &AppContext) -> Vec<String> {
     let mut versions = load_cpython_catalog_names(ctx)
         .into_iter()
-        .filter(|version| is_stable_runtime_version(version))
+        .filter(|version| is_cpython_version(version))
         .collect::<Vec<_>>();
     versions.sort_by(|lhs, rhs| crate::catalog::compare_version_names(lhs, rhs).reverse());
     versions.dedup();

@@ -2,7 +2,7 @@
 //! Coverage for platform intelligence and preflight gate helpers.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::env;
     use std::ffi::OsString;
     use std::fs;

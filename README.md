@@ -54,12 +54,17 @@ Full handbook (shells, tags, custom roots): [docs/INSTRUCTIONS.md](./docs/INSTRU
 pyenv install 3.14          # latest matching 3.14.x
 pyenv global 3.14
 pyenv venv create 3.14 app
+pyenv venv upgrade app 3.15     # migrate the managed venv after 3.15 is installed
 pyenv local 3.14/envs/app
 pyenv which python
 pyenv gui                   # optional desktop UI
 ```
 
 Managed venvs live under `PYENV_ROOT/venvs/<runtime>/<name>`. Version selection is **shell → local `.python-version` → parents → global → system**.
+
+CPython alpha, beta, and release-candidate builds are discovered dynamically, labeled by channel, and installable by their exact version (for example, `pyenv install 3.16.0a1`). Stable prefixes do not silently select prereleases.
+
+Managed venvs can be migrated to another installed Python with `pyenv venv upgrade app 3.15`. The toolkit snapshots package requirement lines, tries to preserve exact versions, and automatically retries ordinary version pins as lower bounds when the target Python rejects an old release. It verifies the staged environment with `pip check`, finalizes the replacement transactionally, and preserves the managed environment name. Failed inventory, compatibility resolution, or verification leaves the source environment intact.
 
 ---
 
@@ -79,6 +84,24 @@ pipx: `pipx upgrade pyenv-native` then `pyenv-native install --install-root "$HO
 1. If **pyenv-mcp** is connected: `get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`. Details: [docs/MCP.md](./docs/MCP.md).
 2. If MCP is missing: install with the OS command above, then CLI (`pyenv local`, `pyenv install`, `pyenv venv create`, `pyenv which python`).
 3. Never `pip install` into an unknown global Python. Resolve the interpreter first.
+
+### Validate managed-venv migration
+
+The deterministic migration fixtures exercise an exact restore, the lower-bound
+compatibility retry, transactional replacement, and source preservation after a
+failed retry. They use temporary `PYENV_ROOT` directories and symlink/junction
+existing runtimes; they do not modify the installed pyenv root.
+
+```bash
+./scripts/test-venv-migration.sh 3.14.3 3.15.2
+```
+
+On Windows, run the PowerShell equivalent with two installed runtimes (or set
+`INSTALLED_PYENV_ROOT` to an isolated runtime root):
+
+```powershell
+.\scripts\test-venv-migration.ps1 -SourceRuntime 3.14.3 -TargetRuntime 3.15.0
+```
 
 Register MCP: `pyenv-mcp print-config` (paste into Cursor MCP settings). Quick JSON: `pyenv-mcp guide`.
 

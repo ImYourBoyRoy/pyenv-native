@@ -17,10 +17,11 @@ pub use latest::{
     compare_version_names, latest_installed_version, latest_known_version,
     latest_version_from_names,
 };
+pub(crate) use latest::{display_version_name, is_cpython_version, release_directory_name};
 #[cfg(test)]
 pub(crate) use remote::{cpython_index_cache_path, write_cpython_index_cache};
 pub(crate) use remote::{
-    cpython_major_minor, load_cpython_catalog_names, merged_known_version_names,
-    sync_known_version_store,
+    cpython_major_minor, cpython_source_artifact, load_cpython_catalog_names,
+    merged_known_version_names, sync_known_version_store,
 };
 pub use types::{CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions};

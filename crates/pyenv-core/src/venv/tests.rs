@@ -9,7 +9,11 @@ use tempfile::TempDir;
 use crate::config::AppConfig;
 use crate::context::AppContext;
 
-use super::{VenvUseScope, cmd_venv_create, cmd_venv_info, cmd_venv_list, cmd_venv_use};
+use super::commands::lower_bound_requirement;
+use super::{
+    VenvUseScope, cmd_venv_create, cmd_venv_info, cmd_venv_list, cmd_venv_use,
+    resolve_installed_runtime_version,
+};
 
 fn python_file_name() -> &'static str {
     if cfg!(windows) {
@@ -165,6 +169,32 @@ fn venv_upgrade_fails_on_missing_target() {
     let report = super::cmd_venv_upgrade(&ctx, "demo", "3.13.1", true, false);
     assert_eq!(report.exit_code, 1);
     assert!(report.stderr[0].contains("pyenv: target new runtime `3.13.1` is not installed"));
+}
+
+#[test]
+fn venv_upgrade_resolves_a_minor_target_to_the_latest_installed_runtime() {
+    let (_temp, ctx) = test_context();
+    create_fake_runtime(&ctx, "3.14.8");
+    create_fake_runtime(&ctx, "3.15.0");
+    create_fake_runtime(&ctx, "3.15.1");
+    create_fake_managed_env(&ctx, "3.14.8", "api");
+
+    let resolved =
+        resolve_installed_runtime_version(&ctx, "3.15").expect("resolve installed 3.15 target");
+    assert_eq!(resolved, "3.15.1");
+}
+
+#[test]
+fn venv_upgrade_uses_exact_then_compatible_lower_bound_specs() {
+    assert_eq!(lower_bound_requirement("tomli==2.0.1"), "tomli>=2.0.1");
+    assert_eq!(
+        lower_bound_requirement("example @ https://example.invalid/example.whl"),
+        "example @ https://example.invalid/example.whl"
+    );
+    assert_eq!(
+        lower_bound_requirement("-e git+https://example.invalid/example.git#egg=example"),
+        "-e git+https://example.invalid/example.git#egg=example"
+    );
 }
 
 #[test]

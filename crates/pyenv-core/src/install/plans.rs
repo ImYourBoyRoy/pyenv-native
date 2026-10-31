@@ -4,7 +4,8 @@
 use std::io::{self, Write};
 
 use crate::catalog::{
-    InstallListOptions, VersionFamily, cmd_install_list, latest_version_from_names,
+    InstallListOptions, VersionFamily, cmd_install_list, cpython_source_artifact,
+    display_version_name, latest_version_from_names, release_directory_name,
 };
 use crate::command::CommandReport;
 use crate::context::AppContext;
@@ -201,7 +202,7 @@ fn prompt_interactive_install(
     let mut stdout = std::io::stdout();
     let _ = writeln!(stdout, "Available Python versions for quick install:");
     for (i, v) in candidates.iter().enumerate() {
-        let _ = writeln!(stdout, "  {}) {}", i + 1, v);
+        let _ = writeln!(stdout, "  {}) {}", i + 1, display_version_name(v));
     }
     let _ = write!(
         stdout,
@@ -399,11 +400,17 @@ fn resolve_cpython_source_install_plan(
 
     let effective_arch = ctx.config.install.arch.effective();
     let package_version = resolved_version.trim_end_matches('t').to_string();
-    let package_name = format!("Python-{package_version}.tgz");
+    let (release_directory, package_name) = cpython_source_artifact(ctx, &resolved_version)
+        .unwrap_or_else(|| {
+            (
+                release_directory_name(&package_version),
+                format!("Python-{package_version}.tgz"),
+            )
+        });
     let download_url = format!(
         "{}/{}/{}",
         DEFAULT_CPYTHON_SOURCE_BASE_URL.trim_end_matches('/'),
-        package_version,
+        release_directory,
         package_name
     );
     let install_dir = installed_version_dir(ctx, &resolved_version);

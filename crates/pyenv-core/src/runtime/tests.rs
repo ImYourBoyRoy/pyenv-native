@@ -2,7 +2,7 @@
 //! Regression tests for runtime search roots, prefix lookup, shim inventory, and trap skipping.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::ffi::OsString;
     use std::fs;
 

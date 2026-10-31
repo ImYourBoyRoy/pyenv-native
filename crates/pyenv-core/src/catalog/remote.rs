@@ -21,16 +21,37 @@ use crate::error::PyenvError;
 use crate::http::build_blocking_client;
 
 use super::entries::{known_version_names, parse_known_version_lines};
-use super::latest::compare_version_names;
+use super::latest::{
+    compare_version_names, is_cpython_version, latest_version_from_names, release_directory_name,
+    version_names_equal,
+};
 
 const PYTHON_ORG_FTP_INDEX: &str = "https://www.python.org/ftp/python/";
+const PYTHON_ORG_RELEASE_INDEX: &str =
+    "https://www.python.org/api/v2/downloads/release/?pre_release=true&limit=1000";
 const CPYTHON_INDEX_TTL: Duration = Duration::from_secs(60 * 60 * 24);
+const CPYTHON_INDEX_SCHEMA_VERSION: u32 = 3;
 const FREE_THREADING_MAJOR: u32 = 3;
 const FREE_THREADING_MINOR: u32 = 13;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct CpythonReleaseArtifact {
+    version: String,
+    directory: String,
+    filename: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PythonReleaseSummary {
+    name: String,
+    #[serde(default)]
+    pre_release: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct CpythonReleaseIndex {
-    versions: Vec<String>,
+    schema_version: u32,
+    releases: Vec<CpythonReleaseArtifact>,
 }
 
 pub(crate) fn cpython_index_cache_path(ctx: &AppContext) -> PathBuf {
@@ -40,15 +61,32 @@ pub(crate) fn cpython_index_cache_path(ctx: &AppContext) -> PathBuf {
         .join("releases.json")
 }
 
+#[cfg(test)]
 pub(crate) fn write_cpython_index_cache(
     path: &Path,
     versions: &[String],
+) -> Result<(), PyenvError> {
+    let releases = versions
+        .iter()
+        .map(|version| CpythonReleaseArtifact {
+            version: version.trim_end_matches('t').to_string(),
+            directory: release_directory_name(version),
+            filename: format!("Python-{}.tgz", version.trim_end_matches('t')),
+        })
+        .collect::<Vec<_>>();
+    write_cpython_release_index_cache(path, &releases)
+}
+
+fn write_cpython_release_index_cache(
+    path: &Path,
+    releases: &[CpythonReleaseArtifact],
 ) -> Result<(), PyenvError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| PyenvError::Io(format!("pyenv: {error}")))?;
     }
     let payload = serde_json::to_string_pretty(&CpythonReleaseIndex {
-        versions: versions.to_vec(),
+        schema_version: CPYTHON_INDEX_SCHEMA_VERSION,
+        releases: releases.to_vec(),
     })
     .map_err(|error| {
         PyenvError::Io(format!("pyenv: failed to serialize CPython index: {error}"))
@@ -62,15 +100,37 @@ pub(crate) fn known_versions_store_path(ctx: &AppContext) -> PathBuf {
 
 /// Publisher release names plus synthesized free-threaded siblings.
 pub(crate) fn load_cpython_catalog_names(ctx: &AppContext) -> Vec<String> {
-    let names = expand_cpython_catalog(&resolve_release_dirs(ctx));
+    let names = expand_cpython_catalog(&resolve_release_artifacts(ctx));
     sync_known_version_store(ctx, &names);
     names
+}
+
+pub(crate) fn cpython_source_artifact(ctx: &AppContext, version: &str) -> Option<(String, String)> {
+    let requested = version.trim_end_matches('t');
+    resolve_release_artifacts(ctx)
+        .into_iter()
+        .find(|artifact| version_names_equal(&artifact.version, requested))
+        .map(|artifact| (artifact.directory, artifact.filename))
 }
 
 /// Base seed plus every version discovered from publisher caches.
 pub(crate) fn merged_known_version_names(ctx: &AppContext) -> Vec<String> {
     let discovered = load_cpython_catalog_names(ctx);
-    sync_known_version_store(ctx, &discovered)
+    let mut stored = read_known_version_store(ctx);
+    if let Some(publisher_versions) = read_cache(&cpython_index_cache_path(ctx)) {
+        let publisher_names = expand_cpython_catalog(&publisher_versions);
+        stored.retain(|name| {
+            !is_cpython_version(name) || latest_version_from_names(name, &publisher_names).is_some()
+        });
+    }
+
+    let mut names = known_version_names().to_vec();
+    names.extend(stored);
+    names.extend(discovered);
+    names.sort_by(|lhs, rhs| compare_version_names(lhs, rhs));
+    names.dedup();
+    let _ = write_known_version_store(&known_versions_store_path(ctx), &names);
+    names
 }
 
 /// Merge `discovered` into the runtime known-versions file.
@@ -114,6 +174,44 @@ pub(crate) fn parse_python_org_ftp_index(html: &str) -> Vec<String> {
     versions
 }
 
+#[cfg(test)]
+pub(crate) fn parse_python_org_release_index(html: &str) -> Vec<String> {
+    parse_python_org_release_artifacts(html, "")
+        .into_iter()
+        .map(|release| release.version)
+        .collect()
+}
+
+fn parse_python_org_release_artifacts(html: &str, directory: &str) -> Vec<CpythonReleaseArtifact> {
+    let mut releases = Vec::new();
+    let mut rest = html;
+    while let Some(marker) = rest.find("href=\"") {
+        rest = &rest[marker + 6..];
+        let Some(end) = rest.find('"') else {
+            break;
+        };
+        let href = &rest[..end];
+        rest = &rest[end + 1..];
+        let filename = href.rsplit('/').next().unwrap_or(href);
+        let Some(version) = filename
+            .strip_prefix("Python-")
+            .and_then(|name| name.strip_suffix(".tgz"))
+        else {
+            continue;
+        };
+        if is_cpython_release_dir(version) {
+            releases.push(CpythonReleaseArtifact {
+                version: version.to_string(),
+                directory: directory.to_string(),
+                filename: filename.to_string(),
+            });
+        }
+    }
+    releases.sort_by(|lhs, rhs| compare_version_names(&lhs.version, &rhs.version));
+    releases.dedup_by(|lhs, rhs| lhs.version == rhs.version);
+    releases
+}
+
 pub(crate) fn cpython_major_minor(version: &str) -> Option<(u32, u32)> {
     let base = version.trim_end_matches('t');
     let mut parts = base.split('.');
@@ -129,7 +227,7 @@ pub(crate) fn cpython_major_minor(version: &str) -> Option<(u32, u32)> {
     Some((major, minor_digits.parse().ok()?))
 }
 
-fn resolve_release_dirs(ctx: &AppContext) -> Vec<String> {
+fn resolve_release_artifacts(ctx: &AppContext) -> Vec<CpythonReleaseArtifact> {
     let cache_path = cpython_index_cache_path(ctx);
     if let Some(versions) = read_fresh_cache(&cache_path) {
         return versions;
@@ -146,41 +244,94 @@ fn resolve_release_dirs(ctx: &AppContext) -> Vec<String> {
         return versions;
     }
 
-    embedded_release_dirs()
+    embedded_release_artifacts()
 }
 
-fn fetch_and_cache(cache_path: &Path) -> Option<Vec<String>> {
-    let versions = fetch_python_org_index().ok()?;
-    if versions.is_empty() {
+fn fetch_and_cache(cache_path: &Path) -> Option<Vec<CpythonReleaseArtifact>> {
+    let releases = fetch_python_org_index().ok()?;
+    if releases.is_empty() {
         return None;
     }
-    let _ = write_cpython_index_cache(cache_path, &versions);
-    Some(versions)
+    let _ = write_cpython_release_index_cache(cache_path, &releases);
+    Some(releases)
 }
 
-fn fetch_python_org_index() -> Result<Vec<String>, PyenvError> {
+fn fetch_python_org_index() -> Result<Vec<CpythonReleaseArtifact>, PyenvError> {
     let client = build_blocking_client()
         .map_err(|error| PyenvError::Io(format!("pyenv: failed to build HTTP client: {error}")))?;
-    let body = client
-        .get(PYTHON_ORG_FTP_INDEX)
+    let body = fetch_python_org_index_page(&client, PYTHON_ORG_FTP_INDEX)?;
+    let release_dirs = parse_python_org_ftp_index(&body);
+    let mut releases = Vec::new();
+
+    for release_dir in release_dirs {
+        if is_zero_patch_release_dir(&release_dir) {
+            let url = format!("{PYTHON_ORG_FTP_INDEX}{release_dir}/");
+            let release_body = fetch_python_org_index_page(&client, &url)?;
+            releases.extend(parse_python_org_release_artifacts(
+                &release_body,
+                &release_dir,
+            ));
+        } else {
+            releases.push(CpythonReleaseArtifact {
+                filename: format!("Python-{release_dir}.tgz"),
+                version: release_dir.clone(),
+                directory: release_dir,
+            });
+        }
+    }
+
+    if let Ok(prereleases) = fetch_python_org_prerelease_artifacts(&client) {
+        releases.extend(prereleases);
+    }
+    releases.sort_by(|lhs, rhs| compare_version_names(&lhs.version, &rhs.version));
+    releases.dedup_by(|lhs, rhs| lhs.version == rhs.version);
+    Ok(releases)
+}
+
+fn fetch_python_org_prerelease_artifacts(
+    client: &reqwest::blocking::Client,
+) -> Result<Vec<CpythonReleaseArtifact>, PyenvError> {
+    let body = fetch_python_org_index_page(client, PYTHON_ORG_RELEASE_INDEX)?;
+    let summaries = serde_json::from_str::<Vec<PythonReleaseSummary>>(&body).map_err(|error| {
+        PyenvError::Io(format!(
+            "pyenv: failed to parse {PYTHON_ORG_RELEASE_INDEX}: {error}"
+        ))
+    })?;
+
+    Ok(summaries
+        .into_iter()
+        .filter_map(|summary| {
+            let version = summary.name.strip_prefix("Python ")?;
+            if !summary.pre_release
+                || !is_cpython_release_dir(version)
+                || version_names_equal(version, &release_directory_name(version))
+            {
+                return None;
+            }
+            Some(CpythonReleaseArtifact {
+                version: version.to_string(),
+                directory: release_directory_name(version),
+                filename: format!("Python-{version}.tgz"),
+            })
+        })
+        .collect())
+}
+
+fn fetch_python_org_index_page(
+    client: &reqwest::blocking::Client,
+    url: &str,
+) -> Result<String, PyenvError> {
+    client
+        .get(url)
         .timeout(Duration::from_secs(20))
         .send()
         .and_then(|response| response.error_for_status())
-        .map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to query {PYTHON_ORG_FTP_INDEX}: {error}"
-            ))
-        })?
+        .map_err(|error| PyenvError::Io(format!("pyenv: failed to query {url}: {error}")))?
         .text()
-        .map_err(|error| {
-            PyenvError::Io(format!(
-                "pyenv: failed to read {PYTHON_ORG_FTP_INDEX}: {error}"
-            ))
-        })?;
-    Ok(parse_python_org_ftp_index(&body))
+        .map_err(|error| PyenvError::Io(format!("pyenv: failed to read {url}: {error}")))
 }
 
-fn read_fresh_cache(path: &Path) -> Option<Vec<String>> {
+fn read_fresh_cache(path: &Path) -> Option<Vec<CpythonReleaseArtifact>> {
     if path.is_file() && cache_is_fresh(path) {
         read_cache(path)
     } else {
@@ -188,19 +339,28 @@ fn read_fresh_cache(path: &Path) -> Option<Vec<String>> {
     }
 }
 
-fn read_cache(path: &Path) -> Option<Vec<String>> {
+fn read_cache(path: &Path) -> Option<Vec<CpythonReleaseArtifact>> {
     let contents = fs::read_to_string(path).ok()?;
     let index = serde_json::from_str::<CpythonReleaseIndex>(&contents).ok()?;
-    let versions = index
-        .versions
+    if index.schema_version != CPYTHON_INDEX_SCHEMA_VERSION {
+        return None;
+    }
+    let releases = index
+        .releases
         .into_iter()
-        .filter(|version| is_cpython_release_dir(version.trim_end_matches('t')))
+        .filter(is_valid_release_artifact)
         .collect::<Vec<_>>();
-    if versions.is_empty() {
+    if releases.is_empty() {
         None
     } else {
-        Some(versions)
+        Some(releases)
     }
+}
+
+fn is_valid_release_artifact(release: &CpythonReleaseArtifact) -> bool {
+    is_cpython_release_dir(&release.version)
+        && release.directory == release_directory_name(&release.version)
+        && release.filename == format!("Python-{}.tgz", release.version)
 }
 
 fn cache_is_fresh(path: &Path) -> bool {
@@ -238,18 +398,25 @@ fn write_known_version_store(path: &Path, names: &[String]) -> Result<(), PyenvE
     fs::write(path, payload).map_err(|error| PyenvError::Io(format!("pyenv: {error}")))
 }
 
-fn embedded_release_dirs() -> Vec<String> {
+fn embedded_release_artifacts() -> Vec<CpythonReleaseArtifact> {
     known_version_names()
         .iter()
         .filter(|version| is_cpython_release_dir(version))
-        .cloned()
+        .map(|version| {
+            let base = version.trim_end_matches('t');
+            CpythonReleaseArtifact {
+                version: base.to_string(),
+                directory: release_directory_name(base),
+                filename: format!("Python-{base}.tgz"),
+            }
+        })
         .collect()
 }
 
-fn expand_cpython_catalog(release_dirs: &[String]) -> Vec<String> {
-    let mut names = Vec::with_capacity(release_dirs.len() * 2);
-    for version in release_dirs {
-        let base = version.trim_end_matches('t');
+fn expand_cpython_catalog(releases: &[CpythonReleaseArtifact]) -> Vec<String> {
+    let mut names = Vec::with_capacity(releases.len() * 2);
+    for release in releases {
+        let base = release.version.trim_end_matches('t');
         if !is_cpython_release_dir(base) {
             continue;
         }
@@ -267,6 +434,21 @@ fn supports_free_threading(version: &str) -> bool {
     cpython_major_minor(version).is_some_and(|(major, minor)| {
         (major, minor) >= (FREE_THREADING_MAJOR, FREE_THREADING_MINOR)
     })
+}
+
+fn is_zero_patch_release_dir(name: &str) -> bool {
+    if !name.ends_with(".0")
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+    {
+        return false;
+    }
+    let mut parts = name.split('.');
+    parts.next().is_some_and(|part| !part.is_empty())
+        && parts.next().is_some_and(|part| !part.is_empty())
+        && parts.next() == Some("0")
+        && parts.next().is_none()
 }
 
 pub(crate) fn is_cpython_release_dir(name: &str) -> bool {

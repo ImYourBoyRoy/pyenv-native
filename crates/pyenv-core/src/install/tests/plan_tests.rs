@@ -50,6 +50,21 @@ fn resolve_install_plan_uses_freethreaded_package_names() {
 }
 
 #[test]
+fn windows_cpython_accepts_compact_alpha_requests_from_nuget() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.16.0-a1"]);
+
+    let plan = resolve_install_plan_for_platform(&ctx, "3.16.0a1", "windows").expect("plan");
+    assert_eq!(plan.resolved_version, "3.16.0-a1");
+    assert_eq!(plan.package_version, "3.16.0-a1");
+    assert!(
+        plan.download_url
+            .ends_with("/python/3.16.0-a1/python.3.16.0-a1.nupkg")
+    );
+}
+
+#[test]
 fn resolve_install_plan_supports_pypy_provider_versions() {
     let (_temp, mut ctx) = test_context();
     ctx.config.install.arch = RuntimeArch::X64;
@@ -216,6 +231,30 @@ fn resolve_install_plan_prefers_native_cpython_source_on_android() {
             .replace('\\', "/")
             .ends_with("/bin/python")
     );
+}
+
+#[test]
+fn resolve_install_plan_uses_the_actual_cpython_alpha_archive() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(&cache_path, &["3.16.0a1".to_string()])
+        .expect("seed cpython prerelease cache");
+
+    let plan = resolve_install_plan_for_platform(&ctx, "3.16.0a1", "linux").expect("plan");
+    assert_eq!(plan.resolved_version, "3.16.0a1");
+    assert_eq!(plan.package_name, "Python-3.16.0a1.tgz");
+    assert!(plan.download_url.ends_with("/3.16.0/Python-3.16.0a1.tgz"));
+}
+
+#[test]
+fn stable_cpython_prefix_does_not_fall_forward_to_an_alpha() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(&cache_path, &["3.16.0a1".to_string()])
+        .expect("seed cpython prerelease cache");
+
+    let error = resolve_install_plan_for_platform(&ctx, "3.16", "linux").expect_err("no plan");
+    assert!(matches!(error, crate::error::PyenvError::UnknownVersion(_)));
 }
 
 #[test]

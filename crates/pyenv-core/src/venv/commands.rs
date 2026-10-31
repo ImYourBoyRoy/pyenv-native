@@ -3,9 +3,8 @@
 
 use crate::process::PyenvCommandExt;
 use std::fs;
-use std::process::Command;
-
-use crate::pip::cmd_pip_list;
+use std::path::Path;
+use std::process::{Command, Output};
 
 use crate::command::CommandReport;
 use crate::context::AppContext;
@@ -21,6 +20,12 @@ use super::inventory::{
     resolve_installed_runtime_version, resolve_managed_venv,
 };
 use super::types::VenvUseScope;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PackageRestoreMode {
+    Exact,
+    Compatible,
+}
 
 pub fn cmd_venv_list(ctx: &AppContext, bare: bool, json: bool) -> CommandReport {
     match list_managed_venvs(ctx) {
@@ -387,47 +392,40 @@ pub fn cmd_venv_upgrade(
         );
     }
 
-    let inventory_report = cmd_pip_list(ctx, &info.spec, true);
-    if inventory_report.exit_code != 0 {
-        let mut lines = vec![
-            "pyenv: cannot inventory packages in the source venv; refusing to migrate.".to_string(),
-        ];
-        lines.extend(inventory_report.stderr);
-        lines.extend(inventory_report.stdout);
-        return CommandReport::failure(lines, 1);
-    }
-    let packages: Vec<crate::pip::PipPackage> = match serde_json::from_str(
-        &inventory_report.stdout.join("\n"),
-    ) {
-        Ok(value) => value,
+    let snapshot = match snapshot_packages(info.python_path.as_deref()) {
+        Ok(snapshot) => snapshot,
         Err(error) => {
             return CommandReport::failure(
-                vec![format!(
-                    "pyenv: cannot inventory packages in the source venv; outdated or unreadable pip list JSON: {error}"
-                )],
+                vec![
+                    "pyenv: cannot inventory packages in the source venv; refusing to migrate."
+                        .to_string(),
+                    error,
+                ],
                 1,
             );
         }
     };
 
-    let pkgs_to_install: Vec<String> = packages
-        .iter()
-        .filter(|pkg| {
-            let name_lower = pkg.name.to_lowercase();
-            name_lower != "pip"
-                && name_lower != "setuptools"
-                && name_lower != "wheel"
-                && name_lower != "distribute"
-        })
-        .map(|pkg| format!("{}=={}", pkg.name, pkg.version))
-        .collect();
+    let exact_package_requirements = snapshot.exact_requirements;
+    let compatible_package_requirements = snapshot.compatible_requirements;
+    let package_count = snapshot.package_count;
+
+    let destination = managed_venv_dir(ctx, &resolved_new_version, &info.name);
+    if destination.exists() && !force {
+        return CommandReport::failure(
+            vec![format!(
+                "pyenv: target managed venv `{}` already exists at {}; use --force to replace it",
+                managed_venv_spec(&resolved_new_version, &info.name),
+                destination.display()
+            )],
+            1,
+        );
+    }
 
     if !force {
         let msg = format!(
             "pyenv: migrate managed venv {} to runtime {}? (this will recreate the environment and reinstall {} packages) [y/N] ",
-            info.spec,
-            resolved_new_version,
-            pkgs_to_install.len()
+            info.spec, resolved_new_version, package_count
         );
         if !confirm_action(&msg) {
             return CommandReport::failure(
@@ -445,11 +443,10 @@ pub fn cmd_venv_upgrade(
     let mut stdout = vec!["Progress:".to_string()];
     stdout.push(format!(
         "  - backup: captured {} custom packages from {}",
-        pkgs_to_install.len(),
-        info.spec
+        package_count, info.spec
     ));
 
-    let (new_info, _local_written, create_steps) =
+    let (mut new_info, _local_written, create_steps) =
         match create_managed_venv(ctx, &resolved_new_version, &temp_name, false, false) {
             Ok(res) => res,
             Err(e) => {
@@ -475,107 +472,161 @@ pub fn cmd_venv_upgrade(
         }
     };
 
-    stdout.push("  - pip: updating pip to the latest version...".to_string());
-    let pip_upgrade = Command::new(&new_py_path)
-        .headless()
-        .args(["-m", "pip", "install", "-U", "pip"])
-        .status();
-    match pip_upgrade {
-        Ok(status) if status.success() => {
-            stdout.push("    - pip updated successfully".to_string());
-        }
-        _ => {
-            let _ = fs::remove_dir_all(&new_info.path);
-            return CommandReport::failure(
-                vec![
-                    "pyenv: pip self-update failed in the new environment; leaving the source venv unchanged."
-                        .to_string(),
-                ],
-                1,
-            );
-        }
-    }
-
-    let total_pkgs = pkgs_to_install.len();
-    if total_pkgs > 0 {
-        stdout.push(format!(
-            "  - restore: restoring {total_pkgs} custom packages..."
-        ));
-        for (i, pkg_spec) in pkgs_to_install.iter().enumerate() {
-            stdout.push(format!(
-                "    [{}/{}] installing {}...",
-                i + 1,
-                total_pkgs,
-                pkg_spec
-            ));
-            let install_status = Command::new(&new_py_path)
-                .headless()
-                .args(["-m", "pip", "install", pkg_spec])
-                .status();
-            match install_status {
-                Ok(status) if status.success() => {
-                    stdout.push(format!("      - installed {}", pkg_spec));
-                }
-                Ok(status) => {
-                    let _ = fs::remove_dir_all(&new_info.path);
-                    return CommandReport::failure(
-                        vec![format!(
-                            "pyenv: failed to install {pkg_spec} into the new environment (exit code {:?}); leaving the source venv unchanged.",
-                            status.code()
-                        )],
-                        1,
-                    );
-                }
-                Err(e) => {
-                    let _ = fs::remove_dir_all(&new_info.path);
-                    return CommandReport::failure(
-                        vec![format!(
-                            "pyenv: failed to launch pip install for {pkg_spec}: {e}; leaving the source venv unchanged."
-                        )],
-                        1,
-                    );
-                }
-            }
-        }
-    } else {
-        stdout.push("  - restore: no custom packages to reinstall".to_string());
-    }
-
     stdout.push("  - verify: checking dependency constraints...".to_string());
-    match Command::new(&new_py_path)
-        .headless()
-        .args(["-m", "pip", "check"])
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            stdout.push(
-                "    - verification success: all dependency constraints satisfied!".to_string(),
-            );
-        }
-        Ok(output) => {
-            stdout.push("    - [WARNING] dependency conflicts detected:".to_string());
-            let err_str = String::from_utf8_lossy(&output.stdout);
-            for line in err_str.lines() {
-                stdout.push(format!("      ! {line}"));
-            }
-        }
-        Err(e) => {
+    let mut restore_mode = PackageRestoreMode::Exact;
+    let exact_restore = restore_packages_and_verify(
+        &new_py_path,
+        &new_info.path,
+        &exact_package_requirements,
+        false,
+    );
+    if let Err(exact_error) = exact_restore {
+        if package_count == 0 {
+            let _ = fs::remove_dir_all(&new_info.path);
             stdout.push(format!(
-                "    - [WARNING] failed to run verification check: {e}"
+                "  - verification failed for the fresh environment: {exact_error}"
+            ));
+            stdout.push(
+                "pyenv: dependency verification failed; the source venv was left unchanged."
+                    .to_string(),
+            );
+            return CommandReport::failure(stdout, 1);
+        }
+
+        stdout.push(format!(
+            "  - compatibility: exact package restore was not usable on runtime {}: {exact_error}",
+            resolved_new_version
+        ));
+        if let Err(cleanup_error) = fs::remove_dir_all(&new_info.path) {
+            stdout.push(format!(
+                "pyenv: could not reset the migration staging environment: {cleanup_error}"
+            ));
+            stdout.push("The source venv was left unchanged.".to_string());
+            return CommandReport::failure(stdout, 1);
+        }
+
+        let (refreshed_info, _local_written, refresh_steps) =
+            match create_managed_venv(ctx, &resolved_new_version, &temp_name, true, false) {
+                Ok(res) => res,
+                Err(error) => {
+                    stdout.push(format!(
+                        "pyenv: could not recreate the compatibility staging environment: {error}"
+                    ));
+                    stdout.push("The source venv was left unchanged.".to_string());
+                    return CommandReport::failure(stdout, 1);
+                }
+            };
+        new_info = refreshed_info;
+        stdout.extend(
+            refresh_steps
+                .into_iter()
+                .map(|step| format!("  - compatibility: {step}")),
+        );
+
+        let refreshed_python = match &new_info.python_path {
+            Some(path) if path.exists() => path.clone(),
+            _ => {
+                let _ = fs::remove_dir_all(&new_info.path);
+                stdout.push(
+                    "pyenv: compatibility staging environment has no usable Python interpreter."
+                        .to_string(),
+                );
+                stdout.push("The source venv was left unchanged.".to_string());
+                return CommandReport::failure(stdout, 1);
+            }
+        };
+
+        stdout.push(format!(
+            "  - compatibility: resolving {} package lower bounds for the target Python...",
+            package_count
+        ));
+        if let Err(compatible_error) = restore_packages_and_verify(
+            &refreshed_python,
+            &new_info.path,
+            &compatible_package_requirements,
+            true,
+        ) {
+            let _ = fs::remove_dir_all(&new_info.path);
+            stdout.push(format!(
+                "pyenv: compatible package restore and verification failed: {compatible_error}"
+            ));
+            stdout.push("The source venv was left unchanged.".to_string());
+            return CommandReport::failure(stdout, 1);
+        }
+        restore_mode = PackageRestoreMode::Compatible;
+    }
+
+    match restore_mode {
+        PackageRestoreMode::Exact => stdout.push(format!(
+            "  - restore: preserved {} package versions",
+            package_count
+        )),
+        PackageRestoreMode::Compatible => stdout.push(format!(
+            "  - restore: installed {} target-compatible package versions",
+            package_count
+        )),
+    }
+    stdout.push("    - verification success: all dependency constraints satisfied!".to_string());
+
+    let backup_path = if destination.exists() {
+        let backup = allocate_replacement_backup_path(ctx, &resolved_new_version, &info.name)
+            .map_err(|error| error.to_string());
+        let backup = match backup {
+            Ok(path) => path,
+            Err(error) => {
+                let _ = fs::remove_dir_all(&new_info.path);
+                stdout.push(format!(
+                    "pyenv: cannot prepare the existing target for replacement: {error}"
+                ));
+                stdout.push("The source venv was left unchanged.".to_string());
+                return CommandReport::failure(stdout, 1);
+            }
+        };
+        if let Err(error) = fs::rename(&destination, &backup) {
+            let _ = fs::remove_dir_all(&new_info.path);
+            stdout.push(format!(
+                "pyenv: could not move the existing target venv to a rollback path: {error}"
+            ));
+            stdout.push("The source venv was left unchanged.".to_string());
+            return CommandReport::failure(stdout, 1);
+        }
+        stdout.push(format!(
+            "  - target: moved existing {} to {} for rollback",
+            managed_venv_spec(&resolved_new_version, &info.name),
+            backup.display()
+        ));
+        Some(backup)
+    } else {
+        None
+    };
+
+    if let Err(error) = fs::rename(&new_info.path, &destination) {
+        if let Some(backup) = backup_path.as_ref()
+            && let Err(restore_error) = fs::rename(backup, &destination)
+        {
+            stdout.push(format!(
+                "pyenv: failed to restore the previous target after rename failure: {restore_error}"
             ));
         }
+        stdout.push(format!(
+            "pyenv: could not activate the migrated venv at {}: {error}",
+            destination.display()
+        ));
+        stdout.push("The source venv was left unchanged.".to_string());
+        return CommandReport::failure(stdout, 1);
     }
+    stdout.push(format!(
+        "  - finalize: activated migrated venv at {}",
+        destination.display()
+    ));
 
     stdout.push("  - cleanup: removing old virtual environment...".to_string());
     if let Err(error) = fs::remove_dir_all(&info.path) {
         stdout.push(format!(
-            "    - [WARNING] failed to remove old venv at {}: {error}",
-            info.path.display()
+            "pyenv: the migrated venv is ready at {}, but the source venv could not be removed: {error}",
+            destination.display()
         ));
-        stdout.push(format!(
-            "pyenv: migration venv is ready at {}. Remove the old env and rename when ready.",
-            new_info.spec
-        ));
+        stdout.push(format!("    - source retained at {}", info.path.display()));
         return CommandReport::failure(stdout, 1);
     }
     stdout.push(format!(
@@ -583,16 +634,19 @@ pub fn cmd_venv_upgrade(
         info.path.display()
     ));
 
-    let rename_report = cmd_venv_rename(ctx, &new_info.spec, &info.name);
-    if rename_report.exit_code != 0 {
-        stdout.extend(rename_report.stderr);
+    if let Some(backup) = backup_path {
+        if let Err(error) = fs::remove_dir_all(&backup) {
+            stdout.push(format!(
+                "pyenv: migration completed, but the previous target rollback copy could not be removed: {} ({error})",
+                backup.display()
+            ));
+            return CommandReport::failure(stdout, 1);
+        }
         stdout.push(format!(
-            "pyenv: packages were migrated to {}, but renaming to `{}` failed. Use that spec until rename succeeds.",
-            new_info.spec, info.name
+            "  - target: removed rollback copy {}",
+            backup.display()
         ));
-        return CommandReport::failure(stdout, 1);
     }
-    stdout.extend(rename_report.stdout);
 
     let final_spec = managed_venv_spec(&resolved_new_version, &info.name);
     retarget_selection_files(ctx, &info.spec, &final_spec, &mut stdout);
@@ -615,6 +669,218 @@ pub fn cmd_venv_upgrade(
         "Managed venv successfully upgraded to: {final_spec}"
     ));
     CommandReport::success(stdout)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PackageSnapshot {
+    exact_requirements: Vec<String>,
+    compatible_requirements: Vec<String>,
+    package_count: usize,
+}
+
+fn snapshot_packages(python_path: Option<&Path>) -> Result<PackageSnapshot, String> {
+    let python_path = python_path.ok_or_else(|| {
+        "pyenv: source managed venv does not have a usable Python interpreter".to_string()
+    })?;
+    let output = Command::new(python_path)
+        .headless()
+        .env("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+        .env("PIP_NO_COLOR", "1")
+        .env("NO_COLOR", "1")
+        .args(["-m", "pip", "freeze", "--all"])
+        .output()
+        .map_err(|error| format!("pyenv: failed to run pip freeze: {error}"))?;
+    if !output.status.success() {
+        return Err(format_process_failure("pip freeze", &output));
+    }
+
+    let exact_requirements = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter(|line| !is_bootstrap_requirement(line))
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let compatible_requirements = exact_requirements
+        .iter()
+        .map(|line| lower_bound_requirement(line))
+        .collect::<Vec<_>>();
+    let package_count = exact_requirements
+        .iter()
+        .filter(|line| !line.starts_with("--"))
+        .count();
+
+    Ok(PackageSnapshot {
+        exact_requirements,
+        compatible_requirements,
+        package_count,
+    })
+}
+
+fn is_bootstrap_requirement(line: &str) -> bool {
+    let lowered = line.to_ascii_lowercase();
+    if lowered.contains("#egg=pip")
+        || lowered.contains("#egg=setuptools")
+        || lowered.contains("#egg=wheel")
+        || lowered.contains("#egg=distribute")
+    {
+        return true;
+    }
+
+    let candidate = line.strip_prefix("-e ").unwrap_or(line).trim();
+    let name = candidate
+        .split(['[', '=', '<', '>', '!', '~', '@', ' ', ';'])
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    matches!(name.as_str(), "pip" | "setuptools" | "wheel" | "distribute")
+}
+
+pub(super) fn lower_bound_requirement(line: &str) -> String {
+    let trimmed = line.trim();
+    if trimmed.is_empty()
+        || trimmed.starts_with('-')
+        || trimmed.starts_with("git+")
+        || trimmed.contains(" @ ")
+        || trimmed.contains("://")
+    {
+        return trimmed.to_string();
+    }
+
+    let Some((name, version)) = trimmed.split_once("==") else {
+        return trimmed.to_string();
+    };
+    let safe_name = !name.is_empty()
+        && name
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'));
+    if safe_name && !version.is_empty() {
+        format!("{name}>={version}")
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn restore_packages_and_verify(
+    python_path: &Path,
+    staging_path: &Path,
+    requirements: &[String],
+    lower_bound: bool,
+) -> Result<(), String> {
+    let requirements_path = if requirements.is_empty() {
+        None
+    } else {
+        Some(write_requirements_file(staging_path, requirements)?)
+    };
+    let install_result = if let Some(requirements_path) = requirements_path.as_ref() {
+        run_pip_install_requirements(python_path, requirements_path, lower_bound)
+    } else {
+        Ok(())
+    };
+    if let Some(requirements_path) = requirements_path {
+        let _ = fs::remove_file(requirements_path);
+    }
+    install_result?;
+    run_pip_check(python_path)
+}
+
+fn write_requirements_file(
+    staging_path: &Path,
+    requirements: &[String],
+) -> Result<std::path::PathBuf, String> {
+    let path = staging_path.join(".pyenv-migration-requirements.txt");
+    let mut contents = requirements.join("\n");
+    contents.push('\n');
+    fs::write(&path, contents)
+        .map_err(|error| format!("pyenv: failed to write migration requirements: {error}"))?;
+    Ok(path)
+}
+
+fn run_pip_install_requirements(
+    python_path: &Path,
+    requirements_path: &Path,
+    lower_bound: bool,
+) -> Result<(), String> {
+    let mut command = Command::new(python_path);
+    command.headless().args(["-m", "pip", "install"]);
+    if lower_bound {
+        command.args(["--upgrade", "--upgrade-strategy", "eager"]);
+    }
+    let output = command
+        .args(["-r", &requirements_path.to_string_lossy()])
+        .output()
+        .map_err(|error| format!("failed to launch pip install: {error}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format_process_failure("pip install", &output))
+    }
+}
+
+fn run_pip_check(python_path: &Path) -> Result<(), String> {
+    let output = Command::new(python_path)
+        .headless()
+        .args(["-m", "pip", "check"])
+        .output()
+        .map_err(|error| format!("failed to launch pip check: {error}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format_process_failure("pip check", &output))
+    }
+}
+
+fn format_process_failure(label: &str, output: &Output) -> String {
+    let mut details = String::new();
+    for text in [
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    ] {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if !details.is_empty() {
+            details.push_str(" | ");
+        }
+        details.push_str(trimmed);
+    }
+
+    if details.is_empty() {
+        format!(
+            "{label} exited with status {:?}",
+            output.status.code().unwrap_or(1)
+        )
+    } else {
+        format!(
+            "{label} exited with status {:?}: {details}",
+            output.status.code().unwrap_or(1)
+        )
+    }
+}
+
+fn allocate_replacement_backup_path(
+    ctx: &AppContext,
+    base_version: &str,
+    name: &str,
+) -> Result<std::path::PathBuf, PyenvError> {
+    for suffix in 0..100u32 {
+        let candidate = if suffix == 0 {
+            format!("{name}-previous")
+        } else {
+            format!("{name}-previous-{suffix}")
+        };
+        if !is_safe_env_name(&candidate) {
+            continue;
+        }
+        let path = managed_venv_dir(ctx, base_version, &candidate);
+        if !path.exists() {
+            return Ok(path);
+        }
+    }
+    Err(PyenvError::Io(format!(
+        "pyenv: could not allocate a rollback path for managed venv `{name}`"
+    )))
 }
 
 fn allocate_migrating_name(ctx: &AppContext, original: &str) -> Result<String, PyenvError> {

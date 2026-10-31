@@ -2,7 +2,7 @@
 //! Regression tests for config persistence, path resolution, and key-based mutation helpers.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::fs;
 
     use tempfile::TempDir;

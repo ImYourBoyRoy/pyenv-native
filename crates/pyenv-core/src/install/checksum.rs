@@ -19,6 +19,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Deserialize;
 use sha2::{Digest, Sha256, Sha512};
 
+use crate::catalog::release_directory_name;
 use crate::context::AppContext;
 use crate::error::PyenvError;
 use crate::http::build_blocking_client;
@@ -129,6 +130,7 @@ pub(super) fn verify_python_build_cache(
     }
     let cache_dir = ctx.cache_dir().join("python-build");
     let version = plan.resolved_version.trim();
+    let release_directory = release_directory_name(version);
     let names = [
         format!("Python-{version}.tgz"),
         format!("Python-{version}.tar.xz"),
@@ -144,7 +146,8 @@ pub(super) fn verify_python_build_cache(
         probe.package_name = name.clone();
         probe.package_version = version.to_string();
         probe.cache_path = path.clone();
-        probe.download_url = format!("https://www.python.org/ftp/python/{version}/{name}");
+        probe.download_url =
+            format!("https://www.python.org/ftp/python/{release_directory}/{name}");
         verify_package_digest(ctx, &probe, &path)?;
         return Ok(read_digest_sidecar(&path));
     }

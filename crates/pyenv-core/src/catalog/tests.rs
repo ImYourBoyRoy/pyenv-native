@@ -2,7 +2,7 @@
 //! Regression coverage for version sorting, latest resolution, and grouped install listings.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::fs;
 
     use tempfile::TempDir;
@@ -70,6 +70,47 @@ mod tests {
         assert_eq!(
             latest_version_from_names("3t", &names),
             Some("3.13.5t".to_string())
+        );
+    }
+
+    #[test]
+    fn latest_keeps_prereleases_out_of_stable_prefix_resolution() {
+        let names = vec![
+            "3.15.0a8".to_string(),
+            "3.15.0-b4".to_string(),
+            "3.15.0-rc1".to_string(),
+            "3.15.0".to_string(),
+            "3.16.0-a1".to_string(),
+        ];
+
+        assert_eq!(
+            latest_version_from_names("3.15", &names),
+            Some("3.15.0".to_string())
+        );
+        assert_eq!(latest_version_from_names("3.16", &names), None);
+        assert_eq!(
+            latest_version_from_names("3.16.0a1", &names),
+            Some("3.16.0-a1".to_string())
+        );
+    }
+
+    #[test]
+    fn version_order_places_stable_after_alpha_beta_and_rc() {
+        let mut values = vec![
+            "3.15.0".to_string(),
+            "3.15.0-rc1".to_string(),
+            "3.15.0-b4".to_string(),
+            "3.15.0a8".to_string(),
+        ];
+        values.sort_by(|lhs, rhs| compare_version_names(lhs, rhs));
+        assert_eq!(
+            values,
+            vec![
+                "3.15.0a8".to_string(),
+                "3.15.0-b4".to_string(),
+                "3.15.0-rc1".to_string(),
+                "3.15.0".to_string(),
+            ]
         );
     }
 
@@ -207,6 +248,89 @@ mod tests {
                 "3.15.0rc2".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn python_org_release_index_reads_installable_source_archives() {
+        let html = r#"
+            <a href="../">../</a>
+            <a href="Python-3.16.0a1.tgz">Python-3.16.0a1.tgz</a>
+            <a href="Python-3.16.0a1.tar.xz">Python-3.16.0a1.tar.xz</a>
+            <a href="Python-3.16.0a1.tgz.sig">Python-3.16.0a1.tgz.sig</a>
+            <a href="Python-3.16.0b1.tgz">Python-3.16.0b1.tgz</a>
+            <a href="Python-3.16.0rc1.tgz">Python-3.16.0rc1.tgz</a>
+            <a href="Python-3.16.0.tgz">Python-3.16.0.tgz</a>
+            <a href="python-3.16.0a1-amd64.zip">python-3.16.0a1-amd64.zip</a>
+        "#;
+
+        assert_eq!(
+            super::super::remote::parse_python_org_release_index(html),
+            vec![
+                "3.16.0a1".to_string(),
+                "3.16.0b1".to_string(),
+                "3.16.0rc1".to_string(),
+                "3.16.0".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn legacy_publisher_cache_is_not_treated_as_authoritative() {
+        let (_temp, ctx) = test_context();
+        let cache_path = super::super::remote::cpython_index_cache_path(&ctx);
+        fs::create_dir_all(cache_path.parent().expect("cache parent")).expect("cache dir");
+        fs::write(&cache_path, r#"{"versions":["3.16.0"]}"#).expect("legacy cache");
+
+        let report = cmd_latest(&ctx, "3.16", true, false, false);
+        assert_eq!(report.exit_code, 1);
+        assert!(report.stdout.is_empty());
+        assert!(report.stderr[0].contains("no known versions"));
+    }
+
+    #[test]
+    fn cpython_cache_rejects_archive_directory_mismatches() {
+        let (_temp, ctx) = test_context();
+        let cache_path = super::super::remote::cpython_index_cache_path(&ctx);
+        fs::create_dir_all(cache_path.parent().expect("cache parent")).expect("cache dir");
+        fs::write(
+            &cache_path,
+            r#"{
+                "schema_version": 3,
+                "releases": [{
+                    "version": "9.99.0a1",
+                    "directory": "9.99.0a1",
+                    "filename": "Python-9.99.0a1.tgz"
+                }]
+            }"#,
+        )
+        .expect("mismatched cache");
+
+        assert!(
+            !super::super::remote::load_cpython_catalog_names(&ctx)
+                .iter()
+                .any(|version| version == "9.99.0a1")
+        );
+    }
+
+    #[test]
+    fn refreshed_publisher_cache_removes_phantom_stable_names_from_store() {
+        let (_temp, ctx) = test_context();
+        let cache_path = super::super::remote::cpython_index_cache_path(&ctx);
+        super::super::remote::write_cpython_index_cache(&cache_path, &["3.16.0a1".to_string()])
+            .expect("seed cpython prerelease cache");
+        fs::write(
+            super::super::remote::known_versions_store_path(&ctx),
+            "3.16.0\n3.16.0t\n",
+        )
+        .expect("seed runtime known versions");
+
+        let report = cmd_latest(&ctx, "3.16", true, false, false);
+        assert_eq!(report.exit_code, 1);
+        let store = fs::read_to_string(super::super::remote::known_versions_store_path(&ctx))
+            .expect("runtime known versions");
+        assert!(!store.lines().any(|line| line == "3.16.0"));
+        assert!(!store.lines().any(|line| line == "3.16.0t"));
+        assert!(store.lines().any(|line| line == "3.16.0a1"));
     }
 
     #[test]

@@ -709,5 +709,9 @@
   "error-self-update-portable": "pyenv: l’auto-aggiornamento supporta solo installazioni portatili avviate da `{ $expected }`; l’eseguibile attuale è `{ $current }`",
   "doctor-store-alias-shadowed": "lo stub python di Microsoft Store è in { $path }; gli shim pyenv hanno la precedenza, quindi rimuoverlo è facoltativo. Windows 11: Impostazioni > App > Impostazioni avanzate delle app > Alias di esecuzione app",
   "gui-manual-follow-up": "È ancora consigliato un seguito manuale:",
-  "gui-doctor-fix-manual": "Passaggi manuali richiesti"
+  "gui-doctor-fix-manual": "Passaggi manuali richiesti",
+  "gui-release-alpha": "Alpha",
+  "gui-release-beta": "Beta",
+  "gui-release-rc": "Release candidate",
+  "gui-release-channel-title": "This is a { $channel } pre-release build."
 }

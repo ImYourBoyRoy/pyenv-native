@@ -709,5 +709,9 @@
   "error-self-update-portable": "pyenv: 自己更新は `{ $expected }` から起動したポータブルインストールのみ対応です。現在の実行ファイルは `{ $current }` です",
   "doctor-store-alias-shadowed": "Microsoft Store の python スタブが { $path } にあります。pyenv の shim が優先されるため、削除は任意です。Windows 11：「設定 > アプリ > アプリの詳細設定 > アプリ実行エイリアス」",
   "gui-manual-follow-up": "手動のフォローアップを推奨します:",
-  "gui-doctor-fix-manual": "手動の手順が必要です"
+  "gui-doctor-fix-manual": "手動の手順が必要です",
+  "gui-release-alpha": "Alpha",
+  "gui-release-beta": "Beta",
+  "gui-release-rc": "Release candidate",
+  "gui-release-channel-title": "This is a { $channel } pre-release build."
 }

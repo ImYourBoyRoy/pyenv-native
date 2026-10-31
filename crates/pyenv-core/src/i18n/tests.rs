@@ -2,7 +2,7 @@
 //! Locale negotiation and catalog lookup coverage.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use super::super::catalog::{lookup_for_tag, lookup_for_tag_with_args};
     use super::super::negotiate::negotiate;
     use std::collections::HashMap;

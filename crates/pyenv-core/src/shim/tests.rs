@@ -2,7 +2,7 @@
 //! Regression coverage for shim generation, locking, PATH shaping, and exec overrides.
 
 #[cfg(test)]
-mod tests {
+mod cases {
     use std::env;
     use std::ffi::OsString;
     use std::fs;
