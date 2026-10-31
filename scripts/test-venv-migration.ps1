@@ -169,6 +169,7 @@ try {
     }
 
     Write-Output "managed-venv migration smoke test passed: $SourceRuntime -> $TargetRuntime"
+    exit 0
 } finally {
     foreach ($name in $environmentNames) {
         [Environment]::SetEnvironmentVariable($name, $oldEnvironment[$name], 'Process')
