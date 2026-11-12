@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: checksum non corrispondente per `{ $url }` ({ $
 error-missing-checksum = pyenv: impossibile ottenere un checksum dell’editore per `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv: l’auto-aggiornamento supporta solo installazioni portatili avviate da `{ $expected }`; l’eseguibile attuale è `{ $current }`
+error-self-update-managed = pyenv: questa installazione è gestita da un gestore di pacchetti ({ $source }); aggiornala con: { $command }

@@ -77,7 +77,7 @@ Provider backends
 Shell and shim adapters
   -> PowerShell, CMD, Bash, Zsh, Fish, sh, native shims
 Packaging and distribution
-  -> release bundles, web installers, PyPI bootstrap, Winget/Homebrew metadata
+  -> release bundles, web installers, native installers, PyPI bootstrap, Homebrew metadata
 ```
 
 ---
@@ -90,7 +90,7 @@ crates/
   pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
   pyenv-gui/      Tauri desktop companion
   pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
-xtask/            `cargo xtask`: bundles, packaging (winget/homebrew), python package, release, policy checks, version sync, quality gate
+xtask/            `cargo xtask`: bundles, packaging (homebrew), native installers, python package, release, policy checks, version sync, quality gate
 python-package/   Python install package wrapper for native release bundles
 packaging/        package-manager metadata and generators
 scripts/          publish, packaging, validation, and smoke-test helpers
@@ -400,7 +400,7 @@ The project is designed to distribute through native assets first.
 - macOS portable `.tar.gz` bundle
 - SHA-256 checksum files (bundles, standalone GUI binaries, and the bootstrap scripts)
 - bundle manifest metadata
-- generated Winget YAML and Homebrew formula (uploaded as release extras; not yet submitted to winget-pkgs or a public tap)
+- generated Homebrew formula (uploaded as a release extra; no public Homebrew tap yet)
 
 Native GUI binary is included only on Windows x64, Linux x64, and macOS (not cross Windows ARM64 / Linux ARM64 / Android).
 
@@ -423,12 +423,7 @@ Important principle:
 
 ### Package-manager preparation
 
-The repo also includes generator-backed preparation for:
-
-- Winget
-- Homebrew
-
-Those channels are intentionally treated as distribution layers on top of the release-bundle model.
+The repo also includes generator-backed preparation for a Homebrew formula, treated as a distribution layer on top of the release-bundle model. Winget is intentionally not a distribution channel.
 
 ---
 
@@ -504,7 +499,6 @@ The repository includes helper scripts for:
 - version synchronization,
 - bundle generation,
 - Python install-package builds,
-- Winget manifest generation,
 - Homebrew formula generation,
 - GitHub release preparation,
 - PyPI publication preparation.
@@ -534,3 +528,9 @@ That means:
 - compatibility where users expect it,
 - improvement where users benefit from it,
 - and a cleaner foundation for Windows, Linux, and macOS alike.
+
+## Native installers (`xtask/src/installer/`)
+
+`cargo xtask installer deb|rpm|termux|nsis` turns a release bundle into a native package without recompiling. `payload.rs` holds the shared system-package file list (binaries, desktop entry and icons, docs, the `profile.d` snippet, and `share/pyenv-native/install-source`); `deb.rs` writes Debian `ar` archives by hand (deterministic, `./`-prefixed tar entries, `md5sums`, `conffiles`, a `libc6` floor read from the ELF); `rpm_pkg.rs` uses the pure-Rust `rpm` crate; `nsis.rs` renders a `.nsi` script and runs `makensis`.
+
+The runtime side is `crates/pyenv-core/src/installer/source.rs` (reads the install-source marker so `self-update` defers to the package manager) and `arp.rs` (Windows Apps & features entry, written by `self-install` and removed by `self-uninstall`). `cargo xtask checksums` writes the release-wide `SHA256SUMS`.

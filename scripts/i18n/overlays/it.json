@@ -708,6 +708,7 @@
   "gui-fact-not-found": "non trovato",
   "gui-fact-missing": "mancante",
   "error-self-update-portable": "pyenv: l’auto-aggiornamento supporta solo installazioni portatili avviate da `{ $expected }`; l’eseguibile attuale è `{ $current }`",
+  "error-self-update-managed": "pyenv: questa installazione è gestita da un gestore di pacchetti ({ $source }); aggiornala con: { $command }",
   "doctor-store-alias-shadowed": "lo stub python di Microsoft Store è in { $path }; gli shim pyenv hanno la precedenza, quindi rimuoverlo è facoltativo. Windows 11: Impostazioni > App > Impostazioni avanzate delle app > Alias di esecuzione app",
   "gui-manual-follow-up": "È ancora consigliato un seguito manuale:",
   "gui-doctor-fix-manual": "Passaggi manuali richiesti",

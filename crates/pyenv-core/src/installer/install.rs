@@ -200,6 +200,14 @@ fn install_with_reporter(
 
     run_sanity_checks(reporter, &layout, &sources)?;
 
+    match super::arp::register(&layout, env!("CARGO_PKG_VERSION")) {
+        Ok(true) => reporter.info("Registered pyenv-native in Apps & features."),
+        Ok(false) => {}
+        Err(error) => reporter.warn(&format!(
+            "Could not register pyenv-native in Apps & features: {error}"
+        )),
+    }
+
     sweep_replaced_binaries(&layout.bin_dir());
     finish(reporter, options, &layout, &log_path, &profiles_changed);
 

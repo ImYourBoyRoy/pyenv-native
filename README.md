@@ -35,6 +35,23 @@ pyenv doctor
 
 Open a **new terminal** after install so shims are on PATH. On Termux, install compilers first: `pkg install clang make pkg-config libffi openssl readline ncurses`.
 
+### Native installers (GitHub release assets)
+
+Releases from v0.7.0 on also attach native installers, built from the same binaries as the archives:
+
+| System | Asset | Updates through |
+| --- | --- | --- |
+| Windows x64 / ARM64 | `pyenv-native-windows-<arch>-setup.exe` (per-user, no admin; `/S` for silent) | `pyenv self-update` |
+| Debian / Ubuntu | `pyenv-native_<version>_<amd64\|arm64>.deb` | `apt` |
+| Fedora / RHEL / openSUSE | `pyenv-native-<version>-1.<x86_64\|aarch64>.rpm` | `dnf` / `zypper` |
+| Termux (Android) | `pyenv-native_<version>_aarch64.deb` | `pkg` |
+
+```bash
+sudo apt install ./pyenv-native_<version>_amd64.deb      # or: sudo dnf install ./pyenv-native-<version>-1.x86_64.rpm
+```
+
+Every asset has a `.sha256` file, the release carries a combined `SHA256SUMS` and a CycloneDX SBOM, and assets have GitHub build-provenance attestations (`gh attestation verify <file> --repo imyourboyroy/pyenv-native`). Package installs put `pyenv` in the system prefix; Python versions and shims still live in `~/.pyenv`, which the package adds to `PATH` through `/etc/profile.d`. Details, upgrades from script installs, and the package-managed update rules: [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md#native-installers).
+
 ### pipx (any OS with Python)
 
 ```bash
@@ -42,7 +59,7 @@ pipx install pyenv-native
 pyenv-native install --install-root "$HOME/.pyenv"
 ```
 
-Winget and Homebrew manifests are generated on each release (`dist/winget/`, `dist/homebrew/`) but are **not published** yet. Do not run `winget install` or `brew install` for pyenv-native.
+A Homebrew formula is generated on each release (`pyenv-native.rb` asset), but there is no public Homebrew tap yet. Do not run `brew install pyenv-native`.
 
 Full handbook (shells, tags, custom roots): [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md)
 

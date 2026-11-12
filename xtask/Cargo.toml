@@ -11,10 +11,11 @@ anyhow.workspace = true
 clap = { workspace = true, features = ["env"] }
 flate2.workspace = true
 hex.workspace = true
+md-5 = "0.10"
+rpm = { version = "0.30", default-features = false, features = ["gzip-compression", "payload"] }
 serde_json.workspace = true
 sha2.workspace = true
 tar.workspace = true
+tempfile.workspace = true
 zip = { workspace = true, features = ["deflate"] }
 
-[dev-dependencies]
-tempfile.workspace = true

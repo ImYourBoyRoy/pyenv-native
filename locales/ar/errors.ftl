@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: عدم تطابق المجموع الاختبا
 error-missing-checksum = pyenv: تعذر الحصول على مجموع اختباري من الناشر لـ `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv: التحديث الذاتي يدعم فقط التثبيتات المحمولة المُشغَّلة من `{ $expected }`؛ الملف التنفيذي الحالي هو `{ $current }`
+error-self-update-managed = pyenv: يُدار هذا التثبيت بواسطة مدير حزم ({ $source })؛ حدّثه بالأمر: { $command }

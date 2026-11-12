@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: checksum mismatch for `{ $url }` ({ $algorithm 
 error-missing-checksum = pyenv: unable to obtain a publisher checksum for `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv: self-update only supports portable installs launched from `{ $expected }`; current executable is `{ $current }`
+error-self-update-managed = pyenv: this install is managed by a package manager ({ $source }); update it with: { $command }

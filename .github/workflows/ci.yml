@@ -110,6 +110,121 @@ jobs:
         shell: bash
         run: cargo xtask bundle --output-root ./dist
 
+      - name: Build Debian and RPM packages
+        shell: bash
+        run: |
+          cargo xtask installer deb --bundle ./dist/pyenv-native-linux-x64.tar.gz --output-root ./dist
+          cargo xtask installer rpm --bundle ./dist/pyenv-native-linux-x64.tar.gz --output-root ./dist
+
+      - name: Exercise the .deb (install, package-managed updater, remove)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo dpkg -i ./dist/pyenv-native_*_amd64.deb
+          pyenv --version
+          if out="$(pyenv self-update --check 2>&1)"; then
+            echo "self-update should refuse on a package-managed install" >&2
+            exit 1
+          fi
+          echo "$out"
+          echo "$out" | grep -q "managed by a package manager"
+          sudo dpkg -r pyenv-native
+          test ! -e /usr/bin/pyenv
+
+      - name: Inspect the .rpm
+        shell: bash
+        run: |
+          sudo apt-get install -y --no-install-recommends rpm
+          rpm -qpi ./dist/pyenv-native-*.x86_64.rpm
+          rpm -qpl ./dist/pyenv-native-*.x86_64.rpm | grep -q '^/usr/bin/pyenv$'
+
+  linux-packages:
+    # Built on the oldest supported runner so the glibc floor stays at Ubuntu 22.04.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build bundle and packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo xtask bundle --no-gui --output-root ./dist
+          cargo xtask installer deb --bundle ./dist/pyenv-native-linux-x64.tar.gz --output-root ./dist/packages --max-glibc 35
+          cargo xtask installer rpm --bundle ./dist/pyenv-native-linux-x64.tar.gz --output-root ./dist/packages --max-glibc 35
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages
+          path: dist/packages/*
+
+  linux-package-compat:
+    name: package on ${{ matrix.image }}
+    needs: linux-packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "ubuntu:22.04", kind: deb }
+          - { image: "ubuntu:24.04", kind: deb }
+          - { image: "debian:12", kind: deb }
+          - { image: "debian:13", kind: deb }
+          - { image: "rockylinux:9", kind: rpm }
+          - { image: "fedora:latest", kind: rpm }
+          - { image: "amazonlinux:2023", kind: rpm }
+          - { image: "opensuse/leap:15.6", kind: rpm }
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-packages
+          path: packages
+
+      - name: Install, run, check updater, remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          check="$RUNNER_TEMP/check.sh"
+          if [ "${{ matrix.kind }}" = deb ]; then
+            cat > "$check" <<'EOS'
+          apt-get update -qq
+          apt-get install -y --no-install-recommends /packages/pyenv-native_*_amd64.deb
+          pyenv --version
+          pyenv-mcp guide >/dev/null
+          out="$(pyenv self-update --check 2>&1 || true)"
+          echo "$out"
+          echo "$out" | grep -q "managed by a package manager"
+          sh -c '. /etc/profile.d/pyenv-native.sh; echo "$PATH"' | grep -q /.pyenv/shims
+          apt-get remove -y pyenv-native
+          test ! -e /usr/bin/pyenv
+          EOS
+          else
+            cat > "$check" <<'EOS'
+          if command -v zypper >/dev/null; then
+            zypper --non-interactive --no-gpg-checks install --allow-unsigned-rpm /packages/pyenv-native-*.x86_64.rpm
+          else
+            dnf install -y --nogpgcheck /packages/pyenv-native-*.x86_64.rpm
+          fi
+          pyenv --version
+          out="$(pyenv self-update --check 2>&1 || true)"
+          echo "$out"
+          echo "$out" | grep -q "managed by a package manager"
+          rpm -e pyenv-native
+          test ! -e /usr/bin/pyenv
+          EOS
+          fi
+          docker run --rm -v "$PWD/packages:/packages:ro" -v "$check:/check.sh:ro" "${{ matrix.image }}" sh -e /check.sh
+
   windows-x64:
     runs-on: windows-latest
     env:
@@ -158,12 +273,41 @@ jobs:
         shell: pwsh
         run: cargo xtask bundle --target x86_64-pc-windows-msvc
 
-      - name: Build Winget manifests smoke test
+      - name: Build the NSIS setup
         shell: pwsh
         run: |
-          cargo xtask package winget `
-            --release-base-url https://example.invalid/releases/download/test `
-            --output-root ./packaging/winget
+          choco install nsis --no-progress -y
+          cargo xtask installer nsis `
+            --bundle ./dist/pyenv-native-windows-x64.zip `
+            --output-root ./dist `
+            --makensis "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+
+      - name: Exercise the NSIS setup (install, upgrade in place, uninstall)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Resolve-Path ./dist/pyenv-native-windows-x64-setup.exe).Path
+          $root = Join-Path $env:RUNNER_TEMP 'pyenv-nsis-root'
+          $arpKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\pyenv-native'
+
+          $run = Start-Process -FilePath $setup -ArgumentList '/S', "/D=$root" -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "setup exited with $($run.ExitCode)" }
+          & "$root\bin\pyenv.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'installed pyenv.exe does not run' }
+          $arp = Get-ItemProperty $arpKey
+          if ($arp.InstallLocation -ne $root) { throw "Apps & features points at $($arp.InstallLocation), expected $root" }
+
+          # A second run without /D= must find the existing root and upgrade it in place.
+          $run = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "upgrade exited with $($run.ExitCode)" }
+          if ((Get-ItemProperty $arpKey).InstallLocation -ne $root) { throw 'upgrade created a second install' }
+
+          cmd /c $arp.QuietUninstallString
+          if ($LASTEXITCODE -ne 0) { throw 'uninstall failed' }
+          if (Test-Path $arpKey) { throw 'Apps & features entry survived uninstall' }
+          for ($i = 0; $i -lt 60 -and (Test-Path $root); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $root) { throw "$root was not removed" }
+
 
       - name: Build Python install package smoke test
         shell: pwsh

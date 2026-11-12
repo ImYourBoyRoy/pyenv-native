@@ -6,7 +6,9 @@
 //! * `bundle`        build release binaries and assemble the distributable archive
 //! * `version-check` verify every manifest carries the same version
 //! * `set-version`   rewrite every manifest to a new version
-//! * `package`       Winget manifests and the Homebrew formula from release bundles
+//! * `checksums`     SHA256SUMS for a release directory
+//! * `installer`     native installers: deb, rpm, Termux deb, Windows NSIS setup
+//! * `package`       the Homebrew formula from release bundles
 //! * `python`        test, build, and publish the pip/pipx install package
 //! * `release`       preflight, tag, and push to trigger the GitHub release workflow
 //! * `sync-known-versions`  refresh the offline CPython name seed from an upstream pyenv clone
@@ -15,6 +17,8 @@
 
 mod bundle;
 mod check;
+mod checksums;
+mod installer;
 mod known_versions;
 mod package;
 mod policy;
@@ -45,7 +49,12 @@ enum Command {
     VersionCheck(version::CheckArgs),
     /// Set the project version in every manifest.
     SetVersion(version::SetArgs),
-    /// Generate Winget manifests or a Homebrew formula from release bundles.
+    /// Write SHA256SUMS for every asset in a release directory.
+    Checksums(checksums::ChecksumArgs),
+    /// Build native installers (deb, rpm, Termux, NSIS) from release bundles.
+    #[command(subcommand)]
+    Installer(installer::InstallerCommand),
+    /// Generate a Homebrew formula from release bundles.
     #[command(subcommand)]
     Package(package::PackageCommand),
     /// Test, build, or publish the pip/pipx install package.
@@ -76,6 +85,8 @@ fn main() -> ExitCode {
         Command::Bundle(args) => bundle::run(&args),
         Command::VersionCheck(args) => version::check(&args),
         Command::SetVersion(args) => version::set(&args),
+        Command::Checksums(args) => checksums::run(&args),
+        Command::Installer(command) => installer::run(&command),
         Command::Package(command) => package::run(&command),
         Command::Python(command) => python::run(&command),
         Command::Release(args) => release::run(&args),

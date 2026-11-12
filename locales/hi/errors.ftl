@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: `{ $url }` ({ $algorithm }) के लिए �
 error-missing-checksum = pyenv: `{ $source }` के लिए प्रकाशक चेकसम प्राप्त नहीं हो सका
 error-io = { $message }
 error-self-update-portable = pyenv: स्व-अपडेट केवल `{ $expected }` से चलाई गई पोर्टेबल स्थापनाओं का समर्थन करता है; वर्तमान निष्पादन योग्य `{ $current }` है
+error-self-update-managed = pyenv: यह स्थापना एक पैकेज प्रबंधक ({ $source }) द्वारा प्रबंधित है; इसे इस कमांड से अपडेट करें: { $command }

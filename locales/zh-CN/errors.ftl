@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: `{ $url }` 校验和不匹配（{ $algorithm }�
 error-missing-checksum = pyenv: 无法获取 `{ $source }` 的发布方校验和
 error-io = { $message }
 error-self-update-portable = pyenv：自更新仅支持从 `{ $expected }` 启动的便携安装；当前可执行文件是 `{ $current }`
+error-self-update-managed = pyenv：此安装由包管理器（{ $source }）管理；请使用以下命令更新：{ $command }

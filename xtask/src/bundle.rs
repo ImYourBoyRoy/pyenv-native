@@ -342,7 +342,7 @@ fn write_zip(dir: &Path, archive: &Path) -> Result<()> {
     Ok(())
 }
 
-fn sha256_hex(path: &Path) -> Result<String> {
+pub(crate) fn sha256_hex(path: &Path) -> Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
     let mut buffer = [0u8; 64 * 1024];

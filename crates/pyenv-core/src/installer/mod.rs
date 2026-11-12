@@ -7,6 +7,7 @@
 //! same code. Shell-profile blocks, user PATH edits, binary replacement, and desktop integration
 //! all live here instead of being re-implemented per script.
 
+mod arp;
 mod binaries;
 mod commands;
 #[cfg(target_os = "linux")]
@@ -15,6 +16,7 @@ mod install;
 mod layout;
 mod profile;
 mod report;
+mod source;
 mod uninstall;
 mod user_path;
 
@@ -26,4 +28,5 @@ pub use profile::{
     home_dir, known_profile_paths, powershell_profile_path, profile_path, remove_profile_block,
 };
 pub use report::LineSink;
+pub use source::{package_source_for, upgrade_command};
 pub use uninstall::{SelfUninstallOptions, run_self_uninstall};

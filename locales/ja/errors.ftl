@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: `{ $url }` のチェックサムが一致しま
 error-missing-checksum = pyenv: `{ $source }` の公開元チェックサムを取得できません
 error-io = { $message }
 error-self-update-portable = pyenv: 自己更新は `{ $expected }` から起動したポータブルインストールのみ対応です。現在の実行ファイルは `{ $current }` です
+error-self-update-managed = pyenv: このインストールはパッケージマネージャー（{ $source }）が管理しています。次のコマンドで更新してください: { $command }

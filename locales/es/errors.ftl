@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: la suma de comprobación no coincide para `{ $u
 error-missing-checksum = pyenv: no se pudo obtener una suma de comprobación del editor para `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv: la autoactualización solo admite instalaciones portátiles lanzadas desde `{ $expected }`; el ejecutable actual es `{ $current }`
+error-self-update-managed = pyenv: esta instalación la gestiona un gestor de paquetes ({ $source }); actualízala con: { $command }

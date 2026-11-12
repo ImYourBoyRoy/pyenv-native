@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: `{ $url }` 체크섬이 일치하지 않습니�
 error-missing-checksum = pyenv: `{ $source }` 의 게시자 체크섬을 가져올 수 없습니다
 error-io = { $message }
 error-self-update-portable = pyenv: 자체 업데이트는 `{ $expected }`에서 실행된 휴대용 설치만 지원합니다. 현재 실행 파일은 `{ $current }`입니다
+error-self-update-managed = pyenv: 이 설치는 패키지 관리자({ $source })가 관리합니다. 다음 명령으로 업데이트하세요: { $command }

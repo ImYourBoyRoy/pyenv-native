@@ -708,6 +708,7 @@
   "gui-fact-not-found": "見つかりません",
   "gui-fact-missing": "欠落",
   "error-self-update-portable": "pyenv: 自己更新は `{ $expected }` から起動したポータブルインストールのみ対応です。現在の実行ファイルは `{ $current }` です",
+  "error-self-update-managed": "pyenv: このインストールはパッケージマネージャー（{ $source }）が管理しています。次のコマンドで更新してください: { $command }",
   "doctor-store-alias-shadowed": "Microsoft Store の python スタブが { $path } にあります。pyenv の shim が優先されるため、削除は任意です。Windows 11：「設定 > アプリ > アプリの詳細設定 > アプリ実行エイリアス」",
   "gui-manual-follow-up": "手動のフォローアップを推奨します:",
   "gui-doctor-fix-manual": "手動の手順が必要です",

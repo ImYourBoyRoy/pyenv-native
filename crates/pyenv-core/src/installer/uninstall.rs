@@ -65,6 +65,13 @@ pub fn run_self_uninstall(
     if !options.keep_shell_integration {
         remove_shell_integration(&mut reporter, &layout);
     }
+    match super::arp::unregister() {
+        Ok(true) => reporter.info("Removed pyenv-native from Apps & features."),
+        Ok(false) => {}
+        Err(error) => reporter.warn(&format!(
+            "Could not remove the Apps & features entry: {error}"
+        )),
+    }
     remove_program_files_or_defer(&mut reporter, &layout, options)?;
     reporter.plain(&format!(
         "Uninstalled pyenv-native from {}.",

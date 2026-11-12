@@ -708,6 +708,7 @@
   "gui-fact-not-found": "नहीं मिला",
   "gui-fact-missing": "अनुपस्थित",
   "error-self-update-portable": "pyenv: स्व-अपडेट केवल `{ $expected }` से चलाई गई पोर्टेबल स्थापनाओं का समर्थन करता है; वर्तमान निष्पादन योग्य `{ $current }` है",
+  "error-self-update-managed": "pyenv: यह स्थापना एक पैकेज प्रबंधक ({ $source }) द्वारा प्रबंधित है; इसे इस कमांड से अपडेट करें: { $command }",
   "doctor-store-alias-shadowed": "Microsoft Store python stub { $path } पर है; pyenv shims प्राथमिकता लेते हैं, इसलिए इसे हटाना वैकल्पिक है। Windows 11: Settings > Apps > Advanced app settings > App execution aliases",
   "gui-manual-follow-up": "अभी भी मैन्युअल फ़ॉलो-अप सुझाया गया है:",
   "gui-doctor-fix-manual": "मैन्युअल चरण आवश्यक",

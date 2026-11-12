@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv : somme de contrôle incorrecte pour `{ $url }` 
 error-missing-checksum = pyenv : impossible d’obtenir une somme de contrôle de l’éditeur pour `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv : la mise à jour automatique ne prend en charge que les installations portables lancées depuis `{ $expected }` ; l’exécutable actuel est `{ $current }`
+error-self-update-managed = pyenv : cette installation est gérée par un gestionnaire de paquets ({ $source }) ; mettez-la à jour avec : { $command }

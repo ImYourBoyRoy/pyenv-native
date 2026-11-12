@@ -708,6 +708,7 @@
   "gui-fact-not-found": "غير موجود",
   "gui-fact-missing": "مفقود",
   "error-self-update-portable": "pyenv: التحديث الذاتي يدعم فقط التثبيتات المحمولة المُشغَّلة من `{ $expected }`؛ الملف التنفيذي الحالي هو `{ $current }`",
+  "error-self-update-managed": "pyenv: يُدار هذا التثبيت بواسطة مدير حزم ({ $source })؛ حدّثه بالأمر: { $command }",
   "doctor-store-alias-shadowed": "يوجد stub بايثون من Microsoft Store في { $path }؛ شيمات pyenv لها الأولوية، لذا حذفه اختياري. Windows 11: Settings > Apps > Advanced app settings > App execution aliases",
   "gui-manual-follow-up": "ما زال المتابعة اليدوية موصى بها:",
   "gui-doctor-fix-manual": "مطلوبة خطوات يدوية",

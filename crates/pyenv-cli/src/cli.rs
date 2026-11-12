@@ -97,6 +97,8 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 #[command(disable_help_subcommand = true)]
+// Parsed once per process; boxing the install options would only add indirection.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Commands {
     // --- SELECTION ---
     #[command(next_help_heading = "SELECTION")]

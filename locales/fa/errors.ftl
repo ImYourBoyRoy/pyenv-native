@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: عدم تطابق جمع‌آزمایی برا�
 error-missing-checksum = pyenv: دریافت جمع‌آزمایی ناشر برای `{ $source }` ممکن نیست
 error-io = { $message }
 error-self-update-portable = pyenv: به‌روزرسانی خودکار فقط نصب‌های قابل‌حمل اجراشده از `{ $expected }` را پشتیبانی می‌کند؛ فایل اجرایی فعلی `{ $current }` است
+error-self-update-managed = pyenv: این نصب توسط یک مدیر بسته ({ $source }) مدیریت می‌شود؛ با این دستور به‌روزرسانی کنید: { $command }

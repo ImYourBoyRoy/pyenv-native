@@ -708,6 +708,7 @@
   "gui-fact-not-found": "없음",
   "gui-fact-missing": "누락",
   "error-self-update-portable": "pyenv: 자체 업데이트는 `{ $expected }`에서 실행된 휴대용 설치만 지원합니다. 현재 실행 파일은 `{ $current }`입니다",
+  "error-self-update-managed": "pyenv: 이 설치는 패키지 관리자({ $source })가 관리합니다. 다음 명령으로 업데이트하세요: { $command }",
   "doctor-store-alias-shadowed": "Microsoft Store python 스텁이 { $path } 에 있습니다. pyenv shim이 우선하므로 제거는 선택 사항입니다. Windows 11: 설정 > 앱 > 고급 앱 설정 > 앱 실행 별칭",
   "gui-manual-follow-up": "수동 후속 조치가 여전히 권장됩니다:",
   "gui-doctor-fix-manual": "수동 단계 필요",

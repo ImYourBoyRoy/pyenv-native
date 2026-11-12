@@ -708,6 +708,7 @@
   "gui-fact-not-found": "не найдено",
   "gui-fact-missing": "отсутствует",
   "error-self-update-portable": "pyenv: самообновление поддерживает только переносимые установки, запущенные из `{ $expected }`; текущий файл — `{ $current }`",
+  "error-self-update-managed": "pyenv: эта установка управляется менеджером пакетов ({ $source }); обновите её командой: { $command }",
   "doctor-store-alias-shadowed": "заглушка python из Microsoft Store находится в { $path }; shim’ы pyenv имеют приоритет, поэтому удалять её необязательно. Windows 11: «Параметры > Приложения > Дополнительные параметры приложений > Псевдонимы выполнения приложений»",
   "gui-manual-follow-up": "По-прежнему рекомендуется ручное действие:",
   "gui-doctor-fix-manual": "Требуются ручные шаги",

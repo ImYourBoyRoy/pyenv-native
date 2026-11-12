@@ -152,29 +152,7 @@ pub fn run(args: &ReleaseArgs) -> Result<()> {
         let mut build = vec!["xtask", "python", "build"];
         build.extend(&python_flag);
         run_always("cargo", &build)?;
-        if let Some(repo) = &repo {
-            let zip = repo_root()
-                .join("dist")
-                .join("pyenv-native-windows-x64.zip");
-            if zip.exists() {
-                run_always(
-                    "cargo",
-                    &[
-                        "xtask",
-                        "package",
-                        "winget",
-                        "--github-repo",
-                        repo,
-                        "--tag",
-                        &tag,
-                        "--bundle",
-                        zip.to_str().context("non-UTF-8 path")?,
-                    ],
-                )?;
-            } else {
-                step("no Windows bundle in dist/; skipping Winget manifest generation");
-            }
-        }
+        step("the Windows setup is built by the release workflow");
     }
 
     if git_output(&["tag", "--list", &tag])?.is_empty() {

@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: несовпадение контрольной
 error-missing-checksum = pyenv: не удалось получить контрольную сумму издателя для `{ $source }`
 error-io = { $message }
 error-self-update-portable = pyenv: самообновление поддерживает только переносимые установки, запущенные из `{ $expected }`; текущий файл — `{ $current }`
+error-self-update-managed = pyenv: эта установка управляется менеджером пакетов ({ $source }); обновите её командой: { $command }

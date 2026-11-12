@@ -68,6 +68,24 @@ mod cases {
     }
 
     #[test]
+    fn managed_install_message_names_the_source_and_command_in_every_locale() {
+        let mut args = HashMap::new();
+        args.insert("source".into(), "deb".into());
+        args.insert("command".into(), "sudo apt upgrade pyenv-native".into());
+        for tag in [
+            "en-US", "zh-CN", "es", "ja", "ko", "pt-BR", "fr", "de", "ru", "fa", "ar", "hi", "it",
+            "tr",
+        ] {
+            let text = lookup_for_tag_with_args(tag, "error-self-update-managed", &args);
+            assert!(
+                text.contains("sudo apt upgrade pyenv-native"),
+                "{tag}: {text:?}"
+            );
+            assert!(text.contains("deb"), "{tag}: {text:?}");
+        }
+    }
+
+    #[test]
     fn missing_id_returns_the_id_not_fluent_unknown_key() {
         assert_eq!(
             lookup_for_tag("en-US", "cli-pyenv-about"),

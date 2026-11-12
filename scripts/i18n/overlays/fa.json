@@ -708,6 +708,7 @@
   "gui-fact-not-found": "یافت نشد",
   "gui-fact-missing": "غایب",
   "error-self-update-portable": "pyenv: به‌روزرسانی خودکار فقط نصب‌های قابل‌حمل اجراشده از `{ $expected }` را پشتیبانی می‌کند؛ فایل اجرایی فعلی `{ $current }` است",
+  "error-self-update-managed": "pyenv: این نصب توسط یک مدیر بسته ({ $source }) مدیریت می‌شود؛ با این دستور به‌روزرسانی کنید: { $command }",
   "doctor-store-alias-shadowed": "stub پایتون Microsoft Store در { $path } است؛ shimهای pyenv اولویت دارند، بنابراین حذف آن اختیاری است. Windows 11: Settings > Apps > Advanced app settings > App execution aliases",
   "gui-manual-follow-up": "پیگیری دستی هنوز توصیه می‌شود:",
   "gui-doctor-fix-manual": "مراحل دستی لازم است",

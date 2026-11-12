@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: Prüfsummenabweichung für `{ $url }` ({ $algor
 error-missing-checksum = pyenv: Herausgeber-Prüfsumme für `{ $source }` konnte nicht ermittelt werden
 error-io = { $message }
 error-self-update-portable = pyenv: Selbstupdate unterstützt nur portable Installationen, die von `{ $expected }` gestartet wurden; aktuelle Datei ist `{ $current }`
+error-self-update-managed = pyenv: Diese Installation wird von einem Paketmanager ({ $source }) verwaltet; aktualisiere sie mit: { $command }

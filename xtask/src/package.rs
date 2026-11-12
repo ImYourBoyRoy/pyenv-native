@@ -1,17 +1,12 @@
 // ./xtask/src/package.rs
-//! `cargo xtask package winget|homebrew`: publish-ready package-manager metadata.
+//! `cargo xtask package homebrew`: publish-ready Homebrew formula.
 //!
-//! Both generators consume the release bundles and their `.sha256` sidecars produced by
-//! `cargo xtask bundle`; neither submits anything anywhere.
-//!
-//! * `winget`   — three manifests (version, default locale, installer) under
-//!   `packaging/winget/manifests/<l>/<Publisher>/<Package>/<version>/`
-//! * `homebrew` — a `pyenv-native.rb` formula with url/sha256 blocks per detected Linux/macOS bundle
+//! Consumes the release bundles and their `.sha256` sidecars produced by `cargo xtask bundle`;
+//! it submits nothing anywhere. The formula carries url/sha256 blocks per detected Linux/macOS
+//! bundle.
 
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
@@ -22,15 +17,12 @@ use crate::{bundle, repo_root};
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum PackageCommand {
-    /// Generate Winget portable-package manifests from Windows bundle archives.
-    Winget(WingetArgs),
     /// Generate a Homebrew formula from Linux/macOS bundle checksum files.
     Homebrew(HomebrewArgs),
 }
 
 pub fn run(command: &PackageCommand) -> Result<()> {
     match command {
-        PackageCommand::Winget(args) => winget(args),
         PackageCommand::Homebrew(args) => homebrew(args),
     }
 }
@@ -40,315 +32,6 @@ pub fn parse_checksum(text: &str) -> Option<String> {
     text.split(|c: char| !c.is_ascii_hexdigit())
         .find(|token| token.len() == 64)
         .map(|token| token.to_ascii_lowercase())
-}
-
-fn read_checksum(path: &Path) -> Result<String> {
-    let text = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    parse_checksum(&text)
-        .with_context(|| format!("{} did not contain a valid SHA-256 digest", path.display()))
-}
-
-// ---------------------------------------------------------------------------------------------
-// winget
-// ---------------------------------------------------------------------------------------------
-
-#[derive(Args)]
-pub struct WingetArgs {
-    /// Windows bundle archive(s); repeat for multiple architectures.
-    #[arg(long = "bundle", value_name = "ZIP")]
-    bundles: Vec<PathBuf>,
-    /// Checksum file per bundle, in the same order (default: `<bundle>.sha256`).
-    #[arg(long = "checksum", value_name = "SHA256")]
-    checksums: Vec<PathBuf>,
-    #[arg(long)]
-    output_root: Option<PathBuf>,
-    #[arg(long, default_value = "ImYourBoyRoy.pyenv-native")]
-    package_identifier: String,
-    #[arg(long, default_value = "en-US")]
-    package_locale: String,
-    #[arg(long, default_value = "pyenv-native")]
-    package_name: String,
-    #[arg(long, default_value = "Roy Dawson IV")]
-    publisher: String,
-    #[arg(long, default_value = "https://github.com/imyourboyroy")]
-    publisher_url: String,
-    #[arg(
-        long,
-        default_value = "https://github.com/imyourboyroy/pyenv-native/issues"
-    )]
-    publisher_support_url: String,
-    #[arg(long, default_value = "https://github.com/imyourboyroy/pyenv-native")]
-    package_url: String,
-    #[arg(long, default_value = "pyenv")]
-    moniker: String,
-    #[arg(long, default_value = "1.12.0")]
-    manifest_version: String,
-    #[arg(long, default_value = "imyourboyroy/pyenv-native")]
-    github_repo: String,
-    /// Release tag (default: `v<bundle version>`).
-    #[arg(long)]
-    tag: Option<String>,
-    /// Override the installer download base URL (default: the GitHub release for `--tag`).
-    #[arg(long)]
-    release_base_url: Option<String>,
-    #[arg(
-        long,
-        default_value = "Native-first cross-platform Python version manager compatible with pyenv workflows."
-    )]
-    short_description: String,
-    #[arg(
-        long,
-        default_value = "Portable, native-first Python version manager that preserves familiar pyenv workflows across Windows, Linux, and macOS."
-    )]
-    description: String,
-    /// Run `winget validate` on the generated manifests.
-    #[arg(long)]
-    validate: bool,
-}
-
-struct WingetBundle {
-    file_name: String,
-    checksum: String,
-    architecture: String,
-    version: String,
-    executable: String,
-}
-
-/// Read `bundle-manifest.json` from the root of a bundle zip.
-fn zip_manifest(path: &Path) -> Result<serde_json::Value> {
-    let file = File::open(path).with_context(|| format!("opening {}", path.display()))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .with_context(|| format!("{} is not a zip archive", path.display()))?;
-    let mut entry = archive
-        .by_name("bundle-manifest.json")
-        .with_context(|| format!("bundle-manifest.json was not found in {}", path.display()))?;
-    let mut text = String::new();
-    entry.read_to_string(&mut text)?;
-    serde_json::from_str(&text).context("bundle-manifest.json is not valid JSON")
-}
-
-fn winget_bundle(path: &Path, checksum_path: &Path) -> Result<WingetBundle> {
-    let manifest = zip_manifest(path)?;
-    let field = |key: &str| -> Result<String> {
-        manifest[key]
-            .as_str()
-            .map(str::to_string)
-            .with_context(|| format!("bundle-manifest.json in {} lacks `{key}`", path.display()))
-    };
-    let platform = field("platform")?;
-    if platform != "windows" {
-        bail!(
-            "Winget manifests can only be generated from Windows bundles; found platform '{platform}' in {}",
-            path.display()
-        );
-    }
-    Ok(WingetBundle {
-        file_name: path
-            .file_name()
-            .context("bundle path has no file name")?
-            .to_string_lossy()
-            .into_owned(),
-        checksum: read_checksum(checksum_path)?,
-        architecture: field("architecture")?,
-        version: field("bundle_version")?,
-        executable: field("executable")?,
-    })
-}
-
-/// `manifests/<first letter>/<Publisher>/<Package>[/…]` for a dotted package identifier.
-pub fn winget_package_dir(output_root: &Path, identifier: &str) -> Result<PathBuf> {
-    let segments: Vec<&str> = identifier.split('.').collect();
-    if segments.len() < 2 || segments.iter().any(|segment| segment.is_empty()) {
-        bail!("PackageIdentifier must include a publisher and package segment");
-    }
-    let mut path = output_root.join("manifests");
-    path.push(segments[0][..1].to_ascii_lowercase());
-    for segment in segments {
-        path.push(segment);
-    }
-    Ok(path)
-}
-
-pub struct WingetInputs<'a> {
-    pub identifier: &'a str,
-    pub version: &'a str,
-    pub locale: &'a str,
-    pub manifest_version: &'a str,
-    pub publisher: &'a str,
-    pub publisher_url: &'a str,
-    pub publisher_support_url: &'a str,
-    pub package_name: &'a str,
-    pub package_url: &'a str,
-    pub moniker: &'a str,
-    pub short_description: &'a str,
-    pub description: &'a str,
-    pub tag: &'a str,
-    pub executable: &'a str,
-    /// `(architecture, installer url, sha256)`
-    pub installers: Vec<(String, String, String)>,
-}
-
-/// The three manifest documents: `(version, defaultLocale, installer)`.
-pub fn render_winget(i: &WingetInputs<'_>) -> (String, String, String) {
-    let schema = |kind: &str| {
-        format!(
-            "# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.{}.schema.json",
-            i.manifest_version
-        )
-    };
-    let version = format!(
-        "{}\nPackageIdentifier: {}\nPackageVersion: {}\nDefaultLocale: {}\nManifestType: version\nManifestVersion: {}\n",
-        schema("version"),
-        i.identifier,
-        i.version,
-        i.locale,
-        i.manifest_version
-    );
-    let locale = format!(
-        "{schema}\nPackageIdentifier: {id}\nPackageVersion: {ver}\nPackageLocale: {loc}\nPublisher: {publisher}\n\
-PublisherUrl: {publisher_url}\nPublisherSupportUrl: {support}\nAuthor: {publisher}\nPackageName: {name}\n\
-PackageUrl: {url}\nLicense: MIT\nLicenseUrl: {url}/blob/{tag}/LICENSE\nShortDescription: {short}\n\
-Description: {description}\nMoniker: {moniker}\nTags:\n  - pyenv\n  - python\n  - version-manager\n  - virtualenv\n\
-ReleaseNotesUrl: {url}/releases/tag/{tag}\nManifestType: defaultLocale\nManifestVersion: {mv}\n",
-        schema = schema("defaultLocale"),
-        id = i.identifier,
-        ver = i.version,
-        loc = i.locale,
-        publisher = i.publisher,
-        publisher_url = i.publisher_url,
-        support = i.publisher_support_url,
-        name = i.package_name,
-        url = i.package_url,
-        tag = i.tag,
-        short = i.short_description,
-        description = i.description,
-        moniker = i.moniker,
-        mv = i.manifest_version,
-    );
-    let mut installers = i.installers.clone();
-    installers.sort_by(|a, b| a.0.cmp(&b.0));
-    let entries: String = installers
-        .iter()
-        .map(|(arch, url, sha)| {
-            format!(
-                "  - Architecture: {arch}\n    InstallerUrl: {url}\n    InstallerSha256: {sha}\n"
-            )
-        })
-        .collect();
-    let installer = format!(
-        "{}\nPackageIdentifier: {}\nPackageVersion: {}\nInstallerType: zip\nNestedInstallerType: portable\n\
-NestedInstallerFiles:\n  - RelativeFilePath: {}\n    PortableCommandAlias: pyenv\nArchiveBinariesDependOnPath: true\n\
-Installers:\n{}ManifestType: installer\nManifestVersion: {}\n",
-        schema("installer"),
-        i.identifier,
-        i.version,
-        i.executable,
-        entries,
-        i.manifest_version
-    );
-    (version, locale, installer)
-}
-
-fn winget(args: &WingetArgs) -> Result<()> {
-    let root = repo_root();
-    let bundles = if args.bundles.is_empty() {
-        vec![root.join("dist").join("pyenv-native-windows-x64.zip")]
-    } else {
-        args.bundles.clone()
-    };
-    if !args.checksums.is_empty() && args.checksums.len() != bundles.len() {
-        bail!("--checksum must be given once per --bundle (or not at all)");
-    }
-    let mut records = Vec::new();
-    for (index, bundle_path) in bundles.iter().enumerate() {
-        let checksum_path = match args.checksums.get(index) {
-            Some(path) => path.clone(),
-            None => {
-                let mut name = bundle_path.clone().into_os_string();
-                name.push(".sha256");
-                PathBuf::from(name)
-            }
-        };
-        records.push(winget_bundle(bundle_path, &checksum_path)?);
-    }
-    let version = records[0].version.clone();
-    if records.iter().any(|record| record.version != version) {
-        bail!("all Windows bundles must have the same bundle_version");
-    }
-    let tag = args.tag.clone().unwrap_or_else(|| format!("v{version}"));
-    let base = match &args.release_base_url {
-        Some(url) => url.trim_end_matches('/').to_string(),
-        None => format!(
-            "https://github.com/{}/releases/download/{tag}",
-            args.github_repo
-        ),
-    };
-    let installers: Vec<(String, String, String)> = records
-        .iter()
-        .map(|record| {
-            (
-                record.architecture.clone(),
-                format!("{base}/{}", record.file_name),
-                record.checksum.clone(),
-            )
-        })
-        .collect();
-    let (version_doc, locale_doc, installer_doc) = render_winget(&WingetInputs {
-        identifier: &args.package_identifier,
-        version: &version,
-        locale: &args.package_locale,
-        manifest_version: &args.manifest_version,
-        publisher: &args.publisher,
-        publisher_url: &args.publisher_url,
-        publisher_support_url: &args.publisher_support_url,
-        package_name: &args.package_name,
-        package_url: &args.package_url,
-        moniker: &args.moniker,
-        short_description: &args.short_description,
-        description: &args.description,
-        tag: &tag,
-        executable: &records[0].executable,
-        installers: installers.clone(),
-    });
-
-    let output_root = args
-        .output_root
-        .clone()
-        .unwrap_or_else(|| root.join("packaging").join("winget"));
-    let directory = winget_package_dir(&output_root, &args.package_identifier)?.join(&version);
-    fs::create_dir_all(&directory)?;
-    let id = &args.package_identifier;
-    let version_path = directory.join(format!("{id}.yaml"));
-    let locale_path = directory.join(format!("{id}.locale.{}.yaml", args.package_locale));
-    let installer_path = directory.join(format!("{id}.installer.yaml"));
-    fs::write(&version_path, version_doc)?;
-    fs::write(&locale_path, locale_doc)?;
-    fs::write(&installer_path, installer_doc)?;
-
-    if args.validate {
-        let status = Command::new("winget")
-            .args(["validate", "--manifest"])
-            .arg(&directory)
-            .arg("--disable-interactivity")
-            .status()
-            .context("winget validation was requested, but winget is not available on PATH")?;
-        if !status.success() {
-            bail!("winget validate failed ({status})");
-        }
-    }
-
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&serde_json::json!({
-            "manifest_directory": directory,
-            "version_manifest": version_path,
-            "locale_manifest": locale_path,
-            "installer_manifest": installer_path,
-            "installer_urls": installers.iter().map(|i| i.1.clone()).collect::<Vec<_>>(),
-            "package_identifier": args.package_identifier,
-        }))?
-    );
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -607,55 +290,6 @@ mod tests {
     }
 
     #[test]
-    fn winget_directory_follows_the_winget_pkgs_layout() {
-        let dir = winget_package_dir(Path::new("out"), "ImYourBoyRoy.pyenv-native").unwrap();
-        assert_eq!(dir, Path::new("out/manifests/i/ImYourBoyRoy/pyenv-native"));
-        assert!(winget_package_dir(Path::new("out"), "NoDots").is_err());
-        assert!(winget_package_dir(Path::new("out"), "Bad..Id").is_err());
-    }
-
-    fn winget_inputs() -> WingetInputs<'static> {
-        WingetInputs {
-            identifier: "A.b",
-            version: "1.2.3",
-            locale: "en-US",
-            manifest_version: "1.12.0",
-            publisher: "Pub",
-            publisher_url: "https://p",
-            publisher_support_url: "https://p/issues",
-            package_name: "b",
-            package_url: "https://p/b",
-            moniker: "m",
-            short_description: "short",
-            description: "long",
-            tag: "v1.2.3",
-            executable: "pyenv.exe",
-            installers: vec![
-                ("x64".into(), "https://dl/x64.zip".into(), SHA.into()),
-                ("arm64".into(), "https://dl/arm64.zip".into(), SHA.into()),
-            ],
-        }
-    }
-
-    #[test]
-    fn winget_manifests_are_complete_and_sorted_by_architecture() {
-        let (version, locale, installer) = render_winget(&winget_inputs());
-        assert!(
-            version.contains("ManifestType: version") && version.contains("DefaultLocale: en-US")
-        );
-        assert!(locale.contains("LicenseUrl: https://p/b/blob/v1.2.3/LICENSE"));
-        assert!(locale.contains("ReleaseNotesUrl: https://p/b/releases/tag/v1.2.3"));
-        assert!(installer.contains("RelativeFilePath: pyenv.exe"));
-        let arm = installer.find("Architecture: arm64").unwrap();
-        let x64 = installer.find("Architecture: x64").unwrap();
-        assert!(arm < x64, "arm64 must precede x64");
-        assert!(installer.ends_with("ManifestType: installer\nManifestVersion: 1.12.0\n"));
-        assert!(version.starts_with(
-            "# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.12.0"
-        ));
-    }
-
-    #[test]
     fn brew_asset_names_are_recognised() {
         assert_eq!(
             parse_brew_asset_name("pyenv-native-macos-arm64.tar.gz"),
@@ -733,44 +367,5 @@ mod tests {
             assets[0].url,
             "https://github.com/o/r/releases/download/v1/pyenv-native-linux-x64.tar.gz"
         );
-    }
-
-    #[test]
-    fn winget_reads_manifest_from_a_real_bundle_zip() {
-        use std::io::Write;
-        let dir = tempfile::tempdir().unwrap();
-        let zip_path = dir.path().join("pyenv-native-windows-x64.zip");
-        let mut writer = zip::ZipWriter::new(File::create(&zip_path).unwrap());
-        writer
-            .start_file(
-                "bundle-manifest.json",
-                zip::write::SimpleFileOptions::default(),
-            )
-            .unwrap();
-        writer
-            .write_all(br#"{"platform":"windows","architecture":"x64","bundle_version":"9.9.9","executable":"pyenv.exe"}"#)
-            .unwrap();
-        writer.finish().unwrap();
-        let sum = dir.path().join("pyenv-native-windows-x64.zip.sha256");
-        fs::write(&sum, SHA).unwrap();
-        let record = winget_bundle(&zip_path, &sum).unwrap();
-        assert_eq!(
-            (record.version.as_str(), record.architecture.as_str()),
-            ("9.9.9", "x64")
-        );
-        assert_eq!(record.file_name, "pyenv-native-windows-x64.zip");
-
-        // A non-Windows bundle is rejected.
-        let linux = dir.path().join("l.zip");
-        let mut writer = zip::ZipWriter::new(File::create(&linux).unwrap());
-        writer
-            .start_file(
-                "bundle-manifest.json",
-                zip::write::SimpleFileOptions::default(),
-            )
-            .unwrap();
-        writer.write_all(br#"{"platform":"linux","architecture":"x64","bundle_version":"1","executable":"pyenv"}"#).unwrap();
-        writer.finish().unwrap();
-        assert!(winget_bundle(&linux, &sum).is_err());
     }
 }

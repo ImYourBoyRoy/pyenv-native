@@ -19,3 +19,4 @@ error-checksum-mismatch = pyenv: `{ $url }` için sağlama toplamı uyuşmazlı�
 error-missing-checksum = pyenv: `{ $source }` için yayımcı sağlama toplamı alınamadı
 error-io = { $message }
 error-self-update-portable = pyenv: otomatik güncelleme yalnızca `{ $expected }` konumundan başlatılan taşınabilir kurulumları destekler; geçerli yürütülebilir `{ $current }`
+error-self-update-managed = pyenv: bu kurulum bir paket yöneticisi ({ $source }) tarafından yönetiliyor; şu komutla güncelleyin: { $command }

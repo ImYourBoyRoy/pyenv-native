@@ -141,6 +141,16 @@ fn ensure_portable_install(ctx: &AppContext, allow_gui_launcher: bool) -> Result
     let current_exe = env::current_exe()
         .map_err(|error| format!("pyenv: failed to resolve current executable path: {error}"))?;
 
+    if let Some(source) = crate::installer::package_source_for(&current_exe) {
+        let mut args = HashMap::new();
+        args.insert("source".into(), source.clone());
+        args.insert(
+            "command".into(),
+            crate::installer::upgrade_command(&source).to_string(),
+        );
+        return Err(crate::lookup_i18n_args("error-self-update-managed", &args));
+    }
+
     let bin_dir = ctx.root.join("bin");
     let is_pyenv = same_path(&current_exe, &portable_executable_path(&ctx.root));
     let is_gui = is_gui_launch(&current_exe, &bin_dir);

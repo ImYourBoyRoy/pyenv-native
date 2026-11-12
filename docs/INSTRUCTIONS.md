@@ -132,9 +132,70 @@ pyenv-native install --github-repo imyourboyroy/pyenv-native --install-root ~/.p
 
 This is useful for offline or staged release validation.
 
+## Native installers
+
+Releases attach installers for each platform. They are built by `cargo xtask installer <kind>` from the same release bundles, so every executable is compiled once.
+
+| Kind | Asset | Owner of updates |
+| --- | --- | --- |
+| Windows setup | `pyenv-native-windows-<arch>-setup.exe` | pyenv-native (`pyenv self-update`) |
+| Debian / Ubuntu | `pyenv-native_<version>_<arch>.deb` | `apt` |
+| Fedora / RHEL / openSUSE | `pyenv-native-<version>-1.<arch>.rpm` | `dnf` / `zypper` |
+| Termux | `pyenv-native_<version>_aarch64.deb` | `pkg` |
+
+### Windows setup
+
+A per-user NSIS setup (no administrator rights). It unpacks the release bundle to a temporary folder and runs `pyenv self-install` from there, so it produces exactly the layout `install.ps1` does (`%USERPROFILE%\.pyenv`, user `PATH`, PowerShell profile). Consequences:
+
+- **Upgrades are in place.** The setup finds the existing root (the Apps & features entry, then `PYENV_ROOT`) and upgrades it; installed Python versions and virtual environments are kept. Installs made by earlier releases, by `install.ps1`, or by `pyenv self-update` are all upgraded the same way.
+- **`pyenv self-update` keeps working** after a setup-based install, because the layout did not change.
+- **Apps & features** is populated by `pyenv self-install` itself (HKCU, so no elevation), which means script installs and updates get the entry too. Its uninstall command is `pyenv self-uninstall`; the setup ships no second uninstaller.
+- Silent install: `pyenv-native-windows-x64-setup.exe /S` (optionally `/D=C:\path\to\root`, which must be last).
+- PowerShell 7 is not installed by the setup (`--install-powershell7 false`); it works from Windows PowerShell 5.1 and `cmd` too.
+
+### Debian, RPM, and Termux packages
+
+System packages install `pyenv` and `pyenv-mcp` (plus `pyenv-gui`, its launcher and icons where the bundle has them) under the system prefix: `/usr` on Debian and Fedora, `$PREFIX` on Termux. A file in `/etc/profile.d` (Termux: `$PREFIX/etc/profile.d`) puts `~/.pyenv/shims` on `PATH` for login shells; for `pyenv shell` and completions add `eval "$(pyenv init - bash)"` to your shell profile as usual.
+
+```bash
+sudo apt install ./pyenv-native_<version>_amd64.deb
+sudo dnf install ./pyenv-native-<version>-1.x86_64.rpm
+pkg install ./pyenv-native_<version>_aarch64.deb      # Termux
+```
+
+- **Python versions, shims, and venvs stay in `~/.pyenv`** (or `PYENV_ROOT`), per user. The package only provides the program.
+- **The package manager owns updates.** Packages ship `share/pyenv-native/install-source`; `pyenv self-update` reads it, declines, and prints the right command (`sudo apt install --only-upgrade pyenv-native`, `sudo dnf upgrade pyenv-native`, `pkg upgrade pyenv-native`). The GUI update check reports the same.
+- The `.deb` declares `Conflicts: pyenv` (Debian's unrelated `pyenv` package) and a `libc6` floor read from the binary itself, so installing on a too-old distribution fails cleanly instead of crashing at run time.
+- **Supported distributions.** The Linux x64 bundle is built on Ubuntu 22.04 (glibc 2.35) and the release fails if the executables ever need more (`--max-glibc 35`). The `.deb` declares `libc6 (>= 2.N)` and the `.rpm` a matching `libc.so.6(GLIBC_2.N)` requirement from the binaries' real symbol versions, so unsupported systems refuse the install. CI installs and runs the packages on Ubuntu 22.04/24.04, Debian 12/13, Rocky 9, Fedora, Amazon Linux 2023, and openSUSE Leap 15.6. The ARM64 packages are static (musl) and have no glibc requirement.
+- The packages are reproducible for a given commit (`SOURCE_DATE_EPOCH` or the commit time is used for file timestamps).
+
+**Moving from a script install to a package:** run `pyenv self-uninstall --keep-data` (removes the program, shims, and shell blocks; keeps `versions/`, `venvs/`, and caches), install the package, then open a new shell. Python versions installed under `~/.pyenv/versions` are picked up as they are.
+
+### Verifying a release
+
+Each asset has a `.sha256` sidecar, the release carries a combined `SHA256SUMS`, a CycloneDX SBOM (`pyenv-native.cdx.json`), and GitHub build-provenance attestations:
+
+```bash
+sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify pyenv-native-linux-x64.tar.gz --repo imyourboyroy/pyenv-native
+```
+
+### Building them locally
+
+```bash
+cargo xtask bundle --output-root dist
+cargo xtask installer deb  --bundle dist/pyenv-native-linux-x64.tar.gz
+cargo xtask installer rpm  --bundle dist/pyenv-native-linux-x64.tar.gz
+cargo xtask installer termux --bundle dist/pyenv-native-android-arm64.tar.gz
+cargo xtask installer nsis --bundle dist/pyenv-native-windows-x64.zip   # needs makensis
+cargo xtask checksums dist
+```
+
+Debian and RPM packages are written in Rust, so they build on any runner without `dpkg-deb` or `rpmbuild`. The NSIS setup needs `makensis` (`apt install nsis`, `choco install nsis`) and can be cross-built from Linux.
+
 ## Updating pyenv-native in place
 
-Once `pyenv-native` is installed as a portable root-managed install, you can update it directly:
+Once `pyenv-native` is installed as a portable root-managed install (scripts, the Windows setup, Homebrew-seeded roots), you can update it directly. Installs owned by a system package (`.deb`, `.rpm`, Termux) are updated by the package manager instead; see [Native installers](#native-installers).
 
 ```text
 pyenv self-update
@@ -750,12 +811,6 @@ cargo run -q -p pyenv-mcp -- guide
 cargo run -q -p pyenv-mcp -- print-config
 ```
 
-### Generate Winget packaging artifacts
-
-```sh
-cargo xtask package winget --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --validate
-```
-
 ### Generate Homebrew packaging artifacts
 
 ```sh
@@ -878,7 +933,7 @@ crates/                         Rust CLI, core runtime, GUI, and MCP server
   pyenv-mcp/                    stdio MCP server and agent toolkit
 docs/
   screenshots/                  GUI screenshots for documentation
-packaging/                      Winget and Homebrew generation assets
+packaging/                      Homebrew notes
 python-package/                 PyPI / pipx bootstrap wrapper
 scripts/                        publish, packaging, validation, and smoke-test helpers
 ```
