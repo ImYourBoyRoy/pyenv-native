@@ -160,18 +160,19 @@ pub(super) fn python_build_cache_is_cpython(plan: &InstallPlan) -> bool {
         return false;
     }
     let version = plan.resolved_version.trim().to_ascii_lowercase();
-    if version.starts_with("pypy")
-        || version.starts_with("miniconda")
-        || version.starts_with("anaconda")
-        || version.starts_with("stackless")
-        || version.starts_with("graalpy")
-        || version.starts_with("micropython")
-        || version.starts_with("ironpython")
-        || version.starts_with("jython")
-    {
-        return false;
-    }
-    true
+    const NON_CPYTHON_PREFIXES: [&str; 8] = [
+        "pypy",
+        "miniconda",
+        "anaconda",
+        "stackless",
+        "graalpy",
+        "micropython",
+        "ironpython",
+        "jython",
+    ];
+    !NON_CPYTHON_PREFIXES
+        .iter()
+        .any(|prefix| version.starts_with(prefix))
 }
 
 pub(super) fn hash_file(path: &Path, alg: DigestAlg) -> Result<Vec<u8>, PyenvError> {
