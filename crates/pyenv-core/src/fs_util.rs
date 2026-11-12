@@ -60,7 +60,10 @@ pub(crate) fn process_exists(pid: u32) -> bool {
     unsafe { kill(pid as i32, 0) == 0 }
 }
 
-/// Returns whether a process with this id currently exists.
+/// Returns whether a process with this id is still running.
+///
+/// A terminated process can stay openable for as long as anything holds a handle to it, so
+/// opening it is not enough: the exit code must still read `STILL_ACTIVE`.
 #[cfg(windows)]
 pub(crate) fn process_exists(pid: u32) -> bool {
     unsafe extern "system" {
@@ -69,20 +72,25 @@ pub(crate) fn process_exists(pid: u32) -> bool {
             bInheritHandle: i32,
             dwProcessId: u32,
         ) -> *mut std::ffi::c_void;
+        fn GetExitCodeProcess(hProcess: *mut std::ffi::c_void, lpExitCode: *mut u32) -> i32;
         fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
     }
 
     const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    const STILL_ACTIVE: u32 = 259;
 
-    // SAFETY: plain Win32 calls; the handle is closed immediately when it was opened.
+    // SAFETY: plain Win32 calls; the handle is closed before returning.
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if !handle.is_null() {
-            CloseHandle(handle);
-            return true;
+        if handle.is_null() {
+            return false;
         }
+        let mut code = 0u32;
+        let queried = GetExitCodeProcess(handle, &mut code) != 0;
+        CloseHandle(handle);
+        // If the status cannot be read, assume the process is alive rather than racing it.
+        !queried || code == STILL_ACTIVE
     }
-    false
 }
 
 /// Returns whether a process with this id currently exists.

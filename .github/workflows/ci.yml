@@ -305,8 +305,18 @@ jobs:
           cmd /c $arp.QuietUninstallString
           if ($LASTEXITCODE -ne 0) { throw 'uninstall failed' }
           if (Test-Path $arpKey) { throw 'Apps & features entry survived uninstall' }
-          for ($i = 0; $i -lt 60 -and (Test-Path $root); $i++) { Start-Sleep -Seconds 1 }
-          if (Test-Path $root) { throw "$root was not removed" }
+          for ($i = 0; $i -lt 90 -and (Test-Path $root); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $root) {
+            Write-Host '--- left behind ---'
+            Get-ChildItem $root -Recurse -Force | Select-Object -First 40 -ExpandProperty FullName
+            Write-Host '--- uninstall helper ---'
+            Get-ChildItem (Join-Path $env:TEMP 'pyenv-native-uninstall-*') -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+              $_.FullName
+              if ($_.Name -eq 'uninstall.log') { Get-Content $_.FullName }
+            }
+            Get-Process -Name 'pyenv*' -ErrorAction SilentlyContinue | Format-Table Id, ProcessName, Path
+            throw "$root was not removed"
+          }
 
 
       - name: Build Python install package smoke test

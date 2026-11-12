@@ -55,7 +55,7 @@ pub fn run_self_uninstall(
 
     if let Some(pid) = options.finish_after_pid {
         wait_for_exit(pid, Duration::from_secs(120));
-        remove_program_files(&mut reporter, &layout, options.keep_data)?;
+        remove_program_files_patiently(&mut reporter, &layout, options.keep_data)?;
         schedule_helper_cleanup();
         return Ok(());
     }
@@ -225,6 +225,28 @@ fn remove_program_files(
     Ok(())
 }
 
+/// Used by the detached helper: the parent has just exited and antivirus or the indexer may
+/// still hold files, so keep trying for up to a minute before giving up.
+fn remove_program_files_patiently(
+    reporter: &mut Reporter<'_>,
+    layout: &InstallLayout,
+    keep_data: bool,
+) -> Result<(), String> {
+    const ATTEMPTS: u32 = 30;
+    let mut attempt = 1;
+    loop {
+        match remove_program_files(reporter, layout, keep_data) {
+            Ok(()) => return Ok(()),
+            Err(error) if attempt >= ATTEMPTS => return Err(error),
+            Err(error) => {
+                reporter.warn(&format!("{error} (attempt {attempt}/{ATTEMPTS}; retrying)"));
+                thread::sleep(Duration::from_secs(2));
+                attempt += 1;
+            }
+        }
+    }
+}
+
 #[cfg(unix)]
 fn remove_program_files_or_defer(
     reporter: &mut Reporter<'_>,
@@ -260,6 +282,15 @@ fn remove_program_files_or_defer(
     fs::copy(&current, &helper)
         .map_err(|error| format!("pyenv: failed to stage the uninstall helper: {error}"))?;
 
+    // The helper outlives this process, so its output goes to a log next to it. The directory is
+    // deleted when the removal succeeds; if it fails, the log is left behind to explain why.
+    let log_path = helper_dir.join("uninstall.log");
+    let log = fs::File::create(&log_path)
+        .map_err(|error| format!("pyenv: cannot create the uninstall log: {error}"))?;
+    let log_err = log
+        .try_clone()
+        .map_err(|error| format!("pyenv: cannot open the uninstall log: {error}"))?;
+
     let mut command = Command::new(&helper);
     command
         .headless()
@@ -269,8 +300,8 @@ fn remove_program_files_or_defer(
         .arg(std::process::id().to_string())
         .env("PYENV_ROOT", layout.root())
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::from(log))
+        .stderr(Stdio::from(log_err));
     if options.keep_data {
         command.arg("--keep-data");
     }
