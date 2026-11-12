@@ -1,133 +1,47 @@
 # ./uninstall.ps1
 <#
-Purpose: Removes a portable pyenv-native Windows installation without requiring a local repo checkout.
-How to run: powershell -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 [-InstallRoot <dir>] [-RemoveRoot]
-Inputs: Optional install root plus booleans controlling PATH cleanup, profile cleanup, and full-root deletion.
-Outputs/side effects: Removes portable pyenv-native binaries/wrappers and optionally cleans user PATH, PowerShell profile integration, and the managed root.
-Notes: Intended to pair with the remote install.ps1 flow and keeps uninstall registry-free.
+.SYNOPSIS
+Remote-friendly uninstaller for pyenv-native on Windows.
+
+.DESCRIPTION
+Runs the installed `pyenv.exe self-uninstall`, which removes the program files, shims, user PATH
+entries, and the PowerShell profile block it added. This script contains no uninstall logic of its
+own.
+
+.PARAMETER InstallRoot
+Install to remove (default: $env:PYENV_ROOT or ~\.pyenv).
+
+.PARAMETER RemoveRoot
+Also delete installed Pythons, virtual environments, and caches. Without it those are kept.
+
+.PARAMETER RemoveShellProfileBlock
+Pass 'false' to leave shell integration (profiles, PATH) in place.
+
+.EXAMPLE
+irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.ps1 -OutFile $env:TEMP\pyenv-uninstall.ps1; & $env:TEMP\pyenv-uninstall.ps1 -RemoveRoot
 #>
 
 param(
-    [string]$InstallRoot = (Join-Path $HOME '.pyenv'),
-    [string]$RemoveFromUserPath = 'true',
-    [string]$RemovePowerShellProfileBlock = 'true',
+    [string]$InstallRoot = $(if ($env:PYENV_ROOT) { $env:PYENV_ROOT } else { Join-Path $HOME '.pyenv' }),
     [switch]$RemoveRoot,
-    [switch]$Yes
+    [string]$RemoveShellProfileBlock = 'true'
 )
 
 $ErrorActionPreference = 'Stop'
 
-function Convert-ToBoolean {
-    param(
-        [string]$Value,
-        [string]$ParameterName
-    )
-
-    switch ($Value.Trim().ToLowerInvariant()) {
-        '1' { return $true }
-        'true' { return $true }
-        'yes' { return $true }
-        'on' { return $true }
-        '0' { return $false }
-        'false' { return $false }
-        'no' { return $false }
-        'off' { return $false }
-        default { throw "Invalid boolean value '$Value' for -$ParameterName. Use true/false, yes/no, on/off, or 1/0." }
-    }
+$pyenv = Join-Path $InstallRoot 'bin\pyenv.exe'
+if (-not (Test-Path -LiteralPath $pyenv)) {
+    throw "No pyenv-native install found at '$InstallRoot' (missing $pyenv). Pass -InstallRoot, or remove the PATH and profile entries by hand."
 }
 
-function Remove-LineFromUserPath {
-    param(
-        [string]$Entry
-    )
-
-    $existing = [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not $existing) {
-        return
-    }
-
-    $segments = $existing -split ';' |
-        Where-Object { $_.Trim() } |
-        Where-Object { $_.TrimEnd('\') -ine $Entry.TrimEnd('\') }
-
-    [Environment]::SetEnvironmentVariable('Path', ($segments -join ';'), 'User')
+$arguments = @('self-uninstall', '--yes')
+if (-not $RemoveRoot) { $arguments += '--keep-data' }
+switch ($RemoveShellProfileBlock.Trim().ToLowerInvariant()) {
+    { $_ -in '0', 'false', 'no', 'off' } { $arguments += '--keep-shell-integration' }
+    { $_ -in '1', 'true', 'yes', 'on' } { }
+    default { throw "Invalid boolean '$RemoveShellProfileBlock' for -RemoveShellProfileBlock." }
 }
 
-function Remove-PowerShellProfileBlock {
-    param(
-        [string]$ProfilePath
-    )
-
-    if (-not (Test-Path $ProfilePath)) {
-        return
-    }
-
-    $beginMarker = '# >>> pyenv-native init >>>'
-    $endMarker = '# <<< pyenv-native init <<<'
-    $pattern = [regex]::Escape($beginMarker) + '.*?' + [regex]::Escape($endMarker)
-    $existing = Get-Content $ProfilePath -Raw
-    $updated = [regex]::Replace($existing, $pattern, '', 'Singleline').Trim()
-
-    if ([string]::IsNullOrWhiteSpace($updated)) {
-        Remove-Item -Force $ProfilePath
-    } else {
-        Set-Content -Path $ProfilePath -Value ($updated + [Environment]::NewLine) -Encoding utf8
-    }
-}
-
-$resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
-$installBin = Join-Path $resolvedInstallRoot 'bin'
-$removeFromUserPathValue = Convert-ToBoolean -Value $RemoveFromUserPath -ParameterName 'RemoveFromUserPath'
-$removeProfileValue = Convert-ToBoolean -Value $RemovePowerShellProfileBlock -ParameterName 'RemovePowerShellProfileBlock'
-
-$shouldRemoveRoot = $RemoveRoot.IsPresent
-
-if (-not $shouldRemoveRoot -and -not $Yes -and (Test-Path $resolvedInstallRoot)) {
-    try {
-        $answer = Read-Host "Do you want to completely wipe the pyenv root directory ('$resolvedInstallRoot') including all installed Python versions? [y/N]"
-        if ($answer -and $answer.Trim() -match '^(y|yes)$') {
-            $shouldRemoveRoot = $true
-        }
-    } catch {
-        # Non-interactive or cancelled, default to false
-    }
-}
-
-foreach ($path in @(
-    (Join-Path $installBin 'pyenv.exe'),
-    (Join-Path $installBin 'pyenv.cmd'),
-    (Join-Path $installBin 'pyenv.ps1'),
-    (Join-Path $installBin 'pyenv-init.cmd'),
-    (Join-Path $installBin 'pyenv-mcp.exe'),
-    (Join-Path $installBin 'pyenv-mcp.cmd'),
-    (Join-Path $installBin 'pyenv-mcp.ps1'),
-    (Join-Path $installBin 'pyenv-gui.exe')
-)) {
-    if (Test-Path $path) {
-        Remove-Item -Force $path
-    }
-}
-
-if ($removeFromUserPathValue) {
-    Remove-LineFromUserPath -Entry $installBin
-}
-
-if ($removeProfileValue) {
-    Remove-PowerShellProfileBlock -ProfilePath $PROFILE.CurrentUserCurrentHost
-}
-
-if ($shouldRemoveRoot -and (Test-Path $resolvedInstallRoot)) {
-    Remove-Item -Recurse -Force $resolvedInstallRoot
-}
-
-$summary = [ordered]@{
-    install_root = $resolvedInstallRoot
-    install_bin = $installBin
-    remove_from_user_path = $removeFromUserPathValue
-    remove_powershell_profile_block = $removeProfileValue
-    remove_root = $shouldRemoveRoot
-}
-
-$summary.GetEnumerator() | ForEach-Object {
-    '{0}: {1}' -f $_.Key, $_.Value
-}
+$env:PYENV_ROOT = $InstallRoot
+& $pyenv @arguments
+if ($LASTEXITCODE -ne 0) { throw "pyenv self-uninstall failed (exit code $LASTEXITCODE)." }

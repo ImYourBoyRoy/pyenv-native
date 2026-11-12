@@ -507,6 +507,7 @@
   "cli-pip-update-about": "به‌روزرسانی بسته‌های pip در یک محیط مقصد",
   "cli-preflight-about": "هوش پلتفرم و preflight آمادگی نصب",
   "cli-root-about": "نمایش پوشهٔ ریشه که نسخه‌ها و shimها در آن نگه داشته می‌شوند",
+  "cli-self-install-about": "نصب یا تعمیر pyenv-native از بسته انتشار",
   "cli-self-uninstall-about": "حذف نصب pyenv-native از سیستم",
   "cli-status-about": "نمایش وضعیت جامع محیط (نسخه‌ها، مبدأها، venvها)",
   "cli-venv-create-about": "ایجاد یک محیط مجازی مدیریت‌شده زیر یک ران‌تایم مشخص",

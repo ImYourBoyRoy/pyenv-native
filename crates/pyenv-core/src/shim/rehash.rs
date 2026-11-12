@@ -12,6 +12,7 @@ use crate::PyenvError;
 use crate::catalog::installed_version_names;
 use crate::command::CommandReport;
 use crate::context::AppContext;
+use crate::fs_util::process_exists;
 use crate::plugin::collect_rehash_hook_names;
 use crate::runtime::{inventory_roots_for_version, prefix_bin_dirs};
 
@@ -209,43 +210,6 @@ fn lock_file_is_stale(path: &Path) -> bool {
     }
 
     false
-}
-
-#[cfg(windows)]
-fn process_exists(pid: u32) -> bool {
-    unsafe extern "system" {
-        fn OpenProcess(
-            dwDesiredAccess: u32,
-            bInheritHandle: i32,
-            dwProcessId: u32,
-        ) -> *mut std::ffi::c_void;
-        fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
-    }
-
-    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-
-    unsafe {
-        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if !handle.is_null() {
-            CloseHandle(handle);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-#[cfg(unix)]
-fn process_exists(pid: u32) -> bool {
-    unsafe extern "C" {
-        fn kill(pid: i32, sig: i32) -> i32;
-    }
-    unsafe { kill(pid as i32, 0) == 0 }
-}
-
-#[cfg(not(any(windows, unix)))]
-fn process_exists(_pid: u32) -> bool {
-    true
 }
 
 fn io_error(error: std::io::Error) -> PyenvError {

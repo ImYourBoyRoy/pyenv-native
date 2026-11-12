@@ -8,9 +8,11 @@ mod context;
 mod doctor;
 mod error;
 mod executable;
+mod fs_util;
 mod http;
 mod i18n;
 mod install;
+mod installer;
 mod manage;
 mod meta;
 mod path_safety;
@@ -62,6 +64,14 @@ pub use install::{
     InstallCommandOptions, InstallOutcome, InstallPlan, cmd_available, cmd_install,
     install_runtime_plan, install_runtime_plan_with_progress, resolve_install_plan,
 };
+pub use installer::{
+    BEGIN_MARKER as PROFILE_BEGIN_MARKER, END_MARKER as PROFILE_END_MARKER, GUI_BINARY,
+    InstallLayout, LineSink, MCP_BINARY, PYENV_BINARY, PowerShell7Mode, ProfileUpdate,
+    SelfInstallOptions, SelfInstallOutcome, SelfUninstallOptions, ShellKind, apply_profile_block,
+    cmd_self_install, cmd_self_uninstall, cmd_self_uninstall_with, executable_file_name,
+    has_pyenv_init, home_dir, known_profile_paths, powershell_profile_path, profile_path,
+    remove_profile_block, run_self_install, run_self_uninstall,
+};
 pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
 pub use meta::{
     EnvironmentStatus, ManagedVenvSummary, build_environment_status, cmd_commands, cmd_completions,
@@ -79,8 +89,7 @@ pub use preflight::{
 };
 pub use runtime::BASE_VENV_DIR_NAME;
 pub use self_update::{
-    SelfUpdateCheck, SelfUpdateCheckStatus, SelfUpdateOptions, cmd_self_uninstall, cmd_self_update,
-    inspect_self_update,
+    SelfUpdateCheck, SelfUpdateCheckStatus, SelfUpdateOptions, cmd_self_update, inspect_self_update,
 };
 pub use shell::{
     InitCommandOptions, cmd_activate, cmd_deactivate, cmd_init, cmd_sh_activate, cmd_sh_cmd,
@@ -92,8 +101,8 @@ pub use text::{
 };
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
-    cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use, list_managed_venvs,
-    resolve_installed_runtime_version, resolve_managed_venv,
+    cmd_venv_rename, cmd_venv_upgrade, cmd_venv_upgrade_noninteractive, cmd_venv_use,
+    list_managed_venvs, resolve_installed_runtime_version, resolve_managed_venv,
 };
 pub use venv_compat::{
     cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,

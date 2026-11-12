@@ -34,6 +34,7 @@ cli-which-about = Bir yürütülebilirin tam yolunu göster
 cli-whence-about = Verilen yürütülebiliri içeren tüm Python sürümlerini listele
 cli-version-file-about = Geçerli pyenv sürümünü ayarlayan dosyayı algıla
 cli-version-file-read-about = Bir .python-version dosyasının içeriğini oku
+cli-self-install-about = pyenv-native'i bir sürüm paketinden kur veya onar
 cli-self-uninstall-about = pyenv-native’i sistemden kaldır
 cli-help-about = Bir komutun yardımını göster
 cli-commands-about = Kullanılabilir tüm pyenv komutlarını listele

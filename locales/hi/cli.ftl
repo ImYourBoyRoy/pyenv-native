@@ -34,6 +34,7 @@ cli-which-about = किसी निष्पादन योग्य का �
 cli-whence-about = सभी पाइथन संस्करण सूचीबद्ध करें जिनमें दिया गया निष्पादन योग्य है
 cli-version-file-about = वह फ़ाइल पहचानें जो वर्तमान pyenv संस्करण सेट करती है
 cli-version-file-read-about = .python-version फ़ाइल की सामग्री पढ़ें
+cli-self-install-about = रिलीज़ बंडल से pyenv-native इंस्टॉल या मरम्मत करें
 cli-self-uninstall-about = सिस्टम से pyenv-native अनइंस्टॉल करें
 cli-help-about = किसी कमांड की सहायता दिखाएँ
 cli-commands-about = सभी उपलब्ध pyenv कमांड सूचीबद्ध करें

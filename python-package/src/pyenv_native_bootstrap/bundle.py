@@ -17,15 +17,20 @@ from . import __version__
 
 @dataclass(frozen=True)
 class BundleManifest:
-    """Describes a built release bundle and the scripts it carries."""
+    """Describes a built release bundle.
+
+    Current bundles install through the bundled binary (`<executable> self-install`) and carry no
+    scripts. Bundles published before that change name `install_script`/`uninstall_script`
+    instead; both are optional so either generation can be installed.
+    """
 
     bundle_name: str
     bundle_version: str
     platform: str
     architecture: str
     executable: str
-    install_script: str
-    uninstall_script: str
+    install_script: Optional[str] = None
+    uninstall_script: Optional[str] = None
 
 
 def sha256_file(path: Path) -> str:
@@ -94,8 +99,8 @@ def read_manifest_from_bundle(bundle_path: Path) -> BundleManifest:
         platform=payload["platform"],
         architecture=payload["architecture"],
         executable=payload["executable"],
-        install_script=payload["install_script"],
-        uninstall_script=payload["uninstall_script"],
+        install_script=payload.get("install_script"),
+        uninstall_script=payload.get("uninstall_script"),
     )
 
 

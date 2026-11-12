@@ -511,6 +511,7 @@
   "cli-pip-update-about": "Actualizar paquetes pip dentro de un entorno de destino",
   "cli-preflight-about": "Inteligencia de plataforma y preflight de preparación para instalar",
   "cli-root-about": "Mostrar el directorio raíz donde se guardan las versiones y los shims",
+  "cli-self-install-about": "Instalar o reparar pyenv-native desde un paquete de versión",
   "cli-self-uninstall-about": "Desinstalar pyenv-native del sistema",
   "cli-status-about": "Mostrar el estado completo del entorno (versiones, orígenes, venvs)",
   "cli-venv-create-about": "Crear un entorno virtual gestionado bajo un runtime concreto",

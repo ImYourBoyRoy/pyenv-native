@@ -101,6 +101,10 @@ grep -qx "fixture=2.0.0" <<<"$target_probe"
 grep -qx "$target_runtime/envs/migration-test" "$test_root/.python-version"
 [[ ! -e "$source_env" ]]
 [[ -x "$target_env/bin/python" ]]
+# Console-script launchers and activate scripts embed the venv path; they must survive migration.
+"$target_env/bin/pip" --version >/dev/null
+grep -q "$target_env" "$target_env/bin/activate"
+! grep -q -- "-migrating" "$target_env/bin/activate"
 ! compgen -G "$test_root/venvs/$target_runtime/migration-test-previous*" >/dev/null
 
 incompatible_fixture_dir="$test_root/fixtures-incompatible"

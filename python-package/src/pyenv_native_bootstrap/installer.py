@@ -177,7 +177,7 @@ def build_windows_install_command(
     request: InstallRequest,
     manifest: BundleManifest,
 ) -> list[str]:
-    """Build the PowerShell command used to invoke the bundled installer."""
+    """Build the PowerShell command used to invoke a legacy bundle's installer script."""
 
     install_script = extracted_dir / manifest.install_script
     executable = extracted_dir / manifest.executable
@@ -210,7 +210,7 @@ def build_posix_install_command(
     request: InstallRequest,
     manifest: BundleManifest,
 ) -> list[str]:
-    """Build the shell command used to invoke the bundled POSIX installer."""
+    """Build the shell command used to invoke a legacy bundle's POSIX installer script."""
 
     install_script = extracted_dir / manifest.install_script
     executable = extracted_dir / manifest.executable
@@ -221,6 +221,37 @@ def build_posix_install_command(
         str(install_script),
         "--source-path",
         str(executable),
+        "--shell",
+        request.shell,
+        "--add-to-user-path",
+        str(request.add_to_user_path).lower(),
+        "--update-shell-profile",
+        str(request.update_powershell_profile).lower(),
+        "--refresh-shims",
+        str(request.refresh_shims).lower(),
+    ]
+    if request.install_root:
+        command.extend(["--install-root", str(request.install_root.expanduser().resolve())])
+    if request.force:
+        command.append("--force")
+    return command
+
+
+def build_self_install_command(
+    extracted_dir: Path,
+    request: InstallRequest,
+    manifest: BundleManifest,
+) -> list[str]:
+    """Build the `pyenv self-install` command for a bundle that installs through its binary."""
+
+    executable = extracted_dir / manifest.executable
+    if os.name != "nt":
+        executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    command = [
+        str(executable),
+        "self-install",
+        "--source-dir",
+        str(extracted_dir),
         "--shell",
         request.shell,
         "--add-to-user-path",
@@ -260,7 +291,9 @@ def plan_install(request: InstallRequest) -> InstallPlan:
             f"bundle platform {manifest.platform!r} does not match the current host platform {host_target.operating_system!r}"
         )
 
-    if manifest.platform == "windows":
+    if manifest.install_script is None:
+        install_command = build_self_install_command(extracted_dir, request, manifest)
+    elif manifest.platform == "windows":
         install_command = build_windows_install_command(extracted_dir, request, manifest)
     elif manifest.platform in {"linux", "macos", "android"}:
         install_command = build_posix_install_command(extracted_dir, request, manifest)

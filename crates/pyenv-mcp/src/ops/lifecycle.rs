@@ -5,7 +5,7 @@ use anyhow::{Result, anyhow};
 
 use pyenv_core::{
     AppContext, SelfUpdateOptions, cmd_config_get, cmd_config_set, cmd_config_show,
-    cmd_self_update, cmd_venv_upgrade,
+    cmd_self_update, cmd_venv_upgrade_noninteractive,
 };
 
 use crate::model::JsonForwardResponse;
@@ -58,7 +58,9 @@ pub fn venv_upgrade_response(
     force: bool,
     set_local: bool,
 ) -> Result<JsonForwardResponse> {
-    let report = cmd_venv_upgrade(ctx, spec, new_runtime, force, set_local);
+    // The stdio MCP server's stdin/stdout are the JSON-RPC channel, so it must never prompt.
+    // `force` only controls whether an existing target venv may be replaced.
+    let report = cmd_venv_upgrade_noninteractive(ctx, spec, new_runtime, force, set_local);
     command_report_response(report)
 }
 

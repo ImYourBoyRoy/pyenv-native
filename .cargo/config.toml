@@ -1,0 +1,4 @@
+# Repo-local cargo configuration.
+[alias]
+# `cargo xtask <command>` runs the workspace automation in ./xtask (bundles, version sync, checks).
+xtask = "run --quiet --package xtask --"

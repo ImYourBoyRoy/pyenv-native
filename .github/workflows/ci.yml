@@ -52,19 +52,19 @@ jobs:
 
       - name: Shell script line-ending check
         shell: bash
-        run: sh ./scripts/check-shell-eol.sh
+        run: cargo xtask policy eol
 
       - name: Version sync check
         shell: bash
-        run: sh ./scripts/check-version-sync.sh
+        run: cargo xtask version-check
 
       - name: GUI pattern guardrails
         shell: bash
-        run: sh ./scripts/check-gui-patterns.sh
+        run: cargo xtask policy gui
 
       - name: i18n catalog check
         shell: bash
-        run: sh ./scripts/check-i18n.sh
+        run: cargo xtask policy i18n
 
       - name: Setup pnpm and Node.js
         uses: pnpm/setup@v3
@@ -108,7 +108,7 @@ jobs:
 
       - name: Build Linux release bundle smoke test
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
   windows-x64:
     runs-on: windows-latest
@@ -144,7 +144,7 @@ jobs:
 
       - name: Test Python install package
         shell: pwsh
-        run: .\scripts\test-python-bootstrap.ps1 -PythonPath python
+        run: cargo xtask python test --python python
 
       - name: Build CLI for Windows shell smoke tests
         shell: pwsh
@@ -156,18 +156,18 @@ jobs:
 
       - name: Build Windows x64 release bundle smoke test
         shell: pwsh
-        run: .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
+        run: cargo xtask bundle --target x86_64-pc-windows-msvc
 
       - name: Build Winget manifests smoke test
         shell: pwsh
         run: |
-          .\scripts\build-winget-manifests.ps1 `
-            -ReleaseBaseUrl https://example.invalid/releases/download/test `
-            -OutputRoot .\packaging\winget
+          cargo xtask package winget `
+            --release-base-url https://example.invalid/releases/download/test `
+            --output-root ./packaging/winget
 
       - name: Build Python install package smoke test
         shell: pwsh
-        run: .\scripts\build-python-bootstrap.ps1 -PythonPath python
+        run: cargo xtask python build --python python
 
   windows-arm64-smoke:
     runs-on: windows-latest
@@ -189,7 +189,7 @@ jobs:
 
       - name: Build Windows ARM64 release bundle smoke test
         shell: pwsh
-        run: .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+        run: cargo xtask bundle --target aarch64-pc-windows-msvc
 
   linux-arm64-smoke:
     runs-on: ubuntu-latest
@@ -212,9 +212,9 @@ jobs:
       - name: Build Linux ARM64 release bundle smoke test
         shell: bash
         env:
-          CARGO: cross
+          XTASK_CARGO: cross
         run: |
-          sh ./scripts/build-release-bundle.sh \
+          cargo xtask bundle \
             --output-root ./dist \
             --target aarch64-unknown-linux-musl \
             --arch arm64
@@ -243,7 +243,7 @@ jobs:
         shell: bash
         run: |
           export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
-          sh ./scripts/build-release-bundle.sh \
+          cargo xtask bundle \
             --output-root ./dist \
             --target aarch64-linux-android \
             --platform android \
@@ -283,7 +283,7 @@ jobs:
 
       - name: Build macOS arm64 release bundle smoke test
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
       - name: Confirm GUI binary in bundle
         shell: bash
@@ -323,7 +323,7 @@ jobs:
 
       - name: Build macOS x64 release bundle smoke test
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
       - name: Confirm GUI binary in bundle
         shell: bash

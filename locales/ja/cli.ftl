@@ -34,6 +34,7 @@ cli-which-about = 実行ファイルのフルパスを表示する
 cli-whence-about = 指定した実行ファイルを含むすべての Python バージョンを一覧表示する
 cli-version-file-about = 現在の pyenv バージョンを設定しているファイルを検出する
 cli-version-file-read-about = .python-version ファイルの内容を読み取る
+cli-self-install-about = リリースバンドルから pyenv-native をインストールまたは修復する
 cli-self-uninstall-about = システムから pyenv-native をアンインストールする
 cli-help-about = コマンドのヘルプを表示する
 cli-commands-about = 利用できるすべての pyenv コマンドを一覧表示する

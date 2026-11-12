@@ -34,6 +34,7 @@ cli-which-about = نمایش مسیر کامل یک اجراپذیر
 cli-whence-about = فهرست همهٔ نسخه‌های پایتون که حاوی اجراپذیر داده‌شده هستند
 cli-version-file-about = تشخیص پرونده‌ای که نسخهٔ فعلی pyenv را تنظیم می‌کند
 cli-version-file-read-about = خواندن محتوای یک پروندهٔ .python-version
+cli-self-install-about = نصب یا تعمیر pyenv-native از بسته انتشار
 cli-self-uninstall-about = حذف نصب pyenv-native از سیستم
 cli-help-about = نمایش راهنمای یک فرمان
 cli-commands-about = فهرست همهٔ فرمان‌های موجود pyenv

@@ -5,9 +5,9 @@
 # How to run: python3 ./scripts/i18n/seed_locales.py
 #             python3 ./scripts/i18n/seed_locales.py --check
 # Inputs: locales/en-US/*.ftl and overlays/<tag>.json
-# Outputs: locales/<tag>/*.ftl and generated install-strings.sh/.ps1
-# --check compares overlay key sets, regenerated install-strings, and app.js
-# hardcoded empty-state/badge copy without writing files.
+# Outputs: locales/<tag>/*.ftl
+# --check compares overlay key sets and app.js hardcoded empty-state/badge copy
+# without writing files.
 
 from __future__ import annotations
 
@@ -123,109 +123,9 @@ def en_us_ids() -> set[str]:
     return ids
 
 
-def _shell_single_quote(value: str) -> str:
-    return "'" + value.replace("'", "'\\''") + "'"
-
-
-_INSTALL_PLACEHOLDER = re.compile(r"\{\s*\$[A-Za-z0-9_-]+\s*\}")
 _HARDCODED_COPY = re.compile(
     r"(showEmptyState|appendBadge)\s*\(\s*[^,]+,\s*(['\"`])",
 )
-
-
-def render_install_strings() -> tuple[str, str]:
-    tags = ["en-US", *LOCALES]
-    catalog: dict[str, dict[str, str]] = {}
-    for tag in tags:
-        catalog[tag] = _ftl_messages(ROOT / "locales" / tag / "install.ftl")
-    keys = sorted(catalog["en-US"].keys())
-
-    sh_lines = [
-        "#!/bin/sh",
-        "# ./scripts/i18n/install-strings.sh",
-        "# Generated from locales/*/install.ftl by seed_locales.py. Do not edit by hand.",
-        "",
-        "pyenv_normalize_install_lang() {",
-        "  raw=\"$(printf '%s' \"$1\" | tr '[:upper:]' '[:lower:]' | tr '_' '-')\"",
-        "  case \"$raw\" in",
-        "    zh|zh-cn|zh-hans|zh-hans-cn|zh-sg|zh-tw|zh-hant|zh-hant-tw|zh-hk|zh-mo) printf 'zh-CN' ;;",
-        "    pt|pt-pt|pt-br) printf 'pt-BR' ;;",
-        "    en|en-us|en-gb|en-au|en-ca|'') printf 'en-US' ;;",
-        "    es|es-mx|es-ar|es-es|es-419) printf 'es' ;;",
-        "    ja|ko|fr|de|ru|fa|ar|hi|it|tr) printf '%s' \"$raw\" ;;",
-        "    *) printf 'en-US' ;;",
-        "  esac",
-        "}",
-        "",
-        "pyenv_install_tr() {",
-        "  key=\"$1\"",
-        "  lang=\"$(pyenv_normalize_install_lang \"${PYENV_INSTALL_LANG:-en-US}\")\"",
-        "  case \"$lang:$key\" in",
-    ]
-    for tag in tags:
-        for key in keys:
-            value = catalog[tag].get(key, catalog["en-US"][key])
-            value = _INSTALL_PLACEHOLDER.sub("%s", value)
-            quoted = _shell_single_quote(value)
-            if "%s" in value:
-                sh_lines.append(f"    {tag}:{key}) printf {quoted} \"$2\" ;;")
-            else:
-                sh_lines.append(f"    {tag}:{key}) printf %s {quoted} ;;")
-    sh_lines.extend(
-        [
-            "    *) printf '%s' \"$key\" ;;",
-            "  esac",
-            "}",
-            "",
-        ]
-    )
-
-    ps_lines = [
-        "# ./scripts/i18n/install-strings.ps1",
-        "# Generated from locales/*/install.ftl by seed_locales.py. Do not edit by hand.",
-        "",
-        "function ConvertTo-PyenvInstallLang {",
-        "    param([string]$Lang)",
-        "    $raw = ([string]$Lang).ToLowerInvariant().Replace('_', '-')",
-        "    switch -Regex ($raw) {",
-        "        '^(zh|zh-cn|zh-hans|zh-hans-cn|zh-sg|zh-tw|zh-hant|zh-hant-tw|zh-hk|zh-mo)$' { 'zh-CN'; break }",
-        "        '^(pt|pt-pt|pt-br)$' { 'pt-BR'; break }",
-        "        '^(en|en-us|en-gb|en-au|en-ca)$' { 'en-US'; break }",
-        "        '^(es|es-mx|es-ar|es-es|es-419)$' { 'es'; break }",
-        "        '^(ja|ko|fr|de|ru|fa|ar|hi|it|tr)$' { $raw; break }",
-        "        default { 'en-US' }",
-        "    }",
-        "}",
-        "",
-        "function Get-PyenvInstallString {",
-        "    param([string]$Key, [string]$Lang, [string]$Arg = '')",
-        "    $normalized = ConvertTo-PyenvInstallLang $Lang",
-        "    $table = @{",
-    ]
-    for tag in tags:
-        for key in keys:
-            value = catalog[tag].get(key, catalog["en-US"][key])
-            escaped = value.replace("'", "''")
-            ps_lines.append(f"        '{tag}:{key}' = '{escaped}'")
-    ps_lines.extend(
-        [
-            "    }",
-            "    $template = $table[\"$normalized`:$Key\"]",
-            "    if (-not $template) { $template = $table[\"en-US:$Key\"] }",
-            "    if (-not $template) { return $Key }",
-            r"    return [regex]::Replace($template, '\{\s*\$[A-Za-z0-9_-]+\s*\}', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $Arg })",
-            "}",
-            "",
-        ]
-    )
-    return "\n".join(sh_lines) + "\n", "\n".join(ps_lines) + "\n"
-
-
-def write_install_strings() -> None:
-    sh_text, ps_text = render_install_strings()
-    (OVERLAY_DIR.parent / "install-strings.sh").write_text(sh_text, encoding="utf-8")
-    (OVERLAY_DIR.parent / "install-strings.ps1").write_text(ps_text, encoding="utf-8")
-    print("wrote install-strings.sh and install-strings.ps1")
 
 
 def check_hardcoded_app_js() -> list[str]:
@@ -260,14 +160,6 @@ def check() -> int:
             more = f" (+{len(extra) - 12} more)" if len(extra) > 12 else ""
             errors.append(f"{tag} overlay extra {len(extra)} ids: {preview}{more}")
 
-    sh_text, ps_text = render_install_strings()
-    sh_path = OVERLAY_DIR.parent / "install-strings.sh"
-    ps_path = OVERLAY_DIR.parent / "install-strings.ps1"
-    if sh_path.read_text(encoding="utf-8") != sh_text:
-        errors.append(f"{sh_path.relative_to(ROOT)} is stale; run python3 ./scripts/i18n/seed_locales.py")
-    if ps_path.read_text(encoding="utf-8") != ps_text:
-        errors.append(f"{ps_path.relative_to(ROOT)} is stale; run python3 ./scripts/i18n/seed_locales.py")
-
     for hit in check_hardcoded_app_js():
         errors.append(f"hardcoded GUI copy without t(): {hit}")
 
@@ -295,7 +187,6 @@ def seed() -> None:
             text = text.replace("./locales/en-US/", f"./locales/{tag}/")
             (dest / src.name).write_text(text, encoding="utf-8")
         print(f"seeded {tag} ({len(translations)} overlays)")
-    write_install_strings()
 
 
 def main() -> None:

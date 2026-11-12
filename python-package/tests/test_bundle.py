@@ -52,6 +52,25 @@ class BundleTests(unittest.TestCase):
             self.assertEqual(parsed.bundle_name, manifest["bundle_name"])
             self.assertEqual(parsed.install_script, manifest["install_script"])
 
+    def test_manifest_without_scripts_describes_a_self_install_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            bundle_path = Path(temp_dir) / "bundle.zip"
+            manifest = {
+                "bundle_name": "pyenv-native-windows-x64",
+                "bundle_version": "0.6.0",
+                "platform": "windows",
+                "architecture": "x64",
+                "executable": "pyenv.exe",
+                "installer": "self-install",
+            }
+            with ZipFile(bundle_path, "w") as archive:
+                archive.writestr("bundle-manifest.json", json.dumps(manifest))
+
+            parsed = read_manifest_from_zip(bundle_path)
+            self.assertIsNone(parsed.install_script)
+            self.assertIsNone(parsed.uninstall_script)
+            self.assertEqual(parsed.executable, "pyenv.exe")
+
     def test_read_manifest_from_tar_bundle_returns_expected_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             bundle_path = Path(temp_dir) / "bundle.tar.gz"

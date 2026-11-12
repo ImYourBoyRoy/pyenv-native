@@ -499,6 +499,7 @@
   "cli-pip-update-about": "更新目标环境中的 pip 包",
   "cli-preflight-about": "平台情报与安装就绪预检",
   "cli-root-about": "显示存放版本和 shim 的根目录",
+  "cli-self-install-about": "从发行包安装或修复 pyenv-native",
   "cli-self-uninstall-about": "从系统卸载 pyenv-native",
   "cli-status-about": "显示完整环境状态（版本、来源、venv）",
   "cli-venv-create-about": "在指定运行时下创建托管虚拟环境",

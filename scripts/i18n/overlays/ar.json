@@ -507,6 +507,7 @@
   "cli-pip-update-about": "تحديث حزم pip داخل بيئة هدف",
   "cli-preflight-about": "معلومات المنصة وpreflight جاهزية التثبيت",
   "cli-root-about": "عرض المجلد الجذر حيث تُحفظ الإصدارات وshim",
+  "cli-self-install-about": "تثبيت pyenv-native أو إصلاحه من حزمة إصدار",
   "cli-self-uninstall-about": "إلغاء تثبيت pyenv-native من النظام",
   "cli-status-about": "عرض حالة البيئة الشاملة (الإصدارات والمصادر وvenv)",
   "cli-venv-create-about": "إنشاء بيئة افتراضية مُدارة تحت وقت تشغيل محدد",

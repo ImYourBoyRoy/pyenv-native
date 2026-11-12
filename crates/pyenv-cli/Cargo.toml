@@ -12,3 +12,6 @@ pyenv-core = { path = "../pyenv-core" }
 [[bin]]
 name = "pyenv"
 path = "src/main.rs"
+
+[dev-dependencies]
+tempfile.workspace = true

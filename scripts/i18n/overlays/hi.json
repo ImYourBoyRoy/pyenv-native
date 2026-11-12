@@ -507,6 +507,7 @@
   "cli-pip-update-about": "लक्ष्य वातावरण में pip पैकेज अपडेट करें",
   "cli-preflight-about": "प्लेटफ़ॉर्म जानकारी और स्थापना-तैयारी preflight",
   "cli-root-about": "वह रूट निर्देशिका दिखाएँ जहाँ संस्करण और shim रखे जाते हैं",
+  "cli-self-install-about": "रिलीज़ बंडल से pyenv-native इंस्टॉल या मरम्मत करें",
   "cli-self-uninstall-about": "सिस्टम से pyenv-native अनइंस्टॉल करें",
   "cli-status-about": "व्यापक वातावरण स्थिति दिखाएँ (संस्करण, स्रोत, venv)",
   "cli-venv-create-about": "किसी विशिष्ट रनटाइम के अंतर्गत प्रबंधित आभासी वातावरण बनाएँ",

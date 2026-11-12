@@ -1,4 +1,4 @@
-﻿# Homebrew packaging
+# Homebrew packaging
 
 This folder contains generator-backed Homebrew packaging assets for `pyenv-native`.
 
@@ -12,10 +12,8 @@ This folder contains generator-backed Homebrew packaging assets for `pyenv-nativ
 
 After you have Linux/macOS release assets and their `.sha256` files available, run:
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-homebrew-formula.ps1 `
-  -GitHubRepo imyourboyroy/pyenv-native `
-  -Tag vX.Y.Z
+```sh
+cargo xtask package homebrew --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z
 ```
 
 Default asset scan roots:
@@ -24,7 +22,7 @@ Default asset scan roots:
 - `dist/linux/`
 - `dist/macos/`
 
-You can override them with `-AssetRoots`.
+Override them with repeated `--asset-root <dir>` flags.
 
 ## Output
 
@@ -37,7 +35,7 @@ packaging/homebrew/Formula/pyenv-native.rb
 ## Suggested later publish flow
 
 1. Produce or download the release assets for Linux/macOS.
-2. Generate the formula with `build-homebrew-formula.ps1`.
+2. Generate the formula with `cargo xtask package homebrew`.
 3. Commit or copy the generated formula into your Homebrew tap repository.
 4. Open the tap PR / push the tap update.
 

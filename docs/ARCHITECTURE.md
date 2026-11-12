@@ -88,11 +88,32 @@ Packaging and distribution
 crates/
   pyenv-cli/      CLI entrypoint and public command wiring
   pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
+  pyenv-gui/      Tauri desktop companion
   pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
+xtask/            `cargo xtask`: bundles, packaging (winget/homebrew), python package, release, policy checks, version sync, quality gate
 python-package/   Python install package wrapper for native release bundles
 packaging/        package-manager metadata and generators
-scripts/          build, release, install, uninstall, sync, and validation helpers
+scripts/          publish, packaging, validation, and smoke-test helpers
 ```
+
+---
+
+### Installer module
+
+`crates/pyenv-core/src/installer/` is the single implementation of install, update, and uninstall (`pyenv self-install`, `self-update`, `self-uninstall`):
+
+```text
+layout.rs      portable root layout (bin, shims, versions, cache, logs, share)
+profile.rs     shell profile blocks: render/upsert/remove, one marker pair for every front end
+user_path.rs   Windows user PATH (HKCU\Environment, REG_EXPAND_SZ preserved)
+binaries.rs    atomic binary replacement, including running executables on Windows
+desktop.rs     Freedesktop launcher + icons (Linux GUI)
+install.rs     options, orchestration, sanity checks, relaunch
+uninstall.rs   safe removal, profile/PATH cleanup, Windows deferred removal helper
+report.rs      live progress lines + install log
+```
+
+`self_update/bundle.rs` downloads, SHA-256-verifies, and extracts the release bundle; the update then runs the *bundle's* `pyenv self-install`. `install.sh` / `install.ps1` are bootstraps that do the same download and verification for first installs.
 
 ---
 
@@ -178,7 +199,7 @@ CPython revisions are not compiled into the binary. `pyenv install --list`, `pye
 
 Provider-backed listings include alpha, beta, and release-candidate names with an explicit human-readable channel label. Stable prefix resolution remains conservative: `3.16` never falls forward to `3.16.0a1`, while an exact request for `3.16.0a1` resolves to its recorded archive. The resolver accepts both compact CPython spellings (`3.16.0a1`) and NuGet’s hyphenated spelling (`3.16.0-a1`) when the provider uses the latter.
 
-`crates/pyenv-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `PYENV_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `scripts/sync-known-versions.ps1` only refreshes the compiled seed from an upstream pyenv checkout.
+`crates/pyenv-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `PYENV_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `cargo xtask sync-known-versions` only refreshes the compiled seed from an upstream pyenv checkout.
 
 Windows CPython builds still come from the NuGet package index, and PyPy still comes from `https://downloads.python.org/pypy/versions.json`. Those indexes are cached the same way, and their version names are merged into the runtime known-versions file. Versions python.org publishes that NuGet does not carry stay visible through the live CPython index.
 
@@ -377,7 +398,7 @@ The project is designed to distribute through native assets first.
 - Windows portable ZIP bundle
 - Linux portable `.tar.gz` bundle
 - macOS portable `.tar.gz` bundle
-- SHA-256 checksum files (bundles, standalone GUI binaries, and installer scripts)
+- SHA-256 checksum files (bundles, standalone GUI binaries, and the bootstrap scripts)
 - bundle manifest metadata
 - generated Winget YAML and Homebrew formula (uploaded as release extras; not yet submitted to winget-pkgs or a public tap)
 

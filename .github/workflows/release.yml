@@ -45,7 +45,7 @@ jobs:
           if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -match '^v(.+)$') {
             $expected = $Matches[1]
           }
-          .\scripts\check-version-sync.ps1 -ExpectedVersion $expected
+          if ($expected) { cargo xtask version-check --expected $expected } else { cargo xtask version-check }
 
       - name: Test Rust workspace
         shell: pwsh
@@ -53,15 +53,15 @@ jobs:
 
       - name: Test Python install package
         shell: pwsh
-        run: .\scripts\test-python-bootstrap.ps1 -PythonPath python
+        run: cargo xtask python test --python python
 
       - name: Build Windows x64 release bundle
         shell: pwsh
-        run: .\scripts\build-release-bundle.ps1 -TargetTriple x86_64-pc-windows-msvc
+        run: cargo xtask bundle --target x86_64-pc-windows-msvc
 
       - name: Build Python install package
         shell: pwsh
-        run: .\scripts\build-python-bootstrap.ps1 -PythonPath python
+        run: cargo xtask python build --python python
 
       - name: Prepare standalone GUI asset (Windows x64)
         shell: pwsh
@@ -110,7 +110,7 @@ jobs:
       # from the x64 runner, so this bundle ships CLI + MCP only.
       - name: Build Windows ARM64 release bundle
         shell: pwsh
-        run: .\scripts\build-release-bundle.ps1 -TargetTriple aarch64-pc-windows-msvc
+        run: cargo xtask bundle --target aarch64-pc-windows-msvc
 
       - name: Upload Windows ARM64 bundle artifact
         uses: actions/upload-artifact@v7
@@ -153,7 +153,7 @@ jobs:
 
       - name: Build Linux release bundle
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
       - name: Prepare standalone GUI asset (Linux x64)
         run: |
@@ -196,9 +196,9 @@ jobs:
       - name: Build Linux ARM64 release bundle
         shell: bash
         env:
-          CARGO: cross
+          XTASK_CARGO: cross
         run: |
-          sh ./scripts/build-release-bundle.sh \
+          cargo xtask bundle \
             --output-root ./dist \
             --target aarch64-unknown-linux-musl \
             --arch arm64
@@ -235,7 +235,7 @@ jobs:
         shell: bash
         run: |
           export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
-          sh ./scripts/build-release-bundle.sh \
+          cargo xtask bundle \
             --output-root ./dist \
             --target aarch64-linux-android \
             --platform android \
@@ -277,7 +277,7 @@ jobs:
 
       - name: Build macOS arm64 release bundle
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
       - name: Prepare standalone GUI asset (macOS arm64)
         run: |
@@ -327,7 +327,7 @@ jobs:
 
       - name: Build macOS x64 release bundle
         shell: bash
-        run: sh ./scripts/build-release-bundle.sh --output-root ./dist
+        run: cargo xtask bundle --output-root ./dist
 
       - name: Prepare standalone GUI asset (macOS x64)
         run: |
@@ -366,6 +366,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Install Rust toolchain (for cargo xtask)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Download Windows x64 bundle artifact
         uses: actions/download-artifact@v8
@@ -420,23 +426,26 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
-          & ./scripts/build-winget-manifests.ps1 `
-            -GitHubRepo $repo `
-            -Tag $tag `
-            -BundlePaths @('./dist/windows/x64/pyenv-native-windows-x64.zip', './dist/windows/arm64/pyenv-native-windows-arm64.zip') `
-            -ChecksumPaths @('./dist/windows/x64/pyenv-native-windows-x64.zip.sha256', './dist/windows/arm64/pyenv-native-windows-arm64.zip.sha256') `
-            -OutputRoot ./dist/winget
+          cargo xtask package winget `
+            --github-repo $repo `
+            --tag $tag `
+            --bundle ./dist/windows/x64/pyenv-native-windows-x64.zip `
+            --bundle ./dist/windows/arm64/pyenv-native-windows-arm64.zip `
+            --checksum ./dist/windows/x64/pyenv-native-windows-x64.zip.sha256 `
+            --checksum ./dist/windows/arm64/pyenv-native-windows-arm64.zip.sha256 `
+            --output-root ./dist/winget
 
       - name: Generate Homebrew formula
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
-          & ./scripts/build-homebrew-formula.ps1 `
-            -GitHubRepo $repo `
-            -Tag $tag `
-            -AssetRoots @('./dist/linux', './dist/macos') `
-            -OutputPath ./dist/homebrew/pyenv-native.rb
+          cargo xtask package homebrew `
+            --github-repo $repo `
+            --tag $tag `
+            --asset-root ./dist/linux `
+            --asset-root ./dist/macos `
+            --output ./dist/homebrew/pyenv-native.rb
 
       - name: Hash installer scripts
         shell: bash
@@ -446,7 +455,7 @@ jobs:
           done
 
       - name: Publish release assets
-        uses: softprops/action-gh-release@v3.0.3
+        uses: softprops/action-gh-release@v3.0.4
         with:
           files: |
             install.ps1

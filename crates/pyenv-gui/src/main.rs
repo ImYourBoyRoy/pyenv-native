@@ -267,7 +267,8 @@ async fn upgrade_venv(
 ) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let ctx = get_context_with_dir(workspace_dir)?;
-        let report = pyenv_core::cmd_venv_upgrade(&ctx, &spec, &new_runtime, true, false);
+        let report =
+            pyenv_core::cmd_venv_upgrade_noninteractive(&ctx, &spec, &new_runtime, true, false);
         let output = [report.stdout.join("\n"), report.stderr.join("\n")]
             .into_iter()
             .filter(|block| !block.trim().is_empty())
@@ -599,29 +600,10 @@ fn shell_path_label(is_configured: bool, shims_in_path: bool) -> String {
 }
 
 fn known_shell_profile_paths(home: &std::path::Path) -> Vec<std::path::PathBuf> {
-    let mut paths = Vec::new();
-    if cfg!(windows) {
-        paths.push(
-            home.join("Documents")
-                .join("PowerShell")
-                .join("Microsoft.PowerShell_profile.ps1"),
-        );
-        paths.push(
-            home.join("Documents")
-                .join("WindowsPowerShell")
-                .join("Microsoft.PowerShell_profile.ps1"),
-        );
-    } else {
-        paths.push(
-            home.join(".config")
-                .join("powershell")
-                .join("Microsoft.PowerShell_profile.ps1"),
-        );
-    }
-    paths.push(home.join(".zshrc"));
-    paths.push(home.join(".bashrc"));
-    paths.push(home.join(".config").join("fish").join("config.fish"));
-    paths
+    pyenv_core::known_profile_paths(home)
+        .into_iter()
+        .map(|(_, path)| path)
+        .collect()
 }
 
 fn profile_paths_equal(left: &std::path::Path, right: &std::path::Path) -> bool {
@@ -662,18 +644,10 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
     let home = get_home_dir()?;
 
     // 1. PowerShell 7 Profile
-    let pwsh_profile = if cfg!(windows) {
-        home.join("Documents")
-            .join("PowerShell")
-            .join("Microsoft.PowerShell_profile.ps1")
-    } else {
-        home.join(".config")
-            .join("powershell")
-            .join("Microsoft.PowerShell_profile.ps1")
-    };
+    let pwsh_profile = pyenv_core::powershell_profile_path(&home, true);
     let pwsh_configured = pwsh_profile.is_file() && {
         let content = std::fs::read_to_string(&pwsh_profile).unwrap_or_default();
-        content.contains("pyenv init")
+        pyenv_core::has_pyenv_init(&content)
     };
     statuses.push(ShellStatus {
         name: "PowerShell 7 (pwsh)".to_string(),
@@ -686,13 +660,10 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
 
     // 2. Windows PowerShell 5.1 Profile (Windows only)
     if cfg!(windows) {
-        let win_ps_profile = home
-            .join("Documents")
-            .join("WindowsPowerShell")
-            .join("Microsoft.PowerShell_profile.ps1");
+        let win_ps_profile = pyenv_core::powershell_profile_path(&home, false);
         let win_ps_configured = win_ps_profile.is_file() && {
             let content = std::fs::read_to_string(&win_ps_profile).unwrap_or_default();
-            content.contains("pyenv init")
+            pyenv_core::has_pyenv_init(&content)
         };
         statuses.push(ShellStatus {
             name: "Windows PowerShell 5.1".to_string(),
@@ -708,7 +679,7 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
     let zsh_profile = home.join(".zshrc");
     let zsh_configured = zsh_profile.is_file() && {
         let content = std::fs::read_to_string(&zsh_profile).unwrap_or_default();
-        content.contains("pyenv init")
+        pyenv_core::has_pyenv_init(&content)
     };
     statuses.push(ShellStatus {
         name: "Zsh".to_string(),
@@ -727,7 +698,7 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
     let bash_profile = home.join(".bashrc");
     let bash_configured = bash_profile.is_file() && {
         let content = std::fs::read_to_string(&bash_profile).unwrap_or_default();
-        content.contains("pyenv init")
+        pyenv_core::has_pyenv_init(&content)
     };
     statuses.push(ShellStatus {
         name: "Bash".to_string(),
@@ -746,7 +717,7 @@ fn get_shell_statuses_sync(workspace_dir: Option<String>) -> Result<Vec<ShellSta
     let fish_profile = home.join(".config").join("fish").join("config.fish");
     let fish_configured = fish_profile.is_file() && {
         let content = std::fs::read_to_string(&fish_profile).unwrap_or_default();
-        content.contains("pyenv init")
+        pyenv_core::has_pyenv_init(&content)
     };
     statuses.push(ShellStatus {
         name: "Fish".to_string(),
@@ -773,40 +744,26 @@ fn configure_shell_impl(shell_name: &str, profile_path: &str) -> Result<(), Stri
             "Refusing to write a shell profile outside the known user profile set.".to_string(),
         );
     }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create parent directory: {e}"))?;
-    }
-
-    let mut content = if path.exists() {
-        std::fs::read_to_string(&path).unwrap_or_default()
-    } else {
-        String::new()
-    };
-
-    if content.contains("pyenv init") {
-        return Ok(());
-    }
-
-    // Format the initialization block to append
-    let init_block = if shell_name.contains("PowerShell") {
-        "\n# pyenv-native shell initialization\n$__pyenv_init = (pyenv init - pwsh) -join \"`n\"\nif ($__pyenv_init) { Invoke-Expression $__pyenv_init }\n"
+    let kind = if shell_name.contains("PowerShell") {
+        pyenv_core::ShellKind::Pwsh
     } else if shell_name.contains("Zsh") {
-        "\n# pyenv-native shell initialization\neval \"$(pyenv init - zsh)\"\n"
+        pyenv_core::ShellKind::Zsh
     } else if shell_name.contains("Bash") {
-        "\n# pyenv-native shell initialization\neval \"$(pyenv init - bash)\"\n"
+        pyenv_core::ShellKind::Bash
     } else if shell_name.contains("Fish") {
-        "\n# pyenv-native shell initialization\npyenv init - fish | source\n"
+        pyenv_core::ShellKind::Fish
     } else {
         return Err(format!(
             "Unsupported shell for automatic configuration: {shell_name}"
         ));
     };
 
-    content = pyenv_core::append_text_block(content, init_block);
-
-    std::fs::write(&path, content).map_err(|e| format!("Failed to write profile: {e}"))?;
-    Ok(())
+    // One shared, delimited block (also removed cleanly by `pyenv self-uninstall`).
+    let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
+    let layout = pyenv_core::InstallLayout::new(ctx.root.clone());
+    pyenv_core::apply_profile_block(kind, &path, &layout.pyenv_exe(), &layout.bin_dir())
+        .map(|_| ())
+        .map_err(|e| format!("Failed to write profile: {e}"))
 }
 
 #[derive(serde::Serialize)]
@@ -881,33 +838,6 @@ fn any_shell_profile_configured(home: &std::path::Path) -> bool {
     })
 }
 
-fn find_installer_script(parent: &std::path::Path, names: &[&str]) -> Option<std::path::PathBuf> {
-    let mut curr = parent.to_path_buf();
-    for _ in 0..8 {
-        for name in names {
-            let test = curr.join(name);
-            if test.is_file() {
-                return Some(test);
-            }
-        }
-        // Also check install root share / sibling layouts from a managed install
-        if let Some(root) = curr.parent() {
-            for name in names {
-                let test = root.join(name);
-                if test.is_file() {
-                    return Some(test);
-                }
-            }
-        }
-        if let Some(p) = curr.parent() {
-            curr = p.to_path_buf();
-        } else {
-            break;
-        }
-    }
-    None
-}
-
 fn finalize_managed_install(ctx: &pyenv_core::AppContext) -> Result<String, String> {
     let rehash = pyenv_core::cmd_rehash(ctx);
     if rehash.exit_code != 0 {
@@ -951,7 +881,7 @@ fn finalize_managed_install(ctx: &pyenv_core::AppContext) -> Result<String, Stri
         }
         let already = profile.is_file()
             && std::fs::read_to_string(&profile)
-                .map(|c| c.contains("pyenv init"))
+                .map(|c| pyenv_core::has_pyenv_init(&c))
                 .unwrap_or(false);
         if already {
             continue;
@@ -1068,98 +998,30 @@ fn check_install_status_sync() -> InstallStatus {
 #[tauri::command]
 async fn install_local_pyenv() -> Result<String, String> {
     let result = tokio::task::spawn_blocking(|| {
-        let exe_path = std::env::current_exe().unwrap_or_default();
-        let parent = exe_path.parent().unwrap_or(std::path::Path::new("."));
+        let ctx = pyenv_core::AppContext::from_system().map_err(|e| e.to_string())?;
 
         // Prefer finalizing an already-managed install (typical after network install).
-        if let Ok(ctx) = pyenv_core::AppContext::from_system()
-            && managed_binaries_present(&ctx.root)
-        {
+        if managed_binaries_present(&ctx.root) {
             return finalize_managed_install(&ctx);
         }
 
-        #[cfg(target_os = "windows")]
-        {
-            let script_names = [
-                "install-pyenv-native.ps1",
-                "scripts/install-pyenv-native.ps1",
-            ];
-            let script = find_installer_script(parent, &script_names).ok_or_else(|| {
-                "Installer script not found. Your install is incomplete — re-run the network installer from https://github.com/ImYourBoyRoy/pyenv-native/releases/latest/download/install.ps1".to_string()
-            })?;
+        // Otherwise install the binaries that ship next to this GUI executable.
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let source_dir = exe_path
+            .parent()
+            .ok_or_else(|| "Could not locate the GUI executable directory.".to_string())?
+            .to_path_buf();
+        let mut options = pyenv_core::SelfInstallOptions::new(ctx.root.clone());
+        options.source_dir = Some(source_dir);
+        options.yes = true;
+        // A desktop app should not install other software behind the user's back.
+        options.install_powershell7 = pyenv_core::PowerShell7Mode::Never;
 
-            let pyenv_bin = parent.join("pyenv.exe");
-            let mcp_bin = parent.join("pyenv-mcp.exe");
-            let gui_bin = parent.join("pyenv-gui.exe");
-
-            let mut args = vec![
-                "-NoProfile".to_string(),
-                "-ExecutionPolicy".to_string(),
-                "Bypass".to_string(),
-                "-File".to_string(),
-                script.to_string_lossy().to_string(),
-                "-Yes".to_string(),
-            ];
-
-            if pyenv_bin.exists() {
-                args.push("-SourcePath".to_string());
-                args.push(pyenv_bin.to_string_lossy().to_string());
-            }
-            if mcp_bin.exists() {
-                args.push("-SourceMcpPath".to_string());
-                args.push(mcp_bin.to_string_lossy().to_string());
-            }
-            if gui_bin.exists() {
-                args.push("-SourceGuiPath".to_string());
-                args.push(gui_bin.to_string_lossy().to_string());
-            }
-
-            let output = std::process::Command::new(pyenv_core::windows_powershell_host())
-                .headless()
-                .args(&args)
-                .output()
-                .map_err(|e| e.to_string())?;
-
-            if !output.status.success() {
-                return Err(String::from_utf8_lossy(&output.stderr).to_string());
-            }
-            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let report = pyenv_core::cmd_self_install(&options);
+        if report.exit_code != 0 {
+            return Err(report.stderr.join("\n"));
         }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let script_names = ["install-pyenv-native.sh", "scripts/install-pyenv-native.sh"];
-            let script = find_installer_script(parent, &script_names).ok_or_else(|| {
-                "Installer script not found. Your install is incomplete — re-run:\ncurl -fsSL https://github.com/ImYourBoyRoy/pyenv-native/releases/latest/download/install.sh | sh".to_string()
-            })?;
-
-            let mut args = vec![script.to_string_lossy().to_string(), "--yes".to_string()];
-
-            let pyenv_bin = parent.join("pyenv");
-            if pyenv_bin.exists() {
-                args.push("--source-path".to_string());
-                args.push(pyenv_bin.to_string_lossy().to_string());
-            }
-            let mcp_bin = parent.join("pyenv-mcp");
-            if mcp_bin.exists() {
-                args.push("--source-mcp-path".to_string());
-                args.push(mcp_bin.to_string_lossy().to_string());
-            }
-            let gui_bin = parent.join("pyenv-gui");
-            if gui_bin.exists() {
-                args.push("--source-gui-path".to_string());
-                args.push(gui_bin.to_string_lossy().to_string());
-            }
-
-            let output = std::process::Command::new("sh")
-                .args(&args)
-                .output()
-                .map_err(|e| e.to_string())?;
-
-            if !output.status.success() {
-                return Err(String::from_utf8_lossy(&output.stderr).to_string());
-            }
-            Ok(String::from_utf8_lossy(&output.stdout).to_string())
-        }
+        Ok(report.stdout.join("\n"))
     })
     .await
     .map_err(|e| e.to_string())?;

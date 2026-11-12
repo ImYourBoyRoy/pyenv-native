@@ -35,7 +35,7 @@ pub fn windows_powershell_host() -> &'static str {
     }
 }
 
-fn command_on_path(name: &str) -> bool {
+pub(crate) fn command_on_path(name: &str) -> bool {
     let Some(path) = env::var_os("PATH") else {
         return false;
     };

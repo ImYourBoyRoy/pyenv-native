@@ -24,4 +24,4 @@ Get-ChildItem $Src -Filter '*.ftl' | ForEach-Object {
         Set-Content -NoNewline (Join-Path $Dest $_.Name)
 }
 
-Write-Host "Created $Dest from en-US. Add scripts/i18n/overlays/$Tag.json, list the tag in seed_locales.py LOCALES, translate, seed, then run sh ./scripts/check-i18n.sh"
+Write-Host "Created $Dest from en-US. Add scripts/i18n/overlays/$Tag.json, list the tag in seed_locales.py LOCALES, translate, seed, then run cargo xtask policy i18n"

@@ -4,31 +4,34 @@ This folder holds generated or generator-backed Winget manifests for the Windows
 
 ## Generate manifests
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1
+```sh
+cargo xtask package winget
 ```
 
 Common overrides:
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 `
-  -GitHubRepo imyourboyroy/pyenv-native `
-  -Tag vX.Y.Z `
-  -ManifestVersion 1.12.0 `
-  -Validate
+```sh
+cargo xtask package winget \
+  --github-repo imyourboyroy/pyenv-native \
+  --tag vX.Y.Z \
+  --manifest-version 1.12.0 \
+  --validate
 ```
+
+Pass `--bundle <zip>` once per architecture (with matching `--checksum <file>`) to emit a
+multi-architecture installer manifest.
 
 ## Optional validation
 
-If `winget` is available locally, the script can run a strict manifest validation pass:
+If `winget` is available locally, the command can run a strict manifest validation pass:
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 -Validate
+```sh
+cargo xtask package winget --validate
 ```
 
 ## Output layout
 
-The script writes manifests under:
+The command writes manifests under:
 
 ```text
 packaging/winget/manifests/<first-letter>/<publisher>/<package>/<version>/

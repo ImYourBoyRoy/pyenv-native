@@ -60,6 +60,7 @@ DIAGNOSTICS & CONFIG:
   version-file-read  Read the contents of a .python-version file
 
 MAINTENANCE:
+  self-install       Install or repair pyenv-native from a release bundle
   self-update        Check for or install the latest published pyenv-native release
   self-uninstall     Uninstall pyenv-native from your system
 
@@ -384,10 +385,105 @@ pub(crate) enum Commands {
         #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
         tag: Option<String>,
     },
+    #[command(
+        about = "Install or repair pyenv-native from a release bundle",
+        long_about = "Copy pyenv, pyenv-mcp, and pyenv-gui (when present) from the directory this binary runs from into a portable root, then set up shell/PATH integration, refresh shims, and verify the result.\n\nThe release bootstrap scripts (install.sh / install.ps1) download and verify a bundle and then run this command. Run it from an installed copy to repair shell integration."
+    )]
+    SelfInstall {
+        #[arg(
+            long = "install-root",
+            help = "Portable root to install into (default: PYENV_ROOT or ~/.pyenv)"
+        )]
+        install_root: Option<PathBuf>,
+        #[arg(
+            long = "source-dir",
+            help = "Directory holding the binaries to install (default: this binary's directory)"
+        )]
+        source_dir: Option<PathBuf>,
+        #[arg(long = "source-path", help = "Explicit path to the pyenv binary")]
+        source_path: Option<PathBuf>,
+        #[arg(
+            long = "source-mcp-path",
+            help = "Explicit path to the pyenv-mcp binary"
+        )]
+        source_mcp_path: Option<PathBuf>,
+        #[arg(
+            long = "source-gui-path",
+            help = "Explicit path to the pyenv-gui binary"
+        )]
+        source_gui_path: Option<PathBuf>,
+        #[arg(
+            long = "shell",
+            help = "Shell to integrate with: bash, zsh, fish, sh, pwsh, cmd, or none (default: detected)"
+        )]
+        shell: Option<String>,
+        #[arg(
+            long = "add-to-user-path",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Windows: add bin and shims to the persistent user PATH"
+        )]
+        add_to_user_path: bool,
+        #[arg(
+            long = "update-shell-profile",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Add the pyenv init block to the shell profile"
+        )]
+        update_shell_profile: bool,
+        #[arg(
+            long = "refresh-shims",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Run `pyenv rehash` after installing"
+        )]
+        refresh_shims: bool,
+        #[arg(
+            long = "install-powershell7",
+            value_name = "auto|true|false",
+            default_value = "auto",
+            help = "Windows: install PowerShell 7 with winget when it is missing"
+        )]
+        install_powershell7: String,
+        #[arg(long = "log-path", help = "Where to write the install log")]
+        log_path: Option<PathBuf>,
+        #[arg(long = "lang", help = "Interface language for installer messages")]
+        lang: Option<String>,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Overwrite a non-empty install root without asking"
+        )]
+        force: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(long = "wait-for-pid", hide = true)]
+        wait_for_pid: Option<u32>,
+        #[arg(long = "relaunch-gui", hide = true)]
+        relaunch_gui: bool,
+    },
     #[command(about = "Uninstall pyenv-native from your system")]
     SelfUninstall {
         #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
         yes: bool,
+        #[arg(
+            long = "keep-data",
+            help = "Keep installed Python versions, virtual environments, and caches; remove only pyenv-native itself and its shell integration"
+        )]
+        keep_data: bool,
+        #[arg(
+            long = "keep-shell-integration",
+            help = "Leave shell profile blocks, user PATH entries, and desktop launchers untouched"
+        )]
+        keep_shell_integration: bool,
+        #[arg(long = "finish-after-pid", hide = true)]
+        finish_after_pid: Option<u32>,
     },
 
     // --- SUPPORT ---
@@ -653,4 +749,15 @@ pub(crate) enum PipCommands {
         #[arg(help = "Package names or name==version pins to update")]
         packages: Vec<String>,
     },
+}
+
+/// Parse the boolean spellings the install scripts have always accepted.
+fn parse_bool_flag(value: &str) -> Result<bool, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        other => Err(format!(
+            "invalid boolean `{other}`; use true/false, yes/no, on/off, or 1/0"
+        )),
+    }
 }

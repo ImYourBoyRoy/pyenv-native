@@ -15,6 +15,7 @@ from pyenv_native_bootstrap.bundle import BundleManifest
 from pyenv_native_bootstrap.installer import (
     InstallRequest,
     build_posix_install_command,
+    build_self_install_command,
     build_windows_install_command,
     plan_install,
     resolve_bundle_path,
@@ -128,6 +129,40 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("--add-to-user-path", command)
             self.assertIn("false", command)
             self.assertIn("--force", command)
+
+    def test_build_self_install_command_runs_the_bundled_binary(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            extracted_dir = Path(temp_dir)
+            executable = extracted_dir / "pyenv"
+            executable.write_text("binary", encoding="utf-8")
+            manifest = BundleManifest(
+                bundle_name="pyenv-native-linux-x64",
+                bundle_version="0.6.0",
+                platform="linux",
+                architecture="x64",
+                executable="pyenv",
+            )
+            self.assertIsNone(manifest.install_script)
+            command = build_self_install_command(
+                extracted_dir,
+                InstallRequest(
+                    install_root=Path(temp_dir) / "portable",
+                    shell="zsh",
+                    add_to_user_path=False,
+                    update_powershell_profile=False,
+                    refresh_shims=True,
+                    force=True,
+                ),
+                manifest,
+            )
+            self.assertEqual(command[0], str(executable))
+            self.assertEqual(command[1], "self-install")
+            self.assertEqual(command[command.index("--source-dir") + 1], str(extracted_dir))
+            self.assertEqual(command[command.index("--shell") + 1], "zsh")
+            self.assertEqual(command[command.index("--add-to-user-path") + 1], "false")
+            self.assertEqual(command[command.index("--refresh-shims") + 1], "true")
+            self.assertIn("--force", command)
+            self.assertIn("--install-root", command)
 
     def test_resolve_bundle_path_uses_environment_release_base_url(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

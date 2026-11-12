@@ -34,6 +34,7 @@ cli-which-about = 显示可执行文件的完整路径
 cli-whence-about = 列出包含给定可执行文件的所有 Python 版本
 cli-version-file-about = 检测设置当前 pyenv 版本的文件
 cli-version-file-read-about = 读取 .python-version 文件内容
+cli-self-install-about = 从发行包安装或修复 pyenv-native
 cli-self-uninstall-about = 从系统卸载 pyenv-native
 cli-help-about = 显示命令帮助
 cli-commands-about = 列出所有可用的 pyenv 命令

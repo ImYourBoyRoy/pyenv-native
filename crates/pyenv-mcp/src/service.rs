@@ -5,7 +5,7 @@ use anyhow::Result;
 use rmcp::{
     Json, ServerHandler,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerInfo},
+    model::{ServerCapabilities, ServerConfig},
     tool, tool_handler, tool_router,
 };
 
@@ -49,8 +49,8 @@ impl PyenvNativeMcpServer {
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for PyenvNativeMcpServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
             "Use preflight before ensure_runtime on macOS/Android/Linux source builds. Use resolve_project_environment before making changes. Prefer ensure_runtime and ensure_project_venv over shelling out. When unsure, call get_toolkit_guide first. Prefer project-local .venv environments for agent work. Install progress is streamed to ~/.pyenv/logs/install-progress.jsonl and returned in progress_steps.",
         )
     }
@@ -421,7 +421,7 @@ impl PyenvNativeMcpServer {
 
     #[tool(
         name = "venv_upgrade",
-        description = "Migrate a managed venv onto another installed Python runtime. A target prefix resolves to the newest installed matching runtime. Snapshots pip freeze requirements, tries exact restoration first, then retries ordinary version pins as lower bounds when the target Python rejects them while preserving direct/VCS/editable lines. Requires pip check before activation; inventory, restore, compatibility, verification, and activation failures leave the source env in place. force=true permits replacing an existing target through a rollback path."
+        description = "Migrate a managed venv onto another installed Python runtime. A target prefix resolves to the newest installed matching runtime. Snapshots pip freeze requirements, tries exact restoration first, then retries ordinary version pins as lower bounds when the target Python rejects them while preserving direct/VCS/editable lines. Requires pip check before activation; inventory, restore, compatibility, verification, and activation failures leave the source env in place. Never prompts; force=true permits replacing an existing target through a rollback path (it is restored if anything fails)."
     )]
     pub async fn venv_upgrade(
         &self,

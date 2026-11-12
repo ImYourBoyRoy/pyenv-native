@@ -507,6 +507,7 @@
   "cli-pip-update-about": "Hedef ortam içindeki pip paketlerini güncelle",
   "cli-preflight-about": "Platform bilgisi ve kurulum hazırlığı preflight",
   "cli-root-about": "Sürümlerin ve shim’lerin tutulduğu kök dizini göster",
+  "cli-self-install-about": "pyenv-native'i bir sürüm paketinden kur veya onar",
   "cli-self-uninstall-about": "pyenv-native’i sistemden kaldır",
   "cli-status-about": "Kapsamlı ortam durumunu göster (sürümler, kaynaklar, venv’ler)",
   "cli-venv-create-about": "Belirli bir çalışma zamanı altında yönetilen sanal ortam oluştur",

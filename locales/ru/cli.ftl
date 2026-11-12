@@ -34,6 +34,7 @@ cli-which-about = Показать полный путь к исполняемо
 cli-whence-about = Перечислить все версии Python, содержащие указанный исполняемый файл
 cli-version-file-about = Обнаружить файл, задающий текущую версию pyenv
 cli-version-file-read-about = Прочитать содержимое файла .python-version
+cli-self-install-about = Установить или восстановить pyenv-native из релизного пакета
 cli-self-uninstall-about = Удалить pyenv-native из системы
 cli-help-about = Показать справку по команде
 cli-commands-about = Перечислить все доступные команды pyenv

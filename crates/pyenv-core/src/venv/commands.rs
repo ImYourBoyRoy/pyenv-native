@@ -9,6 +9,7 @@ use std::process::{Command, Output};
 use crate::command::CommandReport;
 use crate::context::AppContext;
 use crate::error::PyenvError;
+use crate::fs_util::{remove_dir_all_with_retry, rename_with_retry};
 use crate::venv_paths::{managed_venv_dir, managed_venv_spec, managed_venvs_root};
 use crate::version::{cmd_global, cmd_local, installed_version_dir};
 
@@ -103,7 +104,7 @@ pub fn cmd_venv_create(
     force: bool,
     set_local: bool,
 ) -> CommandReport {
-    match create_managed_venv(ctx, requested_version, name, force, set_local) {
+    match create_managed_venv(ctx, requested_version, name, force, set_local, true) {
         Ok((info, local_written, progress_steps)) => {
             let mut stdout = vec!["Progress:".to_string()];
             stdout.extend(progress_steps.into_iter().map(|step| format!("  - {step}")));
@@ -197,6 +198,8 @@ pub fn cmd_venv_rename(ctx: &AppContext, spec: &str, new_name: &str) -> CommandR
             ),
             "Hint: update any `.python-version` files that referenced the old venv spec."
                 .to_string(),
+            "Warning: activate scripts, script shebangs, and (on Windows) console-script launchers inside the venv still reference the old path; prefer `pyenv venv upgrade` or recreate the venv if entry points such as `pip` stop working."
+                .to_string(),
         ]),
         Err(error) => CommandReport::failure(
             vec![format!(
@@ -242,6 +245,7 @@ fn create_managed_venv(
     name: &str,
     force: bool,
     set_local: bool,
+    check_name_collisions: bool,
 ) -> Result<(super::types::ManagedVenvInfo, bool, Vec<String>), PyenvError> {
     if !is_safe_env_name(name) {
         return Err(PyenvError::Io(format!(
@@ -250,11 +254,13 @@ fn create_managed_venv(
     }
 
     let resolved_version = resolve_installed_runtime_version(ctx, requested_version)?;
-    let collisions = find_env_name_matches(ctx, name)?;
-    if !collisions.is_empty() {
-        let exact_spec = managed_venv_spec(&resolved_version, name);
-        if !(force && collisions.iter().all(|item| item.spec == exact_spec)) {
-            return Err(PyenvError::Io(format_collision_error(name, &collisions)));
+    if check_name_collisions {
+        let collisions = find_env_name_matches(ctx, name)?;
+        if !collisions.is_empty() {
+            let exact_spec = managed_venv_spec(&resolved_version, name);
+            if !(force && collisions.iter().all(|item| item.spec == exact_spec)) {
+                return Err(PyenvError::Io(format_collision_error(name, &collisions)));
+            }
         }
     }
 
@@ -356,12 +362,58 @@ fn create_managed_venv(
     Ok((info, local_written, progress_steps))
 }
 
+/// Whether a venv upgrade may ask for confirmation on stdin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UpgradeConfirmation {
+    Prompt,
+    AssumeYes,
+}
+
+/// Upgrade (migrate) a managed venv onto another installed runtime.
+///
+/// `force` skips the confirmation prompt and permits replacing an existing target venv.
 pub fn cmd_venv_upgrade(
     ctx: &AppContext,
     spec: &str,
     new_runtime: &str,
     force: bool,
     set_local: bool,
+) -> CommandReport {
+    let confirmation = if force {
+        UpgradeConfirmation::AssumeYes
+    } else {
+        UpgradeConfirmation::Prompt
+    };
+    venv_upgrade_impl(ctx, spec, new_runtime, force, set_local, confirmation)
+}
+
+/// Same as [`cmd_venv_upgrade`] but never reads from stdin. Use this from hosts whose stdin/stdout
+/// are a protocol channel (the stdio MCP server) or that have no terminal (GUI). `replace_existing`
+/// only controls whether an already-present target venv may be replaced via a rollback path.
+pub fn cmd_venv_upgrade_noninteractive(
+    ctx: &AppContext,
+    spec: &str,
+    new_runtime: &str,
+    replace_existing: bool,
+    set_local: bool,
+) -> CommandReport {
+    venv_upgrade_impl(
+        ctx,
+        spec,
+        new_runtime,
+        replace_existing,
+        set_local,
+        UpgradeConfirmation::AssumeYes,
+    )
+}
+
+fn venv_upgrade_impl(
+    ctx: &AppContext,
+    spec: &str,
+    new_runtime: &str,
+    replace_existing: bool,
+    set_local: bool,
+    confirmation: UpgradeConfirmation,
 ) -> CommandReport {
     let info = match resolve_managed_venv(ctx, spec) {
         Ok(i) => i,
@@ -411,7 +463,8 @@ pub fn cmd_venv_upgrade(
     let package_count = snapshot.package_count;
 
     let destination = managed_venv_dir(ctx, &resolved_new_version, &info.name);
-    if destination.exists() && !force {
+    let destination_exists = destination.exists();
+    if destination_exists && !replace_existing {
         return CommandReport::failure(
             vec![format!(
                 "pyenv: target managed venv `{}` already exists at {}; use --force to replace it",
@@ -422,7 +475,7 @@ pub fn cmd_venv_upgrade(
         );
     }
 
-    if !force {
+    if confirmation == UpgradeConfirmation::Prompt {
         let msg = format!(
             "pyenv: migrate managed venv {} to runtime {}? (this will recreate the environment and reinstall {} packages) [y/N] ",
             info.spec, resolved_new_version, package_count
@@ -435,146 +488,21 @@ pub fn cmd_venv_upgrade(
         }
     }
 
-    let temp_name = match allocate_migrating_name(ctx, &info.name) {
-        Ok(name) => name,
-        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
-    };
-
     let mut stdout = vec!["Progress:".to_string()];
     stdout.push(format!(
         "  - backup: captured {} custom packages from {}",
         package_count, info.spec
     ));
 
-    let (mut new_info, _local_written, create_steps) =
-        match create_managed_venv(ctx, &resolved_new_version, &temp_name, false, false) {
-            Ok(res) => res,
-            Err(e) => {
-                return CommandReport::failure(
-                    vec![format!("pyenv: failed to create migration venv: {e}")],
-                    1,
-                );
-            }
-        };
-    stdout.extend(create_steps.into_iter().map(|s| format!("  - {s}")));
-
-    let new_py_path = match &new_info.python_path {
-        Some(p) if p.exists() => p.clone(),
-        _ => {
-            let _ = fs::remove_dir_all(&new_info.path);
-            return CommandReport::failure(
-                vec![format!(
-                    "pyenv: new python interpreter was not found on disk at {:?}",
-                    new_info.python_path
-                )],
-                1,
-            );
-        }
-    };
-
-    stdout.push("  - verify: checking dependency constraints...".to_string());
-    let mut restore_mode = PackageRestoreMode::Exact;
-    let exact_restore = restore_packages_and_verify(
-        &new_py_path,
-        &new_info.path,
-        &exact_package_requirements,
-        false,
-    );
-    if let Err(exact_error) = exact_restore {
-        if package_count == 0 {
-            let _ = fs::remove_dir_all(&new_info.path);
-            stdout.push(format!(
-                "  - verification failed for the fresh environment: {exact_error}"
-            ));
-            stdout.push(
-                "pyenv: dependency verification failed; the source venv was left unchanged."
-                    .to_string(),
-            );
-            return CommandReport::failure(stdout, 1);
-        }
-
-        stdout.push(format!(
-            "  - compatibility: exact package restore was not usable on runtime {}: {exact_error}",
-            resolved_new_version
-        ));
-        if let Err(cleanup_error) = fs::remove_dir_all(&new_info.path) {
-            stdout.push(format!(
-                "pyenv: could not reset the migration staging environment: {cleanup_error}"
-            ));
-            stdout.push("The source venv was left unchanged.".to_string());
-            return CommandReport::failure(stdout, 1);
-        }
-
-        let (refreshed_info, _local_written, refresh_steps) =
-            match create_managed_venv(ctx, &resolved_new_version, &temp_name, true, false) {
-                Ok(res) => res,
-                Err(error) => {
-                    stdout.push(format!(
-                        "pyenv: could not recreate the compatibility staging environment: {error}"
-                    ));
-                    stdout.push("The source venv was left unchanged.".to_string());
-                    return CommandReport::failure(stdout, 1);
-                }
-            };
-        new_info = refreshed_info;
-        stdout.extend(
-            refresh_steps
-                .into_iter()
-                .map(|step| format!("  - compatibility: {step}")),
-        );
-
-        let refreshed_python = match &new_info.python_path {
-            Some(path) if path.exists() => path.clone(),
-            _ => {
-                let _ = fs::remove_dir_all(&new_info.path);
-                stdout.push(
-                    "pyenv: compatibility staging environment has no usable Python interpreter."
-                        .to_string(),
-                );
-                stdout.push("The source venv was left unchanged.".to_string());
-                return CommandReport::failure(stdout, 1);
-            }
-        };
-
-        stdout.push(format!(
-            "  - compatibility: resolving {} package lower bounds for the target Python...",
-            package_count
-        ));
-        if let Err(compatible_error) = restore_packages_and_verify(
-            &refreshed_python,
-            &new_info.path,
-            &compatible_package_requirements,
-            true,
-        ) {
-            let _ = fs::remove_dir_all(&new_info.path);
-            stdout.push(format!(
-                "pyenv: compatible package restore and verification failed: {compatible_error}"
-            ));
-            stdout.push("The source venv was left unchanged.".to_string());
-            return CommandReport::failure(stdout, 1);
-        }
-        restore_mode = PackageRestoreMode::Compatible;
-    }
-
-    match restore_mode {
-        PackageRestoreMode::Exact => stdout.push(format!(
-            "  - restore: preserved {} package versions",
-            package_count
-        )),
-        PackageRestoreMode::Compatible => stdout.push(format!(
-            "  - restore: installed {} target-compatible package versions",
-            package_count
-        )),
-    }
-    stdout.push("    - verification success: all dependency constraints satisfied!".to_string());
-
-    let backup_path = if destination.exists() {
-        let backup = allocate_replacement_backup_path(ctx, &resolved_new_version, &info.name)
-            .map_err(|error| error.to_string());
-        let backup = match backup {
+    // The new environment is built directly at its final path. A venv bakes its own absolute path
+    // into `activate*`, script shebangs and (on Windows) the console-script `.exe` launchers, so
+    // building it elsewhere and renaming the directory would leave every entry point broken.
+    // An existing target is moved aside first so it can be restored if anything fails.
+    let backup_path = if destination_exists {
+        let backup = match allocate_replacement_backup_path(ctx, &resolved_new_version, &info.name)
+        {
             Ok(path) => path,
             Err(error) => {
-                let _ = fs::remove_dir_all(&new_info.path);
                 stdout.push(format!(
                     "pyenv: cannot prepare the existing target for replacement: {error}"
                 ));
@@ -582,8 +510,7 @@ pub fn cmd_venv_upgrade(
                 return CommandReport::failure(stdout, 1);
             }
         };
-        if let Err(error) = fs::rename(&destination, &backup) {
-            let _ = fs::remove_dir_all(&new_info.path);
+        if let Err(error) = rename_with_retry(&destination, &backup) {
             stdout.push(format!(
                 "pyenv: could not move the existing target venv to a rollback path: {error}"
             ));
@@ -599,76 +526,236 @@ pub fn cmd_venv_upgrade(
     } else {
         None
     };
+    let backup_ref = backup_path.as_deref();
 
-    if let Err(error) = fs::rename(&new_info.path, &destination) {
-        if let Some(backup) = backup_path.as_ref()
-            && let Err(restore_error) = fs::rename(backup, &destination)
-        {
-            stdout.push(format!(
-                "pyenv: failed to restore the previous target after rename failure: {restore_error}"
-            ));
+    let (mut new_info, _local_written, create_steps) =
+        match create_managed_venv(ctx, &resolved_new_version, &info.name, false, false, false) {
+            Ok(res) => res,
+            Err(e) => {
+                return abort_upgrade(
+                    stdout,
+                    &destination,
+                    backup_ref,
+                    Some(format!("pyenv: failed to create migration venv: {e}")),
+                );
+            }
+        };
+    stdout.extend(create_steps.into_iter().map(|s| format!("  - {s}")));
+
+    let new_py_path = match &new_info.python_path {
+        Some(p) if p.exists() => p.clone(),
+        _ => {
+            let reason = format!(
+                "pyenv: new python interpreter was not found on disk at {:?}",
+                new_info.python_path
+            );
+            return abort_upgrade(stdout, &destination, backup_ref, Some(reason));
         }
+    };
+
+    stdout.push("  - verify: checking dependency constraints...".to_string());
+    let mut restore_mode = PackageRestoreMode::Exact;
+    let exact_restore = restore_packages_and_verify(
+        &new_py_path,
+        &new_info.path,
+        &exact_package_requirements,
+        false,
+    );
+    if let Err(exact_error) = exact_restore {
+        if package_count == 0 {
+            stdout.push(format!(
+                "  - verification failed for the fresh environment: {exact_error}"
+            ));
+            return abort_upgrade(
+                stdout,
+                &destination,
+                backup_ref,
+                Some("pyenv: dependency verification failed.".to_string()),
+            );
+        }
+
         stdout.push(format!(
-            "pyenv: could not activate the migrated venv at {}: {error}",
-            destination.display()
+            "  - compatibility: exact package restore was not usable on runtime {}: {exact_error}",
+            resolved_new_version
         ));
-        stdout.push("The source venv was left unchanged.".to_string());
-        return CommandReport::failure(stdout, 1);
+        if let Err(cleanup_error) = remove_dir_all_with_retry(&new_info.path) {
+            let reason = format!(
+                "pyenv: could not reset the migration staging environment: {cleanup_error}"
+            );
+            return abort_upgrade(stdout, &destination, backup_ref, Some(reason));
+        }
+
+        let (refreshed_info, _local_written, refresh_steps) = match create_managed_venv(
+            ctx,
+            &resolved_new_version,
+            &info.name,
+            false,
+            false,
+            false,
+        ) {
+            Ok(res) => res,
+            Err(error) => {
+                let reason = format!(
+                    "pyenv: could not recreate the compatibility staging environment: {error}"
+                );
+                return abort_upgrade(stdout, &destination, backup_ref, Some(reason));
+            }
+        };
+        new_info = refreshed_info;
+        stdout.extend(
+            refresh_steps
+                .into_iter()
+                .map(|step| format!("  - compatibility: {step}")),
+        );
+
+        let refreshed_python = match &new_info.python_path {
+            Some(path) if path.exists() => path.clone(),
+            _ => {
+                let reason =
+                    "pyenv: compatibility staging environment has no usable Python interpreter."
+                        .to_string();
+                return abort_upgrade(stdout, &destination, backup_ref, Some(reason));
+            }
+        };
+
+        stdout.push(format!(
+            "  - compatibility: resolving {} package lower bounds for the target Python...",
+            package_count
+        ));
+        if let Err(compatible_error) = restore_packages_and_verify(
+            &refreshed_python,
+            &new_info.path,
+            &compatible_package_requirements,
+            true,
+        ) {
+            let reason = format!(
+                "pyenv: compatible package restore and verification failed: {compatible_error}"
+            );
+            return abort_upgrade(stdout, &destination, backup_ref, Some(reason));
+        }
+        restore_mode = PackageRestoreMode::Compatible;
     }
+
+    match restore_mode {
+        PackageRestoreMode::Exact => stdout.push(format!(
+            "  - restore: preserved {} package versions",
+            package_count
+        )),
+        PackageRestoreMode::Compatible => stdout.push(format!(
+            "  - restore: installed {} target-compatible package versions",
+            package_count
+        )),
+    }
+    stdout.push("    - verification success: all dependency constraints satisfied!".to_string());
     stdout.push(format!(
         "  - finalize: activated migrated venv at {}",
         destination.display()
     ));
 
-    stdout.push("  - cleanup: removing old virtual environment...".to_string());
-    if let Err(error) = fs::remove_dir_all(&info.path) {
-        stdout.push(format!(
-            "pyenv: the migrated venv is ready at {}, but the source venv could not be removed: {error}",
-            destination.display()
-        ));
-        stdout.push(format!("    - source retained at {}", info.path.display()));
-        return CommandReport::failure(stdout, 1);
-    }
-    stdout.push(format!(
-        "    - removed old managed venv at {}",
-        info.path.display()
-    ));
-
-    if let Some(backup) = backup_path {
-        if let Err(error) = fs::remove_dir_all(&backup) {
-            stdout.push(format!(
-                "pyenv: migration completed, but the previous target rollback copy could not be removed: {} ({error})",
-                backup.display()
-            ));
-            return CommandReport::failure(stdout, 1);
-        }
-        stdout.push(format!(
-            "  - target: removed rollback copy {}",
-            backup.display()
-        ));
-    }
-
+    // The migration itself has succeeded. Point selections at the new venv *before* cleanup so a
+    // locked file on the old environment (common on Windows) can never leave `.python-version`
+    // pointing at a stale spec.
     let final_spec = managed_venv_spec(&resolved_new_version, &info.name);
     retarget_selection_files(ctx, &info.spec, &final_spec, &mut stdout);
 
+    let mut selection_error = None;
     if set_local {
         let report = cmd_local(ctx, std::slice::from_ref(&final_spec), false, true);
         if report.exit_code != 0 {
             stdout.extend(report.stderr);
-            stdout.push(format!(
+            selection_error = Some(format!(
                 "pyenv: migrated to {final_spec}, but writing .python-version failed."
             ));
-            return CommandReport::failure(stdout, 1);
+        } else {
+            stdout.push(format!(
+                "  - selection: wrote local .python-version for {final_spec}"
+            ));
         }
-        stdout.push(format!(
-            "  - selection: wrote local .python-version for {final_spec}"
-        ));
+    }
+
+    // Cleanup is best-effort: failures are reported as warnings, not as a failed migration.
+    let mut warnings = Vec::new();
+    stdout.push("  - cleanup: removing old virtual environment...".to_string());
+    match remove_dir_all_with_retry(&info.path) {
+        Ok(()) => stdout.push(format!(
+            "    - removed old managed venv at {}",
+            info.path.display()
+        )),
+        Err(error) => {
+            warnings.push(format!(
+                "the old venv at {} could not be fully removed ({error}); close anything using it (editors, shells, language servers) and run `pyenv venv delete {} --force`",
+                info.path.display(),
+                info.spec
+            ));
+        }
+    }
+
+    if let Some(backup) = backup_path {
+        match remove_dir_all_with_retry(&backup) {
+            Ok(()) => stdout.push(format!(
+                "  - target: removed rollback copy {}",
+                backup.display()
+            )),
+            Err(error) => warnings.push(format!(
+                "the previous target rollback copy at {} could not be removed ({error}); delete it manually",
+                backup.display()
+            )),
+        }
+    }
+
+    for warning in &warnings {
+        stdout.push(format!("pyenv: warning: {warning}"));
+    }
+
+    if let Some(message) = selection_error {
+        stdout.push(message);
+        return CommandReport::failure(stdout, 1);
     }
 
     stdout.push(format!(
         "Managed venv successfully upgraded to: {final_spec}"
     ));
     CommandReport::success(stdout)
+}
+
+/// Roll back a failed upgrade: drop the partially built target and restore any replaced target.
+/// The source venv is never touched before this point, so it is always left unchanged.
+pub(super) fn abort_upgrade(
+    mut stdout: Vec<String>,
+    destination: &Path,
+    backup: Option<&Path>,
+    reason: Option<String>,
+) -> CommandReport {
+    if let Some(reason) = reason {
+        stdout.push(reason);
+    }
+    if destination.exists()
+        && let Err(error) = remove_dir_all_with_retry(destination)
+    {
+        stdout.push(format!(
+            "pyenv: could not remove the partially built environment at {}: {error}",
+            destination.display()
+        ));
+    }
+    if let Some(backup) = backup {
+        if destination.exists() {
+            stdout.push(format!(
+                "pyenv: the previous target venv was kept at {} because {} could not be cleared",
+                backup.display(),
+                destination.display()
+            ));
+        } else if let Err(error) = rename_with_retry(backup, destination) {
+            stdout.push(format!(
+                "pyenv: failed to restore the previous target venv from {} to {}: {error}",
+                backup.display(),
+                destination.display()
+            ));
+        } else {
+            stdout.push("  - target: restored the previous target venv".to_string());
+        }
+    }
+    stdout.push("The source venv was left unchanged.".to_string());
+    CommandReport::failure(stdout, 1)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -880,25 +967,6 @@ fn allocate_replacement_backup_path(
     }
     Err(PyenvError::Io(format!(
         "pyenv: could not allocate a rollback path for managed venv `{name}`"
-    )))
-}
-
-fn allocate_migrating_name(ctx: &AppContext, original: &str) -> Result<String, PyenvError> {
-    for suffix in 0..100u32 {
-        let candidate = if suffix == 0 {
-            format!("{original}-migrating")
-        } else {
-            format!("{original}-migrating-{suffix}")
-        };
-        if !is_safe_env_name(&candidate) {
-            continue;
-        }
-        if find_env_name_matches(ctx, &candidate)?.is_empty() {
-            return Ok(candidate);
-        }
-    }
-    Err(PyenvError::Io(format!(
-        "pyenv: could not allocate a temporary migration name for `{original}`"
     )))
 }
 

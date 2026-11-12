@@ -123,6 +123,15 @@ try {
     if (-not (Test-Path -LiteralPath $targetVenvPython)) {
         throw "target interpreter is missing: $targetVenvPython"
     }
+    # Console-script launchers embed the venv path; they must survive migration.
+    $targetVenvPip = Join-Path $targetEnv 'Scripts\pip.exe'
+    & $targetVenvPip --version | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "pip.exe launcher is broken after migration: $targetVenvPip"
+    }
+    if (Select-String -LiteralPath (Join-Path $targetEnv 'Scripts\activate.bat') -Pattern '-migrating' -Quiet) {
+        throw 'activate.bat still references the staging path'
+    }
     $previous = Get-ChildItem -LiteralPath (Split-Path -Parent $targetEnv) -Directory -Filter 'migration-test-previous*' -ErrorAction SilentlyContinue
     if ($previous) {
         throw "rollback copy was not cleaned up: $($previous.FullName -join ', ')"

@@ -507,6 +507,7 @@
   "cli-pip-update-about": "대상 환경의 pip 패키지를 업데이트합니다",
   "cli-preflight-about": "플랫폼 정보 및 설치 준비 preflight",
   "cli-root-about": "버전과 shim이 보관되는 루트 디렉터리를 표시합니다",
+  "cli-self-install-about": "릴리스 번들에서 pyenv-native를 설치하거나 복구합니다",
   "cli-self-uninstall-about": "시스템에서 pyenv-native를 제거합니다",
   "cli-status-about": "포괄적인 환경 상태(버전, 출처, venv)를 표시합니다",
   "cli-venv-create-about": "지정한 런타임 아래에 관리형 가상 환경을 만듭니다",

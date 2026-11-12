@@ -9,14 +9,15 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, FromArgMatches};
 use pyenv_core::{
-    AppContext, CommandReport, DoctorFix, InstallCommandOptions, SelfUpdateOptions, VenvUseScope,
+    AppContext, CommandReport, DoctorFix, InstallCommandOptions, PowerShell7Mode,
+    SelfInstallOptions, SelfUninstallOptions, SelfUpdateOptions, ShellKind, VenvUseScope,
     VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_available, cmd_commands,
     cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
     cmd_deactivate, cmd_doctor, cmd_environment, cmd_exec, cmd_external, cmd_global, cmd_help,
     cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local, cmd_pip_analyze_imports,
     cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements,
     cmd_pip_update, cmd_prefix, cmd_preflight, cmd_prompt, cmd_rehash, cmd_root,
-    cmd_self_uninstall, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
+    cmd_self_uninstall_with, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
     cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status, cmd_uninstall, cmd_venv_create,
     cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use,
     cmd_version, cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
@@ -184,6 +185,7 @@ fn localized_help_template() -> String {
         help_section(
             "cli-help-maintenance",
             &[
+                ("self-install", "cli-self-install-about"),
                 ("self-update", "cli-self-update-about"),
                 ("self-uninstall", "cli-self-uninstall-about"),
             ],
@@ -297,7 +299,57 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
                 restart_gui: false,
             },
         ),
-        Commands::SelfUninstall { yes } => cmd_self_uninstall(ctx, yes),
+        Commands::SelfInstall {
+            install_root,
+            source_dir,
+            source_path,
+            source_mcp_path,
+            source_gui_path,
+            shell,
+            add_to_user_path,
+            update_shell_profile,
+            refresh_shims,
+            install_powershell7,
+            log_path,
+            lang,
+            force,
+            yes,
+            wait_for_pid,
+            relaunch_gui,
+        } => dispatch_self_install(
+            ctx,
+            SelfInstallArgs {
+                install_root,
+                source_dir,
+                source_path,
+                source_mcp_path,
+                source_gui_path,
+                shell,
+                add_to_user_path,
+                update_shell_profile,
+                refresh_shims,
+                install_powershell7,
+                log_path,
+                lang,
+                force,
+                yes,
+                wait_for_pid,
+                relaunch_gui,
+            },
+        ),
+        Commands::SelfUninstall {
+            yes,
+            keep_data,
+            keep_shell_integration,
+            finish_after_pid,
+        } => {
+            let mut options = SelfUninstallOptions::new(ctx.root.clone());
+            options.yes = yes;
+            options.keep_data = keep_data;
+            options.keep_shell_integration = keep_shell_integration;
+            options.finish_after_pid = finish_after_pid;
+            cmd_self_uninstall_with(&options)
+        }
         Commands::Update {
             check,
             yes,
@@ -657,6 +709,83 @@ fn emit_report(report: CommandReport) -> ExitCode {
     }
 
     ExitCode::from(report.exit_code as u8)
+}
+
+/// Parsed `self-install` arguments, bundled so the dispatch arm stays readable.
+struct SelfInstallArgs {
+    install_root: Option<std::path::PathBuf>,
+    source_dir: Option<std::path::PathBuf>,
+    source_path: Option<std::path::PathBuf>,
+    source_mcp_path: Option<std::path::PathBuf>,
+    source_gui_path: Option<std::path::PathBuf>,
+    shell: Option<String>,
+    add_to_user_path: bool,
+    update_shell_profile: bool,
+    refresh_shims: bool,
+    install_powershell7: String,
+    log_path: Option<std::path::PathBuf>,
+    lang: Option<String>,
+    force: bool,
+    yes: bool,
+    wait_for_pid: Option<u32>,
+    relaunch_gui: bool,
+}
+
+/// Run `self-install`, printing progress as it happens rather than after the fact.
+fn dispatch_self_install(ctx: &AppContext, args: SelfInstallArgs) -> CommandReport {
+    if let Some(lang) = args.lang.as_deref() {
+        pyenv_core::set_lang_tag(lang);
+    }
+    let shell = match args.shell.as_deref() {
+        None => ShellKind::detect(),
+        Some(name) => match ShellKind::parse(name) {
+            Some(kind) => kind,
+            None => {
+                return CommandReport::failure(
+                    vec![format!(
+                        "pyenv: unsupported shell `{name}`; use bash, zsh, fish, sh, pwsh, cmd, or none"
+                    )],
+                    1,
+                );
+            }
+        },
+    };
+    let Some(powershell7) = PowerShell7Mode::parse(&args.install_powershell7) else {
+        return CommandReport::failure(
+            vec![format!(
+                "pyenv: invalid --install-powershell7 value `{}`; use auto, true, or false",
+                args.install_powershell7
+            )],
+            1,
+        );
+    };
+
+    let mut options =
+        SelfInstallOptions::new(args.install_root.unwrap_or_else(|| ctx.root.clone()));
+    options.source_dir = args.source_dir;
+    options.source_pyenv = args.source_path;
+    options.source_mcp = args.source_mcp_path;
+    options.source_gui = args.source_gui_path;
+    options.shell = shell;
+    options.add_to_user_path = args.add_to_user_path;
+    options.update_shell_profile = args.update_shell_profile;
+    options.refresh_shims = args.refresh_shims;
+    options.install_powershell7 = powershell7;
+    options.log_path = args.log_path;
+    options.force = args.force;
+    options.yes = args.yes;
+    options.wait_for_pid = args.wait_for_pid;
+    options.relaunch_gui = args.relaunch_gui;
+
+    let mut sink = |line: &str| {
+        let mut stdout = io::stdout().lock();
+        let _ = writeln!(stdout, "{line}");
+        let _ = stdout.flush();
+    };
+    match pyenv_core::run_self_install(&options, &mut sink) {
+        Ok(_) => CommandReport::empty_success(),
+        Err(message) => CommandReport::failure(vec![message], 1),
+    }
 }
 
 #[cfg(test)]

@@ -207,21 +207,27 @@ sh ./install.sh --bundle-url file:///tmp/pyenv-native-linux-x64.tar.gz --checksu
 
 ## What the installer does
 
-The installer flow is designed to be safe, explicit, and portable.
+Installing is split in two so the part that touches your machine is ordinary, tested Rust:
 
-It performs or supports:
+1. **`install.sh` / `install.ps1`** are thin bootstraps. They detect the platform, pick the release/tag, download the bundle and its `.sha256` sidecar, **verify the checksum**, extract it, and run the bundled binary. They contain no install logic.
+2. **`pyenv self-install`** (inside the bundle) does the real work:
+   - existing-install detection and install-root safety checks,
+   - copying `pyenv`, `pyenv-mcp`, and `pyenv-gui` (when present), replacing binaries atomically (and, on Windows, even while they are running),
+   - shell/profile integration through one delimited `# >>> pyenv-native init >>>` block that can be updated or removed cleanly,
+   - persistent user PATH on Windows (registry `REG_EXPAND_SZ` is preserved),
+   - Linux desktop launcher and icons for the GUI,
+   - shim refresh and post-install sanity checks against the installed binaries,
+   - an install log under `<install-root>/logs/`,
+   - confirmation before install unless `--yes`/`--force` is given.
 
-- platform and architecture detection,
-- release/tag selection,
-- existing-install detection,
-- checksum verification,
-- install-root selection,
-- shell/profile integration controls,
-- confirmation before install unless automation flags are used,
-- install log creation under `<install-root>/logs/`,
-- post-install sanity checks against the installed binary,
-- optional force/replace behavior,
-- uninstall helpers for reversing installer-owned shell/profile changes.
+The same command powers every entry point: the web bootstraps, `pyenv self-update`, the GUI's setup step, the Python bootstrap package, and Homebrew. Run it from an installed copy to repair shell integration:
+
+```sh
+pyenv self-install --yes            # re-apply PATH/profile integration and refresh shims
+pyenv self-install --help           # every option
+```
+
+`pyenv self-update` downloads and verifies the target release bundle, then runs the bundle's `pyenv self-install` to swap the binaries in place. For mirrors or offline testing, set `PYENV_NATIVE_RELEASE_BASE_URL` to a directory that holds the bundle and its `.sha256` (`https://`, or `http://` on loopback).
 
 ### Default behavior highlights
 
@@ -250,17 +256,15 @@ $uninstaller = Join-Path $env:TEMP 'pyenv-native-uninstall.ps1'; Invoke-WebReque
 curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/uninstall.sh | sh -s -- --remove-root
 ```
 
-### Windows local uninstall helper
-
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\uninstall-pyenv-native.ps1 -InstallRoot .\portable-pyenv -RemoveRoot
-```
-
-### Linux / macOS local uninstall helper
+### Uninstall from the installed binary
 
 ```sh
-sh ./scripts/uninstall-pyenv-native.sh --install-root ~/.pyenv --remove-root
+pyenv self-uninstall                  # remove everything, including installed Pythons and venvs
+pyenv self-uninstall --keep-data      # remove only pyenv-native and its shell integration
+pyenv self-uninstall --yes            # no prompt (required when not interactive)
 ```
+
+The web uninstallers (`uninstall.sh` / `uninstall.ps1`) simply run this command from the install you point them at. `self-uninstall` refuses to run against a root that does not look like a pyenv-native install, or against `/`, your home directory, or any parent of it.
 
 ### Uninstall behavior
 
@@ -667,15 +671,18 @@ pyenv completions install --family
 
 ## Development workflows
 
-Run the full local quality gate (format, clippy, tests including GUI, Python package, a11y, optional `cargo audit`) before pushing:
+Repository automation is one cross-platform Rust tool, `cargo xtask` (see `xtask/`):
 
 ```sh
-sh ./scripts/check-all.sh
-# Windows:
-pwsh -NoLogo -NoProfile -File .\scripts\check-all.ps1
+cargo xtask check                  # format, clippy, tests, version sync, policy checks, Python, a11y, audit
+cargo xtask check --quick          # skip the slower GUI a11y and cargo-audit steps
+cargo xtask version-check          # Cargo / PyPI / bootstrap / Tauri versions agree
+cargo xtask set-version 0.7.0      # bump every manifest, then run `cargo build` to refresh Cargo.lock
+cargo xtask bundle                 # build release binaries and write dist/pyenv-native-<os>-<arch>.{tar.gz,zip} + .sha256
+cargo xtask bundle --help          # --target, --platform, --arch, --cargo cross, --no-gui, --skip-build
 ```
 
-Enable the repo pre-push hook so that gate runs automatically:
+Enable the repo pre-push hook so `cargo xtask check` runs automatically:
 
 ```sh
 sh ./scripts/install-git-hooks.sh
@@ -717,22 +724,23 @@ runtime fixtures live outside the default installed root.
 .\scripts\test-venv-migration.ps1 -SourceRuntime 3.14.3 -TargetRuntime 3.15.0
 ```
 
-### Build the Windows release bundle
-
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-release-bundle.ps1 -OutputRoot .\dist
-```
-
-### Build the Linux/macOS release bundle
+### Build a release bundle (any platform)
 
 ```sh
-sh ./scripts/build-release-bundle.sh --output-root ./dist
+cargo xtask bundle --output-root ./dist
+cargo xtask bundle --target aarch64-apple-darwin --output-root ./dist   # cross target
 ```
+
+The same command builds the Windows `.zip` and the Linux/macOS/Android `.tar.gz`, plus a
+`.sha256` sidecar. See `cargo xtask bundle --help` for `--platform`, `--arch`, `--no-gui`, and
+`--cargo` (for `cross`).
 
 ### Build the Python install package
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-python-bootstrap.ps1 -PythonPath C:\path\to\python.exe
+```sh
+cargo xtask python test                       # unit tests
+cargo xtask python build --python /path/to/python
+cargo xtask python publish --check-only       # twine check; add --repository testpypi to upload
 ```
 
 ### Preview the MCP guide and client config
@@ -744,15 +752,26 @@ cargo run -q -p pyenv-mcp -- print-config
 
 ### Generate Winget packaging artifacts
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-winget-manifests.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -Validate
+```sh
+cargo xtask package winget --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z --validate
 ```
 
 ### Generate Homebrew packaging artifacts
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\build-homebrew-formula.ps1 -GitHubRepo imyourboyroy/pyenv-native -Tag vX.Y.Z -AssetRoots .\dist\linux, .\dist\macos
+```sh
+cargo xtask package homebrew --github-repo imyourboyroy/pyenv-native --tag vX.Y.Z \
+  --asset-root dist/linux --asset-root dist/macos
 ```
+
+### Cut a release
+
+```sh
+cargo xtask release 0.7.0 --sync-version --dry-run   # preflight, print the git steps
+cargo xtask release 0.7.0 --push-branch --push-tag --watch
+```
+
+The tag push triggers `.github/workflows/release.yml`, which builds every bundle and publishes
+the GitHub Release.
 
 ---
 
@@ -849,8 +868,9 @@ README.md                       ../README.md
 INSTRUCTIONS.md                 ./INSTRUCTIONS.md
 ARCHITECTURE.md                 ./ARCHITECTURE.md
 MCP.md                          ./MCP.md
-install.ps1 / install.sh        remote-friendly web installers
-uninstall.ps1 / uninstall.sh    remote-friendly uninstallers
+install.ps1 / install.sh        thin bootstraps: download, verify, run `pyenv self-install`
+uninstall.ps1 / uninstall.sh    thin wrappers around `pyenv self-uninstall`
+xtask/                          `cargo xtask`: bundle, version-check, set-version, check
 crates/                         Rust CLI, core runtime, GUI, and MCP server
   pyenv-cli/                    CLI dispatch and argument handling
   pyenv-core/                   version resolution, install backends, shims, diagnostics
@@ -860,7 +880,7 @@ docs/
   screenshots/                  GUI screenshots for documentation
 packaging/                      Winget and Homebrew generation assets
 python-package/                 PyPI / pipx bootstrap wrapper
-scripts/                        build, install, publish, validation, and sync helpers
+scripts/                        publish, packaging, validation, and smoke-test helpers
 ```
 
 ---

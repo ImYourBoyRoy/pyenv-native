@@ -34,6 +34,7 @@ cli-which-about = عرض المسار الكامل لتنفيذي
 cli-whence-about = سرد جميع إصدارات بايثون التي تحتوي على التنفيذي المعطى
 cli-version-file-about = اكتشاف الملف الذي يعيّن إصدار pyenv الحالي
 cli-version-file-read-about = قراءة محتويات ملف .python-version
+cli-self-install-about = تثبيت pyenv-native أو إصلاحه من حزمة إصدار
 cli-self-uninstall-about = إلغاء تثبيت pyenv-native من النظام
 cli-help-about = عرض مساعدة أمر
 cli-commands-about = سرد جميع أوامر pyenv المتاحة

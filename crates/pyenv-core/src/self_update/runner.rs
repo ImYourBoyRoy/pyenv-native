@@ -1,21 +1,19 @@
 // ./crates/pyenv-core/src/self_update/runner.rs
 //! Self-update execution flow, installer download, and platform-specific launcher handling.
 
-use crate::process::{PyenvCommandExt, windows_powershell_host};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, IsTerminal, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::process::{Command, Stdio};
 
 use crate::command::CommandReport;
 use crate::context::AppContext;
-use crate::http::build_blocking_client;
-use sha2::{Digest, Sha256};
+use crate::process::PyenvCommandExt;
 
+use super::bundle::stage_release_bundle;
 use super::github::{DEFAULT_GITHUB_REPO, resolve_release_target};
 use super::types::{ReleaseTarget, SelfUpdateCheck, SelfUpdateOptions};
 
@@ -60,41 +58,83 @@ fn run_self_update(ctx: &AppContext, options: &SelfUpdateOptions) -> Result<Vec<
 
     confirm_self_update(ctx, &target, options.yes, options.force)?;
 
-    let installer_path = download_installer_script(&repo, &target.target_tag)?;
-    if cfg!(windows) {
-        spawn_windows_update(ctx, &target, &installer_path)?;
-        Ok(vec![
+    let staged = stage_release_bundle(&repo, &target.target_tag)?;
+    let current_exe = env::current_exe().unwrap_or_default();
+    let bin_dir = ctx.root.join("bin");
+    let hand_over_to_background = options.restart_gui || is_gui_launch(&current_exe, &bin_dir);
+
+    let mut command = installer_command(ctx, &staged.pyenv_exe);
+    if hand_over_to_background {
+        // The running app must exit first; the staged installer waits for it, swaps the
+        // binaries, and relaunches the GUI.
+        command
+            .arg("--wait-for-pid")
+            .arg(std::process::id().to_string())
+            .arg("--relaunch-gui")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        command
+            .spawn()
+            .map_err(|error| format!("pyenv: failed to launch the staged installer: {error}"))?;
+        return Ok(vec![
             format!(
                 "Started pyenv-native update to {} for install root {}.",
                 target.target_tag,
                 ctx.root.display()
             ),
-            "Keep this shell open until the updater finishes.".to_string(),
-        ])
-    } else {
-        let current_exe = env::current_exe().unwrap_or_default();
-        let bin_dir = ctx.root.join("bin");
-        let is_gui = is_gui_launch(&current_exe, &bin_dir) || options.restart_gui;
-        if is_gui {
-            spawn_posix_update(ctx, &target, &installer_path)?;
-            Ok(vec![
-                format!(
-                    "Started pyenv-native update to {} for install root {}.",
-                    target.target_tag,
-                    ctx.root.display()
-                ),
-                "The application will close, apply the update, and relaunch automatically."
-                    .to_string(),
-            ])
-        } else {
-            run_posix_update(ctx, &target, &installer_path)?;
-            Ok(vec![format!(
-                "Updated pyenv-native to {} in {}.",
-                target.target_tag,
-                ctx.root.display()
-            )])
-        }
+            "The application will close, apply the update, and relaunch automatically.".to_string(),
+        ]);
     }
+
+    let output = command
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| format!("pyenv: failed to run the staged installer: {error}"));
+    // The staged binary has exited, so its directory can go.
+    let _ = fs::remove_dir_all(&staged.staging_dir);
+    let output = output?;
+    if !output.status.success() {
+        return Err(installer_failure(&output));
+    }
+    Ok(vec![format!(
+        "Updated pyenv-native to {} in {}.",
+        target.target_tag,
+        ctx.root.display()
+    )])
+}
+
+/// `pyenv self-install` invocation that refreshes binaries in place without touching profiles.
+fn installer_command(ctx: &AppContext, staged_pyenv: &Path) -> Command {
+    let mut command = Command::new(staged_pyenv);
+    command.headless();
+    command
+        .arg("self-install")
+        .arg("--install-root")
+        .arg(&ctx.root)
+        .args(["--shell", "none"])
+        .args(["--add-to-user-path", "false"])
+        .args(["--update-shell-profile", "false"])
+        .args(["--refresh-shims", "true"])
+        .args(["--install-powershell7", "false"])
+        .args(["--yes", "--force"]);
+    command
+}
+
+fn installer_failure(output: &std::process::Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut details = vec![format!(
+        "pyenv: self-update installer exited with status {:?}",
+        output.status.code()
+    )];
+    if !stderr.trim().is_empty() {
+        details.push(format!("pyenv: installer stderr:\n{}", stderr.trim()));
+    }
+    if !stdout.trim().is_empty() {
+        details.push(format!("pyenv: installer stdout:\n{}", stdout.trim()));
+    }
+    details.join("\n")
 }
 
 fn ensure_portable_install(ctx: &AppContext, allow_gui_launcher: bool) -> Result<(), String> {
@@ -219,349 +259,5 @@ fn confirm_self_update(
     match answer.trim().to_ascii_lowercase().as_str() {
         "y" | "yes" => Ok(()),
         _ => Err("pyenv: self-update cancelled".to_string()),
-    }
-}
-
-fn download_installer_script(repo: &str, tag: &str) -> Result<PathBuf, String> {
-    let extension = if cfg!(windows) { "ps1" } else { "sh" };
-    let release_asset_url =
-        format!("https://github.com/{repo}/releases/download/{tag}/install.{extension}");
-    let checksum_url = format!("{release_asset_url}.sha256");
-
-    let temp_dir = env::temp_dir().join(format!(
-        "pyenv-native-self-update-{}-{}",
-        std::process::id(),
-        timestamp_suffix()
-    ));
-    fs::create_dir_all(&temp_dir)
-        .map_err(|error| format!("pyenv: failed to create update temp directory: {error}"))?;
-
-    let installer_path = temp_dir.join(format!("install.{extension}"));
-    let client = build_blocking_client()
-        .map_err(|error| format!("pyenv: failed to construct HTTP client: {error}"))?;
-
-    let checksum_text = client
-        .get(&checksum_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .and_then(|response| response.text())
-        .map_err(|error| {
-            format!(
-                "pyenv: missing installer checksum at {checksum_url} (self-update requires a published .sha256 sidecar): {error}"
-            )
-        })?;
-    let expected = parse_sha256_token(&checksum_text)
-        .ok_or_else(|| format!("pyenv: invalid installer checksum at {checksum_url}"))?;
-
-    let bytes = client
-        .get(&release_asset_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .and_then(|response| response.bytes())
-        .map_err(|error| {
-            format!("pyenv: failed to download installer from {release_asset_url}: {error}")
-        })?;
-    let actual = hex::encode(Sha256::digest(&bytes));
-    if actual != expected {
-        return Err(format!(
-            "pyenv: installer checksum mismatch for {release_asset_url}: expected {expected}, got {actual}"
-        ));
-    }
-
-    fs::write(&installer_path, &bytes)
-        .map_err(|error| format!("pyenv: failed to write installer script: {error}"))?;
-    Ok(installer_path)
-}
-
-fn parse_sha256_token(body: &str) -> Option<String> {
-    let token = body.split_whitespace().next()?.trim();
-    if token.len() == 64 && token.chars().all(|ch| ch.is_ascii_hexdigit()) {
-        Some(token.to_ascii_lowercase())
-    } else {
-        None
-    }
-}
-
-fn spawn_windows_update(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-) -> Result<(), String> {
-    let current_exe = env::current_exe().unwrap_or_default();
-    let bin_dir = ctx.root.join("bin");
-    let is_gui = same_path(&current_exe, &gui_executable_path(&bin_dir));
-
-    let launcher_path = installer_path.with_file_name("run-self-update.ps1");
-    let launcher = render_windows_launcher(ctx, target, installer_path, is_gui);
-    fs::write(&launcher_path, launcher)
-        .map_err(|error| format!("pyenv: failed to write Windows updater helper: {error}"))?;
-
-    Command::new(windows_powershell_host())
-        .headless()
-        .args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            launcher_path.to_string_lossy().as_ref(),
-            "-ParentPid",
-            &std::process::id().to_string(),
-        ])
-        .spawn()
-        .map_err(|error| format!("pyenv: failed to launch updater helper: {error}"))?;
-
-    Ok(())
-}
-
-fn render_windows_launcher(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-    restart_gui: bool,
-) -> String {
-    let installer_args = vec![
-        "-NoProfile".to_string(),
-        "-ExecutionPolicy".to_string(),
-        "Bypass".to_string(),
-        "-File".to_string(),
-        installer_path.display().to_string(),
-        "-GitHubRepo".to_string(),
-        target.repo.clone(),
-        "-Tag".to_string(),
-        target.target_tag.clone(),
-        "-InstallRoot".to_string(),
-        ctx.root.display().to_string(),
-        "-Shell".to_string(),
-        "none".to_string(),
-        "-AddToUserPath".to_string(),
-        "false".to_string(),
-        "-UpdatePowerShellProfile".to_string(),
-        "false".to_string(),
-        "-RefreshShims".to_string(),
-        "true".to_string(),
-        "-Yes".to_string(),
-        "-Force".to_string(),
-    ];
-
-    let rendered_args = installer_args
-        .iter()
-        .map(|arg| format!("'{}'", escape_powershell_single_quoted(arg)))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let restart_script = if restart_gui {
-        let gui_exe = ctx.root.join("bin").join("pyenv-gui.exe");
-        format!(
-            "\n$guiExe = '{}'\nif (Test-Path $guiExe) {{\n  Start-Process -FilePath $guiExe\n}}\n",
-            escape_powershell_single_quoted(&gui_exe.display().to_string())
-        )
-    } else {
-        String::new()
-    };
-
-    format!(
-        "param([int]$ParentPid)\n\
-         $ErrorActionPreference = 'Stop'\n\
-         for ($attempt = 0; $attempt -lt 240; $attempt++) {{\n\
-           if (-not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) {{ break }}\n\
-           Start-Sleep -Milliseconds 500\n\
-         }}\n\
-         $installerArgs = @({rendered_args})\n\
-         $installerHost = (Get-Command pwsh -ErrorAction SilentlyContinue).Source\n\
-         if (-not $installerHost) {{ $installerHost = 'powershell.exe' }}\n\
-         & $installerHost @installerArgs\n\
-         {restart_script}\n\
-         exit $LASTEXITCODE\n"
-    )
-}
-
-fn escape_powershell_single_quoted(value: &str) -> String {
-    value.replace('\'', "''")
-}
-
-fn run_posix_update(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-) -> Result<(), String> {
-    let output = posix_installer_command(ctx, target, installer_path)
-        .output()
-        .map_err(|error| format!("pyenv: failed to launch installer: {error}"))?;
-    if output.status.success() {
-        return Ok(());
-    }
-    posix_installer_failure(output)
-}
-
-fn spawn_posix_update(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-) -> Result<(), String> {
-    let launcher_path = installer_path.with_file_name("run-self-update.sh");
-    let gui_exe = gui_executable_path(&ctx.root.join("bin"));
-    let launcher = render_posix_launcher(ctx, target, installer_path, &gui_exe);
-    fs::write(&launcher_path, launcher)
-        .map_err(|error| format!("pyenv: failed to write POSIX updater helper: {error}"))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&launcher_path, fs::Permissions::from_mode(0o755))
-            .map_err(|error| format!("pyenv: failed to mark updater helper executable: {error}"))?;
-    }
-
-    Command::new("sh")
-        .headless()
-        .arg(&launcher_path)
-        .arg(std::process::id().to_string())
-        .spawn()
-        .map_err(|error| format!("pyenv: failed to launch updater helper: {error}"))?;
-    Ok(())
-}
-
-fn posix_installer_command(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-) -> Command {
-    let mut command = Command::new("sh");
-    command.headless();
-    command
-        .arg(installer_path)
-        .arg("--github-repo")
-        .arg(&target.repo)
-        .arg("--tag")
-        .arg(&target.target_tag)
-        .arg("--install-root")
-        .arg(&ctx.root)
-        .arg("--shell")
-        .arg("none")
-        .arg("--add-to-user-path")
-        .arg("false")
-        .arg("--update-shell-profile")
-        .arg("false")
-        .arg("--refresh-shims")
-        .arg("true")
-        .arg("--yes")
-        .arg("--force");
-    command
-}
-
-fn posix_installer_failure(output: std::process::Output) -> Result<(), String> {
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut details = vec![format!(
-        "pyenv: self-update installer exited with status {:?}",
-        output.status.code()
-    )];
-    if !stderr.trim().is_empty() {
-        details.push(format!("pyenv: installer stderr:\n{}", stderr.trim()));
-    }
-    if !stdout.trim().is_empty() {
-        details.push(format!("pyenv: installer stdout:\n{}", stdout.trim()));
-    }
-    Err(details.join("\n"))
-}
-
-fn render_posix_launcher(
-    ctx: &AppContext,
-    target: &ReleaseTarget,
-    installer_path: &Path,
-    gui_exe: &Path,
-) -> String {
-    let installer = shell_single_quote(&installer_path.display().to_string());
-    let gui = shell_single_quote(&gui_exe.display().to_string());
-    let root = shell_single_quote(&ctx.root.display().to_string());
-    let repo = shell_single_quote(&target.repo);
-    let tag = shell_single_quote(&target.target_tag);
-    let log_file = shell_single_quote(
-        &ctx.root
-            .join("logs")
-            .join("gui-relaunch.log")
-            .display()
-            .to_string(),
-    );
-    let app_id = shell_single_quote("com.pyenv-native.gui");
-
-    format!(
-        "#!/bin/sh\n\
-         set -eu\n\
-         PARENT_PID=\"$1\"\n\
-         LOG_FILE={log_file}\n\
-         mkdir -p \"$(dirname \"$LOG_FILE\")\"\n\
-         {{\n\
-           printf '%%s pyenv-native GUI updater started (parent pid %%s)\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"$PARENT_PID\"\n\
-         }} >>\"$LOG_FILE\" 2>&1\n\
-         attempt=0\n\
-         while [ \"$attempt\" -lt 240 ]; do\n\
-           if ! kill -0 \"$PARENT_PID\" 2>/dev/null; then\n\
-             break\n\
-           fi\n\
-           attempt=$((attempt + 1))\n\
-           sleep 0.5\n\
-         done\n\
-         if sh {installer} \\\n\
-           --github-repo {repo} \\\n\
-           --tag {tag} \\\n\
-           --install-root {root} \\\n\
-           --shell none \\\n\
-           --add-to-user-path false \\\n\
-           --update-shell-profile false \\\n\
-           --refresh-shims true \\\n\
-           --yes \\\n\
-           --force >>\"$LOG_FILE\" 2>&1; then\n\
-           printf '%%s installer finished successfully\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
-         else\n\
-           status=$?\n\
-           printf '%%s installer failed with exit code %%s\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"$status\" >>\"$LOG_FILE\" 2>&1\n\
-           exit \"$status\"\n\
-         fi\n\
-         relaunch_gui() {{\n\
-           if [ ! -x {gui} ]; then\n\
-             printf '%%s GUI binary missing or not executable: {gui}\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
-             return 1\n\
-           fi\n\
-           if command -v gtk-launch >/dev/null 2>&1; then\n\
-             if DISPLAY=\"${{DISPLAY:-}}\" WAYLAND_DISPLAY=\"${{WAYLAND_DISPLAY:-}}\" XDG_RUNTIME_DIR=\"${{XDG_RUNTIME_DIR:-}}\" DBUS_SESSION_BUS_ADDRESS=\"${{DBUS_SESSION_BUS_ADDRESS:-}}\" gtk-launch {app_id} >>\"$LOG_FILE\" 2>&1 & then\n\
-               printf '%%s relaunched GUI via gtk-launch\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
-               return 0\n\
-             fi\n\
-           fi\n\
-           DISPLAY=\"${{DISPLAY:-}}\" WAYLAND_DISPLAY=\"${{WAYLAND_DISPLAY:-}}\" XDG_RUNTIME_DIR=\"${{XDG_RUNTIME_DIR:-}}\" DBUS_SESSION_BUS_ADDRESS=\"${{DBUS_SESSION_BUS_ADDRESS:-}}\" nohup {gui} >>\"$LOG_FILE\" 2>&1 &\n\
-           printf '%%s relaunched GUI via nohup\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" >>\"$LOG_FILE\" 2>&1\n\
-         }}\n\
-         relaunch_gui\n"
-    )
-}
-
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
-}
-
-fn timestamp_suffix() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or(0)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::parse_sha256_token;
-
-    #[test]
-    fn parse_sha256_token_reads_sum_file_line() {
-        assert_eq!(
-            parse_sha256_token(
-                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  install.sh\n"
-            ),
-            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".to_string())
-        );
-    }
-
-    #[test]
-    fn parse_sha256_token_rejects_short_values() {
-        assert_eq!(parse_sha256_token("deadbeef"), None);
     }
 }

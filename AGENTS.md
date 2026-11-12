@@ -22,8 +22,9 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 ## When working ON this repo (Rust / packaging)
 
 - Supported platforms: **Windows**, **Linux**, and **macOS**. Exercise install and resolution on the OS you touch. Android/Termux is experimental (source builds).
-- Use existing scripts: `scripts/dev-cargo.ps1`, `scripts/build-release-bundle.ps1`.
-- Every install path must ship **both** `pyenv` and `pyenv-mcp`.
+- Use `cargo xtask` for release/dev automation (`bundle`, `check`, `policy`, `package`, `python`, `release`, `sync-known-versions`, `version-check`, `set-version`) and `scripts/dev-cargo.ps1` for Windows target selection.
+- Install, update, and uninstall logic lives in Rust (`crates/pyenv-core/src/installer/`, exposed as `pyenv self-install` / `self-update` / `self-uninstall`). `install.sh`/`install.ps1` only download, verify, and run it — do not add install logic to scripts.
+- Every install path must ship **both** `pyenv` and `pyenv-mcp` (release bundles are built by `cargo xtask bundle`).
 - Run `cargo test` in affected crates before claiming success.
 - Do not break the version-selection precedence: shell → local `.python-version` → parents → global → system.
 - CPython install catalogs are live. Read `https://www.python.org/ftp/python/` (24h cache). The compiled `crates/pyenv-core/data/known_versions.txt` is only the base seed. Publisher caches merge new names into `PYENV_ROOT/cache/metadata/known_versions.txt` and do not rewrite the shipped seed. Windows CPython still uses NuGet, and PyPy still uses the PyPy version manifest.

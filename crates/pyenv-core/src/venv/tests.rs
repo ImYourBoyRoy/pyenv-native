@@ -9,7 +9,7 @@ use tempfile::TempDir;
 use crate::config::AppConfig;
 use crate::context::AppContext;
 
-use super::commands::lower_bound_requirement;
+use super::commands::{abort_upgrade, lower_bound_requirement};
 use super::{
     VenvUseScope, cmd_venv_create, cmd_venv_info, cmd_venv_list, cmd_venv_use,
     resolve_installed_runtime_version,
@@ -243,4 +243,41 @@ fn venv_upgrade_fails_closed_when_inventory_cannot_run() {
         !ctx.root.join("venvs").join("3.13.1").join("demo").exists(),
         "failed upgrade must not create a destination venv"
     );
+}
+
+#[test]
+fn failed_upgrade_discards_partial_target_and_restores_replaced_target() {
+    let (_temp, ctx) = test_context();
+    create_fake_managed_env(&ctx, "3.13.1", "demo");
+    let base = ctx.root.join("venvs").join("3.13.1");
+    let destination = base.join("demo");
+    let backup = base.join("demo-previous");
+    fs::write(destination.join("marker"), "previous").expect("marker");
+    fs::rename(&destination, &backup).expect("move aside");
+
+    // A partially built replacement now occupies the destination.
+    fs::create_dir_all(&destination).expect("partial target");
+    fs::write(destination.join("partial"), "").expect("partial file");
+
+    let report = abort_upgrade(
+        vec!["Progress:".to_string()],
+        &destination,
+        Some(&backup),
+        Some("pyenv: boom".to_string()),
+    );
+
+    assert_eq!(report.exit_code, 1);
+    assert!(report.stderr.iter().any(|line| line.contains("boom")));
+    assert!(
+        report
+            .stderr
+            .iter()
+            .any(|line| line.contains("source venv was left unchanged"))
+    );
+    assert!(!destination.join("partial").exists());
+    assert_eq!(
+        fs::read_to_string(destination.join("marker")).expect("restored marker"),
+        "previous"
+    );
+    assert!(!backup.exists());
 }

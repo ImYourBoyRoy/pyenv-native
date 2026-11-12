@@ -31,4 +31,4 @@ for ftl in "$SRC"/*.ftl; do
     sed "s|./locales/en-US/|./locales/${TAG}/|" "$ftl" > "$DEST/$(basename -- "$ftl")"
 done
 
-printf 'Created %s from en-US. Add scripts/i18n/overlays/%s.json, list the tag in seed_locales.py LOCALES, translate, seed, then run sh ./scripts/check-i18n.sh\n' "$DEST" "$TAG"
+printf 'Created %s from en-US. Add scripts/i18n/overlays/%s.json, list the tag in seed_locales.py LOCALES, translate, seed, then run cargo xtask policy i18n\n' "$DEST" "$TAG"
