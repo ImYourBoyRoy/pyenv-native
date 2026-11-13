@@ -56,6 +56,7 @@ MAINTENANCE:
   self-install       Install or repair pyenv-native from a release bundle
   self-update        Check for or install the latest published pyenv-native release
   self-uninstall     Uninstall pyenv-native from your system
+  agent-skills       Install the pyenv-native skill for coding assistants
 
 SUPPORT:
   help               Display help for a command
@@ -124,6 +125,7 @@ pyenv pip update --all 3.14.7/envs/api
 
 - `pyenv self-install` — Install the `pyenv`, `pyenv-mcp`, and (when present) `pyenv-gui` binaries that sit next to this executable into a portable root; wire up the shell profile (one delimited block), Windows user PATH, shims, and desktop launcher; run sanity checks. Re-run from an installed copy to repair shell integration. Key options: `--install-root`, `--shell`, `--update-shell-profile <bool>`, `--add-to-user-path <bool>`, `--refresh-shims <bool>`, `--yes`, `--force`, `--lang`.
 - `pyenv self-update [--check] [--yes] [--force] [--tag vX.Y.Z]` — Download and verify the release bundle, then run its `self-install` to swap binaries in place.
+- `pyenv agent-skills [--agent <name|all>] [--scope user|project] [--repo-url <url>]` — Install the pyenv-native skill for Cursor, Kiro, Copilot, Gemini CLI, Antigravity, Claude Code, and more. The skill is compiled into the binary, so no clone or network is needed; URL-based agents use the public repository (or `--repo-url`).
 - `pyenv self-uninstall [--yes] [--keep-data] [--keep-shell-integration]` — Remove pyenv-native, its shell-profile block, and Windows PATH entries. `--keep-data` keeps installed Pythons, virtual environments, and caches.
 
 ### Diagnostics & Self-Healing

@@ -1,6 +1,7 @@
 // ./crates/pyenv-core/src/lib.rs
 //! Native core behavior for pyenv-compatible version resolution and configuration.
 
+mod agent_skills;
 mod catalog;
 mod command;
 mod config;
@@ -33,6 +34,10 @@ mod windows_registry;
 
 pub use process::{PyenvCommandExt, windows_powershell_host};
 
+pub use agent_skills::{
+    AGENT_NAMES, Agent, AgentSkillsOptions, REPO_URL as AGENT_SKILLS_REPO_URL, Scope,
+    cmd_agent_skills, parse_agents,
+};
 pub use catalog::{
     CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions, cmd_install_list,
     cmd_latest, compare_version_names, installed_version_names, known_version_names,

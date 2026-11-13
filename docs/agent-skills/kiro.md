@@ -5,11 +5,7 @@ Kiro supports skills under `.kiro/skills/` (project or global).
 ## Install
 
 ```bash
-./scripts/install-agent-skills.sh --agent kiro
-```
-
-```powershell
-./scripts/install-agent-skills.ps1 -Agent kiro
+pyenv agent-skills --agent kiro
 ```
 
 Paths:

@@ -509,6 +509,7 @@
   "cli-root-about": "Sürümlerin ve shim’lerin tutulduğu kök dizini göster",
   "cli-self-install-about": "pyenv-native'i bir sürüm paketinden kur veya onar",
   "cli-self-uninstall-about": "pyenv-native’i sistemden kaldır",
+  "cli-agent-skills-about": "Kodlama asistanları için pyenv-native becerisini kur",
   "cli-status-about": "Kapsamlı ortam durumunu göster (sürümler, kaynaklar, venv’ler)",
   "cli-venv-create-about": "Belirli bir çalışma zamanı altında yönetilen sanal ortam oluştur",
   "cli-venv-delete-about": "Yönetilen sanal ortamı kaldır",

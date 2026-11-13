@@ -460,17 +460,18 @@ After a native Windows x64, Linux x64, or macOS install:
 pyenv gui
 ```
 
-Windows development:
+Development, on any platform (stops a running GUI, builds, and launches the fresh binary):
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\launch_gui.ps1
+```text
+cargo xtask gui              # debug build
+cargo xtask gui --release
 ```
 
 Or build and run directly:
 
-```powershell
+```text
 cargo build -p pyenv-gui
-.\target\debug\pyenv-gui.exe
+target/debug/pyenv-gui       # pyenv-gui.exe on Windows
 ```
 
 ### Views
@@ -757,12 +758,27 @@ cargo xtask version-check          # Cargo / PyPI / bootstrap / Tauri versions a
 cargo xtask set-version 0.7.0      # bump every manifest, then run `cargo build` to refresh Cargo.lock
 cargo xtask bundle                 # build release binaries and write dist/pyenv-native-<os>-<arch>.{tar.gz,zip} + .sha256
 cargo xtask bundle --help          # --target, --platform, --arch, --cargo cross, --no-gui, --skip-build
+cargo xtask doctor                 # is Rust (and optionally the Android toolchain) set up? --require-android makes Android mandatory
+cargo xtask gui                    # build and launch the desktop GUI
+cargo xtask new-locale fr-CA       # seed a Fluent locale from en-US (see docs/I18N.md)
 ```
 
 Enable the repo pre-push hook so `cargo xtask check` runs automatically:
 
 ```sh
-sh ./scripts/install-git-hooks.sh
+cargo xtask install-hooks
+```
+
+Protect `main` from deletion and force-push by applying the repository ruleset in `.github/rulesets/protect-main.json`. This needs the GitHub CLI signed in as a repo admin, so run it yourself rather than from a cloud agent:
+
+```sh
+repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+id=$(gh api "repos/$repo/rulesets" --jq '.[] | select(.name == "Protect main") | .id')
+if [ -n "$id" ]; then
+  gh api -X PUT "repos/$repo/rulesets/$id" --input .github/rulesets/protect-main.json
+else
+  gh api -X POST "repos/$repo/rulesets" --input .github/rulesets/protect-main.json
+fi
 ```
 
 ### Build the native CLI
@@ -941,7 +957,7 @@ ARCHITECTURE.md                 ./ARCHITECTURE.md
 MCP.md                          ./MCP.md
 install.ps1 / install.sh        thin bootstraps: download, verify, run `pyenv self-install`
 uninstall.ps1 / uninstall.sh    thin wrappers around `pyenv self-uninstall`
-xtask/                          `cargo xtask`: bundle, version-check, set-version, check
+xtask/                          `cargo xtask`: bundle, installers, release, check, doctor, gui, new-locale, install-hooks, agent-skills
 crates/                         Rust CLI, core runtime, GUI, and MCP server
   pyenv-cli/                    CLI dispatch and argument handling
   pyenv-core/                   version resolution, install backends, shims, diagnostics

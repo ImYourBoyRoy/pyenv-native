@@ -6,7 +6,7 @@ In Claude Code:
 
 ```text
 /plugin marketplace add https://github.com/imyourboyroy/pyenv-native.git
-/plugin install pyenv-native@pyenv-native
+/plugin install pyenv-native@pyenv-native-skills
 ```
 
 If SSH clone fails, use the HTTPS marketplace URL above.

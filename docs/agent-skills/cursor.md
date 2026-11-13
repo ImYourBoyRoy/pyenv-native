@@ -2,14 +2,9 @@
 
 ## Install
 
-```powershell
-# Windows
-./scripts/install-agent-skills.ps1 -Agent cursor
-```
-
 ```bash
-# macOS / Linux
-./scripts/install-agent-skills.sh --agent cursor
+# Windows, macOS, Linux
+pyenv agent-skills --agent cursor
 ```
 
 Skills copy to:

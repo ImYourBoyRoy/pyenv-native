@@ -9,20 +9,21 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, FromArgMatches};
 use pyenv_core::{
-    AppContext, CommandReport, DoctorFix, InstallCommandOptions, PowerShell7Mode,
-    SelfInstallOptions, SelfUninstallOptions, SelfUpdateOptions, ShellKind, VenvUseScope,
-    VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_available, cmd_commands,
-    cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
-    cmd_deactivate, cmd_doctor, cmd_environment, cmd_exec, cmd_external, cmd_global, cmd_help,
-    cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local, cmd_pip_analyze_imports,
-    cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements,
-    cmd_pip_update, cmd_prefix, cmd_preflight, cmd_prompt, cmd_rehash, cmd_root,
-    cmd_self_uninstall_with, cmd_self_update, cmd_sh_activate, cmd_sh_cmd, cmd_sh_deactivate,
-    cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status, cmd_uninstall, cmd_venv_create,
-    cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use,
-    cmd_version, cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
-    cmd_version_origin, cmd_versions, cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_init,
-    cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan,
+    AgentSkillsOptions, AppContext, CommandReport, DoctorFix, InstallCommandOptions,
+    PowerShell7Mode, Scope as AgentScope, SelfInstallOptions, SelfUninstallOptions,
+    SelfUpdateOptions, ShellKind, VenvUseScope, VersionsCommandOptions, apply_doctor_fixes,
+    cmd_activate, cmd_agent_skills, cmd_available, cmd_commands, cmd_completions, cmd_config_get,
+    cmd_config_path, cmd_config_set, cmd_config_show, cmd_deactivate, cmd_doctor, cmd_environment,
+    cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest,
+    cmd_local, cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list,
+    cmd_pip_outdated, cmd_pip_precheck_requirements, cmd_pip_update, cmd_prefix, cmd_preflight,
+    cmd_prompt, cmd_rehash, cmd_root, cmd_self_uninstall_with, cmd_self_update, cmd_sh_activate,
+    cmd_sh_cmd, cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status,
+    cmd_uninstall, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename,
+    cmd_venv_upgrade, cmd_venv_use, cmd_version, cmd_version_file, cmd_version_file_read,
+    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_virtualenv,
+    cmd_virtualenv_delete, cmd_virtualenv_init, cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence,
+    cmd_which, doctor_fix_plan, parse_agents,
 };
 
 use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
@@ -188,6 +189,7 @@ fn localized_help_template() -> String {
                 ("self-install", "cli-self-install-about"),
                 ("self-update", "cli-self-update-about"),
                 ("self-uninstall", "cli-self-uninstall-about"),
+                ("agent-skills", "cli-agent-skills-about"),
             ],
         ),
         help_section(
@@ -352,6 +354,11 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             options.finish_after_pid = finish_after_pid;
             cmd_self_uninstall_with(&options)
         }
+        Commands::AgentSkills {
+            agent,
+            scope,
+            repo_url,
+        } => dispatch_agent_skills(&agent, &scope, repo_url),
         Commands::Update {
             check,
             yes,
@@ -467,6 +474,22 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         Commands::ShCmd { args } => cmd_sh_cmd(ctx, &args),
         Commands::Exec { command, args } => cmd_exec(ctx, &command, &args),
         Commands::External(args) => cmd_external(ctx, &args),
+    }
+}
+
+fn dispatch_agent_skills(agent: &str, scope: &str, repo_url: Option<String>) -> CommandReport {
+    let resolved = (|| {
+        let mut options = AgentSkillsOptions::from_environment()?;
+        options.agents = parse_agents(agent)?;
+        options.scope = AgentScope::parse(scope)?;
+        if let Some(url) = repo_url {
+            options.repo_url = url;
+        }
+        Ok::<_, String>(options)
+    })();
+    match resolved {
+        Ok(options) => cmd_agent_skills(&options),
+        Err(message) => CommandReport::failure(vec![message], 1),
     }
 }
 

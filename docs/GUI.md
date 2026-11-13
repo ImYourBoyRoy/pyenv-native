@@ -51,10 +51,11 @@ pyenv gui
 
 Standalone GUI binaries (and matching `.sha256` files) are also attached to each GitHub Release. Verify the checksum before running a standalone download.
 
-### Windows (dev)
+### Development (any platform)
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\launch_gui.ps1
+```bash
+cargo xtask gui            # build, replace a running GUI, launch
+cargo xtask gui --release
 ```
 
 ### Building from source (macOS/Linux)

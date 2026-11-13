@@ -509,6 +509,7 @@
   "cli-root-about": "वह रूट निर्देशिका दिखाएँ जहाँ संस्करण और shim रखे जाते हैं",
   "cli-self-install-about": "रिलीज़ बंडल से pyenv-native इंस्टॉल या मरम्मत करें",
   "cli-self-uninstall-about": "सिस्टम से pyenv-native अनइंस्टॉल करें",
+  "cli-agent-skills-about": "कोडिंग असिस्टेंट के लिए pyenv-native स्किल इंस्टॉल करें",
   "cli-status-about": "व्यापक वातावरण स्थिति दिखाएँ (संस्करण, स्रोत, venv)",
   "cli-venv-create-about": "किसी विशिष्ट रनटाइम के अंतर्गत प्रबंधित आभासी वातावरण बनाएँ",
   "cli-venv-delete-about": "प्रबंधित आभासी वातावरण हटाएँ",

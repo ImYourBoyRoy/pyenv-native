@@ -4,6 +4,6 @@
 
 Quick install:
 
-```powershell
-./scripts/install-agent-skills.ps1 -Agent cursor
+```bash
+pyenv agent-skills --agent cursor
 ```

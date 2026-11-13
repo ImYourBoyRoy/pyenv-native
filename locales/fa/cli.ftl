@@ -36,6 +36,7 @@ cli-version-file-about = تشخیص پرونده‌ای که نسخهٔ فعلی
 cli-version-file-read-about = خواندن محتوای یک پروندهٔ .python-version
 cli-self-install-about = نصب یا تعمیر pyenv-native از بسته انتشار
 cli-self-uninstall-about = حذف نصب pyenv-native از سیستم
+cli-agent-skills-about = نصب مهارت pyenv-native برای دستیارهای برنامه‌نویسی
 cli-help-about = نمایش راهنمای یک فرمان
 cli-commands-about = فهرست همهٔ فرمان‌های موجود pyenv
 cli-hooks-about = فهرست قلاب‌های اجرایی برای فرمان داده‌شده

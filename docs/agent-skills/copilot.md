@@ -12,12 +12,8 @@ cp -R /tmp/pyenv-native/skills/* .github/skills/
 
 Or from inside a pyenv-native clone:
 
-```powershell
-./scripts/install-agent-skills.ps1 -Agent copilot -Scope project
-```
-
 ```bash
-./scripts/install-agent-skills.sh --agent copilot --scope project
+pyenv agent-skills --agent copilot --scope project
 ```
 
 Copilot discovers skills under `.github/skills/`, `.claude/skills/`, or `.agents/skills/`.

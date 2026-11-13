@@ -501,6 +501,7 @@
   "cli-root-about": "显示存放版本和 shim 的根目录",
   "cli-self-install-about": "从发行包安装或修复 pyenv-native",
   "cli-self-uninstall-about": "从系统卸载 pyenv-native",
+  "cli-agent-skills-about": "为编程助手安装 pyenv-native 技能",
   "cli-status-about": "显示完整环境状态（版本、来源、venv）",
   "cli-venv-create-about": "在指定运行时下创建托管虚拟环境",
   "cli-venv-delete-about": "删除托管虚拟环境",

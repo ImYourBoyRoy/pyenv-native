@@ -514,6 +514,7 @@
   "cli-root-about": "バージョンと shim を置くルートディレクトリを表示する",
   "cli-self-install-about": "リリースバンドルから pyenv-native をインストールまたは修復する",
   "cli-self-uninstall-about": "システムから pyenv-native をアンインストールする",
+  "cli-agent-skills-about": "コーディングアシスタント向けに pyenv-native のスキルをインストールする",
   "cli-status-about": "包括的な環境ステータス（バージョン、由来、venv）を表示する",
   "cli-venv-create-about": "指定ランタイムの下に管理対象の仮想環境を作成する",
   "cli-venv-delete-about": "管理対象の仮想環境を削除する",

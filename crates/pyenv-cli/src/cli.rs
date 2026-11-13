@@ -63,6 +63,7 @@ MAINTENANCE:
   self-install       Install or repair pyenv-native from a release bundle
   self-update        Check for or install the latest published pyenv-native release
   self-uninstall     Uninstall pyenv-native from your system
+  agent-skills       Install the pyenv-native skill for coding assistants
 
 SUPPORT:
   help               Display help for a command
@@ -491,6 +492,32 @@ pub(crate) enum Commands {
         system: bool,
         #[arg(long = "finish-after-pid", hide = true)]
         finish_after_pid: Option<u32>,
+    },
+
+    #[command(about = "Install the pyenv-native skill for coding assistants")]
+    AgentSkills {
+        #[arg(
+            long = "agent",
+            value_name = "NAME",
+            default_value = "all",
+            value_parser = clap::builder::PossibleValuesParser::new(pyenv_core::AGENT_NAMES),
+            help = "Agent to install for"
+        )]
+        agent: String,
+        #[arg(
+            long = "scope",
+            value_name = "SCOPE",
+            default_value = "user",
+            value_parser = ["user", "project"],
+            help = "Install for your user account, or into the current project only"
+        )]
+        scope: String,
+        #[arg(
+            long = "repo-url",
+            value_name = "URL",
+            help = "Repository the Gemini CLI, Antigravity, and Claude Code installs use (default: the public pyenv-native repository)"
+        )]
+        repo_url: Option<String>,
     },
 
     // --- SUPPORT ---

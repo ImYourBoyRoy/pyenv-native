@@ -36,6 +36,7 @@ cli-version-file-about = Geçerli pyenv sürümünü ayarlayan dosyayı algıla
 cli-version-file-read-about = Bir .python-version dosyasının içeriğini oku
 cli-self-install-about = pyenv-native'i bir sürüm paketinden kur veya onar
 cli-self-uninstall-about = pyenv-native’i sistemden kaldır
+cli-agent-skills-about = Kodlama asistanları için pyenv-native becerisini kur
 cli-help-about = Bir komutun yardımını göster
 cli-commands-about = Kullanılabilir tüm pyenv komutlarını listele
 cli-hooks-about = Verilen komutun çalıştırılabilir kancalarını listele

@@ -36,6 +36,7 @@ cli-version-file-about = Обнаружить файл, задающий тек�
 cli-version-file-read-about = Прочитать содержимое файла .python-version
 cli-self-install-about = Установить или восстановить pyenv-native из релизного пакета
 cli-self-uninstall-about = Удалить pyenv-native из системы
+cli-agent-skills-about = Установить навык pyenv-native для ассистентов по программированию
 cli-help-about = Показать справку по команде
 cli-commands-about = Перечислить все доступные команды pyenv
 cli-hooks-about = Перечислить исполняемые хуки для указанной команды

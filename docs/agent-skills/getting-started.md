@@ -15,62 +15,30 @@ Each Roy toolkit repo ships a **`skills/`** folder with structured workflows age
 | **Windsurf** | `.windsurfrules` or Global Rules (paste skill content) |
 | **OpenCode** | Workspace `AGENTS.md` + `skills/` |
 
-Cross-platform installers: `scripts/install-agent-skills.ps1` (Windows/macOS/Linux **PowerShell 7+**) and `scripts/install-agent-skills.sh` (macOS/Linux **bash**).
+One cross-platform installer: `pyenv agent-skills`. The skill is built into `pyenv`, so it needs no clone and no Rust toolchain.
 
 ## Tell your agent (works in any tool)
 
 ```text
-Install the agent skills from https://github.com/imyourboyroy/pyenv-native. Clone the repo, then run scripts/install-agent-skills.ps1 -Agent all on Windows (PowerShell 7+) or scripts/install-agent-skills.sh --agent all on macOS/Linux.
+Install the agent skills from https://github.com/imyourboyroy/pyenv-native. If `pyenv` is not installed, install pyenv-native first. Then run `pyenv agent-skills --agent all`.
 ```
 
-## One-shot install (no manual cd)
-
-### Windows (PowerShell 7+)
-
-```powershell
-$repo = "https://github.com/imyourboyroy/pyenv-native"
-$dir = Join-Path $env:TEMP "agent-skills-$(Get-Random)"
-git clone --depth 1 $repo $dir
-& (Join-Path $dir "scripts/install-agent-skills.ps1") -RepoRoot $dir -Agent all
-```
-
-### macOS / Linux (bash)
+## Install
 
 ```bash
-repo="https://github.com/imyourboyroy/pyenv-native"
-dir="$(mktemp -d)"
-git clone --depth 1 "$repo" "$dir"
-chmod +x "$dir/scripts/install-agent-skills.sh"
-"$dir/scripts/install-agent-skills.sh" --repo-root "$dir" --agent all
+pyenv agent-skills --agent all
 ```
 
-### From GitHub URL only (installer script not on disk yet)
+Use `--agent cursor` (or any name in the table above) for one agent, and `--scope project` to install into the current directory instead of your home directory.
 
-**Windows:**
-
-```powershell
-git clone --depth 1 https://github.com/imyourboyroy/pyenv-native $env:TEMP\skills-install
-pwsh -File "$env:TEMP\skills-install\scripts\install-agent-skills.ps1" -RepoUrl "https://github.com/imyourboyroy/pyenv-native" -Agent all
-```
-
-**macOS / Linux:**
-
-```bash
-git clone --depth 1 https://github.com/imyourboyroy/pyenv-native /tmp/skills-install
-chmod +x /tmp/skills-install/scripts/install-agent-skills.sh
-/tmp/skills-install/scripts/install-agent-skills.sh --repo-url "https://github.com/imyourboyroy/pyenv-native" --agent all
-```
+Gemini CLI, Antigravity, and Claude Code install from `https://github.com/imyourboyroy/pyenv-native`. The command runs `gemini` or `agy` when they are on `PATH` and prints the commands when they are not. Use `--repo-url` for a fork.
 
 ## Project-scoped install
 
 Run from a **client project root** to install into that repo only:
 
-```powershell
-/path/to/toolkit/scripts/install-agent-skills.ps1 -Agent cursor -Scope project
-```
-
 ```bash
-/path/to/toolkit/scripts/install-agent-skills.sh --agent copilot --scope project
+pyenv agent-skills --agent copilot --scope project
 ```
 
 ## After install
@@ -81,12 +49,7 @@ Run from a **client project root** to install into that repo only:
 
 ## Update
 
-```powershell
-git pull
-./scripts/install-agent-skills.ps1 -Agent all
-```
-
 ```bash
-git pull
-./scripts/install-agent-skills.sh --agent all
+pyenv self-update
+pyenv agent-skills --agent all
 ```

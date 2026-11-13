@@ -16,7 +16,7 @@ agy plugin install /path/to/pyenv-native
 Or:
 
 ```bash
-./scripts/install-agent-skills.sh --agent antigravity
+pyenv agent-skills --agent antigravity
 ```
 
 ## Validate

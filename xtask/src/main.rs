@@ -14,12 +14,20 @@
 //! * `sync-known-versions`  refresh the offline CPython name seed from an upstream pyenv clone
 //! * `policy`        repository policy checks (shell EOL, GUI patterns, i18n catalogs)
 //! * `check`         the local and pre-push quality gate
+//! * `doctor`        check this machine can build the project (Rust, Android tooling)
+//! * `gui`           build and launch the desktop GUI for local testing
+//! * `new-locale`    seed a new Fluent locale from en-US
+//! * `install-hooks` point this clone at the repo-local git hooks
 
 mod bundle;
 mod check;
 mod checksums;
+mod doctor;
+mod gui;
+mod hooks;
 mod installer;
 mod known_versions;
+mod locale;
 mod package;
 mod policy;
 mod python;
@@ -68,6 +76,14 @@ enum Command {
     Policy(policy::PolicyArgs),
     /// Run the local quality gate: format, clippy, tests, version sync, i18n, Python, GUI checks.
     Check(check::CheckArgs),
+    /// Check that this machine can build pyenv-native (Rust, optional Android tooling).
+    Doctor(doctor::DoctorArgs),
+    /// Build and launch the desktop GUI for local testing.
+    Gui(gui::GuiArgs),
+    /// Seed a new Fluent locale from en-US.
+    NewLocale(locale::NewLocaleArgs),
+    /// Point this clone at the repo-local git hooks (pre-push runs `cargo xtask check`).
+    InstallHooks,
 }
 
 /// The repository root (the directory that holds the workspace `Cargo.toml`).
@@ -93,6 +109,10 @@ fn main() -> ExitCode {
         Command::SyncKnownVersions(args) => known_versions::run(&args),
         Command::Policy(args) => policy::run(&args),
         Command::Check(args) => check::run(&args),
+        Command::Doctor(args) => doctor::run(&args),
+        Command::Gui(args) => gui::run(&args),
+        Command::NewLocale(args) => locale::run(&args),
+        Command::InstallHooks => hooks::run(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

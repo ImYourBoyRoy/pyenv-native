@@ -90,7 +90,7 @@ crates/
   pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
   pyenv-gui/      Tauri desktop companion
   pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
-xtask/            `cargo xtask`: bundles, packaging (homebrew), native installers, python package, release, policy checks, version sync, quality gate
+xtask/            `cargo xtask`: bundles, packaging (homebrew), native installers, python package, release, policy checks, version sync, quality gate, and contributor helpers (`doctor`, `gui`, `new-locale`, `install-hooks`)
 python-package/   Python install package wrapper for native release bundles
 packaging/        package-manager metadata and generators
 scripts/          publish, packaging, validation, and smoke-test helpers
@@ -99,6 +99,8 @@ scripts/          publish, packaging, validation, and smoke-test helpers
 ---
 
 ### Installer module
+
+`crates/pyenv-core/src/agent_skills.rs` backs `pyenv agent-skills`: the skill (`skills/pyenv-native/SKILL.md`) is compiled in with `include_str!`, so installing it needs no checkout; a test fails when `skills/` and the embedded list differ, or when the Claude plugin names drift from `.claude-plugin/*.json`.
 
 `crates/pyenv-core/src/installer/` is the single implementation of install, update, and uninstall (`pyenv self-install`, `self-update`, `self-uninstall`):
 

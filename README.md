@@ -130,19 +130,9 @@ Register MCP: `pyenv-mcp print-config` (paste into Cursor MCP settings). Quick J
 Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 ```
 
-```powershell
-# Windows (PowerShell 7+)
-git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
-cd pyenv-native
-./scripts/install-agent-skills.ps1 -Agent all
-```
-
 ```bash
-# macOS / Linux
-git clone --depth 1 https://github.com/imyourboyroy/pyenv-native.git
-cd pyenv-native
-chmod +x ./scripts/install-agent-skills.sh
-./scripts/install-agent-skills.sh --agent all
+# Windows, macOS, Linux: the skill is built into pyenv
+pyenv agent-skills --agent all
 ```
 
 Guides: [docs/agent-skills/README.md](./docs/agent-skills/README.md) · [getting-started.md](./docs/agent-skills/getting-started.md)

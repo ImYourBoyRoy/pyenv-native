@@ -509,6 +509,7 @@
   "cli-root-about": "نمایش پوشهٔ ریشه که نسخه‌ها و shimها در آن نگه داشته می‌شوند",
   "cli-self-install-about": "نصب یا تعمیر pyenv-native از بسته انتشار",
   "cli-self-uninstall-about": "حذف نصب pyenv-native از سیستم",
+  "cli-agent-skills-about": "نصب مهارت pyenv-native برای دستیارهای برنامه‌نویسی",
   "cli-status-about": "نمایش وضعیت جامع محیط (نسخه‌ها، مبدأها، venvها)",
   "cli-venv-create-about": "ایجاد یک محیط مجازی مدیریت‌شده زیر یک ران‌تایم مشخص",
   "cli-venv-delete-about": "حذف یک محیط مجازی مدیریت‌شده",

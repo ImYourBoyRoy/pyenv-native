@@ -36,6 +36,7 @@ cli-version-file-about = 現在の pyenv バージョンを設定しているフ
 cli-version-file-read-about = .python-version ファイルの内容を読み取る
 cli-self-install-about = リリースバンドルから pyenv-native をインストールまたは修復する
 cli-self-uninstall-about = システムから pyenv-native をアンインストールする
+cli-agent-skills-about = コーディングアシスタント向けに pyenv-native のスキルをインストールする
 cli-help-about = コマンドのヘルプを表示する
 cli-commands-about = 利用できるすべての pyenv コマンドを一覧表示する
 cli-hooks-about = 指定コマンドの実行可能なフックを一覧表示する

@@ -509,6 +509,7 @@
   "cli-root-about": "Mostrare la directory radice in cui sono conservate versioni e shim",
   "cli-self-install-about": "Installare o riparare pyenv-native da un bundle di rilascio",
   "cli-self-uninstall-about": "Disinstallare pyenv-native dal sistema",
+  "cli-agent-skills-about": "Installare la skill pyenv-native per gli assistenti di programmazione",
   "cli-status-about": "Mostrare lo stato completo dell’ambiente (versioni, origini, venv)",
   "cli-venv-create-about": "Creare un ambiente virtuale gestito sotto un runtime specifico",
   "cli-venv-delete-about": "Rimuovere un ambiente virtuale gestito",

@@ -22,7 +22,7 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 ## When working ON this repo (Rust / packaging)
 
 - Supported platforms: **Windows**, **Linux**, and **macOS**. Exercise install and resolution on the OS you touch. Android/Termux is experimental (source builds).
-- Use `cargo xtask` for release/dev automation (`bundle`, `check`, `policy`, `package`, `python`, `release`, `sync-known-versions`, `version-check`, `set-version`) and `scripts/dev-cargo.ps1` for Windows target selection.
+- Use `cargo xtask` for release/dev automation (`bundle`, `check`, `policy`, `package`, `python`, `release`, `sync-known-versions`, `version-check`, `set-version`, `doctor`, `gui`, `new-locale`, `install-hooks`) and `scripts/dev-cargo.ps1` for Windows target selection.
 - Install, update, and uninstall logic lives in Rust (`crates/pyenv-core/src/installer/`, exposed as `pyenv self-install` / `self-update` / `self-uninstall`). `install.sh`/`install.ps1` only download, verify, and run it — do not add install logic to scripts.
 - Every install path must ship **both** `pyenv` and `pyenv-mcp` (release bundles are built by `cargo xtask bundle`).
 - Run `cargo test` in affected crates before claiming success.
@@ -60,8 +60,8 @@ Install (all agents): see [docs/agent-skills/README.md](docs/agent-skills/README
 Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 ```
 
-```powershell
-./scripts/install-agent-skills.ps1 -Agent all
+```bash
+pyenv agent-skills --agent all
 ```
 
 Skill name: **pyenv-native**

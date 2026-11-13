@@ -100,12 +100,8 @@ Register MCP: `pyenv-mcp print-config` → paste into Cursor MCP settings.
 
 From a clone of this repository:
 
-```powershell
-pwsh -NoLogo -NoProfile -File .\scripts\install-agent-skills.ps1 -Agent all
-```
-
 ```sh
-sh ./scripts/install-agent-skills.sh --agent all
+pyenv agent-skills --agent all
 ```
 
 See [docs/agent-skills/README.md](../../docs/agent-skills/README.md) and [docs/cursor-setup.md](../../docs/cursor-setup.md).

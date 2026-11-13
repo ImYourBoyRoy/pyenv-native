@@ -36,6 +36,7 @@ cli-version-file-about = Detect the file that sets the current pyenv version
 cli-version-file-read-about = Read the contents of a .python-version file
 cli-self-install-about = Install or repair pyenv-native from a release bundle
 cli-self-uninstall-about = Uninstall pyenv-native from your system
+cli-agent-skills-about = Install the pyenv-native skill for coding assistants
 cli-help-about = Display help for a command
 cli-commands-about = List all available pyenv commands
 cli-hooks-about = List executable hooks for a given command

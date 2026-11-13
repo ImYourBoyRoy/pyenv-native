@@ -22,7 +22,7 @@ gemini skills install /path/to/pyenv-native/skills/ --scope workspace
 Or use the installer:
 
 ```bash
-./scripts/install-agent-skills.sh --agent gemini
+pyenv agent-skills --agent gemini
 ```
 
 ## Verify

@@ -181,7 +181,8 @@ mod cases {
         let found_trap_only = search_path_entries(&[trap_dir], "python", path_ext);
         assert_eq!(found_trap_only, None);
 
-        let found_alias_only = search_path_entries(&[alias_dir.clone()], "python", path_ext);
+        let found_alias_only =
+            search_path_entries(std::slice::from_ref(&alias_dir), "python", path_ext);
         assert_eq!(found_alias_only, None);
 
         let found_after_alias =
