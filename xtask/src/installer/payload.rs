@@ -15,8 +15,9 @@ const ICON_SIZES: [&str; 4] = ["32x32", "128x128", "256x256", "512x512"];
 pub(crate) struct Layout {
     /// Install prefix (`/usr`, or the Termux prefix).
     pub prefix: String,
-    /// Directory for `profile.d` (`/etc/profile.d`, or `<prefix>/etc/profile.d` on Termux).
-    pub profile_d: String,
+    /// Directory for `profile.d` (`/etc/profile.d`, or `<prefix>/etc/profile.d` on Termux); none on
+    /// macOS, where login shells have no such mechanism.
+    pub profile_d: Option<String>,
     /// Written to `share/pyenv-native/install-source`; read by `pyenv self-update`.
     pub source: &'static str,
     /// Where the license text goes (`/usr/share/doc/...` for Debian, `/usr/share/licenses/...` for RPM).
@@ -29,7 +30,7 @@ impl Layout {
     pub(crate) fn debian() -> Self {
         Self {
             prefix: "/usr".into(),
-            profile_d: "/etc/profile.d".into(),
+            profile_d: Some("/etc/profile.d".into()),
             source: "deb",
             license_path: "/usr/share/doc/pyenv-native/copyright".into(),
             desktop_integration: true,
@@ -39,10 +40,21 @@ impl Layout {
     pub(crate) fn rpm() -> Self {
         Self {
             prefix: "/usr".into(),
-            profile_d: "/etc/profile.d".into(),
+            profile_d: Some("/etc/profile.d".into()),
             source: "rpm",
             license_path: "/usr/share/licenses/pyenv-native/LICENSE".into(),
             desktop_integration: true,
+        }
+    }
+
+    /// The macOS `.pkg`: `/usr/local` (already on every user's `PATH`) plus an app in `/Applications`.
+    pub(crate) fn macos() -> Self {
+        Self {
+            prefix: "/usr/local".into(),
+            profile_d: None,
+            source: "pkg",
+            license_path: "/usr/local/share/doc/pyenv-native/LICENSE".into(),
+            desktop_integration: false,
         }
     }
 
@@ -50,7 +62,7 @@ impl Layout {
         let prefix = "/data/data/com.termux/files/usr";
         Self {
             prefix: prefix.into(),
-            profile_d: format!("{prefix}/etc/profile.d"),
+            profile_d: Some(format!("{prefix}/etc/profile.d")),
             source: "termux",
             license_path: format!("{prefix}/share/doc/pyenv-native/copyright"),
             desktop_integration: false,
@@ -232,12 +244,14 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
         format!("{}\n", layout.source).into_bytes(),
         false,
     );
-    push(
-        format!("{}/pyenv-native.sh", layout.profile_d),
-        0o644,
-        PROFILE_D.as_bytes().to_vec(),
-        true,
-    );
+    if let Some(profile_d) = &layout.profile_d {
+        push(
+            format!("{profile_d}/pyenv-native.sh"),
+            0o644,
+            PROFILE_D.as_bytes().to_vec(),
+            true,
+        );
+    }
 
     for (source, name) in [
         ("README.md", "README.md"),
@@ -255,10 +269,10 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     }
     if let Some(license) = bundle.read("LICENSE") {
         let text = String::from_utf8_lossy(&license).into_owned();
-        let data = if layout.source == "rpm" {
-            license
-        } else {
+        let data = if matches!(layout.source, "deb" | "termux") {
             debian_copyright(&text).into_bytes()
+        } else {
+            license
         };
         push(layout.license_path.clone(), 0o644, data, false);
     }
@@ -339,7 +353,12 @@ mod tests {
         assert_eq!(Layout::rpm().source, "rpm");
         let termux = Layout::termux();
         assert!(termux.prefix.starts_with("/data/data/com.termux/"));
-        assert!(termux.profile_d.starts_with(&termux.prefix));
+        assert!(
+            termux
+                .profile_d
+                .as_deref()
+                .is_some_and(|dir| dir.starts_with(&termux.prefix))
+        );
         assert!(!termux.desktop_integration);
     }
 

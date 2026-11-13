@@ -443,6 +443,11 @@ jobs:
         shell: bash
         run: test -f dist/pyenv-native-macos-arm64/pyenv-gui
 
+      - name: Build and exercise the macOS arm64 installer (.pkg, .dmg)
+        uses: ./.github/actions/macos-installer
+        with:
+          arch: arm64
+
   macos-x64-smoke:
     runs-on: macos-15-intel
 
@@ -482,3 +487,8 @@ jobs:
       - name: Confirm GUI binary in bundle
         shell: bash
         run: test -f dist/pyenv-native-macos-x64/pyenv-gui
+
+      - name: Build and exercise the macOS x64 installer (.pkg, .dmg)
+        uses: ./.github/actions/macos-installer
+        with:
+          arch: x64

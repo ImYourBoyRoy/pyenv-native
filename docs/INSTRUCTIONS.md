@@ -141,6 +141,7 @@ Releases attach installers for each platform. They are built by `cargo xtask ins
 | Windows setup | `pyenv-native-windows-<arch>-setup.exe` | pyenv-native (`pyenv self-update`) |
 | Debian / Ubuntu | `pyenv-native_<version>_<arch>.deb` | `apt` |
 | Fedora / RHEL / openSUSE | `pyenv-native-<version>-1.<arch>.rpm` | `dnf` / `zypper` |
+| macOS (Apple silicon, Intel) | `pyenv-native-macos-<arm64\|x64>.pkg`, `.dmg` | a newer `.pkg` installed over it |
 | Termux | `pyenv-native_<version>_aarch64.deb` | `pkg` |
 
 ### Windows setup
@@ -152,6 +153,21 @@ A per-user NSIS setup (no administrator rights). It unpacks the release bundle t
 - **Apps & features** is populated by `pyenv self-install` itself (HKCU, so no elevation), which means script installs and updates get the entry too. Its uninstall command is `pyenv self-uninstall`; the setup ships no second uninstaller.
 - Silent install: `pyenv-native-windows-x64-setup.exe /S` (optionally `/D=C:\path\to\root`, which must be last).
 - PowerShell 7 is not installed by the setup (`--install-powershell7 false`); it works from Windows PowerShell 5.1 and `cmd` too.
+
+### macOS package
+
+`pyenv-native-macos-arm64.pkg` (Apple silicon) and `pyenv-native-macos-x64.pkg` (Intel) are flat installer packages; the matching `.dmg` is a disk image that carries the same `.pkg` plus a read-me. They require macOS 11 or newer and install system-wide, like the Linux packages:
+
+- `pyenv` and `pyenv-mcp` in `/usr/local/bin` (already on every user's `PATH`) and the desktop app as `/Applications/Pyenv Native.app`.
+- Python versions, virtual environments, and shims stay per user in `~/.pyenv`. Add `eval "$(pyenv init - zsh)"` to `~/.zshrc` to put the shims on `PATH`; the installer's last page says so.
+- **Upgrade** by installing a newer `.pkg` over the old one. `pyenv self-update` declines on a package install (the file `/usr/local/share/pyenv-native/install-source` says `pkg`) and prints that instruction.
+- **Uninstall** with `sudo pyenv self-uninstall --system`, which removes exactly what the installer receipt lists and forgets the receipt (`pkgutil --forget`). Run `pyenv self-uninstall` first (no sudo) if you also want `~/.pyenv` and the shell integration gone.
+- **Signing.** Packages are ad-hoc signed unless the maintainer supplies Apple identities (`APPLE_CODESIGN_IDENTITY`, `APPLE_INSTALLER_IDENTITY`); they are not notarized, so a package downloaded in a browser may need Control-click → Open the first time. Downloading with `curl` does not trigger that prompt. Verify against `SHA256SUMS` first.
+- CI installs the package, runs `pyenv`, upgrades over it, mounts the `.dmg`, and uninstalls on both an Apple silicon and an Intel runner before every release.
+
+```bash
+sudo installer -pkg pyenv-native-macos-arm64.pkg -target /
+```
 
 ### Debian, RPM, and Termux packages
 
@@ -195,7 +211,7 @@ Debian and RPM packages are written in Rust, so they build on any runner without
 
 ## Updating pyenv-native in place
 
-Once `pyenv-native` is installed as a portable root-managed install (scripts, the Windows setup, Homebrew-seeded roots), you can update it directly. Installs owned by a system package (`.deb`, `.rpm`, Termux) are updated by the package manager instead; see [Native installers](#native-installers).
+Once `pyenv-native` is installed as a portable root-managed install (scripts, the Windows setup, Homebrew-seeded roots), you can update it directly. Installs owned by a system package (`.deb`, `.rpm`, Termux, the macOS `.pkg`) are updated by the package manager instead; see [Native installers](#native-installers).
 
 ```text
 pyenv self-update

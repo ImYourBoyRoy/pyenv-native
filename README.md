@@ -44,13 +44,15 @@ Releases from v0.7.0 on also attach native installers, built from the same binar
 | Windows x64 / ARM64 | `pyenv-native-windows-<arch>-setup.exe` (per-user, no admin; `/S` for silent) | `pyenv self-update` |
 | Debian / Ubuntu | `pyenv-native_<version>_<amd64\|arm64>.deb` | `apt` |
 | Fedora / RHEL / openSUSE | `pyenv-native-<version>-1.<x86_64\|aarch64>.rpm` | `dnf` / `zypper` |
+| macOS Apple silicon / Intel | `pyenv-native-macos-<arm64\|x64>.pkg` (and a `.dmg` that carries it) | installing a newer `.pkg` over it |
 | Termux (Android) | `pyenv-native_<version>_aarch64.deb` | `pkg` |
 
 ```bash
 sudo apt install ./pyenv-native_<version>_amd64.deb      # or: sudo dnf install ./pyenv-native-<version>-1.x86_64.rpm
+sudo installer -pkg pyenv-native-macos-arm64.pkg -target /   # macOS (or double-click it)
 ```
 
-Every asset has a `.sha256` file, the release carries a combined `SHA256SUMS` and a CycloneDX SBOM, and assets have GitHub build-provenance attestations (`gh attestation verify <file> --repo imyourboyroy/pyenv-native`). Package installs put `pyenv` in the system prefix; Python versions and shims still live in `~/.pyenv`, which the package adds to `PATH` through `/etc/profile.d`. Details, upgrades from script installs, and the package-managed update rules: [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md#native-installers).
+Every asset has a `.sha256` file, the release carries a combined `SHA256SUMS` and a CycloneDX SBOM, and assets have GitHub build-provenance attestations (`gh attestation verify <file> --repo imyourboyroy/pyenv-native`). Package installs put `pyenv` in the system prefix (`/usr/local` on macOS, plus `Pyenv Native.app` in Applications); Python versions and shims still live in `~/.pyenv`, which the package adds to `PATH` through `/etc/profile.d`. Details, upgrades from script installs, and the package-managed update rules: [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md#native-installers).
 
 ### pipx (any OS with Python)
 

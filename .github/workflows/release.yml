@@ -281,6 +281,11 @@ jobs:
         shell: bash
         run: cargo xtask bundle --output-root ./dist
 
+      - name: Build and exercise the macOS arm64 installer (.pkg, .dmg)
+        uses: ./.github/actions/macos-installer
+        with:
+          arch: arm64
+
       - name: Prepare standalone GUI asset (macOS arm64)
         run: |
           src="dist/pyenv-native-macos-arm64/pyenv-gui"
@@ -298,6 +303,10 @@ jobs:
           path: |
             dist/pyenv-native-macos-arm64.tar.gz
             dist/pyenv-native-macos-arm64.tar.gz.sha256
+            dist/pyenv-native-macos-arm64.pkg
+            dist/pyenv-native-macos-arm64.pkg.sha256
+            dist/pyenv-native-macos-arm64.dmg
+            dist/pyenv-native-macos-arm64.dmg.sha256
             dist/pyenv-gui-macos-arm64
             dist/pyenv-gui-macos-arm64.sha256
 
@@ -331,6 +340,11 @@ jobs:
         shell: bash
         run: cargo xtask bundle --output-root ./dist
 
+      - name: Build and exercise the macOS x64 installer (.pkg, .dmg)
+        uses: ./.github/actions/macos-installer
+        with:
+          arch: x64
+
       - name: Prepare standalone GUI asset (macOS x64)
         run: |
           src="dist/pyenv-native-macos-x64/pyenv-gui"
@@ -348,6 +362,10 @@ jobs:
           path: |
             dist/pyenv-native-macos-x64.tar.gz
             dist/pyenv-native-macos-x64.tar.gz.sha256
+            dist/pyenv-native-macos-x64.pkg
+            dist/pyenv-native-macos-x64.pkg.sha256
+            dist/pyenv-native-macos-x64.dmg
+            dist/pyenv-native-macos-x64.dmg.sha256
             dist/pyenv-gui-macos-x64
             dist/pyenv-gui-macos-x64.sha256
 

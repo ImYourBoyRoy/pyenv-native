@@ -28,6 +28,9 @@ pub struct SelfUninstallOptions {
     pub keep_data: bool,
     /// Leave shell profile blocks, user PATH entries, and desktop launchers in place.
     pub keep_shell_integration: bool,
+    /// Remove the program files of a macOS `.pkg` install instead of the per-user root
+    /// (`sudo pyenv self-uninstall --system`).
+    pub system: bool,
     /// Internal: this process is the detached helper finishing removal after its parent exited.
     pub finish_after_pid: Option<u32>,
 }
@@ -39,6 +42,7 @@ impl SelfUninstallOptions {
             yes: false,
             keep_data: false,
             keep_shell_integration: false,
+            system: false,
             finish_after_pid: None,
         }
     }
@@ -50,6 +54,9 @@ pub fn run_self_uninstall(
     sink: LineSink<'_>,
 ) -> Result<(), String> {
     let mut reporter = Reporter::new(sink);
+    if options.system {
+        return super::system_pkg::remove_system_package(&mut reporter);
+    }
     let layout = InstallLayout::new(options.root.clone());
     assert_safe_root(&layout)?;
 
@@ -77,6 +84,15 @@ pub fn run_self_uninstall(
         "Uninstalled pyenv-native from {}.",
         layout.root().display()
     ));
+    if let Some(source) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| super::source::package_source_for(&exe))
+    {
+        reporter.plain(&format!(
+            "The pyenv program itself was installed by a {source} package; remove it with: {}",
+            super::source::remove_command(&source)
+        ));
+    }
     Ok(())
 }
 

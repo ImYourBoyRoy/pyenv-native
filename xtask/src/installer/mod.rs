@@ -7,6 +7,8 @@
 //!
 //! * `deb`, `rpm`: system packages (`/usr`) that the distro package manager owns and updates.
 //! * `termux`: a `.deb` rooted at the Termux prefix for Android.
+//! * `pkg`, `dmg`: the macOS installer (`/usr/local` plus `/Applications/Pyenv Native.app`) and a
+//!   disk image that carries it; these need the macOS packaging tools, so they run on macOS.
 //! * `nsis`: a per-user Windows setup that runs `pyenv self-install`, so it shares one install
 //!   layout (and the in-place updater) with the scripts and `pyenv self-update`.
 //!
@@ -14,6 +16,7 @@
 //! defers to the package manager instead of replacing files it does not own.
 
 mod deb;
+mod macos;
 mod nsis;
 mod payload;
 mod rpm_pkg;
@@ -35,6 +38,10 @@ pub enum InstallerCommand {
     Rpm(PackageArgs),
     /// Termux package (`.deb` rooted at the Termux prefix) from an Android bundle.
     Termux(PackageArgs),
+    /// macOS installer (`pyenv-native-macos-<arch>.pkg`) from a macOS bundle (run on macOS).
+    Pkg(PkgArgs),
+    /// macOS disk image (`pyenv-native-macos-<arch>.dmg`) that carries a `.pkg` (run on macOS).
+    Dmg(DmgArgs),
     /// Windows setup executable built with NSIS from a Windows bundle (needs `makensis`).
     Nsis(NsisArgs),
 }
@@ -51,6 +58,32 @@ pub struct PackageArgs {
     /// e.g. 35 for Ubuntu 22.04).
     #[arg(long, value_name = "MINOR")]
     max_glibc: Option<u32>,
+}
+
+#[derive(Args)]
+pub struct PkgArgs {
+    /// macOS release bundle produced by `cargo xtask bundle`.
+    #[arg(long)]
+    bundle: PathBuf,
+    /// Directory that receives the package and its `.sha256` sidecar.
+    #[arg(long, default_value = "dist")]
+    output_root: PathBuf,
+    /// `codesign` identity for the executables and the app (default: ad hoc, no Apple account).
+    #[arg(long, env = "APPLE_CODESIGN_IDENTITY", default_value = "-")]
+    codesign_identity: String,
+    /// Developer ID Installer identity; without it the package is unsigned.
+    #[arg(long, env = "APPLE_INSTALLER_IDENTITY")]
+    installer_identity: Option<String>,
+}
+
+#[derive(Args)]
+pub struct DmgArgs {
+    /// The `.pkg` to wrap, from `cargo xtask installer pkg`.
+    #[arg(long)]
+    pkg: PathBuf,
+    /// Directory that receives the disk image and its `.sha256` sidecar.
+    #[arg(long, default_value = "dist")]
+    output_root: PathBuf,
 }
 
 #[derive(Args)]
@@ -95,6 +128,22 @@ pub fn run(command: &InstallerCommand) -> Result<()> {
             let payload = payload::system_payload(&bundle, &payload::Layout::rpm())?;
             enforce_glibc_floor(&payload, args.max_glibc)?;
             let output = rpm_pkg::write(&payload, &bundle.manifest, &args.output_root)?;
+            finish(&output)
+        }
+        InstallerCommand::Pkg(args) => {
+            let bundle = Bundle::open(&args.bundle, "macos")?;
+            let signing = macos::Signing {
+                codesign_identity: args.codesign_identity.clone(),
+                installer_identity: args
+                    .installer_identity
+                    .clone()
+                    .filter(|identity| !identity.trim().is_empty()),
+            };
+            let output = macos::write_pkg(&bundle, &args.output_root, &signing)?;
+            finish(&output)
+        }
+        InstallerCommand::Dmg(args) => {
+            let output = macos::write_dmg(&args.pkg, &args.output_root)?;
             finish(&output)
         }
         InstallerCommand::Nsis(args) => {

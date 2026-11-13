@@ -341,9 +341,11 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             yes,
             keep_data,
             keep_shell_integration,
+            system,
             finish_after_pid,
         } => {
             let mut options = SelfUninstallOptions::new(ctx.root.clone());
+            options.system = system;
             options.yes = yes;
             options.keep_data = keep_data;
             options.keep_shell_integration = keep_shell_integration;

@@ -17,6 +17,7 @@ mod layout;
 mod profile;
 mod report;
 mod source;
+mod system_pkg;
 mod uninstall;
 mod user_path;
 

@@ -1,0 +1,76 @@
+name: macOS installer
+description: >-
+  Build the macOS .pkg and .dmg from the release bundle in dist/, then install, upgrade, inspect,
+  and uninstall the .pkg on this runner so a broken installer never reaches a release.
+
+inputs:
+  arch:
+    description: Bundle architecture, arm64 or x64.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build the .pkg and .dmg
+      shell: bash
+      run: |
+        set -euo pipefail
+        cargo xtask installer pkg --bundle "dist/pyenv-native-macos-${{ inputs.arch }}.tar.gz" --output-root dist
+        cargo xtask installer dmg --pkg "dist/pyenv-native-macos-${{ inputs.arch }}.pkg" --output-root dist
+
+    - name: Exercise the .pkg and .dmg
+      shell: bash
+      run: |
+        set -euo pipefail
+        pkg="dist/pyenv-native-macos-${{ inputs.arch }}.pkg"
+        dmg="dist/pyenv-native-macos-${{ inputs.arch }}.dmg"
+        app="/Applications/Pyenv Native.app"
+        bin=/usr/local/bin
+
+        echo "--- package contents"
+        pkgutil --check-signature "$pkg" || true
+        pkgutil --payload-files "$pkg" | head -40
+
+        echo "--- install"
+        sudo installer -pkg "$pkg" -target / -verbose
+        "$bin/pyenv" --version
+        test -x "$bin/pyenv-mcp"
+        test -x "$app/Contents/MacOS/pyenv-gui"
+        plutil -lint "$app/Contents/Info.plist"
+        codesign --verify --strict --deep --verbose=2 "$app"
+        test "$(cat /usr/local/share/pyenv-native/install-source)" = pkg
+        test "$(cat "$app/Contents/Resources/install-source")" = pkg
+        pkgutil --pkg-info com.pyenv-native.pkg
+
+        echo "--- the system install defers updates to the installer"
+        out="$("$bin/pyenv" self-update --check 2>&1 || true)"
+        echo "$out"
+        grep -q "pkg" <<<"$out"
+
+        echo "--- it manages Python with the shims under a private root"
+        export PYENV_ROOT="$(mktemp -d)"
+        "$bin/pyenv" versions
+        unset PYENV_ROOT
+
+        echo "--- installing again upgrades in place"
+        sudo installer -pkg "$pkg" -target /
+        "$bin/pyenv" --version
+
+        echo "--- disk image"
+        mount_point="$(mktemp -d)"
+        hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg"
+        ls -la "$mount_point"
+        test -f "$mount_point/Install Pyenv Native.pkg"
+        test -f "$mount_point/Read Me.txt"
+        hdiutil detach "$mount_point"
+
+        echo "--- uninstall"
+        sudo "$bin/pyenv" self-uninstall --system
+        test ! -e "$bin/pyenv"
+        test ! -e "$bin/pyenv-mcp"
+        test ! -e "$app"
+        test ! -e /usr/local/share/pyenv-native
+        if pkgutil --pkg-info com.pyenv-native.pkg >/dev/null 2>&1; then
+          echo "error: the installer receipt is still registered" >&2
+          exit 1
+        fi

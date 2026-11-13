@@ -484,6 +484,11 @@ pub(crate) enum Commands {
             help = "Leave shell profile blocks, user PATH entries, and desktop launchers untouched"
         )]
         keep_shell_integration: bool,
+        #[arg(
+            long = "system",
+            help = "Remove the program files installed by the macOS .pkg (run with sudo); Python versions under PYENV_ROOT are kept"
+        )]
+        system: bool,
         #[arg(long = "finish-after-pid", hide = true)]
         finish_after_pid: Option<u32>,
     },

@@ -2,3 +2,8 @@
 [alias]
 # `cargo xtask <command>` runs the workspace automation in ./xtask (bundles, version sync, checks).
 xtask = "run --quiet --package xtask --"
+
+[env]
+# Oldest macOS the release executables run on. The macOS installer (xtask/src/installer/macos.rs)
+# admits the same floor, and a test keeps the two equal. Ignored on other platforms.
+MACOSX_DEPLOYMENT_TARGET = "11.0"
