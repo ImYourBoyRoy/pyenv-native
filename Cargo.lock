@@ -3241,7 +3241,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-cli"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "clap",
  "pyenv-core",
@@ -3250,7 +3250,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "base64 0.23.1",
  "bzip2",
@@ -3275,7 +3275,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-gui"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "opener",
  "pyenv-core",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "pyenv-mcp"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -6033,7 +6033,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "clap",
