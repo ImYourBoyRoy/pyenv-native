@@ -12,6 +12,9 @@ fn pyenv(home: &Path, args: &[&str]) -> Output {
         .env("HOME", home)
         .env("USERPROFILE", home)
         .env("PYENV_ROOT", home.join(".pyenv"))
+        // An empty PATH keeps `pyenv-gui`, `pyenv-mcp` and any other `pyenv-*` program on the
+        // developer's machine from being picked up as plugin commands that have help.
+        .env("PATH", home)
         .env_remove("PYENV_VERSION")
         .env_remove("PYENV_LANG")
         .output()
@@ -96,20 +99,23 @@ fn every_command_listed_by_the_top_level_help_has_help_of_its_own() {
         commands.len() > 30,
         "the command list looks too short to be real: {commands:?}"
     );
+    let mut problems = Vec::new();
     for command in &commands {
         let output = pyenv(home.path(), &["help", command]);
-        assert!(
-            output.status.success(),
-            "`pyenv help {command}` failed: {}{}",
-            stdout(&output),
-            stderr(&output)
-        );
-        assert!(
-            stdout(&output).starts_with(&format!("Usage: pyenv {command}")),
-            "`pyenv help {command}` printed: {}",
-            stdout(&output)
-        );
+        if !output.status.success() {
+            problems.push(format!(
+                "`pyenv help {command}` failed: {}{}",
+                stdout(&output),
+                stderr(&output)
+            ));
+        } else if !stdout(&output).starts_with(&format!("Usage: pyenv {command}")) {
+            problems.push(format!(
+                "`pyenv help {command}` printed: {}",
+                stdout(&output)
+            ));
+        }
     }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
     // The commands that used to be missing are among them.
     for command in [
         "self-install",

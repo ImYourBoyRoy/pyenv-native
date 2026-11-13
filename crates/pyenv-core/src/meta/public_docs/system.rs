@@ -189,6 +189,19 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
         completions: &["--check", "--yes", "--force", "--github-repo", "--tag"],
     },
     CommandDoc {
+        name: "gui",
+        summary: "Launch the Pyenv Native GUI dashboard",
+        usage: "Usage: pyenv gui",
+        help: &[
+            "Starts the desktop GUI companion (`pyenv-gui`) that was installed next to `pyenv`,",
+            "and returns immediately. The GUI manages runtimes, virtual environments, and shell",
+            "integration without the command line.",
+            "",
+            "If the GUI binary is missing, reinstall pyenv-native from a release that includes it.",
+        ],
+        completions: &[],
+    },
+    CommandDoc {
         name: "status",
         summary: "Show the comprehensive environment status (versions, origins, venvs)",
         usage: "Usage: pyenv status [--json]",
