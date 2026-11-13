@@ -522,7 +522,13 @@ pub(crate) enum Commands {
 
     // --- SUPPORT ---
     #[command(next_help_heading = "SUPPORT")]
-    #[command(name = "manual-help", about = "Display help for a command")]
+    // `pyenv help <command>` is the classic spelling; `manual-help` is kept as a hidden alias for
+    // anything that learned it while `help` was unreachable.
+    #[command(
+        name = "help",
+        alias = "manual-help",
+        about = "Display help for a command"
+    )]
     ManualHelp {
         #[arg(long = "usage")]
         usage: bool,
