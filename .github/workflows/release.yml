@@ -462,9 +462,13 @@ jobs:
           cargo xtask installer termux --bundle dist/android/pyenv-native-android-arm64.tar.gz --output-root "$out"
 
       - name: Generate SBOM
+        shell: bash
+        run: mkdir -p dist/sbom
+
+      - name: Scan dependencies into an SBOM
         uses: anchore/sbom-action@v0
         with:
-          path: .
+          file: Cargo.lock
           format: cyclonedx-json
           output-file: dist/sbom/pyenv-native.cdx.json
           upload-artifact: false
