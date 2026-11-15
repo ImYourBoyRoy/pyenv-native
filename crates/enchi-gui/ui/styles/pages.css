@@ -354,25 +354,98 @@ html[data-reduced-motion="true"] *::after {
   word-break: break-word;
 }
 
+/* Narrow windows: the sidebar becomes a compact header (brand, language, one scrolling row of
+   views) so the page keeps most of the height. */
 @media (max-width: 720px) {
   .app-container {
     flex-direction: column;
   }
   .sidebar {
+    flex: 0 0 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
     width: 100%;
     min-width: 0;
-    border-right: none;
+    padding: calc(var(--titlebar-height) + 8px) 12px 6px;
+    border-inline-end: none;
     border-bottom: 1px solid var(--glass-border);
-    padding-bottom: 16px;
+    overflow: visible;
   }
-  .nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
+  .brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+  }
+  .brand-subtitle,
+  .nav-header {
+    display: none;
+  }
+  .sidebar-foot {
+    order: 2;
+    margin: 0;
+    padding: 0;
+  }
+  .lang-switcher {
+    width: auto;
+    padding: 6px 10px;
+  }
+  .lang-popover {
+    top: calc(100% + 8px);
+    bottom: auto;
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    width: min(280px, calc(100vw - 24px));
+  }
+  .sidebar nav {
+    order: 3;
+    display: flex;
+    flex: 1 1 100%;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .sidebar .nav {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+  .nav li { margin: 0; }
+  .nav-btn {
+    width: auto;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  .nav-btn.active::before,
+  .nav-btn[aria-current="page"]::before {
+    inset-inline: 8px;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    height: 2px;
+  }
+  .content {
+    padding-inline: 16px;
   }
   .app-footer {
     left: 0;
+    inset-inline-start: 0;
   }
+}
+
+@media (max-width: 560px) {
+  .status-grid > .status-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "label"
+      "value"
+      "sub"
+      "chip";
+    padding: 12px 16px;
+  }
+  .status-grid > .status-card > .stat-header { margin-bottom: 2px; }
+  .stat-value { white-space: normal; overflow-wrap: anywhere; }
 }
 
 .catalog-toolbar {

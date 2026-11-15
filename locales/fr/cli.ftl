@@ -13,19 +13,19 @@ cli-prefix-about = Afficher les chemins où les versions Python indiquées sont 
 cli-install-about = Installer des versions Python depuis des fournisseurs natifs
 cli-available-about = Lister les versions Python installables depuis des fournisseurs natifs
 cli-versions-about = Lister toutes les versions Python disponibles pour enchi
-cli-upgrade-about = Faire passer les runtimes installés au dernier correctif (venvs inclus)
+cli-upgrade-about = Mettre à niveau les runtimes installés vers le dernier correctif (venvs inclus)
 cli-uninstall-about = Désinstaller une version Python précise
 cli-venv-about = Créer, inspecter et attribuer des environnements virtuels gérés
 cli-pip-about = Lister, vérifier, installer et mettre à jour les paquets d’un runtime ou d’un venv
 cli-init-about = Configurer l’environnement du shell pour enchi
-cli-gui-about = Ouvrir le tableau de bord graphique de Enchi
+cli-gui-about = Ouvrir le tableau de bord graphique d’Enchi
 cli-rehash-about = Régénérer les shims enchi (installe les exécutables pour toutes les versions)
 cli-shims-about = Lister les shims enchi existants
 cli-prompt-about = Afficher une chaîne d’invite concise pour l’environnement actuel
 cli-exec-about = Exécuter un programme avec la version Python sélectionnée
 cli-completions-about = Afficher le script de complétion des commandes
 cli-doctor-about = Diagnostiquer PATH, les shims et les prérequis d’installation
-cli-config-about = Lire, définir ou afficher la configuration de Enchi
+cli-config-about = Lire, définir ou afficher la configuration d’Enchi
 cli-self-update-about = Mettre à jour Enchi depuis GitHub Releases
 cli-preflight-about = Intelligence de plateforme et preflight de préparation à l’installation
 cli-environment-about = Alias de preflight (faits OS/chaîne d’outils pour agents et utilisateurs)
@@ -35,7 +35,7 @@ cli-which-about = Afficher le chemin complet d’un exécutable
 cli-whence-about = Lister toutes les versions Python qui contiennent l’exécutable indiqué
 cli-version-file-about = Détecter le fichier qui définit la version enchi actuelle
 cli-version-file-read-about = Lire le contenu d’un fichier .python-version
-cli-self-install-about = Installer ou réparer Enchi à partir d'un bundle de version
+cli-self-install-about = Installer ou réparer Enchi à partir d’un paquet de version
 cli-self-uninstall-about = Désinstaller Enchi du système
 cli-agent-skills-about = Installer la compétence Enchi pour les assistants de programmation
 cli-help-about = Afficher l’aide d’une commande
@@ -69,11 +69,11 @@ cli-help-support = ASSISTANCE
 cli-help-usage = Utilisation : enchi <command> [<args>]
 cli-help-useful = Commandes enchi utiles :
 cli-help-concepts =
-    CONCEPTS:
-      Shims : exécutables légers (`python` ou `pip`) qui interceptent les commandes et les acheminent vers la version actuelle. Exécutez `enchi rehash` après l’installation de paquets pip.
-      Versions : environnements installés via `enchi install`, sous `$(enchi root)/versions`.
-      Managed envs : `$(enchi root)/venvs/<runtime>/<name>`. Préférez `enchi venv create` et `enchi venv use`.
-      Discovery : `enchi install --list 3.13` ou `enchi available 3.13`.
-      Selection : PYENV_VERSION, puis `.python-version`, puis le fichier global.
+    CONCEPTS CLÉS :
+      Shims : exécutables légers (comme `python` ou `pip`) qui interceptent vos commandes et les acheminent vers la bonne version de Python. Exécutez `enchi rehash` après l’installation de nouveaux paquets pip.
+      Versions : versions de Python installées via `enchi install`, sous `$(enchi root)/versions`.
+      Environnements gérés : environnements virtuels nommés sous `$(enchi root)/venvs/<runtime>/<name>`. Privilégiez `enchi venv create` et `enchi venv use`.
+      Découverte : `enchi install --list 3.13` ou `enchi available 3.13`.
+      Sélection : PYENV_VERSION, puis `.python-version`, puis le fichier de version global.
     
-    Exécutez `enchi help <command>`. Docs : https://github.com/imyourboyroy/pyenv-native
+    Exécutez `enchi help <command>` pour obtenir l’aide détaillée d’une commande. Docs : https://github.com/imyourboyroy/pyenv-native

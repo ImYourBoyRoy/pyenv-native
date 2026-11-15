@@ -46,6 +46,15 @@
         const name = document.getElementById('lang-switcher-name');
         if (code) code.textContent = shortCode(state.lang);
         if (name) name.textContent = state.nativeName || state.lang;
+        // The accessible name must contain the visible text (WCAG 2.5.3), then say what it is.
+        const switcher = document.getElementById('lang-switcher');
+        if (switcher && code && name) {
+            if (state.messages['gui-lang-switcher']) {
+                switcher.setAttribute('aria-label', `${code.textContent} ${name.textContent}, ${t('gui-lang-switcher')}`);
+            } else {
+                switcher.removeAttribute('aria-label');
+            }
+        }
         const select = document.getElementById('config-ui.language');
         if (select && select.options.length) {
             const configured = select.dataset.configured || 'auto';

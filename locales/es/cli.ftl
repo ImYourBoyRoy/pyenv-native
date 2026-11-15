@@ -1,7 +1,7 @@
 # ./locales/es/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = Gestor de runtimes y entornos de Python
+cli-about = Gestor de intérpretes y entornos de Python
 cli-global-about = Establecer o mostrar la versión global de Python
 cli-local-about = Establecer o mostrar la versión de Python del directorio local
 cli-shell-about = Establecer o mostrar la versión de Python específica del shell
@@ -13,7 +13,7 @@ cli-prefix-about = Mostrar las rutas donde están instaladas las versiones de Py
 cli-install-about = Instalar versiones de Python desde proveedores nativos
 cli-available-about = Listar las versiones de Python instalables desde proveedores nativos
 cli-versions-about = Listar todas las versiones de Python disponibles para enchi
-cli-upgrade-about = Mover los runtimes instalados a la última versión de parche (y sus venvs)
+cli-upgrade-about = Actualizar los intérpretes instalados a la última versión de parche (y sus entornos virtuales)
 cli-uninstall-about = Desinstalar una versión concreta de Python
 cli-venv-about = Crear, inspeccionar y asignar entornos virtuales gestionados
 cli-pip-about = Listar, comprobar, instalar y actualizar paquetes de un runtime o venv
@@ -66,14 +66,14 @@ cli-help-interface = INTERFAZ
 cli-help-diagnostics = DIAGNÓSTICO Y CONFIGURACIÓN
 cli-help-maintenance = MANTENIMIENTO
 cli-help-support = SOPORTE
-cli-help-usage = Uso: enchi <command> [<args>]
+cli-help-usage = Uso: enchi <comando> [<argumentos>]
 cli-help-useful = Algunos comandos útiles de enchi:
 cli-help-concepts =
-    CONCEPTOS:
-      Shims: ejecutables ligeros (`python` o `pip`) que interceptan comandos y los enrutan a la versión actual. Ejecute `enchi rehash` tras instalar paquetes pip.
-      Versions: entornos instalados con `enchi install`, en `$(enchi root)/versions`.
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Prefiera `enchi venv create` y `enchi venv use`.
-      Discovery: `enchi install --list 3.13` o `enchi available 3.13`.
-      Selection: PYENV_VERSION, luego `.python-version`, luego el archivo global.
+    CONCEPTOS BÁSICOS:
+      Shims: ejecutables ligeros (como `python` o `pip`) que interceptan tus comandos y los dirigen a la versión correcta de Python. Ejecuta `enchi rehash` tras instalar paquetes pip nuevos.
+      Versiones: intérpretes de Python instalados con `enchi install`, en `$(enchi root)/versions`.
+      Entornos gestionados: entornos virtuales con nombre en `$(enchi root)/venvs/<runtime>/<name>`. Prefiere `enchi venv create` y `enchi venv use`.
+      Descubrimiento: `enchi install --list 3.13` o `enchi available 3.13`.
+      Selección: PYENV_VERSION, luego `.python-version` y luego el archivo de versión global.
     
-    Ejecute `enchi help <command>`. Docs: https://github.com/imyourboyroy/pyenv-native
+    Ejecuta `enchi help <command>` para ver la ayuda detallada. Documentación: https://github.com/imyourboyroy/pyenv-native

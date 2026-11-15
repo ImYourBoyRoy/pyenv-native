@@ -1,5 +1,5 @@
 # ./locales/fr/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = la racine existe à { $path }
 doctor-root-missing = la racine n’existe pas encore à { $path }
@@ -11,9 +11,9 @@ doctor-versions-dir = les interpréteurs gérés se trouvent sous { $path }
 doctor-no-selected-versions = aucune version sélectionnée
 doctor-selected-versions = { $versions } (depuis { $origin })
 doctor-desktop-path-ok = PATH est fourni par l’initialisation du shell, pas par ce processus de bureau
-doctor-plugin-path-search-on = la découverte des plugins inclut PATH ; définissez plugins.search_path=false pour la limiter à PYENV_ROOT/plugins et PYENV_PLUGIN_PATH
-doctor-plugin-path-search-off = la découverte des plugins est limitée à PYENV_ROOT/plugins et PYENV_PLUGIN_PATH
-doctor-shim-gui-copy = le shim python est une copie de enchi-gui.exe et ouvrira l’interface graphique au lieu d’exécuter Python ; exécutez `enchi rehash` pour le réparer
+doctor-plugin-path-search-on = la découverte des plugins inclut PATH ; définissez plugins.search_path=false pour la limiter à <root>/plugins et PYENV_PLUGIN_PATH
+doctor-plugin-path-search-off = la découverte des plugins est limitée à <root>/plugins et PYENV_PLUGIN_PATH
+doctor-shim-gui-copy = le shim python est une copie d’enchi-gui.exe et ouvrira l’interface graphique au lieu d’exécuter Python ; exécutez `enchi rehash` pour le réparer
 doctor-shim-gui-ref = le shim python référence enchi-gui et ouvrira l’interface graphique au lieu d’exécuter Python ; exécutez `enchi rehash` pour le réparer
 doctor-shim-launchers-ok = les lanceurs de shims référencent { $path }
 doctor-func-skip-no-version = test fonctionnel ignoré ; aucune version python sélectionnée
@@ -29,7 +29,7 @@ doctor-python-build-optional = { $error } (les compilations natives CPython depu
 doctor-termux-lib-ok = la bibliothèque Termux { $lib } est installée
 doctor-termux-lib-missing = le paquet de bibliothèque Termux { $lib } est manquant ; veuillez l’installer
 doctor-venv-missing = le venv géré sélectionné `{ $value }` est manquant ; exécutez `enchi venv list` pour inspecter les environnements disponibles ou `enchi venv create <runtime> <name>` pour le recréer
-doctor-pyenv-win-root = PYENV_ROOT vaut `{ $path }`, ce qui ressemble à un chemin pyenv-win ; pyenv-native le remplace à l’exécution, mais il est recommandé de supprimer la variable : retirez PYENV_ROOT des variables d’environnement utilisateur
+doctor-pyenv-win-root = PYENV_ROOT vaut `{ $path }`, ce qui ressemble à un chemin pyenv-win ; Enchi le remplace à l’exécution, mais il est recommandé de supprimer la variable : retirez PYENV_ROOT des variables d’environnement utilisateur
 doctor-command-ok = { $command } disponible à { $path }
 doctor-command-missing = { $reason } ; recherche effectuée pour { $commands }
 doctor-cli-missing = lanceur CLI enchi introuvable à { $path } ; réinstallez Enchi ou exécutez l’installateur
@@ -40,15 +40,15 @@ doctor-reason-shell = requis pour l’exécution du script configure
 doctor-reason-make = requis pour les compilations natives CPython depuis les sources
 doctor-reason-compiler = requis pour les compilations natives CPython depuis les sources
 doctor-reason-pkg-config = recommandé pour localiser les dépendances de bibliothèques natives
-doctor-store-alias = le python système résout vers l’alias WindowsApps à { $path } ; ce stub peut intercepter python s’il précède les shims enchi. L’auto-réparation supprime les stubs App Installer python.exe / python3.exe. Les désactiver dans les Paramètres est facultatif et sert seulement à empêcher Windows de les recréer
+doctor-store-alias = le python système pointe vers l’alias WindowsApps à { $path } ; ce stub peut intercepter python s’il précède les shims enchi. L’auto-réparation supprime les stubs App Installer python.exe / python3.exe. Les désactiver dans les Paramètres est facultatif et sert seulement à empêcher Windows de les recréer
 doctor-store-alias-shadowed = le stub python du Microsoft Store est présent à { $path } ; les shims enchi ont la priorité, donc le supprimer est facultatif. Windows 11 : Paramètres > Applications > Paramètres avancés des applications > Alias d’exécution d’application
 doctor-system-python = le python système résout vers { $path }
 doctor-no-system-python = aucun python système trouvé dans PATH
-doctor-pyenv-win-path = des entrées pyenv-win apparaissent avant pyenv-native dans PATH ; pyenv-win peut intercepter les commandes. Retirez les entrées pyenv-win du PATH utilisateur : { $path }
+doctor-pyenv-win-path = des entrées pyenv-win apparaissent avant Enchi dans PATH ; pyenv-win peut intercepter les commandes. Retirez les entrées pyenv-win du PATH utilisateur : { $path }
 doctor-fix-ensure-layout = Créer les répertoires gérés manquants sous { $path }
 doctor-fix-rehash = Actualiser les lanceurs shim sous { $path }
-doctor-fix-path-shims = Ajouter { $path } au PATH du shell afin que python/pip se résolvent via les shims enchi
-doctor-fix-path-bin = Ajouter le répertoire bin de enchi au PATH du shell
+doctor-fix-path-shims = Ajouter { $path } au PATH du shell afin que python/pip passent par les shims enchi
+doctor-fix-path-bin = Ajouter le répertoire bin d’enchi au PATH du shell
 doctor-fix-pyenv-win-root = Supprimer la variable d’environnement PYENV_ROOT obsolète de pyenv-win
 doctor-fix-store-alias = Supprimer les stubs python.exe et python3.exe d’App Installer dans WindowsApps pour qu’ils n’interceptent pas le PATH
 doctor-fix-store-alias-settings = Facultatif : désactivez App Installer python.exe et python3.exe dans les Paramètres pour que Windows ne recrée pas les stubs

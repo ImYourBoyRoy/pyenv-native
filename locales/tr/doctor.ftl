@@ -1,5 +1,5 @@
 # ./locales/tr/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = kök { $path } konumunda var
 doctor-root-missing = kök henüz { $path } konumunda yok
@@ -11,9 +11,9 @@ doctor-versions-dir = yönetilen çalışma zamanları { $path } altında durur
 doctor-no-selected-versions = seçili sürüm yok
 doctor-selected-versions = { $versions } ({ $origin } kaynağından)
 doctor-desktop-path-ok = PATH bu masaüstü sürecinden değil, kabuk başlatmasından gelir
-doctor-plugin-path-search-on = eklenti keşfi PATH’i içerir; PYENV_ROOT/plugins ve PYENV_PLUGIN_PATH ile sınırlamak için plugins.search_path=false ayarlayın
-doctor-plugin-path-search-off = eklenti keşfi PYENV_ROOT/plugins ve PYENV_PLUGIN_PATH ile sınırlıdır
-doctor-shim-gui-copy = python shim’i enchi-gui.exe kopyasıdır ve Python çalıştırmak yerine GUI’yi açar; onarmak için `enchi rehash` çalıştırın
+doctor-plugin-path-search-on = eklenti keşfi PATH’i içerir; <root>/plugins ve PYENV_PLUGIN_PATH ile sınırlamak için plugins.search_path=false ayarlayın
+doctor-plugin-path-search-off = eklenti keşfi <root>/plugins ve PYENV_PLUGIN_PATH ile sınırlıdır
+doctor-shim-gui-copy = python shim’i enchi-gui.exe’nin kopyasıdır ve Python çalıştırmak yerine GUI’yi açar; onarmak için `enchi rehash` çalıştırın
 doctor-shim-gui-ref = python shim’i enchi-gui’ye başvurur ve Python çalıştırmak yerine GUI’yi açar; onarmak için `enchi rehash` çalıştırın
 doctor-shim-launchers-ok = shim başlatıcıları { $path } konumuna başvurur
 doctor-func-skip-no-version = işlevsel test atlandı; python sürümü seçilmedi
@@ -29,10 +29,10 @@ doctor-python-build-optional = { $error } (yerel CPython kaynak derlemeleri bunu
 doctor-termux-lib-ok = Termux kitaplığı { $lib } kurulu
 doctor-termux-lib-missing = Termux kitaplık paketi { $lib } eksik; lütfen kurun
 doctor-venv-missing = seçili yönetilen venv `{ $value }` eksik; kullanılabilir ortamları görmek için `enchi venv list` veya yeniden oluşturmak için `enchi venv create <runtime> <name>` çalıştırın
-doctor-pyenv-win-root = PYENV_ROOT `{ $path }` olarak ayarlı ve pyenv-win yoluna benziyor; pyenv-native bunu çalışma anında geçersiz kılar, ancak ortam değişkenini kaldırmak önerilir: PYENV_ROOT’u Kullanıcı ortam değişkenlerinden silin
+doctor-pyenv-win-root = PYENV_ROOT `{ $path }` olarak ayarlı ve pyenv-win yoluna benziyor; Enchi bunu çalışma anında geçersiz kılar, ancak ortam değişkenini kaldırmak önerilir: PYENV_ROOT’u Kullanıcı ortam değişkenlerinden silin
 doctor-command-ok = { $command } { $path } konumunda kullanılabilir
 doctor-command-missing = { $reason }; aranan: { $commands }
-doctor-cli-missing = enchi CLI başlatıcısı { $path } konumunda bulunamadı; Enchi’i yeniden kurun veya kurucuyu çalıştırın
+doctor-cli-missing = enchi CLI başlatıcısı { $path } konumunda bulunamadı; Enchi’yi yeniden kurun veya kurucuyu çalıştırın
 doctor-shim-mismatch = { $shim } konumundaki python shim’i { $cli } konumundaki enchi CLI başlatıcısıyla eşleşmiyor; shim’leri yenilemek için `enchi rehash` çalıştırın
 doctor-source-may-fail = gerekli kabuk, make ve derleyici araçları hazır olana kadar { $platform } kaynak derlemeleri başarısız olabilir
 doctor-source-ok = { $platform } kaynak derleme önkoşulları PATH üzerinde kullanılabilir görünüyor
@@ -44,10 +44,10 @@ doctor-store-alias = sistem python’u { $path } konumundaki WindowsApps takma a
 doctor-store-alias-shadowed = Microsoft Store python stub’u { $path } konumunda; enchi shim’leri önde olduğu için kaldırmak isteğe bağlıdır. Windows 11: Ayarlar > Uygulamalar > Gelişmiş uygulama ayarları > Uygulama yürütme diğer adları
 doctor-system-python = sistem python’u { $path } konumuna çözülüyor
 doctor-no-system-python = PATH üzerinde sistem python’u bulunamadı
-doctor-pyenv-win-path = pyenv-win PATH girdileri PATH’te pyenv-native’den önce geliyor; bu pyenv-win’in komutları yakalamasına yol açabilir. pyenv-win girdilerini Kullanıcı PATH’inden kaldırın: { $path }
+doctor-pyenv-win-path = pyenv-win PATH girdileri PATH’te Enchi’den önce geliyor; bu pyenv-win’in komutları yakalamasına yol açabilir. pyenv-win girdilerini Kullanıcı PATH’inden kaldırın: { $path }
 doctor-fix-ensure-layout = { $path } altında eksik yönetilen dizinleri oluştur
 doctor-fix-rehash = { $path } altındaki shim başlatıcılarını yenile
-doctor-fix-path-shims = { $path } yolunu kabuk PATH değerine ekle ki python/pip enchi shim’leri üzerinden çözülsün
+doctor-fix-path-shims = python/pip’in enchi shim’leri üzerinden çözümlenmesi için { $path } yolunu kabuk PATH değerine ekle
 doctor-fix-path-bin = enchi bin dizinini kabuk PATH değerine ekle
 doctor-fix-pyenv-win-root = Eski pyenv-win PYENV_ROOT ortam değişkenini kaldır
 doctor-fix-store-alias = PATH yakalamayı önlemek için WindowsApps içindeki App Installer python.exe ve python3.exe stub’larını kaldır

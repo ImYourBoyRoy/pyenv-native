@@ -1,18 +1,18 @@
 # ./locales/ja/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = ルートは { $path } にあります
 doctor-root-missing = ルートはまだ { $path } にありません
 doctor-bin-on-path = PATH に { $path } が必要です
-doctor-bin-on-path-desktop = デスクトップアプリはシェルの PATH を継承しません。{ $path } は enchi init 後の新しい端末向けに設定されています
+doctor-bin-on-path-desktop = デスクトップアプリはシェルの PATH を継承しません。{ $path } は enchi init 後の新しいターミナル向けに設定されています
 doctor-shims-on-path = PATH に { $path } が必要です
-doctor-shims-on-path-desktop = デスクトップアプリはシェルの PATH を継承しません。{ $path } は enchi init 後の新しい端末向けに設定されています
+doctor-shims-on-path-desktop = デスクトップアプリはシェルの PATH を継承しません。{ $path } は enchi init 後の新しいターミナル向けに設定されています
 doctor-versions-dir = 管理対象ランタイムは { $path } にあります
 doctor-no-selected-versions = 選択されたバージョンはありません
 doctor-selected-versions = { $versions }（由来: { $origin }）
 doctor-desktop-path-ok = PATH はこのデスクトッププロセスではなく、シェル初期化によって提供されます
-doctor-plugin-path-search-on = プラグイン検出は PATH も含みます。PYENV_ROOT/plugins と PYENV_PLUGIN_PATH に限定するには plugins.search_path=false を設定してください
-doctor-plugin-path-search-off = プラグイン検出は PYENV_ROOT/plugins と PYENV_PLUGIN_PATH に限定されています
+doctor-plugin-path-search-on = プラグイン検出は PATH も含みます。<root>/plugins と PYENV_PLUGIN_PATH に限定するには plugins.search_path=false を設定してください
+doctor-plugin-path-search-off = プラグイン検出は <root>/plugins と PYENV_PLUGIN_PATH に限定されています
 doctor-shim-gui-copy = python shim は enchi-gui.exe のコピーで、Python ではなく GUI を開きます。修復するには `enchi rehash` を実行してください
 doctor-shim-gui-ref = python shim は enchi-gui を参照しており、Python ではなく GUI を開きます。修復するには `enchi rehash` を実行してください
 doctor-shim-launchers-ok = shim ランチャーは { $path } を参照しています
@@ -29,7 +29,7 @@ doctor-python-build-optional = { $error }（ネイティブ CPython のソース
 doctor-termux-lib-ok = Termux ライブラリ { $lib } はインストール済みです
 doctor-termux-lib-missing = Termux ライブラリパッケージ { $lib } がありません。インストールしてください
 doctor-venv-missing = 選択中の管理対象仮想環境 `{ $value }` がありません。`enchi venv list` で確認するか、`enchi venv create <runtime> <name>` で再作成してください
-doctor-pyenv-win-root = PYENV_ROOT が `{ $path }` に設定されており、pyenv-win のパスに見えます。pyenv-native は実行時に上書きしますが、ユーザー環境変数から PYENV_ROOT を削除することを推奨します
+doctor-pyenv-win-root = PYENV_ROOT が `{ $path }` に設定されており、pyenv-win のパスに見えます。Enchi は実行時に上書きしますが、ユーザー環境変数から PYENV_ROOT を削除することを推奨します
 doctor-command-ok = { $command } は { $path } で利用できます
 doctor-command-missing = { $reason }。検索対象: { $commands }
 doctor-cli-missing = { $path } に enchi CLI ランチャーがありません。Enchi を再インストールするか、インストーラーを実行してください
@@ -44,7 +44,7 @@ doctor-store-alias = システムの python は { $path } の WindowsApps エイ
 doctor-store-alias-shadowed = Microsoft Store の python スタブが { $path } にあります。enchi の shim が優先されるため、削除は任意です。Windows 11：「設定 > アプリ > アプリの詳細設定 > アプリ実行エイリアス」
 doctor-system-python = システムの python は { $path } に解決されます
 doctor-no-system-python = PATH 上にシステムの python が見つかりません
-doctor-pyenv-win-path = PATH で pyenv-win の項目が pyenv-native より前にあり、コマンドを横取りする可能性があります。ユーザー PATH から pyenv-win の項目を削除してください: { $path }
+doctor-pyenv-win-path = PATH で pyenv-win の項目が Enchi より前にあり、コマンドを横取りする可能性があります。ユーザー PATH から pyenv-win の項目を削除してください: { $path }
 doctor-fix-ensure-layout = { $path } の下に欠けている管理ディレクトリを作成する
 doctor-fix-rehash = { $path } の shim ランチャーを更新する
 doctor-fix-path-shims = { $path } をシェルの PATH に追加し、python/pip が enchi shim 経由で解決されるようにする

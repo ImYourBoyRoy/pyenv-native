@@ -376,6 +376,274 @@ async fn upgrade_venv(
     .map_err(|e| format!("Task failed: {e}"))?
 }
 
+/// The sentence, hints, and warnings the core prints after a managed-venv rename.
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+struct VenvRenameOutcomeGui {
+    old_spec: String,
+    new_spec: String,
+    message: String,
+    hints: Vec<String>,
+    warnings: Vec<String>,
+}
+
+/// Split the core's rename report into the success sentence, `Hint:` lines, and `Warning:` lines.
+fn split_rename_lines(lines: &[String]) -> (String, Vec<String>, Vec<String>) {
+    let mut message = Vec::new();
+    let mut hints = Vec::new();
+    let mut warnings = Vec::new();
+    for line in lines
+        .iter()
+        .map(|line| line.trim())
+        .filter(|l| !l.is_empty())
+    {
+        if let Some(rest) = line.strip_prefix("Warning:") {
+            warnings.push(rest.trim().to_string());
+        } else if let Some(rest) = line.strip_prefix("Hint:") {
+            hints.push(rest.trim().to_string());
+        } else {
+            message.push(line.to_string());
+        }
+    }
+    (message.join("\n"), hints, warnings)
+}
+
+/// What renaming a managed venv would do (no changes made). `Err` carries the core's reason,
+/// for example an invalid name or a collision with another environment.
+fn plan_venv_rename_sync(
+    ctx: &enchi_core::AppContext,
+    spec: &str,
+    new_name: &str,
+) -> Result<String, String> {
+    // The core validates the trimmed name but would build the folder from the raw one.
+    let new_name = new_name.trim();
+    let report = enchi_core::plan_venv_rename(ctx, spec, new_name);
+    if report.exit_code != 0 {
+        return Err(report.stderr.join("\n"));
+    }
+    Ok(report
+        .stdout
+        .iter()
+        .filter(|line| !line.starts_with("Dry run"))
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
+fn rename_venv_sync(
+    ctx: &enchi_core::AppContext,
+    spec: &str,
+    new_name: &str,
+) -> Result<VenvRenameOutcomeGui, String> {
+    let new_name = new_name.trim();
+    let report = enchi_core::cmd_venv_rename(ctx, spec, new_name);
+    if report.exit_code != 0 {
+        return Err(report.stderr.join("\n"));
+    }
+    let (message, hints, warnings) = split_rename_lines(&report.stdout);
+    let new_spec = enchi_core::list_managed_venvs(ctx)
+        .ok()
+        .and_then(|venvs| venvs.into_iter().find(|venv| venv.name == new_name))
+        .map(|venv| venv.spec)
+        .unwrap_or_else(|| new_name.to_string());
+    Ok(VenvRenameOutcomeGui {
+        old_spec: spec.to_string(),
+        new_spec,
+        message,
+        hints,
+        warnings,
+    })
+}
+
+/// Preview a managed-venv rename (core `plan_venv_rename`); nothing is changed.
+#[tauri::command]
+async fn plan_venv_rename(
+    workspace_dir: Option<String>,
+    spec: String,
+    new_name: String,
+) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        plan_venv_rename_sync(&ctx, &spec, &new_name)
+    })
+    .await
+}
+
+/// Rename a managed venv. The UI previews first and tracks the call in the Activity tray.
+#[tauri::command]
+async fn rename_venv(
+    workspace_dir: Option<String>,
+    spec: String,
+    new_name: String,
+) -> Result<VenvRenameOutcomeGui, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        rename_venv_sync(&ctx, &spec, &new_name)
+    })
+    .await
+}
+
+/// Answer to "where does this command come from?".
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+struct WhichResultGui {
+    command: String,
+    found: bool,
+    /// Resolved executable when `found`.
+    path: Option<String>,
+    /// The core's explanation when the command is not found (empty otherwise).
+    message: String,
+    /// Installed runtimes that contain the command (the `enchi whence` answer).
+    also_in: Vec<String>,
+}
+
+/// Commands are bare names (`python`, `pip3.12`, `pytest`), never paths.
+fn validate_lookup_command(raw: &str) -> Result<String, String> {
+    let command = raw.trim();
+    if command.is_empty() {
+        return Err("Enter a command name such as python or pip.".to_string());
+    }
+    if command.starts_with('-')
+        || command
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '/' | '\\'))
+    {
+        return Err("Enter just the command name, without a path or options.".to_string());
+    }
+    Ok(command.to_string())
+}
+
+fn which_command_sync(
+    ctx: &enchi_core::AppContext,
+    command: &str,
+) -> Result<WhichResultGui, String> {
+    let command = validate_lookup_command(command)?;
+    let report = enchi_core::cmd_which(ctx, &command, false, true);
+    let also_in = {
+        let whence = enchi_core::cmd_whence(ctx, &command, false);
+        if whence.exit_code == 0 {
+            whence.stdout
+        } else {
+            Vec::new()
+        }
+    };
+    if report.exit_code == 0 {
+        let path = report.stdout.join("\n").trim().to_string();
+        return Ok(WhichResultGui {
+            command,
+            found: true,
+            path: Some(path),
+            message: String::new(),
+            also_in,
+        });
+    }
+    let message = report
+        .stderr
+        .iter()
+        .map(|line| line.trim_end())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(WhichResultGui {
+        command,
+        found: false,
+        path: None,
+        message,
+        also_in,
+    })
+}
+
+/// Resolve a command the way shims would for the project folder (`enchi which`).
+#[tauri::command]
+async fn which_command(
+    workspace_dir: Option<String>,
+    command: String,
+) -> Result<WhichResultGui, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        which_command_sync(&ctx, &command)
+    })
+    .await
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+struct RuntimePrefixGui {
+    version: String,
+    path: String,
+}
+
+/// Install location of each managed runtime (core `prefix`); `system` and failures are skipped.
+fn runtime_prefixes_sync(
+    ctx: &enchi_core::AppContext,
+    versions: &[String],
+) -> Vec<RuntimePrefixGui> {
+    versions
+        .iter()
+        .filter(|version| version.as_str() != "system")
+        .filter_map(|version| {
+            let report = enchi_core::cmd_prefix(ctx, std::slice::from_ref(version));
+            if report.exit_code != 0 {
+                return None;
+            }
+            let path = report.stdout.join("\n").trim().to_string();
+            (!path.is_empty()).then(|| RuntimePrefixGui {
+                version: version.clone(),
+                path,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+async fn get_runtime_prefixes(
+    workspace_dir: Option<String>,
+    versions: Vec<String>,
+) -> Result<Vec<RuntimePrefixGui>, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        Ok(runtime_prefixes_sync(&ctx, &versions))
+    })
+    .await
+}
+
+/// Folder of an installed runtime (`3.12.4`) or managed venv (`3.12.4/envs/demo`). Only things
+/// Enchi manages resolve, so the UI cannot be pointed at an arbitrary path.
+fn resolve_managed_folder(
+    ctx: &enchi_core::AppContext,
+    target: &str,
+) -> Result<std::path::PathBuf, String> {
+    let wanted = target.trim().replace('\\', "/");
+    let wanted = wanted.strip_prefix("venv:").unwrap_or(&wanted);
+    if wanted.is_empty() || wanted == "system" {
+        return Err("Nothing to open for this entry.".to_string());
+    }
+    if wanted.contains("/envs/") {
+        let venvs = enchi_core::list_managed_venvs(ctx).map_err(|e| e.to_string())?;
+        return venvs
+            .into_iter()
+            .find(|venv| venv.spec.replace('\\', "/") == wanted)
+            .map(|venv| venv.path)
+            .ok_or_else(|| format!("enchi: managed venv `{wanted}` not found"));
+    }
+    let installed = enchi_core::installed_version_names(ctx).map_err(|e| e.to_string())?;
+    if !installed.iter().any(|name| name == wanted) {
+        return Err(format!("enchi: version `{wanted}` not installed"));
+    }
+    Ok(enchi_core::installed_version_dir(ctx, wanted))
+}
+
+/// Show a runtime's or managed venv's folder in the system file manager.
+#[tauri::command]
+async fn open_managed_folder(workspace_dir: Option<String>, target: String) -> Result<(), String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let folder = resolve_managed_folder(&ctx, &target)?;
+        if !folder.is_dir() {
+            return Err(format!("{} is not a folder.", folder.display()));
+        }
+        opener::open(&folder).map_err(|error| format!("failed to open folder: {error}"))
+    })
+    .await
+}
+
 /// Check for Enchi updates using the core self-update API (check-only mode).
 #[tauri::command]
 async fn check_for_updates(
@@ -1478,6 +1746,11 @@ fn main() {
             create_venv,
             delete_venv,
             upgrade_venv,
+            plan_venv_rename,
+            rename_venv,
+            which_command,
+            get_runtime_prefixes,
+            open_managed_folder,
             check_for_updates,
             perform_update,
             get_config,
@@ -1534,6 +1807,187 @@ mod tests {
         assert!(!is_safe_http_url("https://example.com/\"onclick"));
         assert!(!is_safe_http_url("https://example.com/path?q=1&x=2"));
         assert!(!is_safe_http_url("https://example.com/\nnext"));
+    }
+
+    /// A throwaway `ENCHI_ROOT` with fake runtimes `3.12.0` (global) and `3.13.1`, each holding a
+    /// fake `python`, plus managed venvs `demo` and `other` on 3.12.0.
+    fn fake_context() -> (tempfile::TempDir, enchi_core::AppContext) {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let root = temp.path().join("root");
+        let work = temp.path().join("work");
+        std::fs::create_dir_all(&work).expect("work dir");
+        for version in ["3.12.0", "3.13.1"] {
+            let prefix = root.join("versions").join(version);
+            let bin = if cfg!(windows) {
+                prefix.clone()
+            } else {
+                prefix.join("bin")
+            };
+            std::fs::create_dir_all(&bin).expect("runtime dir");
+            std::fs::write(
+                bin.join(enchi_core::brand::exe_name("python")),
+                "fake python",
+            )
+            .expect("fake python");
+        }
+        for name in ["demo", "other"] {
+            std::fs::create_dir_all(root.join("venvs").join("3.12.0").join(name))
+                .expect("venv dir");
+        }
+        std::fs::write(root.join("version"), "3.12.0\n").expect("global version");
+        let ctx = enchi_core::AppContext {
+            root,
+            dir: work,
+            exe_path: std::path::PathBuf::from("enchi"),
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: enchi_core::AppConfig::default(),
+        };
+        (temp, ctx)
+    }
+
+    #[test]
+    fn rename_report_is_split_into_message_hints_and_warnings() {
+        let lines = [
+            "Renamed managed venv 3.12.0/envs/a -> 3.12.0/envs/b".to_string(),
+            "Hint: update any `.python-version` files.".to_string(),
+            "  Warning: entry points keep the old path.".to_string(),
+            String::new(),
+        ];
+        let (message, hints, warnings) = super::split_rename_lines(&lines);
+        assert_eq!(
+            message,
+            "Renamed managed venv 3.12.0/envs/a -> 3.12.0/envs/b"
+        );
+        assert_eq!(hints, ["update any `.python-version` files."]);
+        assert_eq!(warnings, ["entry points keep the old path."]);
+    }
+
+    #[test]
+    fn rename_preview_reports_the_move_or_the_cores_reason() {
+        let (_temp, ctx) = fake_context();
+        let plan = super::plan_venv_rename_sync(&ctx, "3.12.0/envs/demo", "fresh").expect("plan");
+        assert!(plan.contains("Would rename managed venv"), "{plan}");
+        assert!(plan.contains("3.12.0/envs/fresh"), "{plan}");
+        assert!(!plan.contains("Dry run"), "{plan}");
+
+        let collision = super::plan_venv_rename_sync(&ctx, "3.12.0/envs/demo", "other")
+            .expect_err("name already used");
+        assert!(collision.contains("other"), "{collision}");
+
+        let invalid = super::plan_venv_rename_sync(&ctx, "3.12.0/envs/demo", "bad name!")
+            .expect_err("invalid characters");
+        assert!(invalid.contains("invalid managed venv name"), "{invalid}");
+
+        let missing = super::plan_venv_rename_sync(&ctx, "3.12.0/envs/ghost", "fresh")
+            .expect_err("unknown venv");
+        assert!(!missing.is_empty());
+        assert!(
+            ctx.root.join("venvs/3.12.0/demo").is_dir(),
+            "preview must not rename"
+        );
+    }
+
+    #[test]
+    fn rename_moves_the_venv_and_returns_the_new_spec_with_the_stale_entry_point_warning() {
+        let (_temp, ctx) = fake_context();
+        let outcome =
+            super::rename_venv_sync(&ctx, "3.12.0/envs/demo", " fresh.v2 ").expect("rename");
+        assert_eq!(outcome.old_spec, "3.12.0/envs/demo");
+        assert_eq!(outcome.new_spec, "3.12.0/envs/fresh.v2");
+        assert!(
+            outcome.message.starts_with("Renamed managed venv"),
+            "{outcome:?}"
+        );
+        assert!(
+            outcome
+                .warnings
+                .iter()
+                .any(|w| w.contains("entry points") || w.contains("console-script")),
+            "{outcome:?}"
+        );
+        assert!(!outcome.hints.is_empty(), "{outcome:?}");
+        assert!(!ctx.root.join("venvs/3.12.0/demo").exists());
+        assert!(ctx.root.join("venvs/3.12.0/fresh.v2").is_dir());
+
+        let error = super::rename_venv_sync(&ctx, "3.12.0/envs/fresh.v2", "other")
+            .expect_err("collision is refused");
+        assert!(error.contains("other"), "{error}");
+        assert!(ctx.root.join("venvs/3.12.0/fresh.v2").is_dir());
+    }
+
+    #[test]
+    fn lookup_commands_must_be_bare_names() {
+        assert_eq!(
+            super::validate_lookup_command("  python3 ").unwrap(),
+            "python3"
+        );
+        assert_eq!(
+            super::validate_lookup_command("pip3.12").unwrap(),
+            "pip3.12"
+        );
+        for bad in ["", "   ", "../bin/sh", "a/b", "a\\b", "--help", "py\nthon"] {
+            assert!(super::validate_lookup_command(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn which_resolves_through_the_selection_and_explains_misses() {
+        let (_temp, ctx) = fake_context();
+        let hit = super::which_command_sync(&ctx, "python").expect("lookup");
+        assert!(hit.found, "{hit:?}");
+        let path = hit.path.expect("path");
+        assert!(path.contains("3.12.0"), "global 3.12.0 is selected: {path}");
+        assert!(hit.message.is_empty());
+        assert_eq!(hit.also_in, ["3.12.0", "3.13.1"]);
+
+        let miss = super::which_command_sync(&ctx, "no-such-tool-xyz").expect("lookup");
+        assert!(!miss.found, "{miss:?}");
+        assert!(miss.path.is_none());
+        assert!(
+            miss.message.contains("no-such-tool-xyz: command not found"),
+            "{miss:?}"
+        );
+        assert!(miss.also_in.is_empty());
+
+        assert!(super::which_command_sync(&ctx, "../python").is_err());
+    }
+
+    #[test]
+    fn prefixes_cover_managed_runtimes_only() {
+        let (_temp, ctx) = fake_context();
+        let versions: Vec<String> = ["system", "3.12.0", "9.9.9", "3.13.1"]
+            .iter()
+            .map(|v| v.to_string())
+            .collect();
+        let prefixes = super::runtime_prefixes_sync(&ctx, &versions);
+        let names: Vec<&str> = prefixes.iter().map(|p| p.version.as_str()).collect();
+        assert_eq!(names, ["3.12.0", "3.13.1"]);
+        assert!(
+            std::path::Path::new(&prefixes[0].path).ends_with("versions/3.12.0"),
+            "{prefixes:?}"
+        );
+    }
+
+    #[test]
+    fn open_folder_only_resolves_things_enchi_manages() {
+        let (_temp, ctx) = fake_context();
+        let runtime = super::resolve_managed_folder(&ctx, "3.13.1").expect("runtime");
+        assert_eq!(runtime, ctx.root.join("versions").join("3.13.1"));
+        let venv = super::resolve_managed_folder(&ctx, "3.12.0/envs/demo").expect("venv");
+        assert_eq!(venv, ctx.root.join("venvs").join("3.12.0").join("demo"));
+        let prefixed =
+            super::resolve_managed_folder(&ctx, "venv:3.12.0/envs/other").expect("venv:");
+        assert_eq!(
+            prefixed,
+            ctx.root.join("venvs").join("3.12.0").join("other")
+        );
+
+        for bad in ["system", "", "9.9.9", "../..", "/etc", "3.12.0/envs/ghost"] {
+            assert!(super::resolve_managed_folder(&ctx, bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # ./locales/en-US/errors.ftl
 # Structured enchi-core errors. Placeholders are data, never translated tokens.
 
-error-missing-home = enchi: cannot determine home directory for PYENV_ROOT
+error-missing-home = enchi: cannot determine home directory for ENCHI_ROOT
 error-invalid-directory = enchi: cannot change working directory to `{ $path }`
 error-invalid-version = enchi: invalid version `{ $version }` ignored in `{ $path }`
 error-no-local-version = enchi: no local version configured for this directory

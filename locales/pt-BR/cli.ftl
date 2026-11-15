@@ -35,11 +35,11 @@ cli-which-about = Exibir o caminho completo de um executável
 cli-whence-about = Listar todas as versões do Python que contêm o executável indicado
 cli-version-file-about = Detectar o arquivo que define a versão atual do enchi
 cli-version-file-read-about = Ler o conteúdo de um arquivo .python-version
-cli-self-install-about = Instalar ou reparar o Enchi a partir de um pacote de versão
+cli-self-install-about = Instalar ou reparar o Enchi a partir de um pacote de release
 cli-self-uninstall-about = Desinstalar o Enchi do sistema
 cli-agent-skills-about = Instalar a skill do Enchi para assistentes de programação
 cli-help-about = Exibir a ajuda de um comando
-cli-commands-about = Listar todos os comandos enchi disponíveis
+cli-commands-about = Listar todos os comandos do enchi disponíveis
 cli-hooks-about = Listar os ganchos executáveis de um comando dado
 cli-venv-list-about = Listar ambientes virtuais gerenciados
 cli-venv-info-about = Mostrar detalhes de um ambiente virtual gerenciado
@@ -69,11 +69,11 @@ cli-help-support = SUPORTE
 cli-help-usage = Uso: enchi <command> [<args>]
 cli-help-useful = Alguns comandos úteis do enchi:
 cli-help-concepts =
-    CONCEITOS:
-      Shims: executáveis leves (`python` ou `pip`) que interceptam comandos e os encaminham à versão atual. Execute `enchi rehash` após instalar pacotes pip.
-      Versions: ambientes instalados com `enchi install`, em `$(enchi root)/versions`.
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Prefira `enchi venv create` e `enchi venv use`.
-      Discovery: `enchi install --list 3.13` ou `enchi available 3.13`.
-      Selection: PYENV_VERSION, depois `.python-version`, depois o arquivo global.
+    CONCEITOS PRINCIPAIS:
+      Shims: executáveis leves (como `python` ou `pip`) que interceptam seus comandos e os encaminham à versão correta do Python. Execute `enchi rehash` após instalar novos pacotes pip.
+      Versões: ambientes Python instalados com `enchi install`, em `$(enchi root)/versions`.
+      Ambientes gerenciados: ambientes virtuais nomeados em `$(enchi root)/venvs/<runtime>/<name>`. Prefira `enchi venv create` e `enchi venv use`.
+      Descoberta: `enchi install --list 3.13` ou `enchi available 3.13`.
+      Seleção: PYENV_VERSION, depois `.python-version`, depois o arquivo de versão global.
     
-    Execute `enchi help <command>`. Docs: https://github.com/imyourboyroy/pyenv-native
+    Execute `enchi help <command>` para ajuda detalhada. Docs: https://github.com/imyourboyroy/pyenv-native

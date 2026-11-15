@@ -1,15 +1,15 @@
 # ./locales/ja/errors.ftl
 # Structured enchi-core errors. Placeholders are data, never translated tokens.
 
-error-missing-home = enchi: PYENV_ROOT のホームディレクトリを特定できません
+error-missing-home = enchi: ENCHI_ROOT 用のホームディレクトリを特定できません
 error-invalid-directory = enchi: 作業ディレクトリを `{ $path }` に変更できません
 error-invalid-version = enchi: 無効なバージョン `{ $version }` を `{ $path }` で無視しました
 error-no-local-version = enchi: このディレクトリにローカルバージョンが設定されていません
 error-version-not-installed =
     enchi: バージョン `{ $version }` はインストールされていません（{ $origin } によって設定）
     ヒント: `enchi install { $version }` でインストールするか、`enchi versions` でインストール済みバージョンを確認してください
-error-unknown-config-key = enchi: 未知の設定キー `{ $key }`
-error-invalid-config-value = enchi: 設定キーに対する無効な値 `{ $value }`（キー `{ $key }`）
+error-unknown-config-key = enchi: 不明な設定キー `{ $key }`
+error-invalid-config-value = enchi: 設定キー `{ $key }` の値 `{ $value }` は無効です
 error-version-already-installed = enchi: バージョン `{ $version }` はすでにインストールされています
 error-unknown-version = enchi: `{ $version }` に一致する既知のバージョンがありません
 error-unsupported-install-target = enchi: このプラットフォームのインストールバックエンドは `{ $version }` をサポートしていません

@@ -1,7 +1,7 @@
 # ./locales/it/install.ftl
 # Installer-facing copy. Command names and paths stay English.
 
-install-downloading = Download di Enchi { $version }
+install-downloading = Download di { $version }
 install-extracting = Estrazione del pacchetto di versione
 install-installing = Installazione in { $path }
 install-done = Enchi installato. Aprire un nuovo terminale, poi eseguire `enchi doctor`.
@@ -11,7 +11,7 @@ install-summary-title = Riepilogo installazione Enchi
 install-network-summary-title = Riepilogo installazione di rete Enchi
 install-summary-blurb = Questo creerà o aggiornerà un’installazione portatile di Enchi sotto la radice selezionata.
 install-summary-blurb-detail = Installa enchi, il server enchi-mcp adatto agli agenti e il companion GUI quando disponibile, scrive un registro di installazione ed esegue controlli di base.
-install-network-blurb = Questo scaricherà un pacchetto Enchi pubblicato, ne verificherà il checksum SHA-256 e lo installerà nella radice portatile selezionata.
+install-network-blurb = Questo scaricherà un bundle Enchi pubblicato, ne verificherà il checksum SHA-256 e lo installerà nella radice portatile selezionata.
 install-profile-yes = Il profilo della shell verrà aggiornato così le sessioni future potranno trovare Enchi automaticamente.
 install-profile-yes-pwsh = Il profilo PowerShell verrà aggiornato così le sessioni future potranno trovare Enchi automaticamente.
 install-profile-no = Non verranno apportate modifiche al profilo della shell.

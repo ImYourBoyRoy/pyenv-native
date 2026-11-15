@@ -1,7 +1,7 @@
 # ./locales/ar/install.ftl
 # Installer-facing copy. Command names and paths stay English.
 
-install-downloading = جارٍ تنزيل Enchi { $version }
+install-downloading = جارٍ تنزيل { $version }
 install-extracting = جارٍ استخراج حزمة الإصدار
 install-installing = جارٍ التثبيت في { $path }
 install-done = ثُبّت Enchi. افتح طرفية جديدة، ثم نفّذ `enchi doctor`.
@@ -10,9 +10,9 @@ install-lang-help = لغة الواجهة لرسائل المثبّت
 install-summary-title = ملخص تثبيت Enchi
 install-network-summary-title = ملخص التثبيت الشبكي لـ Enchi
 install-summary-blurb = سيُنشئ هذا أو يحدّث تثبيت Enchi المحمول تحت الجذر المحدد.
-install-summary-blurb-detail = يثبّت enchi وخادم enchi-mcp الملائم للوكلاء ورفيق GUI عند توفره، ويكتب سجل تثبيت، ويجري فحوصات سلامة أساسية.
+install-summary-blurb-detail = يثبّت enchi وخادم enchi-mcp الملائم للوكلاء ومكوّن الواجهة الرسومية المرافق عند توفره، ويكتب سجل تثبيت، ويجري فحوصات سلامة أساسية.
 install-network-blurb = سينزّل هذا حزمة Enchi منشورة، ويتحقق من مجموع SHA-256، ويثبّتها في الجذر المحمول المحدد.
-install-profile-yes = سيُحدَّث ملف تعريف الصَدفة حتى تجد الجلسات القادمة Enchi تلقائيًا.
+install-profile-yes = سيُحدَّث ملف تعريف الصدفة حتى تجد الجلسات القادمة Enchi تلقائيًا.
 install-profile-yes-pwsh = سيُحدَّث ملف تعريف PowerShell حتى تجد الجلسات القادمة Enchi تلقائيًا.
 install-profile-no = لن تُجرى تغييرات على ملف تعريف الصَدفة.
 install-profile-no-pwsh = لن تُجرى تغييرات على ملف تعريف PowerShell.

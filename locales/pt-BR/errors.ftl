@@ -1,7 +1,7 @@
 # ./locales/pt-BR/errors.ftl
 # Structured enchi-core errors. Placeholders are data, never translated tokens.
 
-error-missing-home = enchi: não foi possível determinar o diretório inicial para PYENV_ROOT
+error-missing-home = enchi: não foi possível determinar o diretório inicial para ENCHI_ROOT
 error-invalid-directory = enchi: não foi possível mudar o diretório de trabalho para `{ $path }`
 error-invalid-version = enchi: versão inválida `{ $version }` ignorada em `{ $path }`
 error-no-local-version = enchi: nenhuma versão local configurada para este diretório
@@ -16,7 +16,7 @@ error-unsupported-install-target = enchi: o backend de instalação não oferece
 error-missing-install-version = enchi: a operação de instalação exige pelo menos um argumento de versão
 error-missing-python-build = enchi: não foi possível localizar o backend python-build; defina install.python_build_path ou adicione python-build ao PATH
 error-checksum-mismatch = enchi: soma de verificação incompatível para `{ $url }` ({ $algorithm }): esperado { $expected }, obtido { $actual }
-error-missing-checksum = enchi: não foi possível obter uma soma de verificação do editor para `{ $source }`
+error-missing-checksum = enchi: não foi possível obter uma soma de verificação do publicador para `{ $source }`
 error-io = { $message }
-error-self-update-portable = enchi: a autoatualização só admite instalações portáteis iniciadas em `{ $expected }`; o executável atual é `{ $current }`
+error-self-update-portable = enchi: a autoatualização só oferece suporte a instalações portáteis iniciadas a partir de `{ $expected }`; o executável atual é `{ $current }`
 error-self-update-managed = enchi: esta instalação é gerenciada por um gerenciador de pacotes ({ $source }); atualize com: { $command }

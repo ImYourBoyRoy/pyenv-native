@@ -1,0 +1,251 @@
+/* ./crates/enchi-gui/ui/styles/tools.css — copy buttons, install locations, the `which` lookup,
+   and the per-venv details / rename panel (tools.js). */
+
+/* Link-style button: quiet inline actions such as Copy. */
+.link-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; background: var(--glass-hover); }
+.link-btn.is-done { color: var(--success); }
+
+/* `<path> Copy` rows */
+.version-location,
+.lookup-path-row,
+.detail-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.version-location { margin-top: 4px; }
+.path-text,
+.workspace-path {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.path-text {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lookup-path-row .path-text,
+.detail-value .path-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.lookup-path-row { margin-top: 6px; }
+.lookup-path-row .path-text {
+  font-size: 13px;
+  color: var(--text-heading);
+}
+.lookup-path-row .link-btn { margin-inline-start: auto; }
+
+/* Dashboard: where does this command come from? */
+.lookup-card {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+}
+.lookup-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.lookup-help {
+  margin: 0 0 12px;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.lookup-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lookup-form .search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.result-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.result-box[hidden] { display: none; }
+.result-box[data-kind="found"] { border-inline-start: 3px solid var(--success); }
+.result-box[data-kind="missing"] { border-inline-start: 3px solid var(--warn); }
+.result-box[data-kind="error"] { border-inline-start: 3px solid var(--danger); }
+.result-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.result-message {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.result-list {
+  margin: 6px 0 0;
+  padding-inline-start: 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.result-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Venv details + rename: a full-width row inside the card */
+.version-card.has-panel { flex-wrap: wrap; }
+.version-panel {
+  flex: 1 1 100%;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.version-panel[hidden],
+.rename-form[hidden] { display: none; }
+.version-panel[data-mode="rename"] .detail-list { display: none; }
+.detail-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  align-items: center;
+}
+.detail-row { display: contents; }
+.detail-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.detail-list + .rename-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+.version-panel[data-mode="rename"] .rename-form {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.rename-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.rename-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.rename-field .search-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.rename-preview {
+  min-height: 1.45em;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.rename-preview[data-kind="ok"] { color: var(--success); }
+.rename-preview[data-kind="error"] { color: var(--danger); }
+
+@media (max-width: 560px) {
+  /* Cards stack: details first, actions underneath, so paths and names are not squeezed. */
+  #installed-list .version-card,
+  #venvs-list .version-card { flex-wrap: wrap; }
+  #installed-list .version-info,
+  #venvs-list .version-info { flex: 1 1 100%; }
+  #installed-list .version-actions,
+  #venvs-list .version-actions { flex: 1 1 100%; justify-content: flex-start; }
+  #installed-list .card-menu-list,
+  #venvs-list .card-menu-list { inset-inline-start: 0; inset-inline-end: auto; }
+  .version-meta { white-space: normal; overflow-wrap: anywhere; }
+  .version-location .path-text { white-space: normal; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 520px) {
+  .lookup-form { flex-wrap: wrap; }
+  .lookup-form .btn { flex: 1 1 100%; }
+  .detail-list { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .detail-row { display: block; margin-bottom: 8px; }
+  .detail-row:last-child { margin-bottom: 0; }
+}
+
+/* Package Explorer: dependency check */
+.pkg-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+}
+#pip-check-result { margin: 0 0 16px; }
+
+/* Empty and error states: guidance, the underlying error, and a follow-up action */
+.empty-sub {
+  max-width: 52ch;
+  margin: 8px auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.empty-detail {
+  max-width: 64ch;
+  margin: 10px auto 0;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: start;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.empty-actions { margin-top: 14px; }
+
+/* Package table cells (colour, not opacity, so contrast holds in both themes) */
+.pkg-name { font-weight: 500; }
+.pkg-version { font-family: var(--font-mono); color: var(--text-muted); }
+.pkg-status { color: var(--text-muted); }
+.pkg-status.is-system { color: var(--accent); font-weight: 500; }

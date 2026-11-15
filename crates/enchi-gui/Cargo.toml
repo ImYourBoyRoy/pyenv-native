@@ -16,6 +16,9 @@ tokio = { workspace = true, features = ["full"] }
 rfd.workspace = true
 opener.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
 

@@ -1,5 +1,5 @@
 # ./locales/ar/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = الجذر موجود في { $path }
 doctor-root-missing = الجذر غير موجود بعد في { $path }
@@ -11,14 +11,14 @@ doctor-versions-dir = أوقات التشغيل المُدارة موجودة ت
 doctor-no-selected-versions = لا توجد إصدارات محددة
 doctor-selected-versions = { $versions } (من { $origin })
 doctor-desktop-path-ok = يوفَّر PATH عبر تهيئة الصدفة، وليس عبر عملية سطح المكتب هذه
-doctor-plugin-path-search-on = يشمل اكتشاف الإضافات مسار PATH؛ عيّن plugins.search_path=false للتقيد بـ PYENV_ROOT/plugins وPYENV_PLUGIN_PATH
-doctor-plugin-path-search-off = اكتشاف الإضافات مقصور على PYENV_ROOT/plugins وPYENV_PLUGIN_PATH
-doctor-shim-gui-copy = shim الخاصة ببايثون نسخة من enchi-gui.exe وستفتح الواجهة الرسومية بدل تشغيل بايثون؛ نفّذ `enchi rehash` للإصلاح
-doctor-shim-gui-ref = shim الخاصة ببايثون تشير إلى enchi-gui وستفتح الواجهة الرسومية بدل تشغيل بايثون؛ نفّذ `enchi rehash` للإصلاح
+doctor-plugin-path-search-on = يشمل اكتشاف الإضافات مسار PATH؛ عيّن plugins.search_path=false للاقتصار على <root>/plugins وPYENV_PLUGIN_PATH
+doctor-plugin-path-search-off = اكتشاف الإضافات مقصور على <root>/plugins وPYENV_PLUGIN_PATH
+doctor-shim-gui-copy = shim الخاصة بـ Python نسخة من enchi-gui.exe وستفتح الواجهة الرسومية بدل تشغيل Python؛ نفّذ `enchi rehash` للإصلاح
+doctor-shim-gui-ref = shim الخاصة بـ Python تشير إلى enchi-gui وستفتح الواجهة الرسومية بدل تشغيل Python؛ نفّذ `enchi rehash` للإصلاح
 doctor-shim-launchers-ok = مشغّلات shim تشير إلى { $path }
 doctor-func-skip-no-version = تم تخطي الاختبار الوظيفي؛ لم يُحدد إصدار بايثون
 doctor-func-skip-missing = تم تخطي الاختبار الوظيفي؛ الإصدارات المحددة مفقودة
-doctor-func-shim-missing = لم يُعثر على shim بايثون؛ نفّذ `enchi rehash` لتوليدها
+doctor-func-shim-missing = لم يُعثر على shim الخاصة بـ Python؛ نفّذ `enchi rehash` لتوليدها
 doctor-func-ok = shim تعمل؛ تم استدعاء { $version } بنجاح
 doctor-func-failed = فشل استدعاء shim (رمز الخروج { $status }): { $error }
 doctor-func-launch-failed = فشل تشغيل shim بايثون في { $path }: { $error }
@@ -29,26 +29,26 @@ doctor-python-build-optional = { $error } (بناء CPython الأصلي من ا
 doctor-termux-lib-ok = مكتبة Termux { $lib } مثبتة
 doctor-termux-lib-missing = حزمة مكتبة Termux { $lib } مفقودة؛ يرجى تثبيتها
 doctor-venv-missing = البيئة الافتراضية المُدارة المحددة `{ $value }` مفقودة؛ نفّذ `enchi venv list` لفحص البيئات المتاحة أو `enchi venv create <runtime> <name>` لإعادة إنشائها
-doctor-pyenv-win-root = PYENV_ROOT مضبوط على `{ $path }` ويبدو مسار pyenv-win؛ يتجاوز pyenv-native ذلك في وقت التشغيل، لكن يُوصى بإزالة المتغير البيئي: احذف PYENV_ROOT من متغيرات بيئة المستخدم
+doctor-pyenv-win-root = PYENV_ROOT مضبوط على `{ $path }` ويبدو مسار pyenv-win؛ يتجاوز Enchi ذلك في وقت التشغيل، لكن يُوصى بإزالة المتغير البيئي: احذف PYENV_ROOT من متغيرات بيئة المستخدم
 doctor-command-ok = { $command } متاح في { $path }
 doctor-command-missing = { $reason }؛ تم البحث عن { $commands }
 doctor-cli-missing = لم يُعثر على مشغّل CLI الخاص بـ enchi في { $path }؛ أعد تثبيت Enchi أو شغّل المثبّت
-doctor-shim-mismatch = shim بايثون في { $shim } لا تطابق مشغّل CLI الخاص بـ enchi في { $cli }؛ نفّذ `enchi rehash` لتحديث shim
+doctor-shim-mismatch = shim الخاصة بـ Python في { $shim } لا تطابق مشغّل CLI الخاص بـ enchi في { $cli }؛ نفّذ `enchi rehash` لتحديث shim
 doctor-source-may-fail = قد تفشل عمليات البناء من المصدر على { $platform } حتى تتوفر أدوات الصدفة وmake والمترجم المطلوبة
 doctor-source-ok = متطلبات البناء من المصدر على { $platform } تبدو متاحة في PATH
 doctor-reason-shell = مطلوب لتنفيذ سكربت configure
 doctor-reason-make = مطلوب لبناء CPython الأصلي من المصدر
 doctor-reason-compiler = مطلوب لبناء CPython الأصلي من المصدر
 doctor-reason-pkg-config = موصى به لتحديد مواقع تبعيات المكتبات الأصلية
-doctor-store-alias = بايثون النظام يشير إلى اسم مستعار لـ WindowsApps في { $path }؛ قد يعترض هذا الـ stub أمر python إذا سبق شيمات enchi. الإصلاح الذاتي يحذف stubات App Installer لـ python.exe / python3.exe. تعطيلهما في الإعدادات اختياري ويمنع Windows فقط من إعادة إنشائهما
-doctor-store-alias-shadowed = يوجد stub بايثون من Microsoft Store في { $path }؛ شيمات enchi لها الأولوية، لذا حذفه اختياري. Windows 11: Settings > Apps > Advanced app settings > App execution aliases
+doctor-store-alias = Python الخاص بالنظام يشير إلى اسم مستعار لـ WindowsApps في { $path }؛ قد يعترض هذا الـ stub أمر python عندما يسبق shim الخاصة بـ enchi. يزيل الإصلاح الذاتي ملفي stub الخاصين بـ App Installer وهما python.exe / python3.exe. تعطيل هذه الأسماء المستعارة في الإعدادات اختياري ولا يفعل سوى منع Windows من إعادة إنشائها
+doctor-store-alias-shadowed = يوجد stub Python من Microsoft Store في { $path }؛ shim الخاصة بـ enchi لها الأولوية، لذا حذفه اختياري. Windows 11: Settings > Apps > Advanced app settings > App execution aliases
 doctor-system-python = بايثون النظام يشير إلى { $path }
 doctor-no-system-python = لم يُعثر على بايثون نظام في PATH
-doctor-pyenv-win-path = إدخالات PATH الخاصة بـ pyenv-win تظهر قبل pyenv-native في PATH؛ قد يجعل ذلك pyenv-win يعترض الأوامر. أزل إدخالات pyenv-win من PATH المستخدم: { $path }
+doctor-pyenv-win-path = إدخالات PATH الخاصة بـ pyenv-win تظهر قبل Enchi في PATH؛ قد يجعل ذلك pyenv-win يعترض الأوامر. أزل إدخالات pyenv-win من PATH المستخدم: { $path }
 doctor-fix-ensure-layout = إنشاء المجلدات المُدارة المفقودة تحت { $path }
 doctor-fix-rehash = تحديث مشغّلات الشيم تحت { $path }
-doctor-fix-path-shims = أضف { $path } إلى PATH للصَدفة حتى يُحل python/pip عبر shim الخاصة بـ enchi
-doctor-fix-path-bin = أضف مجلد bin الخاص بـ enchi إلى PATH للصَدفة
+doctor-fix-path-shims = أضف { $path } إلى PATH الخاص بالصدفة حتى تُوجَّه أوامر python/pip عبر shim الخاصة بـ enchi
+doctor-fix-path-bin = أضف مجلد bin الخاص بـ enchi إلى PATH الخاص بالصدفة
 doctor-fix-pyenv-win-root = إزالة متغير البيئة البالي PYENV_ROOT الخاص بـ pyenv-win
 doctor-fix-store-alias = إزالة stubات App Installer لـ python.exe وpython3.exe من WindowsApps حتى لا تعترض PATH
 doctor-fix-store-alias-settings = اختياري: عطّل App Installer python.exe وpython3.exe في الإعدادات حتى لا يعيد Windows إنشاء الـ stubs

@@ -176,6 +176,12 @@ function showInlineRemovingState(container) {
     container.append(loader, label);
 }
 
+// Wrap a path (or other code-like value) in left-to-right isolates so right-to-left sentences
+// keep its slashes and dots in place.
+function ltr(text) {
+    return `\u2066${text}\u2069`;
+}
+
 function showToast(message) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -348,6 +354,23 @@ function handleDelegatedAction(event) {
         case 'delete-venv':
             deleteVenv(target);
             break;
+        case 'venv-rename':
+            window.EnchiTools?.openVenvPanel(button.closest('.version-card'), 'rename');
+            break;
+        case 'venv-details':
+            window.EnchiTools?.openVenvPanel(button.closest('.version-card'), 'details');
+            break;
+        case 'open-folder':
+            openManagedFolder(target);
+            break;
+        case 'copy-text':
+            window.EnchiTools?.copyFrom(button);
+            break;
+        case 'retry':
+            if (target === 'installed') loadInstalled();
+            else if (target === 'venvs') loadVenvs();
+            else if (target === 'available') window.reloadAvailable();
+            break;
         default:
             break;
     }
@@ -414,6 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentWorkspaceDir = selectedDir;
                 localStorage.setItem('pyenv-workspace-dir', selectedDir);
                 updateWorkspaceUI();
+                // A command lookup answers for one folder; do not leave it showing for another.
+                document.getElementById('which-result')?.setAttribute('hidden', '');
                 loadDashboard();
                 loadInstalled();
                 availableLoaded = false;
@@ -435,8 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (versionEl) {
                 versionEl.textContent = t('gui-app-version', { version: cachedAppVersion }, `${Brand.name} v${cachedAppVersion}`);
             }
-            const aboutEl = document.getElementById('about-version');
-            if (aboutEl) aboutEl.textContent = cachedAppVersion;
+            setAboutVersion(cachedAppVersion);
         }
         const active = document.querySelector('.nav-btn.active')?.dataset.view;
         if (active) {
@@ -842,6 +866,16 @@ sidebarNavItems.forEach((item) => {
 
 // Escape-to-close is registered after drawer elements are defined below.
 
+// Error text for list failures: the backend's own message, trimmed to something readable.
+function loadErrorText(err) {
+    const text = String(err?.message ?? err ?? '').trim();
+    return text.length > 600 ? `${text.slice(0, 600)}…` : text;
+}
+
+function retryAction(target) {
+    return { label: t('gui-retry', null, 'Retry'), action: 'retry', target, className: 'btn btn-outline' };
+}
+
 // ─── Dashboard ───
 function setDashboardHealth(kind, title, body) {
     const banner = document.getElementById('dashboard-health');
@@ -1003,7 +1037,10 @@ async function loadDashboard() {
     } catch (err) {
         console.error("Failed to load status:", err);
         document.getElementById('active-version').textContent = t('gui-error', null, 'Error');
-        document.getElementById('active-origin').textContent = String(err);
+        document.getElementById('active-origin').textContent = t('gui-status-unavailable-sub', null, 'See the message above.');
+        document.getElementById('active-venv').textContent = '—';
+        document.getElementById('active-venv-base').textContent = '';
+        document.getElementById('sys-root').textContent = '—';
         setDashboardHealth('error', t('gui-could-not-load-status', null, 'Could not load environment status.'), String(err));
     }
 }
@@ -1015,12 +1052,19 @@ async function loadInstalled() {
     setRegionLoading(list, true, t('gui-loading-runtimes', null, 'Loading installed runtimes…'));
 
     try {
-        const [versionsJson, statusJson] = await Promise.all([
-            invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() }),
+        const versionsPromise = invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
+        // Install locations are a nicety: a failure here must not hide the runtimes themselves.
+        const prefixesPromise = versionsPromise
+            .then((json) => invoke('get_runtime_prefixes', { workspaceDir: getWorkspaceDir(), versions: JSON.parse(json) }))
+            .catch(() => []);
+        const [versionsJson, statusJson, prefixList] = await Promise.all([
+            versionsPromise,
             invoke('get_status', { workspaceDir: getWorkspaceDir() }),
+            prefixesPromise,
         ]);
         const versions = JSON.parse(versionsJson);
         const status = JSON.parse(statusJson);
+        const prefixes = new Map((prefixList || []).map((entry) => [entry.version, entry.path]));
         const globalVersions = status.global_versions?.length
             ? status.global_versions
             : ['system'];
@@ -1113,6 +1157,13 @@ async function loadInstalled() {
                 meta.textContent = isGlobal ? t('gui-global-default-runtime', null, 'Configured as the global default runtime') : t('gui-installed-runtime', null, 'Installed managed runtime');
             }
             info.append(nameEl, meta);
+            const location = prefixes.get(entry.name);
+            if (location && window.EnchiTools) {
+                info.appendChild(window.EnchiTools.createPathRow(
+                    location,
+                    t('gui-copy-location-aria', { name: entry.name }, `Copy the install location of ${entry.name}`),
+                ));
+            }
 
             const actions = document.createElement('div');
             actions.className = 'version-actions';
@@ -1133,6 +1184,14 @@ async function loadInstalled() {
                 pushGlobalMenuItem(globalItems, entry.name, globalVersions);
                 appendMenuGroup(menuItems, globalItems);
                 appendMenuGroup(menuItems, localMenuItems(entry.name));
+                if (location) {
+                    appendMenuGroup(menuItems, [{
+                        label: t('gui-open-folder', null, 'Open folder'),
+                        action: 'open-folder',
+                        target: entry.name,
+                        title: t('gui-open-folder-title', null, 'Show this location in your file manager.'),
+                    }]);
+                }
                 appendMenuGroup(menuItems, [{
                     label: t('gui-uninstall', null, 'Uninstall'),
                     action: 'uninstall',
@@ -1152,7 +1211,11 @@ async function loadInstalled() {
         announce(t('gui-loaded-runtimes', { count: String(managedVersions.length) }, `Loaded ${managedVersions.length} managed runtimes`));
     } catch (err) {
         console.error("Failed to load installed:", err);
-        showEmptyState(list, t('gui-failed-load-installed', null, 'Failed to load installed runtimes.'), { danger: true });
+        showEmptyState(list, t('gui-failed-load-installed', null, 'Failed to load installed runtimes.'), {
+            danger: true,
+            detail: loadErrorText(err),
+            action: retryAction('installed'),
+        });
         announce(t('gui-failed-load-installed', null, 'Failed to load installed runtimes'));
     }
 }
@@ -1316,7 +1379,7 @@ function applyAvailableFilters() {
         const python2 = displayList.filter((entry) => runtimeFamily(runtimeSpec(entry)) === 'cpython2').length;
         const total = fullAvailableCache.length;
         countEl.textContent = t('gui-showing-runtimes', { shown: String(displayList.length), total: String(total) }, `Showing ${displayList.length} of ${total} runtimes`)
-            + (python2 ? t('gui-python2-count', { count: String(python2) }, ` · ${python2} Python 2`) : '')
+            + (python2 ? ` ${t('gui-python2-count', { count: String(python2) }, `· ${python2} Python 2`)}` : '')
             + '. '
             + t('gui-uncheck-latest', null, 'Uncheck latest patch to see every release.');
     }
@@ -1346,7 +1409,16 @@ async function setupAvailableView() {
         availableLoaded = true;
     } catch (err) {
         console.error(err);
-        showEmptyState(list, t('gui-failed-load-catalog', null, `Failed to load catalog. Launch this window with \`${Brand.command} gui\` to talk to the backend.`), { danger: true });
+        // A plain Error means the Tauri bridge is missing (opened outside `enchi gui`); string
+        // rejections come from the backend, typically a network failure.
+        const detached = err instanceof Error;
+        showEmptyState(list, detached
+            ? t('gui-failed-load-catalog', null, `Failed to load catalog. Launch this window with \`${Brand.command} gui\` to talk to the backend.`)
+            : t('gui-failed-load-catalog-network', null, 'Could not load the runtime catalog. Check your connection and try again.'), {
+            danger: true,
+            detail: detached ? '' : loadErrorText(err),
+            action: retryAction('available'),
+        });
         announce(t('gui-failed-load-installable-announce', null, 'Failed to load installable runtimes'));
     }
 }
@@ -1417,19 +1489,26 @@ async function loadVenvs() {
     const list = document.getElementById('venvs-list');
     setRegionLoading(list, true, t('gui-loading-venvs', null, 'Loading virtual environments…'));
     try {
-        const [venvsJson, statusJson] = await Promise.all([
+        const [venvsJson, statusJson, basesJson] = await Promise.all([
             invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() }),
             invoke('get_status', { workspaceDir: getWorkspaceDir() }),
+            invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() }),
         ]);
         const venvs = JSON.parse(venvsJson);
         const status = JSON.parse(statusJson);
+        const bases = JSON.parse(basesJson);
         const globalVersions = status.global_versions?.length
             ? status.global_versions
             : ['system'];
         list.replaceChildren();
         list.setAttribute('aria-busy', 'false');
         if (venvs.length === 0) {
-            showEmptyState(list, t('gui-no-venvs', null, 'No virtual environments found.'));
+            showEmptyState(list, t('gui-no-venvs', null, 'No virtual environments found.'), bases.length
+                ? { hint: t('gui-no-venvs-hint', null, 'Choose a base runtime above, name the environment, and select Create.') }
+                : {
+                    hint: t('gui-no-venvs-no-runtime', null, 'Install a Python runtime first; every environment is built on one.'),
+                    action: { label: t('gui-nav-available', null, 'Install Runtimes'), action: 'navigate', target: 'view-available', className: 'btn btn-primary' },
+                });
             announce(t('gui-no-venvs', null, 'No virtual environments found'));
         } else {
             venvs.forEach(v => {
@@ -1450,7 +1529,7 @@ async function loadVenvs() {
                 if (isGlobal) appendBadge(nameEl, t('gui-global', null, 'Global'), 'badge badge-success', t('gui-global-title', null, 'Default for new shells.'));
                 const meta = document.createElement('div');
                 meta.className = 'version-meta';
-                meta.textContent = t('gui-base-meta', { version: v.base_version, path: v.path }, `Base ${v.base_version} · ${v.path}`);
+                meta.textContent = t('gui-base-meta', { version: v.base_version, path: ltr(v.path) }, `Base ${v.base_version} · ${v.path}`);
                 meta.title = v.path;
                 info.append(nameEl, meta);
 
@@ -1464,6 +1543,26 @@ async function loadVenvs() {
                 pushGlobalMenuItem(globalItems, spec, globalVersions);
                 appendMenuGroup(menuItems, globalItems);
                 appendMenuGroup(menuItems, localMenuItems(spec));
+                appendMenuGroup(menuItems, [
+                    {
+                        label: t('gui-venv-rename-menu', null, 'Rename…'),
+                        action: 'venv-rename',
+                        target: spec,
+                        title: t('gui-venv-rename-menu-title', null, 'Give this managed environment a new name.'),
+                    },
+                    {
+                        label: t('gui-venv-details', null, 'Details'),
+                        action: 'venv-details',
+                        target: spec,
+                        title: t('gui-venv-details-title', null, 'Show where this environment and its tools live.'),
+                    },
+                    {
+                        label: t('gui-open-folder', null, 'Open folder'),
+                        action: 'open-folder',
+                        target: spec,
+                        title: t('gui-open-folder-title', null, 'Show this location in your file manager.'),
+                    },
+                ]);
                 appendMenuGroup(menuItems, [{
                     label: t('gui-migrate-runtime', null, 'Migrate Runtime'),
                     action: 'upgrade-venv',
@@ -1480,12 +1579,11 @@ async function loadVenvs() {
                 }]);
                 appendCardOverflow(actions, menuItems);
                 card.append(info, actions);
+                if (window.EnchiTools) card.appendChild(window.EnchiTools.createVenvPanel(v, { isGlobal }));
                 list.appendChild(card);
             });
             announce(t('gui-loaded-venvs', { count: String(venvs.length) }, `Loaded ${venvs.length} virtual environments`));
         }
-        const sysInfo = await invoke('get_installed_versions', { workspaceDir: getWorkspaceDir() });
-        const bases = JSON.parse(sysInfo);
         const sel = document.getElementById('venv-base-version');
         sel.replaceChildren();
         const placeholder = document.createElement('option');
@@ -1500,7 +1598,11 @@ async function loadVenvs() {
         });
     } catch (err) {
         console.error("Failed to load venvs:", err);
-        showEmptyState(list, t('gui-failed-load-venvs', null, 'Failed to load virtual environments.'), { danger: true });
+        showEmptyState(list, t('gui-failed-load-venvs', null, 'Failed to load virtual environments.'), {
+            danger: true,
+            detail: loadErrorText(err),
+            action: retryAction('venvs'),
+        });
         announce(t('gui-failed-load-venvs', null, 'Failed to load virtual environments'));
     }
 }
@@ -1600,6 +1702,16 @@ async function deleteVenv(name) {
         loadDashboard();
     } catch(err) {
         showAlert(t('gui-delete-failed', null, 'Delete Failed'), escapeHtml(err));
+    }
+}
+
+async function openManagedFolder(target) {
+    try {
+        await invoke('open_managed_folder', { workspaceDir: getWorkspaceDir(), target });
+    } catch (err) {
+        const detail = err ? String(err) : 'unknown error';
+        showToast(t('gui-could-not-open-folder', { detail }, `Could not open the folder: ${detail}`));
+        showAlert(t('gui-open-folder-failed', null, 'Open Folder Failed'), escapeHtml(detail));
     }
 }
 
@@ -1764,7 +1876,7 @@ async function loadCacheStats() {
                 : (entry.name || '');
             const meta = document.createElement('div');
             meta.className = 'cache-row-meta';
-            meta.textContent = t('gui-cache-entry-meta', { bytes: formatBytes(entry.bytes), path: entry.exists ? entry.path : t('gui-cache-not-present', null, 'not present') }, `${formatBytes(entry.bytes)} · ${entry.exists ? entry.path : 'not present'}`);
+            meta.textContent = t('gui-cache-entry-meta', { bytes: formatBytes(entry.bytes), path: entry.exists ? ltr(entry.path) : t('gui-cache-not-present', null, 'not present') }, `${formatBytes(entry.bytes)} · ${entry.exists ? entry.path : 'not present'}`);
             row.append(label, meta);
             host.appendChild(row);
         });
@@ -1845,7 +1957,16 @@ async function updateConfig(key, value) {
 
 // ─── Uninstall ───
 async function uninstallVersion(v) {
-    const yes = await showConfirm(t('gui-uninstall-python-title', null, 'Uninstall Python'), t('gui-uninstall-python-body', { version: escapeHtml(v) }, `Are you sure you want to completely remove Python ${escapeHtml(v)}? This will delete all files for this version.`));
+    // Removing a runtime also removes the managed venvs built on it: say so before asking.
+    let dependents = [];
+    try {
+        const venvs = JSON.parse(await invoke('get_managed_venvs', { workspaceDir: getWorkspaceDir() }));
+        dependents = venvs.filter((venv) => venv.base_version === v).map((venv) => venv.name);
+    } catch (_) { /* the plain confirmation below still protects the user */ }
+    const body = dependents.length
+        ? t('gui-uninstall-python-dependents', { version: escapeHtml(v), envs: escapeHtml(dependents.join(', ')) }, `Are you sure you want to completely remove Python ${escapeHtml(v)}? This will delete all files for this version and the virtual environments built on it: ${escapeHtml(dependents.join(', '))}.`)
+        : t('gui-uninstall-python-body', { version: escapeHtml(v) }, `Are you sure you want to completely remove Python ${escapeHtml(v)}? This will delete all files for this version.`);
+    const yes = await showConfirm(t('gui-uninstall-python-title', null, 'Uninstall Python'), body);
     if (!yes) return;
     
     // Show inline progress
@@ -1879,6 +2000,11 @@ function compareVersions(v1, v2) {
     return 0;
 }
 
+function setAboutVersion(version) {
+    const line = document.getElementById('about-version-line');
+    if (line) line.textContent = t('gui-version-label', { version }, `Version ${version}`);
+}
+
 // ─── Version & Init ───
 async function initAppVersion({ refreshRemote = false } = {}) {
     try {
@@ -1889,8 +2015,7 @@ async function initAppVersion({ refreshRemote = false } = {}) {
         const versionEl = document.getElementById('footer-version');
         if (versionEl) versionEl.textContent = t('gui-app-version', { version }, `${Brand.name} v${version}`);
 
-        const aboutEl = document.getElementById('about-version');
-        if (aboutEl) aboutEl.textContent = version;
+        setAboutVersion(version);
 
         if (!refreshRemote && lastFooterStatus.kind) return;
 
@@ -1933,7 +2058,7 @@ async function checkInstallation() {
             if (!status.is_installed) {
                 if (title) title.textContent = t('gui-install-core', null, 'Install core features');
                 if (body) {
-                    body.textContent = t('gui-install-core-body', null, 'Pyenv-native binaries were not found under the install root. Run setup to install the CLI, shims, and MCP companion.');
+                    body.textContent = t('gui-install-core-body', null, `${Brand.name} binaries were not found under the install root. Run setup to install the CLI, shims, and MCP companion.`);
                 }
                 if (actionBtn) actionBtn.textContent = t('gui-install-now', null, 'Install Now');
             } else {
@@ -2234,7 +2359,7 @@ window.openVenvUpgradeWizard = async function(spec, baseVersion) {
     // Open drawer
     setDrawerState(upgraderDrawer, true, {
         closeButton: upgraderCloseBtn,
-        announce: `Opened upgrade panel for ${upgraderSourceName}`,
+        announce: t('gui-announce-upgrade-panel', { name: upgraderSourceName }, `Opened the migration panel for ${upgraderSourceName}`),
     });
 };
 
@@ -2259,11 +2384,12 @@ if (btnStartUpgrade) {
         upgraderProgressCard.style.display = 'block';
         clearUpgraderLog();
         appendUpgraderLog(`Initializing migration for venv:${upgraderSourceName} -> ${targetVer}...`);
-        markStepInProgress('backup', 'Inventory old environment', 'Capturing installed packages...');
-        markStepInProgress('recreate', 'Create fresh environment', 'Waiting for core migrate...');
-        markStepInProgress('restore', 'Restore packages', 'Waiting for core migrate...');
-        markStepInProgress('verify', 'Dependency diagnostics', 'Waiting for core migrate...');
-        markStepInProgress('cleanup', 'Cleanup old environment', 'Waiting for core migrate...');
+        const waiting = t('gui-migrate-waiting', null, 'Waiting for the earlier steps…');
+        markStepInProgress('backup', t('gui-step-inventory', null, 'Inventory old environment'), t('gui-migrate-capturing', null, 'Capturing installed packages…'));
+        markStepInProgress('recreate', t('gui-step-create', null, 'Create fresh environment'), waiting);
+        markStepInProgress('restore', t('gui-step-restore', null, 'Restore packages'), waiting);
+        markStepInProgress('verify', t('gui-step-verify', null, 'Dependency diagnostics'), waiting);
+        markStepInProgress('cleanup', t('gui-step-cleanup', null, 'Cleanup old environment'), waiting);
 
         try {
             const log = await tracked('upgrade-venv',
@@ -2299,6 +2425,8 @@ window.openPackageExplorer = function(target) {
     
     // Switch to first tab (Installed)
     switchDrawerTab('tab-installed');
+    resetPipCheck();
+    if (btnPipCheck) btnPipCheck.disabled = isSystem;
     
     // Reset search
     drawerPackageSearch.value = '';
@@ -2306,7 +2434,7 @@ window.openPackageExplorer = function(target) {
     // Open the drawer
     setDrawerState(drawer, true, {
         closeButton: drawerCloseBtn,
-        announce: `Opened package explorer for ${target}`,
+        announce: t('gui-announce-explorer-panel', { name: envName }, `Opened the package explorer for ${envName}`),
     });
 
     if (isSystem) {
@@ -2487,6 +2615,70 @@ btnUpgradePip.addEventListener('click', async () => {
     }
 });
 
+// pip check: surface broken or conflicting requirements for the open environment
+const btnPipCheck = document.getElementById('btn-pip-check');
+const pipCheckResult = document.getElementById('pip-check-result');
+
+function resetPipCheck() {
+    if (pipCheckResult) {
+        pipCheckResult.hidden = true;
+        pipCheckResult.replaceChildren();
+    }
+}
+
+function renderPipCheck(kind, title, lines = []) {
+    if (!pipCheckResult) return;
+    pipCheckResult.replaceChildren();
+    pipCheckResult.hidden = false;
+    pipCheckResult.dataset.kind = kind;
+    const heading = document.createElement('div');
+    heading.className = 'result-title';
+    heading.textContent = title;
+    pipCheckResult.appendChild(heading);
+    if (lines.length) {
+        const list = document.createElement('ul');
+        list.className = 'result-list';
+        lines.forEach((line) => {
+            const item = document.createElement('li');
+            item.textContent = line;
+            list.appendChild(item);
+        });
+        pipCheckResult.appendChild(list);
+    }
+    announce(title);
+}
+
+btnPipCheck?.addEventListener('click', async () => {
+    const target = currentExplorerTarget;
+    if (!target) return;
+    btnPipCheck.disabled = true;
+    btnPipCheck.setAttribute('aria-busy', 'true');
+    const idle = btnPipCheck.textContent;
+    btnPipCheck.textContent = t('gui-checking', null, 'Checking…');
+    try {
+        const raw = await invoke('check_pip_conflicts', { workspaceDir: getWorkspaceDir(), target });
+        if (target !== currentExplorerTarget) return;
+        const conflicts = JSON.parse(raw);
+        if (!Array.isArray(conflicts) || conflicts.length === 0) {
+            renderPipCheck('found', t('gui-pip-check-ok', null, 'No broken requirements found.'));
+        } else {
+            renderPipCheck(
+                'missing',
+                t('gui-pip-check-issues', { count: String(conflicts.length) }, `${conflicts.length} broken requirement(s) found`),
+                conflicts.map((conflict) => conflict.message || `${conflict.package} ${conflict.requirement}`),
+            );
+        }
+    } catch (err) {
+        if (target === currentExplorerTarget) {
+            renderPipCheck('error', t('gui-pip-check-failed', null, 'Dependency check failed.'), [String(err)]);
+        }
+    } finally {
+        btnPipCheck.textContent = idle;
+        btnPipCheck.removeAttribute('aria-busy');
+        btnPipCheck.disabled = currentExplorerTarget === 'system' || !currentExplorerTarget;
+    }
+});
+
 // Render installed packages list with filtering
 function renderInstalledPackages() {
     drawerPackageList.replaceChildren();
@@ -2504,22 +2696,20 @@ function renderInstalledPackages() {
     filtered.forEach(p => {
         const tr = document.createElement('tr');
         const nameTd = document.createElement('td');
-        nameTd.style.fontWeight = '500';
+        nameTd.className = 'pkg-name';
         nameTd.textContent = p.name;
 
         const versionTd = document.createElement('td');
-        versionTd.style.fontFamily = "var(--font-mono)";
-        versionTd.style.opacity = '0.8';
+        versionTd.className = 'pkg-version';
         versionTd.textContent = p.version;
 
         const statusTd = document.createElement('td');
         const statusSpan = document.createElement('span');
         if (p.name.toLowerCase() === 'pip') {
-            statusSpan.style.color = 'var(--accent)';
-            statusSpan.style.fontWeight = '500';
+            statusSpan.className = 'pkg-status is-system';
             statusSpan.textContent = t('gui-status-system', null, 'System');
         } else {
-            statusSpan.style.opacity = '0.6';
+            statusSpan.className = 'pkg-status';
             statusSpan.textContent = t('gui-status-ok', null, 'OK');
         }
         statusTd.appendChild(statusSpan);
@@ -3344,7 +3534,7 @@ async function loadShellCards() {
                         await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
                         showAlert(
                             t('gui-shell-configured-title', null, 'Shell Configured'),
-                            `Successfully injected ${Brand.name} shell initialization block into profile:<br><code class="code-sm">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
+                            `${escapeHtml(t('gui-shell-configured-body', null, `${Brand.name} shell initialization was added to this profile:`))}<br><code class="code-sm">${escapeHtml(status.profile_path)}</code><br><br>${escapeHtml(t('gui-shell-configured-restart', null, 'Restart your terminal for the change to take effect.'))}`,
                         );
                         loadShellIntegration();
                     } catch (err) {
@@ -3422,7 +3612,7 @@ async function runDoctorDiagnostics() {
                 item.className = 'doctor-issue';
                 const strong = document.createElement('strong');
                 strong.textContent = t('gui-doctor-incomplete', null, 'Incomplete diagnostics');
-                item.append(strong, document.createTextNode(': the health report did not include names and reasons, so no warning is shown.'));
+                item.append(strong, document.createTextNode(`: ${t('gui-doctor-incomplete-body', null, 'the health report did not include names and reasons, so no warning is shown.')}`));
                 doctorIssuesList.appendChild(item);
             }
             if (btnDoctorFix) {

@@ -137,7 +137,7 @@
       </ul>
       </nav>
       <div class="sidebar-foot">
-        <button type="button" class="lang-switcher" id="lang-switcher" aria-haspopup="dialog" aria-expanded="false" aria-controls="lang-popover" data-i18n-aria="gui-lang-switcher">
+        <button type="button" class="lang-switcher" id="lang-switcher" aria-haspopup="dialog" aria-expanded="false" aria-controls="lang-popover">
           <span class="lang-switcher-code" id="lang-switcher-code">EN</span>
           <span class="lang-switcher-name" id="lang-switcher-name">English</span>
         </button>
@@ -183,7 +183,7 @@
         </div>
 
         <div class="status-grid">
-          <button type="button" class="status-card glass highlight-card" data-action="navigate" data-target="view-installed" aria-label="Open installed runtimes" title="Open installed runtimes." data-i18n-aria="gui-open-installed" data-i18n-title="gui-open-installed">
+          <button type="button" class="status-card glass highlight-card" data-action="navigate" data-target="view-installed" title="Open installed runtimes." data-i18n-title="gui-open-installed">
             <div class="stat-header">
               <span class="status-dot active-dot" aria-hidden="true"></span>
               <span class="stat-label" data-i18n="gui-active-version">Active Version</span>
@@ -194,22 +194,25 @@
               <span class="status-dot status-light-glow gold pip-status-dot" id="active-pip-glow"></span>
               <span id="active-pip-status-text" class="pip-status-text" data-i18n="gui-pip-update-available">pip update available</span>
             </div>
+            <span class="sr-only" data-i18n="gui-open-installed">Open installed runtimes</span>
           </button>
-          <button type="button" class="status-card glass" data-action="navigate" data-target="view-venvs" aria-label="Open virtual environments" title="Open virtual environments." data-i18n-aria="gui-open-venvs" data-i18n-title="gui-open-venvs">
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-venvs" title="Open virtual environments." data-i18n-title="gui-open-venvs">
             <div class="stat-header">
               <span class="status-dot" aria-hidden="true"></span>
               <span class="stat-label" data-i18n="gui-managed-venv">Managed Virtual Env</span>
             </div>
             <div class="stat-value" id="active-venv">Checking...</div>
             <div class="stat-sub" id="active-venv-base" data-i18n="gui-integrated-project-env">Integrated Project Env</div>
+            <span class="sr-only" data-i18n="gui-open-venvs">Open virtual environments</span>
           </button>
-          <button type="button" class="status-card glass" data-action="navigate" data-target="view-settings" aria-label="Open settings for enchi root and cache" title="Open settings." data-i18n-aria="gui-open-settings-aria" data-i18n-title="gui-open-settings">
+          <button type="button" class="status-card glass" data-action="navigate" data-target="view-settings" title="Open settings." data-i18n-title="gui-open-settings">
             <div class="stat-header">
               <span class="status-dot" aria-hidden="true"></span>
               <span class="stat-label" data-i18n="gui-pyenv-root">{ $brand } Root</span>
             </div>
             <div class="stat-value small-path" id="sys-root">Checking...</div>
             <div class="stat-sub" data-i18n="gui-storage-cache">Storage &amp; Cache</div>
+            <span class="sr-only" data-i18n="gui-open-settings-aria">Open settings for the { $brand } root and cache</span>
           </button>
         </div>
 
@@ -236,6 +239,18 @@
             </div>
           </div>
         </div>
+
+        <!-- WHICH: where does a command resolve from? -->
+        <section class="glass lookup-card" id="which-card" aria-labelledby="which-title">
+          <h2 class="lookup-title" id="which-title" data-i18n="gui-which-title">Where does this command come from?</h2>
+          <p class="lookup-help" id="which-help" data-i18n="gui-which-help">Type a command such as python or pip to see which executable { $brand } runs for the current project folder.</p>
+          <form class="lookup-form" id="which-form" autocomplete="off" novalidate>
+            <label class="sr-only" for="which-input" data-i18n="gui-which-label">Command name</label>
+            <input type="text" id="which-input" class="search-input" placeholder="python" spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="which-help">
+            <button type="submit" class="btn btn-primary" id="btn-which" title="Find the executable this command resolves to." data-i18n="gui-which-find" data-i18n-title="gui-which-find-title">Find</button>
+          </form>
+          <div id="which-result" class="result-box" role="status" aria-live="polite" hidden></div>
+        </section>
       </section>
 
       <!-- INSTALLED VIEW -->
@@ -391,7 +406,7 @@
             <span data-i18n="gui-shims-title">Understanding Shell Shims</span>
           </h2>
           <p class="sx-17" data-i18n="gui-shims-body">
-            When you run python or pip in your terminal, the shell calls the { $brand } shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute pyenv doctor in your shell.
+            When you run python or pip in your terminal, the shell calls the { $brand } shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute { $command } doctor in your shell.
           </p>
         </div>
       </section>
@@ -412,7 +427,7 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
               <label class="sr-only" for="available-search" data-i18n="gui-search-runtimes">Search installable runtimes</label>
-              <input type="search" id="available-search" placeholder="Search 2.7, 3.12, pypy…" aria-label="Search installable runtimes" title="Filter by version prefix, such as 3.12 or pypy3.11." data-i18n-placeholder="gui-search-runtimes" data-i18n-aria="gui-search-runtimes-aria" data-i18n-title="gui-search-runtimes-title" />
+              <input type="search" id="available-search" placeholder="Search 2.7, 3.12, pypy…" aria-label="Search installable runtimes" title="Filter by version prefix, such as 3.12 or pypy3.11." data-i18n-placeholder="gui-search-runtimes-placeholder" data-i18n-aria="gui-search-runtimes-aria" data-i18n-title="gui-search-runtimes-title" />
             </div>
           </div>
         </div>
@@ -558,8 +573,7 @@
             </div>
             <div>
               <h2 class="sx-22" data-i18n="gui-brand-title">{ $brand }</h2>
-              <div class="sx-23">Version <span
-                  id="about-version">…</span></div>
+              <div class="sx-23" id="about-version-line"></div>
             </div>
           </div>
           <p class="sx-24" data-i18n="gui-about-blurb-1">
@@ -726,6 +740,10 @@
             <input type="search" id="drawer-package-search" placeholder="Search installed packages..." aria-label="Search installed packages" title="Filter installed packages by name." data-i18n-placeholder="gui-search-packages" data-i18n-aria="gui-search-packages-aria" data-i18n-title="gui-search-packages-title" />
           </div>
         </div>
+        <div class="pkg-toolbar">
+          <button type="button" class="btn btn-outline btn-compact" id="btn-pip-check" title="Run pip check to find broken or conflicting requirements." data-i18n="gui-pip-check" data-i18n-title="gui-pip-check-title">Check dependencies</button>
+        </div>
+        <div id="pip-check-result" class="result-box" role="status" aria-live="polite" hidden></div>
 
         <div class="table-container sx-41">
           <table class="package-table" aria-label="Installed packages" data-i18n-aria="gui-installed-packages-aria">
@@ -920,6 +938,7 @@
   <script src="motion.js"></script>
   <script src="app.js"></script>
   <script src="maintenance.js"></script>
+  <script src="tools.js"></script>
 </body>
 
 </html>

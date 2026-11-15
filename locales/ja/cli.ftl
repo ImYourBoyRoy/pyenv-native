@@ -70,10 +70,10 @@ cli-help-usage = 使い方: enchi <command> [<args>]
 cli-help-useful = よく使う enchi コマンド:
 cli-help-concepts =
     基本概念:
-      Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `enchi rehash`。
-      Versions: `enchi install` で入れる環境。`$(enchi root)/versions`。
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。
+      Shims: `python` や `pip` のようなコマンドを横取りし、適切な Python バージョンへ振り分ける軽量な実行ファイル。新しい pip パッケージをインストールした後は `enchi rehash` を実行してください。
+      Versions: `enchi install` でインストールした Python 環境。場所は `$(enchi root)/versions`。
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>` にある名前付き仮想環境。`enchi venv create` と `enchi venv use` を推奨します。
       Discovery: `enchi install --list 3.13` または `enchi available 3.13`。
-      Selection: PYENV_VERSION、次に `.python-version`、次にグローバル版。
+      Selection: PYENV_VERSION、次に `.python-version`、次にグローバルバージョンファイルの順。
     
-    詳細は `enchi help <command>`。文書: https://github.com/imyourboyroy/pyenv-native
+    詳細は `enchi help <command>` を実行してください。ドキュメント: https://github.com/imyourboyroy/pyenv-native

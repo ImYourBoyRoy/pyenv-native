@@ -149,6 +149,27 @@
         text.className = 'empty-msg';
         text.textContent = message;
         state.append(createPrompt(), text);
+        // Optional guidance (`hint`), the underlying error (`detail`), and one follow-up button
+        // (`action` = { label, action, target, className }) such as Retry.
+        if (options.hint) {
+            const hint = document.createElement('p');
+            hint.className = 'empty-sub';
+            hint.textContent = options.hint;
+            state.appendChild(hint);
+        }
+        if (options.detail) {
+            const detail = document.createElement('pre');
+            detail.className = 'empty-detail';
+            detail.textContent = String(options.detail);
+            state.appendChild(detail);
+        }
+        if (options.action) {
+            const { label, action, target, className, ...extra } = options.action;
+            const wrap = document.createElement('div');
+            wrap.className = 'empty-actions';
+            wrap.appendChild(createActionButton(label, action, target, className || 'btn btn-outline', extra));
+            state.appendChild(wrap);
+        }
         container.appendChild(state);
     }
 

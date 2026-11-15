@@ -493,10 +493,10 @@ target/debug/enchi-gui       # enchi-gui.exe on Windows
 
 | View | Purpose |
 | ------ | --------- |
-| **Dashboard** | Live overview of active Python version, managed venv, install root, and doctor warnings with a jump to diagnostics |
+| **Dashboard** | Live overview of active Python version, managed venv, install root, and doctor warnings with a jump to diagnostics; a lookup for where a command (`python`, `pip`, …) resolves from |
 | **Install Runtimes** | Search the CPython 2/3 and PyPy catalog and install new runtimes |
-| **Installed Versions** | List installed versions; Package Explorer plus a More menu for global, local, and uninstall |
-| **Virtual Environments** | Create, manage, and delete named managed venvs |
+| **Installed Versions** | List installed versions with their install locations (copy / open folder); Package Explorer plus a More menu for global, local, and uninstall |
+| **Virtual Environments** | Create, rename, inspect, migrate, and delete named managed venvs |
 | **Shell Integration** | Shell profiles, host preflight, and doctor/self-heal |
 | **Settings** | Configure registry mode, architecture, pip bootstrap, and venv policies |
 | **About** | Version info, links, and update status |

@@ -9,8 +9,14 @@
  * Run from repo root:
  *   node ./scripts/gui-screenshots/capture.mjs
  *
- * Inputs: crates/enchi-gui/ui (HTML/CSS/JS), Playwright from scripts/wcagate.
- * Outputs: docs/screenshots/{Dashboard,Available,Installed_Versions,VENVs,Shell,Settings,About,animated_gui}.webp
+ * Inputs: crates/enchi-gui/ui (HTML/CSS/JS), locales/<tag>/gui.ftl, Playwright from scripts/wcagate.
+ * Outputs: docs/screenshots/*.webp (every view, the command lookup, venv rename, the dependency
+ * check) plus animated_gui.webp.
+ *
+ * Review runs (nothing is written to docs/): set GUI_SCREENSHOT_OUT to a scratch directory and
+ * combine GUI_COLOR_SCHEME=light, GUI_VIEWPORT=420x860, GUI_LOCALE=ar, GUI_MOCK=empty|issues|errors,
+ * GUI_VIEWS=VENVs,Settings, GUI_PNG_ONLY=1, GUI_AXE=1 (axe-core on every frame), and GUI_CHROMIUM=<binary>.
+ * PNG runs also capture the "scratch" frames (open menu, details, confirm and result dialogs).
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -33,6 +39,10 @@ const playwrightEntry = path.join(
 
 const WIDTH = 1024;
 const HEIGHT = 720;
+// GUI_VIEWPORT=420x860 captures a narrow layout; it writes PNGs only (the WebP tour is 1024x720).
+const [VIEW_W, VIEW_H] = (process.env.GUI_VIEWPORT || `${WIDTH}x${HEIGHT}`).split('x').map(Number);
+const PNG_ONLY = process.env.GUI_PNG_ONLY === '1' || VIEW_W !== WIDTH || VIEW_H !== HEIGHT;
+const SUFFIX = process.env.GUI_SUFFIX || '';
 const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -45,17 +55,77 @@ const MIME = {
 
 const VIEWS = [
   { nav: 'view-dashboard', file: 'Dashboard', wait: waitDashboard },
+  { nav: 'view-dashboard', file: 'Dashboard_Which', pre: runWhich, wait: waitWhich, extra: true },
   { nav: 'view-available', file: 'Available', wait: waitCatalog },
   { nav: 'view-installed', file: 'Installed_Versions', wait: waitInstalled },
   { nav: 'view-venvs', file: 'VENVs', wait: waitVenvs },
-  { nav: 'view-installed', file: 'Upgrades', pre: openUpgradePlan, wait: waitUpgradePlan },
-  { nav: 'view-installed', file: 'Upgrades_Done', pre: applyUpgrades, wait: waitUpgradeDone },
-  { nav: 'view-venvs', file: 'Bulk_Update', pre: openBulkPlan, wait: waitBulkPlan },
-  { nav: 'view-venvs', file: 'Bulk_Update_Done', pre: applyBulk, wait: waitBulkDone },
+  { nav: 'view-venvs', file: 'VENV_Rename', pre: openRename, wait: waitRename, extra: true },
+  { nav: 'view-venvs', file: 'VENV_Details', pre: openDetails, wait: waitDetails, extra: true, scratch: true },
+  { nav: 'view-installed', file: 'Installed_Menu', pre: openRuntimeMenu, wait: waitRuntimeMenu, extra: true, scratch: true },
+  { nav: 'view-installed', file: 'Packages_Check', pre: openPackageCheck, wait: waitPackageCheck, extra: true },
+  { nav: 'view-installed', file: 'Upgrades', pre: openUpgradePlan, wait: waitUpgradePlan, keepTray: true },
+  { nav: 'view-installed', file: 'Upgrades_Done', pre: applyUpgrades, wait: waitUpgradeDone, keepTray: true },
+  { nav: 'view-venvs', file: 'Bulk_Update', pre: openBulkPlan, wait: waitBulkPlan, keepTray: true },
+  { nav: 'view-venvs', file: 'Bulk_Update_Done', pre: applyBulk, wait: waitBulkDone, keepTray: true },
   { nav: 'view-shell', file: 'Shell', wait: waitShell },
+  { nav: 'view-dashboard', file: 'Which_Missing', pre: runWhichMissing, wait: waitWhichMissing, extra: true, scratch: true },
+  { nav: 'view-installed', file: 'Uninstall_Confirm', pre: openUninstall, wait: waitModal, extra: true, scratch: true },
   { nav: 'view-settings', file: 'Settings', wait: waitSettings },
   { nav: 'view-about', file: 'About', wait: waitAbout },
+  // Last on purpose: the mocked rename really renames, which later frames would show.
+  { nav: 'view-venvs', file: 'Rename_Done', pre: submitRename, wait: waitModal, extra: true, scratch: true },
 ];
+
+/** Minimal Fluent reader for locales/<tag>/gui.ftl: `id = value` plus indented continuation lines. */
+function parseFtl(file) {
+  const messages = {};
+  if (!fs.existsSync(file)) return messages;
+  let id = null;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const head = /^([a-z][a-z0-9-]*)\s*=\s?(.*)$/i.exec(line);
+    if (head) {
+      id = head[1];
+      messages[id] = head[2].trim();
+    } else if (id && /^\s+\S/.test(line)) {
+      messages[id] = `${messages[id]}\n${line.trim()}`.trim();
+    } else {
+      id = null;
+    }
+  }
+  return messages;
+}
+
+// GUI_LOCALE=de renders the UI from locales/de/gui.ftl (English fills any gap), like the real app.
+const LOCALE = process.env.GUI_LOCALE || 'en-US';
+function i18nBundle() {
+  const messages = { ...parseFtl(path.join(repoRoot, 'locales/en-US/gui.ftl')) };
+  if (LOCALE !== 'en-US') Object.assign(messages, parseFtl(path.join(repoRoot, `locales/${LOCALE}/gui.ftl`)));
+  const rtl = ['ar', 'fa'].includes(LOCALE);
+  const tags = fs.readdirSync(path.join(repoRoot, 'locales')).filter((tag) => fs.statSync(path.join(repoRoot, 'locales', tag)).isDirectory());
+  return {
+    lang: LOCALE,
+    dir: rtl ? 'rtl' : 'ltr',
+    native_name: LOCALE === 'en-US' ? 'English' : LOCALE,
+    source: 'explicit',
+    messages,
+    locales: tags.map((tag) => ({ tag, native_name: tag === 'en-US' ? 'English' : tag, english_name: tag, rtl: ['ar', 'fa'].includes(tag) })),
+  };
+}
+
+// GUI_AXE=1 also runs axe-core (colour contrast included) on every frame and prints violations;
+// it needs scripts/gui-a11y/node_modules. Combine with GUI_COLOR_SCHEME=light|dark.
+const AXE = process.env.GUI_AXE === '1';
+const axeSource = AXE
+  ? fs.readFileSync(path.join(repoRoot, 'scripts/gui-a11y/node_modules/axe-core/axe.min.js'), 'utf8')
+  : '';
+let axeFailures = 0;
+
+// GUI_MOCK=empty|issues|errors renders empty lists, health warnings plus the setup banner, or
+// failing backend calls (use with GUI_VIEWS; the frame waits are skipped).
+const MOCK = process.env.GUI_MOCK || '';
+
+// GUI_VIEWS=VENVs,Settings limits a run to those frames (file names without extension).
+const ONLY = (process.env.GUI_VIEWS || '').split(',').map((v) => v.trim()).filter(Boolean);
 
 function mockTauriSource() {
   const status = {
@@ -156,6 +226,17 @@ function mockTauriSource() {
   const intel = ${JSON.stringify(intel)};
   const cache = ${JSON.stringify(cache)};
   const installStatus = ${JSON.stringify(installStatus)};
+  const i18n = ${JSON.stringify(i18nBundle())};
+
+  const MOCK = ${JSON.stringify(MOCK)};
+  if (MOCK === 'empty') { installed.length = 0; venvs.length = 0; status.active_versions = []; status.global_versions = []; status.origin = 'system'; }
+  if (MOCK === 'issues') {
+    doctor.push({ name: 'Shims on PATH', status: 'WARN', detail: 'The shim directory is not on PATH in this session.' });
+    doctor.push({ name: 'Compiler toolchain', status: 'FAIL', detail: 'No C compiler was found; source builds will fail.' });
+    installStatus.needs_shell_setup = true;
+    installStatus.profiles_configured = false;
+  }
+  const failing = (name) => () => { throw new Error('enchi: ' + name + ' failed: could not read ' + status.root + '/versions (permission denied)'); };
 
   const handlers = {
     check_install_status: () => installStatus,
@@ -169,6 +250,8 @@ function mockTauriSource() {
     get_platform_intelligence: () => intel,
     get_cache_stats: () => cache,
     get_app_version: () => '0.2.38',
+    i18n_bundle: () => i18n,
+    set_ui_language: () => i18n,
     get_outdated_packages: () => JSON.stringify([]),
   };
 
@@ -188,8 +271,48 @@ function mockTauriSource() {
     { spec: '3.14.3', kind: 'runtime', status: 'up_to_date', message: 'all packages are current', conflicts_before: 0, conflicts_after: 0, updated: [], outdated: [] },
   ];
 
+  const pipPackages = [
+    { name: 'certifi', version: '2025.8.3' },
+    { name: 'pip', version: '26.2.2' },
+    { name: 'requests', version: '2.31.0' },
+    { name: 'urllib3', version: '2.2.1' },
+  ];
+  const prefixOf = (version) => '/home/roy/.enchi/versions/' + version;
+
   Object.assign(handlers, {
     ui_report: () => null,
+    get_pip_packages: () => JSON.stringify(pipPackages),
+    check_pip_conflicts: () => JSON.stringify([
+      { package: 'requests', requirement: 'urllib3<2', installed: '2.2.1', message: 'requests 2.31.0 has requirement urllib3<2,>=1.21.1, but you have urllib3 2.2.1.' },
+    ]),
+    get_runtime_prefixes: (args) => (args.versions || []).filter((v) => v !== 'system').map((v) => ({ version: v, path: prefixOf(v) })),
+    open_managed_folder: () => null,
+    which_command: (args) => {
+      const command = String(args.command || '').trim();
+      if (command === 'python' || command === 'python3') {
+        return { command, found: true, path: prefixOf('3.14.3') + '/bin/python', message: '', also_in: ['3.13.7', '3.14.3'] };
+      }
+      return {
+        command, found: false, path: null, also_in: [],
+        message: 'enchi: ' + command + ': command not found',
+      };
+    },
+    plan_venv_rename: (args) => {
+      const name = String(args.newName || '').trim();
+      if (venvs.some((v) => v.name === name)) throw new Error('enchi: a managed venv named \u0060' + name + '\u0060 already exists (3.14.3/envs/' + name + ')');
+      return 'Would rename managed venv ' + args.spec + ' -> 3.14.3/envs/' + name;
+    },
+    rename_venv: (args) => {
+      const name = String(args.newName || '').trim();
+      const found = venvs.find((v) => v.spec === args.spec);
+      if (found) { found.name = name; found.spec = '3.14.3/envs/' + name; found.path = '/home/roy/.enchi/venvs/3.14.3/' + name; }
+      return {
+        old_spec: args.spec, new_spec: '3.14.3/envs/' + name,
+        message: 'Renamed managed venv ' + args.spec + ' -> 3.14.3/envs/' + name,
+        hints: ['update any \u0060.python-version\u0060 files that referenced the old venv spec.'],
+        warnings: ['activate scripts, script shebangs, and (on Windows) console-script launchers inside the venv still reference the old path; prefer \u0060enchi venv upgrade\u0060 or recreate the venv if entry points such as \u0060pip\u0060 stop working.'],
+      };
+    },
     plan_runtime_upgrades: () => JSON.stringify(upgradePlan),
     run_runtime_upgrades: async (args) => {
       for (const step of ['3.14.3 -> 3.14.10: installing 3.14.10', '3.14.3 -> 3.14.10: migrating venv 3.14.3/envs/pondlets-play']) {
@@ -215,6 +338,15 @@ function mockTauriSource() {
         summary: { targets: 3, up_to_date: 1, updated: 2, packages_updated: 3, rolled_back: 0, failed: 0, skipped: 0 } });
     },
   });
+
+  if (MOCK === 'errors') {
+    handlers.get_installed_versions = failing('versions');
+    handlers.get_managed_venvs = failing('venv list');
+    handlers.get_status = failing('status');
+    handlers.get_available_versions = failing('catalog');
+    handlers.get_cache_stats = failing('cache');
+    handlers.which_command = failing('which');
+  }
 
   async function invoke(cmd, args) {
     if (!(cmd in handlers)) {
@@ -317,6 +449,67 @@ async function waitBulkDone(page) {
   await page.waitForFunction(() => /package\(s\) updated in 2 environment/.test(document.getElementById('bulk-panel')?.textContent || ''));
 }
 
+async function runWhich(page) {
+  await page.locator('#which-input').fill('python');
+  await page.locator('#btn-which').click();
+}
+async function waitWhich(page) {
+  await page.waitForSelector('#which-result:not([hidden]) .path-text');
+}
+async function openCardMenu(page, listId) {
+  await page.locator(`#${listId} .version-card`).first().locator('.card-menu-toggle').click();
+}
+async function openRename(page) {
+  await openCardMenu(page, 'venvs-list');
+  await page.locator('#venvs-list .version-card').first().locator('[data-action="venv-rename"]').click();
+  await page.locator('#venvs-list .version-card').first().locator('.rename-form input').fill('pondlets');
+}
+async function waitRename(page) {
+  await page.waitForSelector('#venvs-list .rename-preview[data-kind="ok"]');
+}
+async function submitRename(page) {
+  await openRename(page);
+  await waitRename(page);
+  await page.locator('#venvs-list .version-card').first().locator('.rename-form button[type="submit"]').click();
+}
+async function runWhichMissing(page) {
+  await page.locator('#which-input').fill('no-such-tool');
+  await page.locator('#btn-which').click();
+}
+async function waitWhichMissing(page) {
+  await page.waitForSelector('#which-result[data-kind="missing"]');
+}
+async function openUninstall(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#installed-list .version-card').length >= 2);
+  await page.locator('#installed-list .version-card').nth(1).locator('.card-menu-toggle').click();
+  await page.locator('#installed-list [data-action="uninstall"]').click();
+}
+async function waitModal(page) {
+  await page.waitForSelector('.modal-box');
+}
+async function openDetails(page) {
+  await openCardMenu(page, 'venvs-list');
+  await page.locator('#venvs-list .version-card').first().locator('[data-action="venv-details"]').click();
+}
+async function waitDetails(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#venvs-list .version-panel:not([hidden]) .detail-row').length >= 3);
+}
+async function openRuntimeMenu(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#installed-list .version-card').length >= 2);
+  await page.locator('#installed-list .version-card').nth(1).locator('.card-menu-toggle').click();
+}
+async function waitRuntimeMenu(page) {
+  await page.waitForSelector('#installed-list .card-menu.is-open [data-action="open-folder"]');
+}
+async function openPackageCheck(page) {
+  await page.locator('#installed-list .version-card').nth(1).locator('[data-action="package-explorer"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#drawer-package-list tr').length >= 3);
+  await page.locator('#btn-pip-check').click();
+}
+async function waitPackageCheck(page) {
+  await page.waitForSelector('#pip-check-result:not([hidden]) .result-list');
+}
+
 async function waitInstalled(page) {
   await page.waitForFunction(() => document.querySelectorAll('#installed-list .version-card').length >= 2);
 }
@@ -327,7 +520,7 @@ async function waitVenvs(page) {
 
 async function waitShell(page) {
   await page.waitForFunction(() => document.querySelectorAll('#shell-status-cards .shell-card').length >= 3);
-  await page.waitForFunction(() => document.getElementById('platform-intel-verdict')?.textContent?.trim() === 'Ready');
+  await page.waitForFunction(() => document.getElementById('platform-intel-verdict')?.classList.contains('ready'));
   await page.evaluate(() => document.getElementById('btn-run-doctor')?.click());
   await page.locator('#doctor-healthy-card').waitFor({ state: 'visible' });
 }
@@ -387,12 +580,15 @@ async function main() {
 
   const { server, origin } = await startServer();
   const browser = await chromium.launch({
+    // GUI_CHROMIUM points at a specific Chromium/headless-shell binary when the one Playwright
+    // expects is not installed.
+    executablePath: process.env.GUI_CHROMIUM || undefined,
     args: ['--font-render-hinting=none', '--disable-lcd-text'],
   });
   try {
     const page = await browser.newPage({
-      viewport: { width: WIDTH, height: HEIGHT },
-      deviceScaleFactor: 2,
+      viewport: { width: VIEW_W, height: VIEW_H },
+      deviceScaleFactor: Number(process.env.GUI_SCALE) || 2,
       colorScheme: COLOR_SCHEME,
     });
     const cspViolations = [];
@@ -403,13 +599,27 @@ async function main() {
     await page.goto(`${origin}/index.html`, { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.fonts?.status === 'loaded' || document.fonts?.status === 'loading');
     await page.evaluate(() => document.fonts.ready);
-    await waitDashboard(page);
+    if (!MOCK) await waitDashboard(page);
+    else await page.waitForTimeout(800);
     // Freeze motion through the app's own prefers-reduced-motion rules (inline styles are blocked by CSP).
     await page.emulateMedia({ reducedMotion: 'reduce' });
 
     const pngs = [];
-    for (const view of VIEWS) {
-      if (view.nav !== 'view-dashboard') {
+    // `scratch` frames exist for PNG review runs (menus, details); they are not published as docs images.
+    for (const view of VIEWS.filter((v) => (!ONLY.length || ONLY.includes(v.file)) && (!v.scratch || PNG_ONLY))) {
+      // Frames start from a clean slate: no open drawer, menu, or leftover panel state.
+      await page.keyboard.press('Escape');
+      if (!view.keepTray) {
+        // Finished background tasks from the maintenance frames should not cover the next page.
+        await page.evaluate(() => document.querySelectorAll('.activity .act-x').forEach((btn) => btn.click()));
+        await page.waitForTimeout(300);
+      }
+      await page.evaluate(() => {
+        if (document.getElementById('drawer-package-manager')?.classList.contains('open')) {
+          document.getElementById('btn-close-drawer')?.click();
+        }
+      });
+      if (view.nav !== 'view-dashboard' || view.pre) {
         await page.locator(`.nav-btn[data-view="${view.nav}"]`).click();
       }
       if (view.pre) await view.pre(page);
@@ -417,21 +627,45 @@ async function main() {
         document.querySelector('.content')?.scrollTo(0, 0);
         document.getElementById('main-content')?.scrollTo(0, 0);
       });
-      await view.wait(page);
+      if (MOCK) await page.waitForTimeout(700);
+      else await view.wait(page);
       await page.evaluate(() => {
-        document.activeElement?.blur?.();
+        if (!document.querySelector('.card-menu.is-open')) document.activeElement?.blur?.();
         document.querySelector('.content')?.scrollTo(0, 0);
       });
       await page.waitForTimeout(180);
-      const pngPath = path.join(tmpDir, `${view.file}.png`);
+      if (AXE) {
+        // Runtime.evaluate is not subject to the page CSP, so axe can be injected this way.
+        await page.evaluate(axeSource);
+        const found = await page.evaluate(async () => {
+          const result = await window.axe.run(document.body, {
+            runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+          });
+          return result.violations.map((v) => ({
+            id: v.id, impact: v.impact, count: v.nodes.length,
+            sample: v.nodes.slice(0, 3).map((n) => `${n.target.join(' ')} :: ${(n.any[0] || n.all[0] || n.none[0] || {}).message || ''}`),
+          }));
+        });
+        if (found.length) axeFailures += found.length;
+        console.log(`axe ${view.file}: ${found.length ? JSON.stringify(found, null, 1) : 'ok'}`);
+      }
+      const pngPath = path.join(tmpDir, `${view.file}${SUFFIX}.png`);
       await page.screenshot({ path: pngPath, type: 'png' });
-      pngs.push(pngPath);
+      if (PNG_ONLY) {
+        fs.copyFileSync(pngPath, path.join(outDir, `${view.file}${SUFFIX}.png`));
+        console.log(`wrote ${view.file}${SUFFIX}.png`);
+        continue;
+      }
+      if (!view.extra) pngs.push(pngPath);
       encodeWebp(pngPath, path.join(outDir, `${view.file}.webp`));
       console.log(`wrote ${view.file}.webp`);
     }
 
-    encodeAnimation(pngs, path.join(outDir, 'animated_gui.webp'));
-    console.log('wrote animated_gui.webp');
+    if (!PNG_ONLY) {
+      encodeAnimation(pngs, path.join(outDir, 'animated_gui.webp'));
+      console.log('wrote animated_gui.webp');
+    }
+    if (AXE && axeFailures) console.log(`axe: ${axeFailures} violation group(s) in total`);
     if (cspViolations.length) {
       throw new Error(`CSP violations (${cspViolations.length}):\n${cspViolations.slice(0, 8).join('\n')}`);
     }

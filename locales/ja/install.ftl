@@ -1,10 +1,10 @@
 # ./locales/ja/install.ftl
 # Installer-facing copy. Command names and paths stay English.
 
-install-downloading = Enchi { $version } をダウンロードしています
+install-downloading = { $version } をダウンロードしています
 install-extracting = リリースバンドルを展開しています
 install-installing = { $path } にインストールしています
-install-done = Enchi をインストールしました。新しい端末を開き、`enchi doctor` を実行してください。
+install-done = Enchi をインストールしました。新しいターミナルを開き、`enchi doctor` を実行してください。
 install-failed = インストールに失敗しました
 install-lang-help = インストーラーメッセージのインターフェイス言語
 install-summary-title = Enchi インストール概要

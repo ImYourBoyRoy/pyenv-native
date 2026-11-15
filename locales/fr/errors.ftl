@@ -1,7 +1,7 @@
 # ./locales/fr/errors.ftl
 # Structured enchi-core errors. Placeholders are data, never translated tokens.
 
-error-missing-home = pyenv : impossible de déterminer le répertoire personnel pour PYENV_ROOT
+error-missing-home = pyenv : impossible de déterminer le répertoire personnel pour ENCHI_ROOT
 error-invalid-directory = enchi : impossible de changer le répertoire de travail vers `{ $path }`
 error-invalid-version = enchi : version non valide `{ $version }` ignorée dans `{ $path }`
 error-no-local-version = enchi : aucune version locale configurée pour ce répertoire

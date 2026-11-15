@@ -70,10 +70,10 @@ cli-help-usage = 用法：enchi <command> [<args>]
 cli-help-useful = 常用 enchi 命令：
 cli-help-concepts =
     核心概念：
-      Shims：拦截 `python` / `pip` 并路由到当前版本。安装 pip 包后运行 `enchi rehash`。
-      Versions：通过 `enchi install` 安装，位于 `$(enchi root)/versions`。
-      Managed envs：`$(enchi root)/venvs/<runtime>/<name>`。优先使用 `enchi venv create` 和 `enchi venv use`。
-      Discovery：`enchi install --list 3.13` 或 `enchi available 3.13`。
-      Selection：PYENV_VERSION，然后是 `.python-version`，然后是全局版本文件。
+      Shim：轻量级可执行文件（如 `python` 或 `pip`），拦截你的命令并路由到正确的 Python 版本。安装新的 pip 软件包后请运行 `enchi rehash`。
+      版本：通过 `enchi install` 安装的 Python 运行时，位于 `$(enchi root)/versions`。
+      托管环境：位于 `$(enchi root)/venvs/<runtime>/<name>` 的具名虚拟环境。优先使用 `enchi venv create` 和 `enchi venv use`。
+      查找：`enchi install --list 3.13` 或 `enchi available 3.13`。
+      版本选择：PYENV_VERSION，然后是 `.python-version`，然后是全局版本文件。
     
     运行 `enchi help <command>` 查看详细帮助。文档：https://github.com/imyourboyroy/pyenv-native

@@ -1,7 +1,7 @@
 # ./locales/it/errors.ftl
 # Structured enchi-core errors. Placeholders are data, never translated tokens.
 
-error-missing-home = enchi: impossibile determinare la directory home per PYENV_ROOT
+error-missing-home = enchi: impossibile determinare la directory home per ENCHI_ROOT
 error-invalid-directory = enchi: impossibile cambiare la directory di lavoro in `{ $path }`
 error-invalid-version = enchi: versione non valida `{ $version }` ignorata in `{ $path }`
 error-no-local-version = enchi: nessuna versione locale configurata per questa directory
@@ -19,4 +19,4 @@ error-checksum-mismatch = enchi: checksum non corrispondente per `{ $url }` ({ $
 error-missing-checksum = enchi: impossibile ottenere un checksum dell’editore per `{ $source }`
 error-io = { $message }
 error-self-update-portable = enchi: l’auto-aggiornamento supporta solo installazioni portatili avviate da `{ $expected }`; l’eseguibile attuale è `{ $current }`
-error-self-update-managed = enchi: questa installazione è gestita da un gestore di pacchetti ({ $source }); aggiornala con: { $command }
+error-self-update-managed = enchi: questa installazione è gestita da un gestore di pacchetti ({ $source }); aggiornarla con: { $command }

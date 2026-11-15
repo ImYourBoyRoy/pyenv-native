@@ -12,14 +12,14 @@ cli-version-origin-about = شرح كيفية تعيين إصدار بايثون 
 cli-prefix-about = عرض المسارات التي ثُبّتت فيها إصدارات بايثون المعطاة
 cli-install-about = تثبيت إصدارات بايثون من المزوّدين الأصليين
 cli-available-about = سرد إصدارات بايثون القابلة للتثبيت من المزوّدين الأصليين
-cli-versions-about = سرد جميع إصدارات بايثون المتاحة لـ enchi
-cli-upgrade-about = نقل بيئات التشغيل المثبّتة إلى أحدث إصدار تصحيحي (مع venvs)
+cli-versions-about = سرد جميع إصدارات Python المتاحة لـ enchi
+cli-upgrade-about = نقل أوقات التشغيل المثبّتة إلى أحدث إصدار تصحيحي (مع بيئاتها الافتراضية)
 cli-uninstall-about = إلغاء تثبيت إصدار بايثون محدد
 cli-venv-about = إنشاء البيئات الافتراضية المُدارة وفحصها وتعيينها
 cli-pip-about = سرد الحزم وفحصها وتثبيتها وتحديثها لوقت تشغيل أو venv
 cli-init-about = تهيئة بيئة الصدفة لـ enchi
 cli-gui-about = تشغيل لوحة معلومات Enchi الرسومية
-cli-rehash-about = إعادة توليد shim الخاصة بـ enchi (يثبّت التنفيذيات عبر جميع الإصدارات)
+cli-rehash-about = إعادة توليد shim الخاصة بـ enchi (يثبّت الملفات التنفيذية عبر جميع الإصدارات)
 cli-shims-about = سرد shim الموجودة لـ enchi
 cli-prompt-about = طباعة سلسلة موجزة لموجّه البيئة الحالية
 cli-exec-about = تشغيل برنامج تنفيذي بإصدار بايثون المحدد
@@ -70,10 +70,10 @@ cli-help-usage = الاستخدام: enchi <command> [<args>]
 cli-help-useful = أوامر enchi المفيدة:
 cli-help-concepts =
     المفاهيم الأساسية:
-      Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `enchi rehash` بعد تثبيت حزم pip.
-      Versions: بيئات تُثبَّت عبر `enchi install` تحت `$(enchi root)/versions`.
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.
+      Shims: ملفات تنفيذية خفيفة (مثل `python` أو `pip`) تعترض أوامرك وتوجّهها إلى إصدار Python الصحيح. شغّل `enchi rehash` بعد تثبيت حزم pip جديدة.
+      Versions: بيئات Python المثبّتة عبر `enchi install` تحت `$(enchi root)/versions`.
+      Managed envs: بيئات افتراضية مسمّاة تحت `$(enchi root)/venvs/<runtime>/<name>`. يُفضَّل استخدام `enchi venv create` و`enchi venv use`.
       Discovery: `enchi install --list 3.13` أو `enchi available 3.13`.
       Selection: PYENV_VERSION ثم `.python-version` ثم ملف الإصدار العام.
     
-    للتفاصيل شغّل `enchi help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native
+    للمزيد من التفاصيل شغّل `enchi help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native

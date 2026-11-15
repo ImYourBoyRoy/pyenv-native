@@ -1,5 +1,5 @@
 # ./locales/en-US/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = root exists at { $path }
 doctor-root-missing = root does not exist yet at { $path }
@@ -11,8 +11,8 @@ doctor-versions-dir = managed runtimes live under { $path }
 doctor-no-selected-versions = no selected versions
 doctor-selected-versions = { $versions } (from { $origin })
 doctor-desktop-path-ok = PATH is provided by shell init, not this desktop process
-doctor-plugin-path-search-on = plugin discovery includes PATH; set plugins.search_path=false to restrict to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH
-doctor-plugin-path-search-off = plugin discovery is limited to PYENV_ROOT/plugins and PYENV_PLUGIN_PATH
+doctor-plugin-path-search-on = plugin discovery includes PATH; set plugins.search_path=false to restrict to <root>/plugins and PYENV_PLUGIN_PATH
+doctor-plugin-path-search-off = plugin discovery is limited to <root>/plugins and PYENV_PLUGIN_PATH
 doctor-shim-gui-copy = python shim is a copy of enchi-gui.exe and will open the GUI instead of running Python; run `enchi rehash` to repair
 doctor-shim-gui-ref = python shim references enchi-gui and will open the GUI instead of running Python; run `enchi rehash` to repair
 doctor-shim-launchers-ok = shim launchers reference { $path }
@@ -29,7 +29,7 @@ doctor-python-build-optional = { $error } (native CPython source builds do not r
 doctor-termux-lib-ok = Termux library { $lib } is installed
 doctor-termux-lib-missing = Termux library package { $lib } is missing; please install it
 doctor-venv-missing = selected managed venv `{ $value }` is missing; run `enchi venv list` to inspect available envs or `enchi venv create <runtime> <name>` to recreate it
-doctor-pyenv-win-root = PYENV_ROOT is set to `{ $path }` which looks like a pyenv-win path; pyenv-native overrides this at runtime, but removing the env var is recommended: remove PYENV_ROOT from your User environment variables
+doctor-pyenv-win-root = PYENV_ROOT is set to `{ $path }` which looks like a pyenv-win path; Enchi overrides this at runtime, but removing the env var is recommended: remove PYENV_ROOT from your User environment variables
 doctor-command-ok = { $command } available at { $path }
 doctor-command-missing = { $reason }; searched for { $commands }
 doctor-cli-missing = enchi CLI launcher not found at { $path }; reinstall Enchi or run the installer
@@ -44,7 +44,7 @@ doctor-store-alias = system python resolves to a WindowsApps alias at { $path };
 doctor-store-alias-shadowed = Microsoft Store python stub is present at { $path }; enchi shims take precedence, so removing it is optional. Windows 11: Settings > Apps > Advanced app settings > App execution aliases
 doctor-system-python = system python resolves to { $path }
 doctor-no-system-python = no system python found on PATH
-doctor-pyenv-win-path = pyenv-win PATH entries appear before pyenv-native in PATH; this can cause pyenv-win to intercept commands. Remove pyenv-win entries from your User PATH: { $path }
+doctor-pyenv-win-path = pyenv-win PATH entries appear before Enchi in PATH; this can cause pyenv-win to intercept commands. Remove pyenv-win entries from your User PATH: { $path }
 doctor-fix-ensure-layout = Create missing managed directories under { $path }
 doctor-fix-rehash = Refresh shim launchers under { $path }
 doctor-fix-path-shims = Add { $path } to your shell PATH so python/pip resolve through enchi shims

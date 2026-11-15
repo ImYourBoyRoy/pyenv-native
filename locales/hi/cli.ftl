@@ -12,14 +12,14 @@ cli-version-origin-about = वर्तमान पाइथन संस्क
 cli-prefix-about = दिए गए पाइथन संस्करण जहाँ स्थापित हैं वे पथ दिखाएँ
 cli-install-about = मूल प्रदाताओं से पाइथन संस्करण स्थापित करें
 cli-available-about = मूल प्रदाताओं से स्थापित करने योग्य पाइथन संस्करण सूचीबद्ध करें
-cli-versions-about = enchi के लिए उपलब्ध सभी पाइथन संस्करण सूचीबद्ध करें
+cli-versions-about = enchi के लिए उपलब्ध सभी Python संस्करण सूचीबद्ध करें
 cli-upgrade-about = इंस्टॉल किए गए रनटाइम को नवीनतम पैच रिलीज़ पर ले जाएँ (venv सहित)
 cli-uninstall-about = कोई विशिष्ट पाइथन संस्करण अनइंस्टॉल करें
 cli-venv-about = प्रबंधित आभासी वातावरण बनाएँ, जाँचें और असाइन करें
 cli-pip-about = किसी रनटाइम या venv के लिए पैकेज सूचीबद्ध करें, जाँचें, स्थापित करें और अपडेट करें
-cli-init-about = enchi के लिए शेल वातावरण कॉन्फ़िगर करें
+cli-init-about = enchi के लिए शेल एनवायरनमेंट कॉन्फ़िगर करें
 cli-gui-about = Enchi ग्राफ़िकल डैशबोर्ड चलाएँ
-cli-rehash-about = enchi shim पुनः बनाएँ (सभी संस्करणों में निष्पादन योग्य स्थापित करता है)
+cli-rehash-about = enchi shim फिर से बनाएँ (सभी संस्करणों के एक्ज़ीक्यूटेबल इंस्टॉल करता है)
 cli-shims-about = मौजूदा enchi shim सूचीबद्ध करें
 cli-prompt-about = वर्तमान वातावरण के लिए संक्षिप्त प्रॉम्प्ट स्ट्रिंग छापें
 cli-exec-about = चयनित पाइथन संस्करण के साथ कोई निष्पादन योग्य चलाएँ
@@ -35,7 +35,7 @@ cli-which-about = किसी निष्पादन योग्य का �
 cli-whence-about = सभी पाइथन संस्करण सूचीबद्ध करें जिनमें दिया गया निष्पादन योग्य है
 cli-version-file-about = वह फ़ाइल पहचानें जो वर्तमान enchi संस्करण सेट करती है
 cli-version-file-read-about = .python-version फ़ाइल की सामग्री पढ़ें
-cli-self-install-about = रिलीज़ बंडल से Enchi इंस्टॉल या मरम्मत करें
+cli-self-install-about = रिलीज़ बंडल से Enchi इंस्टॉल या रिपेयर करें
 cli-self-uninstall-about = सिस्टम से Enchi अनइंस्टॉल करें
 cli-agent-skills-about = कोडिंग असिस्टेंट के लिए Enchi स्किल इंस्टॉल करें
 cli-help-about = किसी कमांड की सहायता दिखाएँ
@@ -70,10 +70,10 @@ cli-help-usage = उपयोग: enchi <command> [<args>]
 cli-help-useful = कुछ उपयोगी enchi कमांड:
 cli-help-concepts =
     मुख्य अवधारणाएँ:
-      Shims: हल्के एक्ज़ीक्यूटेबल (`python` या `pip`) जो कमांड रोककर मौजूदा संस्करण तक पहुँचाते हैं। pip पैकेज इंस्टॉल करने के बाद `enchi rehash` चलाएँ।
-      Versions: `enchi install` से इंस्टॉल, `$(enchi root)/versions` में।
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`। `enchi venv create` और `enchi venv use` को प्राथमिकता दें।
-      Discovery: `enchi install --list 3.13` या `enchi available 3.13`।
-      Selection: PYENV_VERSION, फिर `.python-version`, फिर ग्लोबल संस्करण फ़ाइल।
+      Shims: हल्के एक्ज़ीक्यूटेबल (जैसे `python` या `pip`) जो आपकी कमांड को रोककर सही Python संस्करण तक पहुँचाते हैं। नए pip पैकेज इंस्टॉल करने के बाद `enchi rehash` चलाएँ।
+      संस्करण: `enchi install` से इंस्टॉल किए गए Python एनवायरनमेंट, `$(enchi root)/versions` में।
+      प्रबंधित एनवायरनमेंट: `$(enchi root)/venvs/<runtime>/<name>` में नामित वर्चुअल एनवायरनमेंट। `enchi venv create` और `enchi venv use` को प्राथमिकता दें।
+      खोज: `enchi install --list 3.13` या `enchi available 3.13`।
+      चयन: PYENV_VERSION, फिर `.python-version`, फिर वैश्विक संस्करण फ़ाइल।
     
-    विस्तार के लिए `enchi help <command>`। दस्तावेज़: https://github.com/imyourboyroy/pyenv-native
+    विस्तृत सहायता के लिए `enchi help <command>` चलाएँ। दस्तावेज़: https://github.com/imyourboyroy/pyenv-native

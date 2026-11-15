@@ -1,7 +1,7 @@
 # ./locales/zh-CN/install.ftl
 # Installer-facing copy. Command names and paths stay English.
 
-install-downloading = 正在下载 Enchi { $version }
+install-downloading = 正在下载 { $version }
 install-extracting = 正在解压发布包
 install-installing = 正在安装到 { $path }
 install-done = Enchi 已安装。打开新终端，然后运行 `enchi doctor`。

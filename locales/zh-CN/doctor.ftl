@@ -1,5 +1,5 @@
 # ./locales/zh-CN/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = 根目录位于 { $path }
 doctor-root-missing = 根目录尚不存在：{ $path }
@@ -11,8 +11,8 @@ doctor-versions-dir = 托管运行时位于 { $path }
 doctor-no-selected-versions = 尚未选择版本
 doctor-selected-versions = { $versions }（来自 { $origin }）
 doctor-desktop-path-ok = PATH 由 shell 初始化提供，而非此桌面进程
-doctor-plugin-path-search-on = 插件发现会搜索 PATH；将 plugins.search_path=false 可限制为 PYENV_ROOT/plugins 和 PYENV_PLUGIN_PATH
-doctor-plugin-path-search-off = 插件发现仅限于 PYENV_ROOT/plugins 和 PYENV_PLUGIN_PATH
+doctor-plugin-path-search-on = 插件发现会搜索 PATH；设置 plugins.search_path=false 可限制为 <root>/plugins 和 PYENV_PLUGIN_PATH
+doctor-plugin-path-search-off = 插件发现仅限于 <root>/plugins 和 PYENV_PLUGIN_PATH
 doctor-shim-gui-copy = python shim 是 enchi-gui.exe 的副本，会打开图形界面而不是运行 Python；请运行 `enchi rehash` 修复
 doctor-shim-gui-ref = python shim 指向 enchi-gui，会打开图形界面而不是运行 Python；请运行 `enchi rehash` 修复
 doctor-shim-launchers-ok = shim 启动器指向 { $path }
@@ -29,7 +29,7 @@ doctor-python-build-optional = { $error }（原生 CPython 源码构建不需要
 doctor-termux-lib-ok = 已安装 Termux 库 { $lib }
 doctor-termux-lib-missing = 缺少 Termux 库软件包 { $lib }；请安装
 doctor-venv-missing = 所选托管虚拟环境 `{ $value }` 不存在；运行 `enchi venv list` 查看可用环境，或运行 `enchi venv create <runtime> <name>` 重新创建
-doctor-pyenv-win-root = PYENV_ROOT 设置为 `{ $path }`，看起来像 pyenv-win 路径；pyenv-native 会在运行时覆盖它，但建议删除该环境变量：从用户环境变量中移除 PYENV_ROOT
+doctor-pyenv-win-root = PYENV_ROOT 设置为 `{ $path }`，看起来像 pyenv-win 路径；Enchi 会在运行时覆盖它，但建议删除该环境变量：从用户环境变量中移除 PYENV_ROOT
 doctor-command-ok = { $command } 位于 { $path }
 doctor-command-missing = { $reason }；已搜索 { $commands }
 doctor-cli-missing = 未在 { $path } 找到 enchi CLI 启动器；请重新安装 Enchi 或运行安装程序
@@ -44,7 +44,7 @@ doctor-store-alias = 系统 python 解析为 { $path } 处的 WindowsApps 别名
 doctor-store-alias-shadowed = Microsoft Store 的 python 存根位于 { $path }；enchi shims 优先，因此删除它是可选的。Windows 11：设置 > 应用 > 高级应用设置 > 应用执行别名
 doctor-system-python = 系统 python 解析为 { $path }
 doctor-no-system-python = PATH 中未找到系统 python
-doctor-pyenv-win-path = PATH 中 pyenv-win 条目位于 pyenv-native 之前，可能导致 pyenv-win 拦截命令。请从用户 PATH 中移除 pyenv-win 条目：{ $path }
+doctor-pyenv-win-path = PATH 中 pyenv-win 条目位于 Enchi 之前，可能导致 pyenv-win 拦截命令。请从用户 PATH 中移除 pyenv-win 条目：{ $path }
 doctor-fix-ensure-layout = 在 { $path } 下创建缺失的托管目录
 doctor-fix-rehash = 刷新 { $path } 下的 shim 启动器
 doctor-fix-path-shims = 将 { $path } 加入 shell PATH，使 python/pip 通过 enchi shim 解析

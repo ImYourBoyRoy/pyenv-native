@@ -1,18 +1,18 @@
 # ./locales/fa/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = ریشه در { $path } وجود دارد
 doctor-root-missing = ریشه هنوز در { $path } وجود ندارد
 doctor-bin-on-path = انتظار می‌رود { $path } در PATH باشد
-doctor-bin-on-path-desktop = برنامه‌های رومیزی PATH پوسته را به ارث نمی‌برند. { $path } پس از enchi init برای پایانه‌های جدید پیکربندی می‌شود
+doctor-bin-on-path-desktop = برنامه‌های دسکتاپ PATH پوسته را به ارث نمی‌برند. { $path } پس از enchi init برای پایانه‌های جدید پیکربندی می‌شود
 doctor-shims-on-path = انتظار می‌رود { $path } در PATH باشد
-doctor-shims-on-path-desktop = برنامه‌های رومیزی PATH پوسته را به ارث نمی‌برند. { $path } پس از enchi init برای پایانه‌های جدید پیکربندی می‌شود
+doctor-shims-on-path-desktop = برنامه‌های دسکتاپ PATH پوسته را به ارث نمی‌برند. { $path } پس از enchi init برای پایانه‌های جدید پیکربندی می‌شود
 doctor-versions-dir = ران‌تایم‌های مدیریت‌شده در { $path } قرار دارند
 doctor-no-selected-versions = هیچ نسخه‌ای انتخاب نشده است
 doctor-selected-versions = { $versions } (از { $origin })
 doctor-desktop-path-ok = PATH را راه‌اندازی پوسته فراهم می‌کند، نه این فرایند رومیزی
-doctor-plugin-path-search-on = کشف افزونه شامل PATH است؛ برای محدود کردن به PYENV_ROOT/plugins و PYENV_PLUGIN_PATH مقدار plugins.search_path=false را تنظیم کنید
-doctor-plugin-path-search-off = کشف افزونه به PYENV_ROOT/plugins و PYENV_PLUGIN_PATH محدود است
+doctor-plugin-path-search-on = یافتن افزونه‌ها شامل PATH می‌شود؛ برای محدود کردن به <root>/plugins و PYENV_PLUGIN_PATH مقدار plugins.search_path=false را تنظیم کنید
+doctor-plugin-path-search-off = یافتن افزونه‌ها به <root>/plugins و PYENV_PLUGIN_PATH محدود است
 doctor-shim-gui-copy = shim پایتون رونوشتی از enchi-gui.exe است و به‌جای اجرای پایتون رابط گرافیکی را باز می‌کند؛ برای تعمیر `enchi rehash` را اجرا کنید
 doctor-shim-gui-ref = shim پایتون به enchi-gui ارجاع می‌دهد و به‌جای اجرای پایتون رابط گرافیکی را باز می‌کند؛ برای تعمیر `enchi rehash` را اجرا کنید
 doctor-shim-launchers-ok = راه‌اندازهای shim به { $path } ارجاع می‌دهند
@@ -23,13 +23,13 @@ doctor-func-ok = shim سالم است؛ { $version } با موفقیت فراخ�
 doctor-func-failed = فراخوانی shim ناموفق بود (وضعیت خروج { $status }): { $error }
 doctor-func-launch-failed = راه‌اندازی shim پایتون در { $path } ناموفق بود: { $error }
 doctor-pwsh-ok = PowerShell 7 (pwsh) در PATH است
-doctor-pwsh-missing = PowerShell 7 (pwsh) یافت نشد. Enchi برای افزونه‌های .ps1، راه‌اندازی پوسته و doctor --fix ترجیح می‌دهد pwsh باشد. نصب با: winget install --id Microsoft.PowerShell
+doctor-pwsh-missing = PowerShell 7 (pwsh) یافت نشد. Enchi برای افزونه‌های .ps1، راه‌اندازی پوسته و doctor --fix استفاده از pwsh را ترجیح می‌دهد. نصب با: winget install --id Microsoft.PowerShell
 doctor-python-build-ok = python-build در { $path } در دسترس است
 doctor-python-build-optional = { $error } (ساخت بومی از منبع CPython به آن نیاز ندارد)
 doctor-termux-lib-ok = کتابخانهٔ Termux { $lib } نصب شده است
 doctor-termux-lib-missing = بستهٔ کتابخانهٔ Termux { $lib } موجود نیست؛ لطفاً آن را نصب کنید
 doctor-venv-missing = محیط مجازی مدیریت‌شدهٔ انتخاب‌شدهٔ `{ $value }` موجود نیست؛ برای بررسی محیط‌ها `enchi venv list` را اجرا کنید یا برای بازسازی `enchi venv create <runtime> <name>` را اجرا کنید
-doctor-pyenv-win-root = PYENV_ROOT روی `{ $path }` تنظیم شده که شبیه مسیر pyenv-win است؛ pyenv-native این را در زمان اجرا نادیده می‌گیرد، اما حذف متغیر محیطی توصیه می‌شود: PYENV_ROOT را از متغیرهای محیطی کاربر حذف کنید
+doctor-pyenv-win-root = PYENV_ROOT روی `{ $path }` تنظیم شده که شبیه مسیر pyenv-win است؛ Enchi این را در زمان اجرا نادیده می‌گیرد، اما حذف متغیر محیطی توصیه می‌شود: PYENV_ROOT را از متغیرهای محیطی کاربر حذف کنید
 doctor-command-ok = { $command } در { $path } در دسترس است
 doctor-command-missing = { $reason }؛ جستجو شد برای { $commands }
 doctor-cli-missing = راه‌انداز CLI مربوط به enchi در { $path } یافت نشد؛ Enchi را دوباره نصب کنید یا نصب‌کننده را اجرا کنید
@@ -44,11 +44,11 @@ doctor-store-alias = پایتون سیستم به نام مستعار WindowsApp
 doctor-store-alias-shadowed = stub پایتون Microsoft Store در { $path } است؛ shimهای enchi اولویت دارند، بنابراین حذف آن اختیاری است. Windows 11: Settings > Apps > Advanced app settings > App execution aliases
 doctor-system-python = پایتون سیستم به { $path } می‌رسد
 doctor-no-system-python = هیچ پایتون سیستمی روی PATH یافت نشد
-doctor-pyenv-win-path = ورودی‌های PATH مربوط به pyenv-win پیش از pyenv-native در PATH ظاهر می‌شوند؛ این می‌تواند باعث رهگیری فرمان‌ها توسط pyenv-win شود. ورودی‌های pyenv-win را از PATH کاربر حذف کنید: { $path }
+doctor-pyenv-win-path = ورودی‌های PATH مربوط به pyenv-win پیش از Enchi در PATH ظاهر می‌شوند؛ این می‌تواند باعث رهگیری فرمان‌ها توسط pyenv-win شود. ورودی‌های pyenv-win را از PATH کاربر حذف کنید: { $path }
 doctor-fix-ensure-layout = ایجاد پوشه‌های مدیریت‌شدهٔ غایب در { $path }
 doctor-fix-rehash = نوسازی راه‌اندازهای shim در { $path }
-doctor-fix-path-shims = افزودن { $path } به PATH پوسته تا python/pip از طریق shimهای enchi حل شوند
-doctor-fix-path-bin = پوشه bin مربوط به enchi را به PATH پوسته اضافه کنید
+doctor-fix-path-shims = { $path } را به PATH پوسته اضافه کنید تا python/pip از طریق shimهای enchi پیدا شوند
+doctor-fix-path-bin = پوشهٔ bin مربوط به enchi را به PATH پوسته اضافه کنید
 doctor-fix-pyenv-win-root = حذف متغیر محیطی کهنهٔ PYENV_ROOT مربوط به pyenv-win
 doctor-fix-store-alias = stubهای python.exe و python3.exe مربوط به App Installer را از WindowsApps حذف کنید تا PATH را رهگیری نکنند
 doctor-fix-store-alias-settings = اختیاری: در تنظیمات App Installer python.exe و python3.exe را خاموش کنید تا ویندوز stubها را دوباره نسازد

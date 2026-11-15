@@ -1,5 +1,5 @@
 # ./locales/de/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = Stammverzeichnis vorhanden unter { $path }
 doctor-root-missing = Stammverzeichnis existiert noch nicht unter { $path }
@@ -11,10 +11,10 @@ doctor-versions-dir = verwaltete Laufzeiten liegen unter { $path }
 doctor-no-selected-versions = keine Versionen ausgewählt
 doctor-selected-versions = { $versions } (von { $origin })
 doctor-desktop-path-ok = PATH wird durch die Shell-Initialisierung bereitgestellt, nicht durch diesen Desktop-Prozess
-doctor-plugin-path-search-on = Plugin-Erkennung schließt PATH ein; plugins.search_path=false setzen, um auf PYENV_ROOT/plugins und PYENV_PLUGIN_PATH zu beschränken
-doctor-plugin-path-search-off = Plugin-Erkennung ist auf PYENV_ROOT/plugins und PYENV_PLUGIN_PATH beschränkt
-doctor-shim-gui-copy = python-Shim ist eine Kopie von enchi-gui.exe und öffnet die GUI statt Python auszuführen; zum Reparieren `enchi rehash` ausführen
-doctor-shim-gui-ref = python-Shim verweist auf enchi-gui und öffnet die GUI statt Python auszuführen; zum Reparieren `enchi rehash` ausführen
+doctor-plugin-path-search-on = Plugin-Erkennung schließt PATH ein; plugins.search_path=false setzen, um auf <root>/plugins und PYENV_PLUGIN_PATH zu beschränken
+doctor-plugin-path-search-off = Plugin-Erkennung ist auf <root>/plugins und PYENV_PLUGIN_PATH beschränkt
+doctor-shim-gui-copy = python-Shim ist eine Kopie von enchi-gui.exe und öffnet die GUI, statt Python auszuführen; zum Reparieren `enchi rehash` ausführen
+doctor-shim-gui-ref = python-Shim verweist auf enchi-gui und öffnet die GUI, statt Python auszuführen; zum Reparieren `enchi rehash` ausführen
 doctor-shim-launchers-ok = Shim-Starter verweisen auf { $path }
 doctor-func-skip-no-version = Funktionstest übersprungen; keine python-Version ausgewählt
 doctor-func-skip-missing = Funktionstest übersprungen; ausgewählte Versionen fehlen
@@ -29,26 +29,26 @@ doctor-python-build-optional = { $error } (native CPython-Quellbuilds benötigen
 doctor-termux-lib-ok = Termux-Bibliothek { $lib } ist installiert
 doctor-termux-lib-missing = Termux-Bibliothekspaket { $lib } fehlt; bitte installieren
 doctor-venv-missing = ausgewähltes verwaltetes venv `{ $value }` fehlt; mit `enchi venv list` verfügbare Umgebungen prüfen oder mit `enchi venv create <runtime> <name>` neu erstellen
-doctor-pyenv-win-root = PYENV_ROOT ist auf `{ $path }` gesetzt, was nach einem pyenv-win-Pfad aussieht; pyenv-native überschreibt dies zur Laufzeit, aber das Entfernen der Umgebungsvariable wird empfohlen: PYENV_ROOT aus den Benutzerumgebungsvariablen entfernen
+doctor-pyenv-win-root = PYENV_ROOT ist auf `{ $path }` gesetzt, was nach einem pyenv-win-Pfad aussieht; Enchi überschreibt dies zur Laufzeit, aber das Entfernen der Umgebungsvariable wird empfohlen: PYENV_ROOT aus den Benutzerumgebungsvariablen entfernen
 doctor-command-ok = { $command } verfügbar unter { $path }
 doctor-command-missing = { $reason }; gesucht nach { $commands }
-doctor-cli-missing = pyenv-CLI-Starter nicht gefunden unter { $path }; Enchi neu installieren oder den Installer ausführen
-doctor-shim-mismatch = python-Shim unter { $shim } stimmt nicht mit dem pyenv-CLI-Starter unter { $cli } überein; Shims mit `enchi rehash` aktualisieren
+doctor-cli-missing = enchi-CLI-Starter nicht gefunden unter { $path }; Enchi neu installieren oder den Installer ausführen
+doctor-shim-mismatch = python-Shim unter { $shim } stimmt nicht mit dem enchi-CLI-Starter unter { $cli } überein; Shims mit `enchi rehash` aktualisieren
 doctor-source-may-fail = { $platform }-Quellbuilds können fehlschlagen, bis die erforderlichen Shell-, make- und Compiler-Werkzeuge verfügbar sind
 doctor-source-ok = { $platform }-Quellbuild-Voraussetzungen scheinen auf PATH verfügbar zu sein
 doctor-reason-shell = erforderlich für die Ausführung des configure-Skripts
 doctor-reason-make = erforderlich für native CPython-Quellbuilds
 doctor-reason-compiler = erforderlich für native CPython-Quellbuilds
 doctor-reason-pkg-config = empfohlen zum Finden nativer Bibliotheksabhängigkeiten
-doctor-store-alias = System-python löst zum WindowsApps-Alias unter { $path } auf; dieser Stub kann python abfangen, wenn er vor den pyenv-Shims steht. Die Selbstheilung entfernt die App-Installer-Stubs python.exe / python3.exe. Das Deaktivieren in den Einstellungen ist optional und verhindert nur, dass Windows sie neu anlegt
-doctor-store-alias-shadowed = Der Microsoft-Store-Python-Stub liegt unter { $path }; pyenv-Shims haben Vorrang, daher ist das Entfernen optional. Windows 11: Einstellungen > Apps > Erweiterte App-Einstellungen > Aliase für die App-Ausführung
+doctor-store-alias = System-python löst zum WindowsApps-Alias unter { $path } auf; dieser Stub kann python abfangen, wenn er vor den enchi-Shims steht. Die Selbstheilung entfernt die App-Installer-Stubs python.exe / python3.exe. Das Deaktivieren in den Einstellungen ist optional und verhindert nur, dass Windows sie neu anlegt
+doctor-store-alias-shadowed = Der Microsoft-Store-Python-Stub liegt unter { $path }; enchi-Shims haben Vorrang, daher ist das Entfernen optional. Windows 11: Einstellungen > Apps > Erweiterte App-Einstellungen > Aliase für die App-Ausführung
 doctor-system-python = System-python löst zu { $path } auf
 doctor-no-system-python = kein System-python auf PATH gefunden
-doctor-pyenv-win-path = pyenv-win-PATH-Einträge stehen vor pyenv-native in PATH; dadurch kann pyenv-win Befehle abfangen. pyenv-win-Einträge aus dem Benutzer-PATH entfernen: { $path }
+doctor-pyenv-win-path = pyenv-win-PATH-Einträge stehen vor Enchi in PATH; dadurch kann pyenv-win Befehle abfangen. pyenv-win-Einträge aus dem Benutzer-PATH entfernen: { $path }
 doctor-fix-ensure-layout = Fehlende verwaltete Verzeichnisse unter { $path } erstellen
 doctor-fix-rehash = Shim-Starter unter { $path } aktualisieren
-doctor-fix-path-shims = { $path } zum Shell-PATH hinzufügen, damit python/pip über pyenv-Shims aufgelöst werden
-doctor-fix-path-bin = Das pyenv-bin-Verzeichnis zum Shell-PATH hinzufügen
+doctor-fix-path-shims = { $path } zum Shell-PATH hinzufügen, damit python/pip über enchi-Shims aufgelöst werden
+doctor-fix-path-bin = Das enchi-bin-Verzeichnis zum Shell-PATH hinzufügen
 doctor-fix-pyenv-win-root = Die veraltete pyenv-win-Umgebungsvariable PYENV_ROOT entfernen
 doctor-fix-store-alias = Die App-Installer-Stubs python.exe und python3.exe aus WindowsApps entfernen, damit sie PATH nicht abfangen
 doctor-fix-store-alias-settings = Optional: App Installer python.exe und python3.exe in den Einstellungen deaktivieren, damit Windows die Stubs nicht neu anlegt

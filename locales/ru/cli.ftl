@@ -12,8 +12,8 @@ cli-version-origin-about = Пояснить, как задана текущая 
 cli-prefix-about = Показать пути, где установлены указанные версии Python
 cli-install-about = Установить версии Python из нативных источников
 cli-available-about = Список устанавливаемых версий Python из нативных источников
-cli-versions-about = Список всех версий Python, доступных enchi
-cli-upgrade-about = Перенести установленные среды на последний патч-релиз (вместе с venv)
+cli-versions-about = Список всех версий Python, доступных для enchi
+cli-upgrade-about = Перевести установленные среды выполнения (и их venv) на последний патч-релиз
 cli-uninstall-about = Удалить указанную версию Python
 cli-venv-about = Создавать, просматривать и назначать управляемые виртуальные окружения
 cli-pip-about = Просматривать, проверять, устанавливать и обновлять пакеты для среды выполнения или venv
@@ -70,10 +70,10 @@ cli-help-usage = Использование: enchi <command> [<args>]
 cli-help-useful = Полезные команды enchi:
 cli-help-concepts =
     ОСНОВНЫЕ ПОНЯТИЯ:
-      Shims: лёгкие исполняемые файлы (`python` или `pip`), перехватывающие команды и направляющие их к текущей версии. После установки pip-пакетов выполните `enchi rehash`.
-      Versions: окружения, установленные через `enchi install`, в `$(enchi root)/versions`.
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Предпочитайте `enchi venv create` и `enchi venv use`.
-      Discovery: `enchi install --list 3.13` или `enchi available 3.13`.
-      Selection: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.
+      Шимы: лёгкие исполняемые файлы (например, `python` или `pip`), которые перехватывают ваши команды и направляют их к нужной версии Python. После установки новых pip-пакетов выполните `enchi rehash`.
+      Версии: версии Python, установленные через `enchi install`, в `$(enchi root)/versions`.
+      Управляемые окружения: именованные виртуальные окружения в `$(enchi root)/venvs/<runtime>/<name>`. Предпочитайте `enchi venv create` и `enchi venv use`.
+      Поиск: `enchi install --list 3.13` или `enchi available 3.13`.
+      Выбор версии: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.
     
-    Подробности: `enchi help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native
+    Подробная справка: `enchi help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native

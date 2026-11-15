@@ -26,7 +26,7 @@ cli-exec-about = Seçili Python sürümüyle bir yürütülebilir çalıştır
 cli-completions-about = Komut tamamlama betiğini yazdır
 cli-doctor-about = PATH, shim’ler ve kurulum önkoşullarını tanıla
 cli-config-about = Enchi yapılandırmasını al, ayarla veya göster
-cli-self-update-about = Enchi’i GitHub Releases’ten güncelle
+cli-self-update-about = Enchi’yi GitHub Releases’ten güncelle
 cli-preflight-about = Platform bilgisi ve kurulum hazırlığı preflight
 cli-environment-about = preflight için takma ad (aracılar ve kullanıcılar için OS/araç zinciri bilgileri)
 cli-status-about = Kapsamlı ortam durumunu göster (sürümler, kaynaklar, venv’ler)
@@ -35,8 +35,8 @@ cli-which-about = Bir yürütülebilirin tam yolunu göster
 cli-whence-about = Verilen yürütülebiliri içeren tüm Python sürümlerini listele
 cli-version-file-about = Geçerli enchi sürümünü ayarlayan dosyayı algıla
 cli-version-file-read-about = Bir .python-version dosyasının içeriğini oku
-cli-self-install-about = Enchi'i bir sürüm paketinden kur veya onar
-cli-self-uninstall-about = Enchi’i sistemden kaldır
+cli-self-install-about = Enchi’yi bir sürüm paketinden kur veya onar
+cli-self-uninstall-about = Enchi’yi sistemden kaldır
 cli-agent-skills-about = Kodlama asistanları için Enchi becerisini kur
 cli-help-about = Bir komutun yardımını göster
 cli-commands-about = Kullanılabilir tüm enchi komutlarını listele
@@ -70,10 +70,10 @@ cli-help-usage = Kullanım: enchi <command> [<args>]
 cli-help-useful = Yararlı enchi komutları:
 cli-help-concepts =
     TEMEL KAVRAMLAR:
-      Shims: komutları yakalayıp geçerli sürüme yönlendiren hafif çalıştırılabilirler (`python` veya `pip`). pip paketlerinden sonra `enchi rehash` çalıştırın.
-      Versions: `enchi install` ile kurulan ortamlar, `$(enchi root)/versions` altında.
-      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. `enchi venv create` ve `enchi venv use` tercih edin.
-      Discovery: `enchi install --list 3.13` veya `enchi available 3.13`.
-      Selection: PYENV_VERSION, sonra `.python-version`, sonra genel sürüm dosyası.
+      Shim’ler: `python` veya `pip` gibi komutlarınızı yakalayıp doğru Python sürümüne yönlendiren hafif çalıştırılabilir dosyalar. Yeni pip paketleri kurduktan sonra `enchi rehash` çalıştırın.
+      Sürümler: `enchi install` ile kurulan Python ortamları, `$(enchi root)/versions` altında.
+      Yönetilen ortamlar: `$(enchi root)/venvs/<runtime>/<name>` altındaki adlandırılmış sanal ortamlar. `enchi venv create` ve `enchi venv use` komutlarını tercih edin.
+      Keşif: `enchi install --list 3.13` veya `enchi available 3.13`.
+      Seçim: PYENV_VERSION, ardından `.python-version`, ardından genel sürüm dosyası.
     
-    Ayrıntı için `enchi help <command>`. Belgeler: https://github.com/imyourboyroy/pyenv-native
+    Ayrıntılı yardım için `enchi help <command>` çalıştırın. Belgeler: https://github.com/imyourboyroy/pyenv-native

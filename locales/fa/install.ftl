@@ -1,7 +1,7 @@
 # ./locales/fa/install.ftl
 # Installer-facing copy. Command names and paths stay English.
 
-install-downloading = در حال بارگیری Enchi { $version }
+install-downloading = در حال بارگیری { $version }
 install-extracting = در حال استخراج بستهٔ انتشار
 install-installing = در حال نصب در { $path }
 install-done = Enchi نصب شد. یک پایانهٔ جدید باز کنید، سپس `enchi doctor` را اجرا کنید.
@@ -10,8 +10,8 @@ install-lang-help = زبان رابط برای پیام‌های نصب‌کنن
 install-summary-title = خلاصهٔ نصب Enchi
 install-network-summary-title = خلاصهٔ نصب شبکه‌ای Enchi
 install-summary-blurb = این کار یک نصب قابل‌حمل Enchi را در ریشهٔ انتخاب‌شده ایجاد یا به‌روزرسانی می‌کند.
-install-summary-blurb-detail = enchi، کارساز enchi-mcp دوستدار عامل، و همراه GUI در صورت موجود بودن را نصب می‌کند، گزارش نصب می‌نویسد و بررسی‌های پایه انجام می‌دهد.
-install-network-blurb = یک بستهٔ منتشرشدهٔ Enchi را بارگیری می‌کند، جمع‌آزمای SHA-256 را راستی‌آزمایی می‌کند و آن را در ریشهٔ قابل‌حمل انتخاب‌شده نصب می‌کند.
+install-summary-blurb-detail = این کار enchi، سرور enchi-mcp سازگار با عامل‌ها و در صورت موجود بودن همراه GUI را نصب می‌کند، گزارش نصب می‌نویسد و بررسی‌های پایه انجام می‌دهد.
+install-network-blurb = این کار یک بستهٔ منتشرشدهٔ Enchi را بارگیری می‌کند، چک‌سام SHA-256 آن را تأیید می‌کند و در ریشهٔ قابل‌حمل انتخاب‌شده نصب می‌کند.
 install-profile-yes = نمایهٔ پوسته به‌روزرسانی می‌شود تا نشست‌های بعدی Enchi را خودکار پیدا کنند.
 install-profile-yes-pwsh = نمایهٔ PowerShell به‌روزرسانی می‌شود تا نشست‌های بعدی Enchi را خودکار پیدا کنند.
 install-profile-no = هیچ تغییری در نمایهٔ پوسته اعمال نخواهد شد.
