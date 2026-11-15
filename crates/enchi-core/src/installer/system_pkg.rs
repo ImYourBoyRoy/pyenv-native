@@ -15,7 +15,7 @@ use super::source::package_source_for;
 
 /// Receipt identifier given to the package by `cargo xtask installer pkg`, and the one the
 /// pyenv-native package used. Both are looked up so either generation can be removed.
-pub(crate) const PKG_IDENTIFIER: &str = "io.github.imyourboyroy.enchi.pkg";
+pub(crate) const PKG_IDENTIFIER: &str = "com.imyourboyroy.enchi.pkg";
 const LEGACY_PKG_IDENTIFIER: &str = "com.pyenv-native.pkg";
 
 /// Files owned individually, relative to `/` (the package ships nothing else in `bin`).

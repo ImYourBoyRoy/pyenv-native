@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
-const APP_ID: &str = "io.github.imyourboyroy.enchi";
+const APP_ID: &str = "com.imyourboyroy.enchi";
 /// The id pyenv-native used; its launcher and icons are removed once the new ones are written.
 const LEGACY_APP_ID: &str = "com.pyenv-native.gui";
 /// GNOME dock grouping matches this WM class / app identity (binary name on Linux).

@@ -44,7 +44,7 @@ runs:
         codesign --verify --strict --deep --verbose=2 "$app"
         test "$(cat /usr/local/share/enchi/install-source)" = pkg
         test "$(cat "$app/Contents/Resources/install-source")" = pkg
-        pkgutil --pkg-info io.github.imyourboyroy.enchi.pkg
+        pkgutil --pkg-info com.imyourboyroy.enchi.pkg
 
         echo "--- the system install defers updates to the installer"
         out="$("$bin/enchi" self-update --check 2>&1 || true)"
@@ -76,7 +76,7 @@ runs:
         test ! -L "$bin/pyenv-mcp"
         test ! -e "$app"
         test ! -e /usr/local/share/enchi
-        if pkgutil --pkg-info io.github.imyourboyroy.enchi.pkg >/dev/null 2>&1; then
+        if pkgutil --pkg-info com.imyourboyroy.enchi.pkg >/dev/null 2>&1; then
           echo "error: the installer receipt is still registered" >&2
           exit 1
         fi

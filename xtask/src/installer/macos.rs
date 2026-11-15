@@ -446,7 +446,7 @@ mod tests {
     fn plist_names_the_gui_executable_and_the_floor() {
         let plist = info_plist("0.8.0-rc1");
         assert!(plist.contains("<string>enchi-gui</string>"));
-        assert!(plist.contains("<string>io.github.imyourboyroy.enchi</string>"));
+        assert!(plist.contains("<string>com.imyourboyroy.enchi</string>"));
         assert!(plist.contains("<key>CFBundleName</key>\n\t<string>Enchi</string>"));
         assert!(!plist.contains("Pyenv"));
         assert!(plist.contains(&format!("<string>{MIN_MACOS}</string>")));
@@ -517,10 +517,10 @@ mod tests {
 
     #[test]
     fn receipt_and_app_identifiers_follow_the_enchi_scheme() {
-        assert_eq!(PKG_IDENTIFIER, "io.github.imyourboyroy.enchi.pkg");
+        assert_eq!(PKG_IDENTIFIER, "com.imyourboyroy.enchi.pkg");
         assert_eq!(APP_BUNDLE, "Enchi.app");
         let xml = distribution_xml("1.0.0", "arm64");
-        assert!(xml.contains("<organization>io.github.imyourboyroy</organization>"));
+        assert!(xml.contains("<organization>com.imyourboyroy</organization>"));
         assert!(xml.contains("<title>Enchi</title>"));
         assert!(!conclusion_html().contains("Pyenv Native"));
         assert!(!read_me("1.0.0").contains("Pyenv Native"));

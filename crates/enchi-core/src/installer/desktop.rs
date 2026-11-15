@@ -1,7 +1,7 @@
 // ./crates/enchi-core/src/installer/desktop.rs
 //! Freedesktop launcher and icon integration for the GUI on desktop Linux.
 //!
-//! Installs `io.github.imyourboyroy.enchi.desktop` plus hicolor icons under `$XDG_DATA_HOME` so the GUI
+//! Installs `com.imyourboyroy.enchi.desktop` plus hicolor icons under `$XDG_DATA_HOME` so the GUI
 //! shows up in application menus and docks. Other platforms do not use this module.
 
 use std::fs;
@@ -11,7 +11,7 @@ use std::process::{Command, Stdio};
 
 use super::layout::InstallLayout;
 
-pub const APP_ID: &str = "io.github.imyourboyroy.enchi";
+pub const APP_ID: &str = "com.imyourboyroy.enchi";
 /// The id pyenv-native used; its launcher and icons are replaced on install and removed on uninstall.
 const LEGACY_APP_ID: &str = "com.pyenv-native.gui";
 const WM_CLASS: &str = "enchi-gui";

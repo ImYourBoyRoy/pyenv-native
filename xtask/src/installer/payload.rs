@@ -480,7 +480,7 @@ mod tests {
         let entry = desktop_entry();
         assert!(entry.contains("Name=Enchi\n"));
         assert!(entry.contains("Exec=enchi-gui\n"));
-        assert!(entry.contains("Icon=io.github.imyourboyroy.enchi\n"));
+        assert!(entry.contains("Icon=com.imyourboyroy.enchi\n"));
         assert!(entry.contains("StartupWMClass=enchi-gui\n"));
     }
 

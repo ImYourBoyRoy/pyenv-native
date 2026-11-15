@@ -26,11 +26,11 @@ pub const PACKAGE: &str = CLI;
 pub const LEGACY_PACKAGE: &str = "pyenv-native";
 
 /// Linux desktop id, macOS app bundle id, and Tauri identifier.
-pub const APP_ID: &str = "io.github.imyourboyroy.enchi";
+pub const APP_ID: &str = "com.imyourboyroy.enchi";
 /// macOS installer receipt identifier; `enchi self-uninstall --system` reads the same value.
-pub const PKG_IDENTIFIER: &str = "io.github.imyourboyroy.enchi.pkg";
+pub const PKG_IDENTIFIER: &str = "com.imyourboyroy.enchi.pkg";
 /// Reverse-DNS organisation for the macOS installer.
-pub const ORGANIZATION: &str = "io.github.imyourboyroy";
+pub const ORGANIZATION: &str = "com.imyourboyroy";
 
 /// The GitHub repository that publishes releases. The repository keeps its old name until it is
 /// renamed on GitHub (old URLs redirect); changing this one constant is then the whole edit here.
