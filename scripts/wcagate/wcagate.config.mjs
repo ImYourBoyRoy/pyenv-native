@@ -1,6 +1,6 @@
 export default {
   schemaVersion: 1,
-  project: { name: 'pyenv-native-gui', root: '.' },
+  project: { name: 'enchi-gui', root: '.' },
   profile: 'wcag22-aa',
   outputDirectory: 'wcag-audit',
   adapters: [
@@ -11,7 +11,7 @@ export default {
       webServer: {
         command: 'python3',
         args: ['-m', 'http.server', '8766', '--bind', '127.0.0.1'],
-        cwd: '../../crates/pyenv-gui/ui',
+        cwd: '../../crates/enchi-gui/ui',
         url: 'http://127.0.0.1:8766/index.html',
         timeoutMs: 15000,
         reuseExistingServer: true,

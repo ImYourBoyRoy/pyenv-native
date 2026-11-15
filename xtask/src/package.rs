@@ -3,7 +3,8 @@
 //!
 //! Consumes the release bundles and their `.sha256` sidecars produced by `cargo xtask bundle`;
 //! it submits nothing anywhere. The formula carries url/sha256 blocks per detected Linux/macOS
-//! bundle.
+//! bundle, taken from the current `enchi-<os>-<arch>.tar.gz` assets (never the legacy
+//! `pyenv-native-*` copies).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 
-use crate::{bundle, repo_root};
+use crate::{brand, bundle, repo_root};
 
 // Parsed once at startup; boxing the argument structs would only add noise.
 #[allow(clippy::large_enum_variant)]
@@ -40,7 +41,8 @@ pub fn parse_checksum(text: &str) -> Option<String> {
 
 #[derive(Args)]
 pub struct HomebrewArgs {
-    #[arg(long, default_value = "imyourboyroy/pyenv-native")]
+    /// `owner/repo` that publishes the release assets.
+    #[arg(long, default_value = brand::GITHUB_REPO)]
     github_repo: String,
     /// Release tag (default: `v<workspace version>`).
     #[arg(long)]
@@ -51,11 +53,11 @@ pub struct HomebrewArgs {
     asset_roots: Vec<PathBuf>,
     #[arg(long)]
     output: Option<PathBuf>,
-    #[arg(long, default_value = "pyenv-native")]
+    #[arg(long, default_value = brand::PACKAGE)]
     formula_name: String,
     #[arg(
         long,
-        default_value = "Cross-platform, native-first reimplementation of pyenv"
+        default_value = "Cross-platform, native-first Python version manager (formerly pyenv-native)"
     )]
     description: String,
     #[arg(long)]
@@ -70,10 +72,10 @@ pub struct BrewAsset {
     pub sha256: String,
 }
 
-/// `pyenv-native-(linux|macos)-(x64|arm64).tar.gz` → `(os, arch)`.
+/// `enchi-(linux|macos)-(x64|arm64).tar.gz` → `(os, arch)`.
 pub fn parse_brew_asset_name(name: &str) -> Option<(String, String)> {
     let stem = name
-        .strip_prefix("pyenv-native-")?
+        .strip_prefix(&format!("{}-", brand::ASSET_PREFIX))?
         .strip_suffix(".tar.gz")?;
     let (os, arch) = stem.split_once('-')?;
     matches!(os, "linux" | "macos")
@@ -139,7 +141,7 @@ fn scan_brew_assets(roots: &[PathBuf], repo: &str, tag: &str) -> Result<Vec<Brew
     Ok(assets)
 }
 
-/// `pyenv-native` → `PyenvNative`.
+/// `enchi` → `Enchi`; `pyenv-native` → `PyenvNative`.
 pub fn formula_class_name(name: &str) -> String {
     name.split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|part| !part.is_empty())
@@ -175,25 +177,27 @@ fn conditional_body(assets: &[&BrewAsset], formula: &str) -> Result<String> {
 
 /// The static part of the formula, after the per-platform url/sha256 blocks.
 const FORMULA_TAIL: &str = r##"  def install
-    bin.install "pyenv", "pyenv-mcp"
+    bin.install "enchi", "enchi-mcp"
     prefix.install "LICENSE", "README.md"
   end
 
   def caveats
     <<~EOS
-      pyenv-native keeps managed Python runtimes under ~/.pyenv by default.
+      Enchi (formerly pyenv-native) keeps managed Python runtimes under ~/.enchi for new
+      installs; an existing ~/.pyenv root keeps working and can be pointed at with ENCHI_ROOT
+      (PYENV_ROOT is still honoured).
 
       Add it to your shell manually:
-        eval "$("#{bin}/pyenv" init - bash)"
+        eval "$("#{bin}/enchi" init - bash)"
 
-      Or let pyenv wire your shell profile and shims for you:
-        pyenv self-install --yes --install-root ~/.pyenv --shell bash
+      Or let enchi wire your shell profile and shims for you:
+        enchi self-install --yes --shell bash
     EOS
   end
 
   test do
-    ENV["PYENV_ROOT"] = testpath/".pyenv"
-    assert_equal ENV["PYENV_ROOT"], shell_output("#{bin}/pyenv root").strip
+    ENV["ENCHI_ROOT"] = testpath/".enchi"
+    assert_equal ENV["ENCHI_ROOT"], shell_output("#{bin}/enchi root").strip
   end
 end
 "##;
@@ -292,19 +296,19 @@ mod tests {
     #[test]
     fn brew_asset_names_are_recognised() {
         assert_eq!(
-            parse_brew_asset_name("pyenv-native-macos-arm64.tar.gz"),
+            parse_brew_asset_name("enchi-macos-arm64.tar.gz"),
             Some(("macos".into(), "arm64".into()))
         );
-        assert_eq!(parse_brew_asset_name("pyenv-native-windows-x64.zip"), None);
-        assert_eq!(
-            parse_brew_asset_name("pyenv-native-linux-riscv.tar.gz"),
-            None
-        );
+        assert_eq!(parse_brew_asset_name("enchi-windows-x64.zip"), None);
+        assert_eq!(parse_brew_asset_name("enchi-linux-riscv.tar.gz"), None);
+        // The legacy copies carry the same contents but are not what the formula consumes.
+        assert_eq!(parse_brew_asset_name("pyenv-native-linux-x64.tar.gz"), None);
         assert_eq!(parse_brew_asset_name("other-linux-x64.tar.gz"), None);
     }
 
     #[test]
     fn formula_class_names_are_camel_cased() {
+        assert_eq!(formula_class_name("enchi"), "Enchi");
         assert_eq!(formula_class_name("pyenv-native"), "PyenvNative");
         assert_eq!(formula_class_name("a_b.c"), "ABC");
     }
@@ -325,20 +329,21 @@ mod tests {
             asset("macos", "x64"),
             asset("macos", "arm64"),
         ];
-        let rb = render_formula("pyenv-native", "desc", "https://h", "1.2.3", &assets).unwrap();
-        assert!(rb.contains("class PyenvNative < Formula"));
+        let rb = render_formula("enchi", "desc", "https://h", "1.2.3", &assets).unwrap();
+        assert!(rb.contains("# ./packaging/homebrew/Formula/enchi.rb\nclass Enchi < Formula"));
         assert!(rb.contains("on_macos do\n    if Hardware::CPU.arm?"));
         assert!(rb.contains("elsif Hardware::CPU.intel?"));
         assert!(rb.contains("on_linux do\n    if Hardware::CPU.intel?"));
-        assert!(rb.contains("bin.install \"pyenv\", \"pyenv-mcp\""));
-        assert!(rb.contains("pyenv self-install --yes"));
-        assert!(rb.contains("eval \"$(\"#{bin}/pyenv\" init - bash)\""));
+        assert!(rb.contains("bin.install \"enchi\", \"enchi-mcp\""));
+        assert!(rb.contains("enchi self-install --yes"));
+        assert!(rb.contains("eval \"$(\"#{bin}/enchi\" init - bash)\""));
+        assert!(rb.contains("ENV[\"ENCHI_ROOT\"]"));
         assert!(rb.matches("odie").count() == 2);
     }
 
     #[test]
     fn formula_omits_platform_blocks_without_assets() {
-        let rb = render_formula("pyenv-native", "d", "h", "1", &[asset("linux", "x64")]).unwrap();
+        let rb = render_formula("enchi", "d", "h", "1", &[asset("linux", "x64")]).unwrap();
         assert!(!rb.contains("on_macos"));
     }
 
@@ -350,22 +355,19 @@ mod tests {
         fs::create_dir_all(&a).unwrap();
         fs::create_dir_all(&b).unwrap();
         fs::write(
-            a.join("pyenv-native-linux-x64.tar.gz.sha256"),
+            a.join("enchi-linux-x64.tar.gz.sha256"),
             format!("{SHA}  x\n"),
         )
         .unwrap();
-        fs::write(
-            b.join("pyenv-native-linux-x64.tar.gz.sha256"),
-            "f".repeat(64),
-        )
-        .unwrap();
-        fs::write(a.join("pyenv-native-windows-x64.zip.sha256"), SHA).unwrap();
+        fs::write(b.join("enchi-linux-x64.tar.gz.sha256"), "f".repeat(64)).unwrap();
+        fs::write(a.join("enchi-windows-x64.zip.sha256"), SHA).unwrap();
+        fs::write(a.join("pyenv-native-linux-x64.tar.gz.sha256"), SHA).unwrap();
         let assets = scan_brew_assets(&[a, b], "o/r", "v1").unwrap();
         assert_eq!(assets.len(), 1);
         assert_eq!(assets[0].sha256, SHA);
         assert_eq!(
             assets[0].url,
-            "https://github.com/o/r/releases/download/v1/pyenv-native-linux-x64.tar.gz"
+            "https://github.com/o/r/releases/download/v1/enchi-linux-x64.tar.gz"
         );
     }
 }

@@ -36,7 +36,7 @@ def wheel_bytes(version: str, requires_python: str) -> dict[str, bytes]:
         ).encode(),
         f"{dist_info}/WHEEL": (
             "Wheel-Version: 1.0\n"
-            "Generator: pyenv-native migration test\n"
+            "Generator: Enchi migration test\n"
             "Root-Is-Purelib: true\n"
             "Tag: py3-none-any\n"
         ).encode(),

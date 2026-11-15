@@ -4,7 +4,7 @@
 
 ```bash
 # Windows, macOS, Linux
-pyenv agent-skills --agent cursor
+enchi agent-skills --agent cursor
 ```
 
 Skills copy to:
@@ -20,13 +20,13 @@ Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 
 ## MCP (recommended)
 
-Register **pyenv-mcp** in Cursor MCP settings:
+Register **enchi-mcp** in Cursor MCP settings:
 
 ```powershell
-pyenv-mcp print-config
+enchi-mcp print-config
 ```
 
-Then say: **Follow the pyenv-native skill** when managing Python versions or venvs.
+Then say: **Follow the Enchi skill** when managing Python versions or venvs.
 
 ## Update
 

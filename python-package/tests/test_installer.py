@@ -5,23 +5,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tarfile
 import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
 
-from pyenv_native_bootstrap.bundle import BundleManifest
-from pyenv_native_bootstrap.installer import (
+from enchi_bootstrap.bundle import BundleManifest
+from enchi_bootstrap.installer import (
     InstallRequest,
     build_posix_install_command,
     build_self_install_command,
     build_windows_install_command,
+    default_cache_dir,
     plan_install,
     resolve_bundle_path,
     resolve_release_urls,
 )
-from pyenv_native_bootstrap.platforms import PlatformTarget, normalize_operating_system
+from enchi_bootstrap.platforms import PlatformTarget, normalize_operating_system
 
 
 class InstallerTests(unittest.TestCase):
@@ -30,15 +32,25 @@ class InstallerTests(unittest.TestCase):
     def test_platform_targets_choose_expected_bundle_extensions(self) -> None:
         self.assertEqual(
             PlatformTarget("windows", "x64").bundle_file_name,
-            "pyenv-native-windows-x64.zip",
+            "enchi-windows-x64.zip",
         )
         self.assertEqual(
             PlatformTarget("linux", "x64").bundle_file_name,
-            "pyenv-native-linux-x64.tar.gz",
+            "enchi-linux-x64.tar.gz",
         )
         self.assertEqual(
             PlatformTarget("android", "arm64").bundle_file_name,
-            "pyenv-native-android-arm64.tar.gz",
+            "enchi-android-arm64.tar.gz",
+        )
+
+    def test_platform_targets_know_the_pre_rename_bundle_names(self) -> None:
+        self.assertEqual(
+            PlatformTarget("windows", "x64").legacy_bundle_file_name,
+            "pyenv-native-windows-x64.zip",
+        )
+        self.assertEqual(
+            PlatformTarget("linux", "arm64").legacy_bundle_file_name,
+            "pyenv-native-linux-arm64.tar.gz",
         )
 
     def test_normalize_operating_system_detects_termux_as_android(self) -> None:
@@ -56,11 +68,11 @@ class InstallerTests(unittest.TestCase):
         )
         self.assertEqual(
             bundle_url,
-            "https://example.com/releases/download/v0.1.0/pyenv-native-windows-x64.zip",
+            "https://example.com/releases/download/v0.1.0/enchi-windows-x64.zip",
         )
         self.assertEqual(
             checksum_url,
-            "https://example.com/releases/download/v0.1.0/pyenv-native-windows-x64.zip.sha256",
+            "https://example.com/releases/download/v0.1.0/enchi-windows-x64.zip.sha256",
         )
 
     def test_build_windows_install_command_includes_expected_flags(self) -> None:
@@ -133,14 +145,14 @@ class InstallerTests(unittest.TestCase):
     def test_build_self_install_command_runs_the_bundled_binary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             extracted_dir = Path(temp_dir)
-            executable = extracted_dir / "pyenv"
+            executable = extracted_dir / "enchi"
             executable.write_text("binary", encoding="utf-8")
             manifest = BundleManifest(
-                bundle_name="pyenv-native-linux-x64",
-                bundle_version="0.6.0",
+                bundle_name="enchi-linux-x64",
+                bundle_version="0.8.0",
                 platform="linux",
                 architecture="x64",
-                executable="pyenv",
+                executable="enchi",
             )
             self.assertIsNone(manifest.install_script)
             command = build_self_install_command(
@@ -166,7 +178,7 @@ class InstallerTests(unittest.TestCase):
 
     def test_resolve_bundle_path_uses_environment_release_base_url(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            bundle_path = Path(temp_dir) / "dist" / "pyenv-native-windows-x64.zip"
+            bundle_path = Path(temp_dir) / "dist" / "enchi-windows-x64.zip"
             bundle_path.parent.mkdir(parents=True, exist_ok=True)
             bundle_path.write_bytes(b"placeholder")
 
@@ -177,10 +189,10 @@ class InstallerTests(unittest.TestCase):
 
             with mock.patch.dict(
                 "os.environ",
-                {"PYENV_NATIVE_BOOTSTRAP_RELEASE_BASE_URL": "https://example.invalid/releases/v0.1.0"},
+                {"ENCHI_BOOTSTRAP_RELEASE_BASE_URL": "https://example.invalid/releases/v0.1.0"},
                 clear=False,
             ), mock.patch(
-                "pyenv_native_bootstrap.installer.download_file",
+                "enchi_bootstrap.installer.download_file",
                 side_effect=fake_download,
             ):
                 resolved_bundle_path, checksum_url, bundle_source = resolve_bundle_path(
@@ -188,9 +200,89 @@ class InstallerTests(unittest.TestCase):
                     PlatformTarget("windows", "x64"),
                 )
 
-            self.assertEqual(resolved_bundle_path.name, "pyenv-native-windows-x64.zip")
+            self.assertEqual(resolved_bundle_path.name, "enchi-windows-x64.zip")
             self.assertTrue(checksum_url.endswith(".zip.sha256"))
             self.assertIn("release base url", bundle_source)
+
+    def test_pre_rename_environment_variable_is_still_honoured(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            def fake_download(_: str, destination: Path) -> Path:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(b"bundle")
+                return destination
+
+            environment = {
+                "PYENV_NATIVE_BOOTSTRAP_RELEASE_BASE_URL": "https://example.invalid/releases/v0.1.0"
+            }
+            with mock.patch.dict("os.environ", environment, clear=False), mock.patch(
+                "enchi_bootstrap.installer.download_file",
+                side_effect=fake_download,
+            ):
+                os.environ.pop("ENCHI_BOOTSTRAP_RELEASE_BASE_URL", None)
+                resolved_bundle_path, _, bundle_source = resolve_bundle_path(
+                    InstallRequest(cache_dir=Path(temp_dir) / "cache"),
+                    PlatformTarget("linux", "x64"),
+                )
+            self.assertEqual(resolved_bundle_path.name, "enchi-linux-x64.tar.gz")
+            self.assertIn("release base url", bundle_source)
+
+    def test_default_cache_dir_is_named_enchi(self) -> None:
+        self.assertEqual(default_cache_dir().parts[-1] in {"enchi", "cache"}, True)
+        self.assertIn("enchi", default_cache_dir().parts)
+        self.assertNotIn("pyenv-native", default_cache_dir().parts)
+
+    def test_github_resolution_prefers_the_enchi_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            calls: list[str] = []
+
+            def fake_resolve(repo: str, name: str, tag: object = None) -> tuple[str, str, str]:
+                calls.append(name)
+                return f"https://example.invalid/{name}", f"https://example.invalid/{name}.sha256", "v0.8.0"
+
+            def fake_download(_: str, destination: Path) -> Path:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(b"bundle")
+                return destination
+
+            with mock.patch(
+                "enchi_bootstrap.installer.resolve_release_asset_urls", side_effect=fake_resolve
+            ), mock.patch("enchi_bootstrap.installer.download_file", side_effect=fake_download):
+                path, checksum_url, source = resolve_bundle_path(
+                    InstallRequest(github_repo="o/r", cache_dir=Path(temp_dir) / "cache"),
+                    PlatformTarget("macos", "arm64"),
+                )
+            self.assertEqual(calls, ["enchi-macos-arm64.tar.gz"])
+            self.assertEqual(path.name, "enchi-macos-arm64.tar.gz")
+            self.assertIn("github release o/r@v0.8.0", source)
+            self.assertTrue(checksum_url.endswith(".tar.gz.sha256"))
+
+    def test_github_resolution_falls_back_to_the_pre_rename_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            calls: list[str] = []
+
+            def fake_resolve(repo: str, name: str, tag: object = None) -> tuple[str, str, str]:
+                calls.append(name)
+                if name.startswith("enchi-"):
+                    raise ValueError(f"release {repo}@v0.7.2 did not contain asset {name!r}")
+                return f"https://example.invalid/{name}", f"https://example.invalid/{name}.sha256", "v0.7.2"
+
+            def fake_download(_: str, destination: Path) -> Path:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(b"bundle")
+                return destination
+
+            with mock.patch(
+                "enchi_bootstrap.installer.resolve_release_asset_urls", side_effect=fake_resolve
+            ), mock.patch("enchi_bootstrap.installer.download_file", side_effect=fake_download):
+                path, _, _ = resolve_bundle_path(
+                    InstallRequest(
+                        github_repo="o/r", tag="v0.7.2", cache_dir=Path(temp_dir) / "cache"
+                    ),
+                    PlatformTarget("windows", "x64"),
+                )
+            self.assertEqual(calls, ["enchi-windows-x64.zip", "pyenv-native-windows-x64.zip"])
+            self.assertEqual(path.name, "pyenv-native-windows-x64.zip")
 
     def test_resolve_release_urls_supports_linux_bundle_names(self) -> None:
         bundle_url, checksum_url = resolve_release_urls(
@@ -199,17 +291,17 @@ class InstallerTests(unittest.TestCase):
         )
         self.assertEqual(
             bundle_url,
-            "https://example.com/releases/download/v0.1.0/pyenv-native-linux-x64.tar.gz",
+            "https://example.com/releases/download/v0.1.0/enchi-linux-x64.tar.gz",
         )
         self.assertEqual(
             checksum_url,
-            "https://example.com/releases/download/v0.1.0/pyenv-native-linux-x64.tar.gz.sha256",
+            "https://example.com/releases/download/v0.1.0/enchi-linux-x64.tar.gz.sha256",
         )
 
     def test_plan_install_supports_linux_bundle_execution(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)
-            bundle_path = temp_root / "pyenv-native-linux-x64.tar.gz"
+            bundle_path = temp_root / "pyenv-native-linux-x64.tar.gz"  # a pre-rename bundle
             manifest = {
                 "bundle_name": "pyenv-native-linux-x64",
                 "bundle_version": "0.1.0",
@@ -246,7 +338,7 @@ class InstallerTests(unittest.TestCase):
             )
 
             with mock.patch(
-                "pyenv_native_bootstrap.installer.current_target",
+                "enchi_bootstrap.installer.current_target",
                 return_value=PlatformTarget("linux", "x64"),
             ):
                 plan = plan_install(request)

@@ -1,6 +1,6 @@
-# pyenv-native — Agent Instructions
+# Enchi — Agent Instructions
 
-Repo-local rules for AI agents working on **pyenv-native** or using it to manage Python on a workstation/project.
+Repo-local rules for AI agents working on **Enchi** or using it to manage Python on a workstation/project.
 
 ## Read first (in order)
 
@@ -23,26 +23,28 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 
 - Supported platforms: **Windows**, **Linux**, and **macOS**. Exercise install and resolution on the OS you touch. Android/Termux is experimental (source builds).
 - Use `cargo xtask` for release/dev automation (`bundle`, `check`, `policy`, `package`, `python`, `release`, `sync-known-versions`, `version-check`, `set-version`, `doctor`, `gui`, `new-locale`, `install-hooks`) and `scripts/dev-cargo.ps1` for Windows target selection.
-- Install, update, and uninstall logic lives in Rust (`crates/pyenv-core/src/installer/`, exposed as `pyenv self-install` / `self-update` / `self-uninstall`). `install.sh`/`install.ps1` only download, verify, and run it — do not add install logic to scripts.
-- Every install path must ship **both** `pyenv` and `pyenv-mcp` (release bundles are built by `cargo xtask bundle`).
+- Install, update, and uninstall logic lives in Rust (`crates/enchi-core/src/installer/`, exposed as `enchi self-install` / `self-update` / `self-uninstall`). `install.sh`/`install.ps1` only download, verify, and run it — do not add install logic to scripts.
+- Every install path must ship **both** `enchi` and `enchi-mcp` (release bundles are built by `cargo xtask bundle`). The legacy aliases `pyenv`, `pyenv-mcp`, and `pyenv-gui` are not in the `enchi-*` bundles; `enchi self-install` creates them only when upgrading an existing pyenv-native install, and system packages ship `pyenv` / `pyenv-mcp` as symlinks.
+- Every release publishes two archive sets with the same contents: `enchi-<platform>-<arch>` and the legacy `pyenv-native-<platform>-<arch>` (which also carries a `pyenv` copy of the CLI). Already-installed pyenv-native binaries download the legacy name and run `<bundle>/pyenv self-install`, so do not rename or drop it casually (`cargo xtask bundle --no-legacy-compat` / `XTASK_LEGACY_COMPAT=false` switch it off deliberately).
+- Naming lives in `crates/enchi-core/src/brand.rs` and `xtask/src/brand.rs`. The GitHub repository keeps the name `imyourboyroy/pyenv-native` until it is renamed; that name is one constant in each of those files, plus the defaults in `install.sh` (`DEFAULT_GITHUB_REPO`), `install.ps1` (`-GitHubRepo`), and `python-package/src/enchi_bootstrap/github.py`.
 - Run `cargo test` in affected crates before claiming success.
 - Do not break the version-selection precedence: shell → local `.python-version` → parents → global → system.
-- CPython install catalogs are live. Read `https://www.python.org/ftp/python/` (24h cache). The compiled `crates/pyenv-core/data/known_versions.txt` is only the base seed. Publisher caches merge new names into `PYENV_ROOT/cache/metadata/known_versions.txt` and do not rewrite the shipped seed. Windows CPython still uses NuGet, and PyPy still uses the PyPy version manifest.
-- Managed venvs live under `PYENV_ROOT/venvs/<runtime>/<name>`; prefer `pyenv venv` over ad-hoc `.venv` when documenting agent flows.
+- CPython install catalogs are live. Read `https://www.python.org/ftp/python/` (24h cache). The compiled `crates/enchi-core/data/known_versions.txt` is only the base seed. Publisher caches merge new names into `ENCHI_ROOT/cache/metadata/known_versions.txt` and do not rewrite the shipped seed. Windows CPython still uses NuGet, and PyPy still uses the PyPy version manifest.
+- The install root is `ENCHI_ROOT` (the classic `PYENV_ROOT` is still honoured), an existing install's root such as `~/.pyenv`, or `~/.enchi` for fresh installs. Managed venvs live under `<root>/venvs/<runtime>/<name>`; prefer `enchi venv` over ad-hoc `.venv` when documenting agent flows.
 
-## When USING pyenv-native on another project
+## When USING Enchi on another project
 
-1. **Prefer `pyenv-mcp` tools** when MCP is configured (`get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`).
-2. If MCP is unavailable, use CLI: `pyenv local`, `pyenv install`, `pyenv venv create`, `pyenv which python`.
+1. **Prefer `enchi-mcp` tools** when MCP is configured (`get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`).
+2. If MCP is unavailable, use CLI: `enchi local`, `enchi install`, `enchi venv create`, `enchi which python`.
 3. Never `pip install` into an unknown global Python without resolving the active interpreter first.
-4. On Windows, use **PowerShell 7+ (`pwsh`)**; run `pyenv doctor` when PATH/shim issues appear.
-5. Orientation blob for smaller models: `pyenv-mcp guide` (JSON).
+4. On Windows, use **PowerShell 7+ (`pwsh`)**; run `enchi doctor` when PATH/shim issues appear.
+5. Orientation blob for smaller models: `enchi-mcp guide` (JSON).
 
 ## Verification before completion
 
-- `pyenv version` / `pyenv which python` match intended runtime
+- `enchi version` / `enchi which python` match intended runtime
 - Project `.python-version` or managed venv spec is set when required
-- `pyenv doctor` clean or known warnings documented
+- `enchi doctor` clean or known warnings documented
 - For code changes: `cargo test` passes in touched crates
 
 ## Do not
@@ -50,7 +52,7 @@ Repo-local rules for AI agents working on **pyenv-native** or using it to manage
 - Assume classic bash `pyenv` install docs apply verbatim (this is native Rust).
 - Skip checksum verification on release bundles.
 - Add secrets to docs or committed config.
-- Use `pip install` globally as a substitute for `pyenv install`.
+- Use `pip install` globally as a substitute for `enchi install`.
 
 ## Cursor skill
 
@@ -61,7 +63,7 @@ Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 ```
 
 ```bash
-pyenv agent-skills --agent all
+enchi agent-skills --agent all
 ```
 
-Skill name: **pyenv-native**
+Skill name: **enchi**

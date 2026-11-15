@@ -2,29 +2,33 @@
 param(
     [string]$SourceRuntime = '3.14.3',
     [string]$TargetRuntime = '3.15.2',
-    [string]$PyenvBinary = ''
+    [Alias('PyenvBinary')]
+    [string]$EnchiBinary = ''
 )
 
 # Cross-platform managed-venv migration smoke test for Windows.
-# The test uses a temporary PYENV_ROOT and junctions to existing runtimes only.
+# The test uses a temporary ENCHI_ROOT and junctions to existing runtimes only.
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-if (-not $PyenvBinary) {
-    $PyenvBinary = Join-Path $repoRoot 'target\release\pyenv.exe'
+if (-not $EnchiBinary) {
+    $EnchiBinary = Join-Path $repoRoot 'target\release\enchi.exe'
 }
-if (-not (Test-Path -LiteralPath $PyenvBinary)) {
-    throw "migration test requires an executable release CLI at $PyenvBinary"
+if (-not (Test-Path -LiteralPath $EnchiBinary)) {
+    throw "migration test requires an executable release CLI at $EnchiBinary"
 }
 
-$installedPyenv = (Get-Command pyenv.exe -ErrorAction SilentlyContinue).Source
-if (-not $installedPyenv) {
-    throw 'migration test requires an installed pyenv-native CLI on PATH'
+$installedEnchi = (Get-Command enchi.exe -ErrorAction SilentlyContinue).Source
+if (-not $installedEnchi) { $installedEnchi = (Get-Command pyenv.exe -ErrorAction SilentlyContinue).Source }
+if (-not $installedEnchi) {
+    throw 'migration test requires an installed Enchi (or pyenv-native) CLI on PATH'
 }
-$installedRoot = if ($env:INSTALLED_PYENV_ROOT) {
+$installedRoot = if ($env:INSTALLED_ENCHI_ROOT) {
+    $env:INSTALLED_ENCHI_ROOT
+} elseif ($env:INSTALLED_PYENV_ROOT) {
     $env:INSTALLED_PYENV_ROOT
 } else {
-    (& $installedPyenv root | Out-String).Trim()
+    (& $installedEnchi root | Out-String).Trim()
 }
 $sourceInstall = Join-Path $installedRoot "versions\$SourceRuntime"
 $targetInstall = Join-Path $installedRoot "versions\$TargetRuntime"
@@ -39,7 +43,7 @@ foreach ($required in @($sourceInstall, $targetInstall, $sourcePython, $targetPy
 
 $targetParts = $TargetRuntime.Split('.')
 $targetPrefix = "$($targetParts[0]).$($targetParts[1])"
-$testRoot = Join-Path ([IO.Path]::GetTempPath()) ("pyenv-native-migration-" + [guid]::NewGuid().ToString('N'))
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) ("enchi-migration-" + [guid]::NewGuid().ToString('N'))
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 if (-not $testRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw "refusing to use an unexpected temporary root: $testRoot"
@@ -54,7 +58,7 @@ $environmentNames = @(
     'PIP_CACHE_DIR',
     'PIP_NO_INDEX',
     'PIP_FIND_LINKS',
-    'PYENV_ROOT'
+    'ENCHI_ROOT'
 )
 $oldEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -63,7 +67,7 @@ foreach ($name in $environmentNames) {
 
 try {
     New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
-    $env:PYENV_ROOT = $testRoot
+    $env:ENCHI_ROOT = $testRoot
     New-Item -ItemType Directory -Force -Path (Join-Path $testRoot 'versions') | Out-Null
     New-Item -ItemType Junction -Path (Join-Path $testRoot "versions\$SourceRuntime") -Target $sourceInstall | Out-Null
     New-Item -ItemType Junction -Path (Join-Path $testRoot "versions\$TargetRuntime") -Target $targetInstall | Out-Null
@@ -96,7 +100,7 @@ try {
     Set-Content -LiteralPath (Join-Path $testRoot '.python-version') -Value "$SourceRuntime/envs/migration-test" -NoNewline
     Push-Location $testRoot
     try {
-        $upgradeOutput = & $PyenvBinary venv upgrade --force --set-local "$SourceRuntime/envs/migration-test" $targetPrefix 2>&1 | Out-String
+        $upgradeOutput = & $EnchiBinary venv upgrade --force --set-local "$SourceRuntime/envs/migration-test" $targetPrefix 2>&1 | Out-String
         $upgradeStatus = $LASTEXITCODE
     } finally {
         Pop-Location
@@ -153,7 +157,7 @@ try {
     $ErrorActionPreference = 'Continue'
     Push-Location $testRoot
     try {
-        $failureOutput = & $PyenvBinary venv upgrade --force "$SourceRuntime/envs/failure-test" $targetPrefix 2> $failureStderrPath | Out-String
+        $failureOutput = & $EnchiBinary venv upgrade --force "$SourceRuntime/envs/failure-test" $targetPrefix 2> $failureStderrPath | Out-String
         $failureStatus = $LASTEXITCODE
         if (Test-Path -LiteralPath $failureStderrPath) {
             $failureOutput += Get-Content -LiteralPath $failureStderrPath -Raw
@@ -185,7 +189,7 @@ try {
     }
     if ((Test-Path -LiteralPath $testRoot) -and
         $testRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -and
-        (Split-Path -Leaf $testRoot) -match '^pyenv-native-migration-[0-9a-f-]+$') {
+        (Split-Path -Leaf $testRoot) -match '^enchi-migration-[0-9a-f-]+$') {
         Remove-Item -LiteralPath $testRoot -Recurse -Force
     }
 }

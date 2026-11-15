@@ -1,9 +1,12 @@
 /target/
 /dist/
 /python-package/dist/
+/python-package-legacy/dist/
 /packaging/homebrew/Formula/
 /python-package/src/**/*.pyc
 /python-package/tests/**/*.pyc
+/python-package-legacy/src/**/*.pyc
+/python-package-legacy/tests/**/*.pyc
 **/__pycache__/
 /.tmp*/
 /test-install/
@@ -30,8 +33,8 @@ MEMORY.md
 # Cargo.lock
 
 # Tauri & GUI
-crates/pyenv-gui/src-tauri/target/
-crates/pyenv-gui/target/
+crates/enchi-gui/src-tauri/target/
+crates/enchi-gui/target/
 
 # Python Virtual Environments
 /venv/

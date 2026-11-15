@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 EN_DIR = ROOT / "locales" / "en-US"
 OVERLAY_DIR = ROOT / "scripts" / "i18n" / "overlays"
-APP_JS = ROOT / "crates" / "pyenv-gui" / "ui" / "app.js"
+APP_JS = ROOT / "crates" / "enchi-gui" / "ui" / "app.js"
 LOCALES = [
     "zh-CN",
     "es",

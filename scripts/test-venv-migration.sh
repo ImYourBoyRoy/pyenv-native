@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # Cross-platform managed-venv migration smoke test for Linux/macOS.
-# The test uses a temporary PYENV_ROOT and symlinks to existing runtimes only.
+# The test uses a temporary ENCHI_ROOT and symlinks to existing runtimes only.
 
 set -Eeuo pipefail
 
 repo_root="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-pyenv_bin="${PYENV_BIN:-$repo_root/target/release/pyenv}"
+enchi_bin="${ENCHI_BIN:-${PYENV_BIN:-$repo_root/target/release/enchi}}"
 source_runtime="${1:-${SOURCE_RUNTIME:-3.14.3}}"
 target_runtime="${2:-${TARGET_RUNTIME:-3.15.2}}"
 target_prefix="${target_runtime%.*}"
 
-if [[ ! -x "$pyenv_bin" ]]; then
-    echo "migration test requires an executable release CLI at $pyenv_bin" >&2
+if [[ ! -x "$enchi_bin" ]]; then
+    echo "migration test requires an executable release CLI at $enchi_bin" >&2
     exit 2
 fi
 
-installed_pyenv="${INSTALLED_PYENV_BIN:-$(command -v pyenv || true)}"
-if [[ -z "$installed_pyenv" ]]; then
-    echo "migration test requires an installed pyenv-native CLI on PATH" >&2
+installed_enchi="${INSTALLED_ENCHI_BIN:-${INSTALLED_PYENV_BIN:-$(command -v enchi || command -v pyenv || true)}}"
+if [[ -z "$installed_enchi" ]]; then
+    echo "migration test requires an installed Enchi (or pyenv-native) CLI on PATH" >&2
     exit 2
 fi
-installed_root="${INSTALLED_PYENV_ROOT:-$(PYENV_ROOT= "$installed_pyenv" root)}"
+installed_root="${INSTALLED_ENCHI_ROOT:-${INSTALLED_PYENV_ROOT:-$(ENCHI_ROOT= PYENV_ROOT= "$installed_enchi" root)}}"
 source_install="$installed_root/versions/$source_runtime"
 target_install="$installed_root/versions/$target_runtime"
 source_python="$source_install/bin/python"
@@ -38,15 +38,15 @@ if [[ ! -d "$temp_base" ]]; then
     temp_base=/tmp
 fi
 temp_base="$(CDPATH= cd -- "$temp_base" && pwd -P)"
-test_root="$(mktemp -d "$temp_base/pyenv-native-migration.XXXXXX")"
+test_root="$(mktemp -d "$temp_base/enchi-migration.XXXXXX")"
 resolved_test_root="$(CDPATH= cd -- "$test_root" && pwd -P)"
-if [[ "$resolved_test_root" != "$temp_base"/pyenv-native-migration.* ]]; then
+if [[ "$resolved_test_root" != "$temp_base"/enchi-migration.* ]]; then
     echo "refusing to use an unexpected temporary root: $test_root" >&2
     exit 2
 fi
 
 cleanup() {
-    if [[ -d "$test_root" ]] && [[ "$(CDPATH= cd -- "$test_root" && pwd -P)" == "$temp_base"/pyenv-native-migration.* ]]; then
+    if [[ -d "$test_root" ]] && [[ "$(CDPATH= cd -- "$test_root" && pwd -P)" == "$temp_base"/enchi-migration.* ]]; then
         find "$test_root" -depth -mindepth 1 -delete
         rmdir "$test_root"
     fi
@@ -82,9 +82,9 @@ printf '%s\n' "$source_runtime/envs/migration-test" > "$test_root/.python-versio
 set +e
 upgrade_output="$(
     cd "$test_root" && \
-    PYENV_ROOT="$test_root" PIP_CONFIG_FILE=/dev/null PIP_CACHE_DIR="$test_root/pip-cache" \
+    ENCHI_ROOT="$test_root" PIP_CONFIG_FILE=/dev/null PIP_CACHE_DIR="$test_root/pip-cache" \
     PIP_NO_INDEX=1 PIP_FIND_LINKS="$fixture_dir" \
-    "$pyenv_bin" venv upgrade --force --set-local \
+    "$enchi_bin" venv upgrade --force --set-local \
     "$source_runtime/envs/migration-test" "$target_prefix" 2>&1
 )"
 upgrade_status=$?
@@ -122,9 +122,9 @@ env PIP_CONFIG_FILE=/dev/null PIP_CACHE_DIR="$test_root/pip-cache" \
 set +e
 failure_output="$(
     cd "$test_root" && \
-    PYENV_ROOT="$test_root" PIP_CONFIG_FILE=/dev/null PIP_CACHE_DIR="$test_root/pip-cache" \
+    ENCHI_ROOT="$test_root" PIP_CONFIG_FILE=/dev/null PIP_CACHE_DIR="$test_root/pip-cache" \
     PIP_NO_INDEX=1 PIP_FIND_LINKS="$incompatible_fixture_dir" \
-    "$pyenv_bin" venv upgrade --force \
+    "$enchi_bin" venv upgrade --force \
     "$source_runtime/envs/failure-test" "$target_prefix" 2>&1
 )"
 failure_status=$?

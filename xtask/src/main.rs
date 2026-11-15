@@ -1,5 +1,5 @@
 // ./xtask/src/main.rs
-//! Repository automation for pyenv-native, run as `cargo xtask <command>`.
+//! Repository automation for Enchi, run as `cargo xtask <command>`.
 //!
 //! One cross-platform implementation replaces the former pairs of `.sh`/`.ps1` scripts:
 //!
@@ -9,7 +9,8 @@
 //! * `checksums`     SHA256SUMS for a release directory
 //! * `installer`     native installers: deb, rpm, Termux deb, Windows NSIS setup
 //! * `package`       the Homebrew formula from release bundles
-//! * `python`        test, build, and publish the pip/pipx install package
+//! * `python`        test, build, and publish the pip/pipx install package (`--legacy` selects
+//!   the final `pyenv-native` wrapper)
 //! * `release`       preflight, tag, and push to trigger the GitHub release workflow
 //! * `sync-known-versions`  refresh the offline CPython name seed from an upstream pyenv clone
 //! * `policy`        repository policy checks (shell EOL, GUI patterns, i18n catalogs)
@@ -19,6 +20,7 @@
 //! * `new-locale`    seed a new Fluent locale from en-US
 //! * `install-hooks` point this clone at the repo-local git hooks
 
+mod brand;
 mod bundle;
 mod check;
 mod checksums;
@@ -41,7 +43,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "xtask", about = "pyenv-native repository automation", version)]
+#[command(name = "xtask", about = "Enchi repository automation", version)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -53,7 +55,7 @@ enum Command {
     /// Build release binaries and assemble the distributable bundle (.tar.gz or .zip) with a
     /// SHA-256 sidecar.
     Bundle(bundle::BundleArgs),
-    /// Verify Cargo, Python package, bootstrap, and Tauri versions agree.
+    /// Verify Cargo, Python packages, bootstrap, and Tauri versions agree.
     VersionCheck(version::CheckArgs),
     /// Set the project version in every manifest.
     SetVersion(version::SetArgs),
@@ -76,7 +78,7 @@ enum Command {
     Policy(policy::PolicyArgs),
     /// Run the local quality gate: format, clippy, tests, version sync, i18n, Python, GUI checks.
     Check(check::CheckArgs),
-    /// Check that this machine can build pyenv-native (Rust, optional Android tooling).
+    /// Check that this machine can build Enchi (Rust, optional Android tooling).
     Doctor(doctor::DoctorArgs),
     /// Build and launch the desktop GUI for local testing.
     Gui(gui::GuiArgs),

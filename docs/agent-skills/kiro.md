@@ -5,7 +5,7 @@ Kiro supports skills under `.kiro/skills/` (project or global).
 ## Install
 
 ```bash
-pyenv agent-skills --agent kiro
+enchi agent-skills --agent kiro
 ```
 
 Paths:

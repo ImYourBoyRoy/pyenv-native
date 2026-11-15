@@ -218,7 +218,7 @@ mid-run failure resumes cleanly; rollback restores the original state.
 ## Rename and migration
 
 How existing users receive Enchi, based on how the updater works today
-(`crates/pyenv-core/src/self_update`):
+(`crates/enchi-core/src/self_update`):
 
 1. The updater calls `GET /repos/imyourboyroy/pyenv-native/releases/latest`, compares the tag to its
    own version, downloads `pyenv-native-<platform>-<arch>.tar.gz|zip` plus its `.sha256` sidecar,
@@ -233,7 +233,7 @@ Consequences for the bridge release:
   release, containing a `pyenv` executable the old updater can run. Also publish the new
   `enchi-<platform>-<arch>.*` assets; the new updater uses those.
 - The bundled `pyenv self-install` performs the migration: install `enchi`/`enchi-mcp`, keep `pyenv`
-  and `pyenv-mcp` as aliases, rewrite the managed shell-profile block to call `enchi init`, update the
+  and `enchi-mcp` as aliases, rewrite the managed shell-profile block to call `enchi init`, update the
   Windows uninstall-registry entry and desktop shortcut, and register the MCP server under the new name
   while leaving the old one working.
 - **The bridge release does not move the root directory.** Existing installs keep `~/.pyenv` (venvs

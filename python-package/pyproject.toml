@@ -3,16 +3,16 @@ requires = ["hatchling>=1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pyenv-native"
+name = "enchi"
 version = "0.7.2"
-description = "Python install package for the native-first pyenv-native runtime bundles."
+description = "Python install package for the native Enchi release bundles (formerly pyenv-native)."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [
   { name = "Roy Dawson IV", email = "Roy.Dawson.IV@gmail.com" },
 ]
-keywords = ["pyenv", "python", "windows", "bootstrap", "pipx"]
+keywords = ["enchi", "pyenv", "python", "windows", "bootstrap", "pipx"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -41,14 +41,14 @@ Repository = "https://github.com/imyourboyroy/pyenv-native"
 Issues = "https://github.com/imyourboyroy/pyenv-native/issues"
 
 [project.scripts]
-pyenv-native = "pyenv_native_bootstrap.cli:main"
+enchi-bootstrap = "enchi_bootstrap.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pyenv_native_bootstrap"]
+packages = ["src/enchi_bootstrap"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "src/pyenv_native_bootstrap",
+  "src/enchi_bootstrap",
   "tests",
   "LICENSE",
   "README.md",

@@ -1,0 +1,518 @@
+// ./crates/enchi-core/src/context.rs
+//! Runtime context built from process environment and persisted configuration.
+
+use std::env;
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+use crate::brand;
+use crate::config::{AppConfig, load_config, resolve_cache_dir, resolve_versions_dir};
+use crate::error::PyenvError;
+
+#[derive(Debug, Clone)]
+pub struct AppContext {
+    pub root: PathBuf,
+    pub dir: PathBuf,
+    pub exe_path: PathBuf,
+    pub env_version: Option<String>,
+    pub env_shell: Option<String>,
+    pub path_env: Option<OsString>,
+    pub path_ext: Option<OsString>,
+    pub config: AppConfig,
+}
+
+impl AppContext {
+    pub fn from_system() -> Result<Self, PyenvError> {
+        let exe_path = env::current_exe().unwrap_or_else(|_| PathBuf::from(brand::CLI));
+        let root = resolve_root(
+            brand::root_from_env(),
+            env::var_os("USERPROFILE"),
+            env::var_os("HOME"),
+            Some(&exe_path),
+        )?;
+        let dir = resolve_dir(env::var_os("PYENV_DIR"))?;
+        let env_version = env::var("PYENV_VERSION")
+            .ok()
+            .map(crate::text::trim_env_value)
+            .filter(|value| !value.is_empty());
+        let env_shell = env::var("PYENV_SHELL")
+            .ok()
+            .map(crate::text::trim_env_value)
+            .filter(|value| !value.is_empty());
+        let path_env = env::var_os("PATH");
+        let path_ext = env::var_os("PATHEXT");
+        let config = load_config(&root)?;
+        crate::i18n::apply(&config);
+        Ok(Self {
+            root,
+            dir,
+            exe_path,
+            env_version,
+            env_shell,
+            path_env,
+            path_ext,
+            config,
+        })
+    }
+
+    pub fn versions_dir(&self) -> PathBuf {
+        resolve_versions_dir(&self.root, &self.config)
+    }
+
+    pub fn cache_dir(&self) -> PathBuf {
+        resolve_cache_dir(&self.root, &self.config)
+    }
+
+    pub fn shims_dir(&self) -> PathBuf {
+        self.root.join("shims")
+    }
+
+    /// Resolve the pyenv CLI binary used to generate shims and shell init snippets.
+    ///
+    /// Companion binaries such as `enchi-gui` and `enchi-mcp` must never be copied into
+    /// `shims/` because they do not implement shim dispatch (`exec <command>`).
+    pub fn cli_exe_path(&self) -> PathBuf {
+        resolve_cli_exe_path(&self.root, &self.exe_path)
+    }
+
+    /// Directory containing the pyenv CLI binary (`PYENV_ROOT/bin` in managed installs).
+    pub fn bin_dir(&self) -> PathBuf {
+        self.cli_exe_path()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| self.root.join("bin"))
+    }
+}
+
+static LAUNCH_PATH: OnceLock<OsString> = OnceLock::new();
+
+/// PATH as it was when this process started, before managed entries were prepended.
+///
+/// Desktop launches (dock, Start Menu, `.desktop`) do not inherit interactive shell PATH.
+/// The GUI still prepends `bin`/`shims` onto the *process* PATH so doctor and runtime
+/// lookups work; shell-integration cards should keep using this snapshot so they describe
+/// terminals rather than the synthesized GUI PATH.
+pub fn launch_path() -> OsString {
+    LAUNCH_PATH
+        .get()
+        .cloned()
+        .unwrap_or_else(|| env::var_os("PATH").unwrap_or_default())
+}
+
+/// Prepend `extra` directories that are not already on `current`.
+pub fn path_with_managed_entries(current: &OsStr, extra: &[PathBuf]) -> OsString {
+    let existing: Vec<PathBuf> = env::split_paths(current).collect();
+    let mut prefix = Vec::new();
+    for path in extra {
+        if !existing.iter().any(|entry| paths_equivalent(entry, path)) {
+            prefix.push(path.clone());
+        }
+    }
+    if prefix.is_empty() {
+        return current.to_os_string();
+    }
+    prefix.extend(existing);
+    env::join_paths(&prefix).unwrap_or_else(|_| current.to_os_string())
+}
+
+/// Put `PYENV_ROOT/shims` and `PYENV_ROOT/bin` at the front of this process PATH.
+///
+/// Snapshots the launch PATH on first call. Updates `ctx.path_env` to the live value so
+/// doctor checks in this context see the synthesized PATH.
+pub fn ensure_managed_path(ctx: &mut AppContext) {
+    let current = env::var_os("PATH").unwrap_or_default();
+    let _ = LAUNCH_PATH.set(current.clone());
+    let extra = [ctx.shims_dir(), ctx.bin_dir()];
+    let joined = path_with_managed_entries(&current, &extra);
+    if joined != current {
+        // SAFETY: called from the GUI/MCP process to expose managed bin+shims to this
+        // session. First call snapshots launch PATH; later calls are idempotent.
+        unsafe {
+            env::set_var("PATH", &joined);
+        }
+    }
+    ctx.path_env = env::var_os("PATH");
+}
+
+/// Command-line binary names to look for, current first. A pyenv-native install that has not been
+/// refreshed yet only has the legacy one.
+fn cli_binary_names() -> [String; 2] {
+    [
+        brand::exe_name(brand::CLI),
+        brand::exe_name(brand::LEGACY_CLI),
+    ]
+}
+
+fn is_cli_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(brand::is_cli_name)
+}
+
+fn is_companion_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(brand::is_companion_name)
+}
+
+fn resolve_cli_exe_path(root: &Path, current_exe: &Path) -> PathBuf {
+    // `ENCHI` points at a specific binary; `PYENV` is the classic equivalent.
+    for variable in ["ENCHI", "PYENV"] {
+        if let Ok(value) = env::var(variable) {
+            let explicit = PathBuf::from(value);
+            if explicit.is_file() && is_cli_executable(&explicit) {
+                return explicit;
+            }
+        }
+    }
+
+    for name in cli_binary_names() {
+        let candidate = root.join("bin").join(&name);
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+
+    if let Some(parent) = current_exe.parent() {
+        for name in cli_binary_names() {
+            let sibling = parent.join(&name);
+            if sibling.is_file() {
+                return sibling;
+            }
+        }
+    }
+
+    if is_cli_executable(current_exe) {
+        return current_exe.to_path_buf();
+    }
+
+    if is_companion_executable(current_exe) {
+        return root.join("bin").join(&cli_binary_names()[0]);
+    }
+
+    current_exe.to_path_buf()
+}
+
+pub fn resolve_root(
+    explicit_root: Option<OsString>,
+    user_profile: Option<OsString>,
+    home: Option<OsString>,
+    exe_path: Option<&PathBuf>,
+) -> Result<PathBuf, PyenvError> {
+    if let Some(root) = explicit_root.filter(|value| !value.is_empty()) {
+        let explicit = PathBuf::from(&root);
+
+        // When PYENV_ROOT was set by pyenv-win (typically ending in `pyenv-win`),
+        // the native binary should prefer its own exe-inferred root if available.
+        // This lets Enchi coexist without manual env-var cleanup.
+        if is_pyenv_win_root(&explicit)
+            && let Some(inferred) = exe_path.and_then(infer_root_from_exe)
+            && !paths_equivalent(&inferred, &explicit)
+        {
+            return Ok(inferred);
+        }
+
+        return Ok(explicit);
+    }
+
+    if let Some(inferred) = exe_path.and_then(infer_root_from_exe) {
+        return Ok(inferred);
+    }
+
+    if let Some(home_dir) = user_profile.or(home) {
+        return Ok(default_root(Path::new(&home_dir)));
+    }
+
+    Err(PyenvError::MissingHome)
+}
+
+/// Where the root lives when nothing says otherwise. Fresh installs use `~/.enchi`. An existing
+/// `~/.pyenv` (a pyenv-native install, or a classic pyenv whose versions we share) is kept, because
+/// venvs contain absolute paths and nothing is moved automatically. `~/.enchi` wins if both exist.
+pub fn default_root(home: &Path) -> PathBuf {
+    let current = home.join(brand::ROOT_DIR);
+    let legacy = home.join(brand::LEGACY_ROOT_DIR);
+    if !current.is_dir() && legacy.is_dir() {
+        legacy
+    } else {
+        current
+    }
+}
+
+/// Returns `true` when the env-supplied root looks like it was set by pyenv-win.
+///
+/// Checks whether the final path component is `pyenv-win` (case-insensitive)
+/// which is the layout pyenv-win uses: `~/.pyenv/pyenv-win/`.
+pub fn is_pyenv_win_root(root: &std::path::Path) -> bool {
+    // Trim any trailing separator so `file_name()` works on `…\pyenv-win\`.
+    let cleaned = root
+        .to_string_lossy()
+        .trim_end_matches(['/', '\\'])
+        .to_string();
+    std::path::Path::new(&cleaned)
+        .file_name()
+        .is_some_and(|name| name.eq_ignore_ascii_case("pyenv-win"))
+}
+
+fn paths_equivalent(lhs: &std::path::Path, rhs: &std::path::Path) -> bool {
+    if cfg!(windows) {
+        lhs.to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .eq_ignore_ascii_case(
+                rhs.to_string_lossy()
+                    .replace('/', "\\")
+                    .trim_end_matches('\\'),
+            )
+    } else {
+        lhs == rhs
+    }
+}
+
+pub fn resolve_dir(explicit_dir: Option<OsString>) -> Result<PathBuf, PyenvError> {
+    let dir = explicit_dir
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+    if !dir.exists() || !dir.is_dir() {
+        return Err(PyenvError::InvalidDirectory(dir.display().to_string()));
+    }
+
+    Ok(dir)
+}
+
+#[allow(clippy::ptr_arg)]
+fn infer_root_from_exe(exe_path: &PathBuf) -> Option<PathBuf> {
+    let bin_dir = exe_path.parent()?;
+    let bin_name = bin_dir.file_name()?.to_string_lossy().to_ascii_lowercase();
+    if bin_name == "bin" {
+        bin_dir.parent().map(PathBuf::from)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    use super::{is_pyenv_win_root, resolve_root};
+
+    #[test]
+    fn resolve_root_prefers_explicit_root() {
+        let sample_home = if cfg!(windows) {
+            OsString::from("C:\\Users\\Roy")
+        } else {
+            OsString::from("/home/roy")
+        };
+        let sample_exe = if cfg!(windows) {
+            PathBuf::from("C:\\portable\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/portable/.pyenv/bin/pyenv")
+        };
+        let root = resolve_root(
+            Some(OsString::from("C:\\custom-root")),
+            Some(sample_home),
+            None,
+            Some(&sample_exe),
+        )
+        .expect("root");
+        assert_eq!(root, PathBuf::from("C:\\custom-root"));
+    }
+
+    #[test]
+    fn resolve_root_can_infer_portable_root_from_exe_path() {
+        let sample_home = if cfg!(windows) {
+            OsString::from("C:\\Users\\Roy")
+        } else {
+            OsString::from("/home/roy")
+        };
+        let sample_exe = if cfg!(windows) {
+            PathBuf::from("C:\\portable\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/portable/.pyenv/bin/pyenv")
+        };
+        let expected_root = if cfg!(windows) {
+            PathBuf::from("C:\\portable\\.pyenv")
+        } else {
+            PathBuf::from("/portable/.pyenv")
+        };
+        let root = resolve_root(None, Some(sample_home), None, Some(&sample_exe)).expect("root");
+        assert_eq!(root, expected_root);
+    }
+
+    #[test]
+    fn resolve_root_overrides_pyenv_win_root_when_native_exe_available() {
+        let pyenv_win_root = if cfg!(windows) {
+            OsString::from("C:\\Users\\Roy\\.pyenv\\pyenv-win\\")
+        } else {
+            OsString::from("/home/roy/.pyenv/pyenv-win/")
+        };
+        let native_exe = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/home/roy/.pyenv/bin/pyenv")
+        };
+        let expected_root = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv")
+        } else {
+            PathBuf::from("/home/roy/.pyenv")
+        };
+
+        let root = resolve_root(Some(pyenv_win_root), None, None, Some(&native_exe)).expect("root");
+        assert_eq!(root, expected_root);
+    }
+
+    #[test]
+    fn resolve_root_keeps_explicit_root_when_not_pyenv_win() {
+        let custom_root = OsString::from("D:\\my-pyenv-root");
+        let native_exe = if cfg!(windows) {
+            PathBuf::from("C:\\Users\\Roy\\.pyenv\\bin\\pyenv.exe")
+        } else {
+            PathBuf::from("/home/roy/.pyenv/bin/pyenv")
+        };
+
+        let root =
+            resolve_root(Some(custom_root.clone()), None, None, Some(&native_exe)).expect("root");
+        assert_eq!(root, PathBuf::from("D:\\my-pyenv-root"));
+    }
+
+    #[test]
+    fn is_pyenv_win_root_detects_pyenv_win_paths() {
+        let base_path = std::path::PathBuf::from("myDir");
+        assert!(is_pyenv_win_root(&base_path.join("pyenv-win")));
+        assert!(is_pyenv_win_root(&base_path.join("PYENV-WIN")));
+
+        let mut with_sep = base_path.join("pyenv-win").to_string_lossy().to_string();
+        with_sep.push(std::path::MAIN_SEPARATOR);
+        assert!(is_pyenv_win_root(std::path::Path::new(&with_sep)));
+
+        assert!(!is_pyenv_win_root(&base_path));
+        assert!(!is_pyenv_win_root(std::path::Path::new("custom-root")));
+    }
+
+    #[test]
+    fn cli_exe_path_prefers_managed_bin_cli_over_gui_current_exe() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).expect("bin dir");
+        let cli = bin.join(if cfg!(windows) { "enchi.exe" } else { "enchi" });
+        let gui = bin.join(if cfg!(windows) {
+            "enchi-gui.exe"
+        } else {
+            "enchi-gui"
+        });
+        std::fs::write(&cli, "cli").expect("cli");
+        std::fs::write(&gui, "gui").expect("gui");
+
+        let ctx = super::AppContext {
+            root: root.clone(),
+            dir: temp.path().join("work"),
+            exe_path: gui,
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: crate::config::AppConfig::default(),
+        };
+
+        assert_eq!(ctx.cli_exe_path(), cli);
+    }
+
+    #[test]
+    fn cli_exe_path_never_returns_companion_when_cli_missing() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).expect("bin dir");
+        let gui = bin.join(if cfg!(windows) {
+            "enchi-gui.exe"
+        } else {
+            "enchi-gui"
+        });
+        std::fs::write(&gui, "gui").expect("gui");
+
+        let ctx = super::AppContext {
+            root: root.clone(),
+            dir: temp.path().join("work"),
+            exe_path: gui,
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: crate::config::AppConfig::default(),
+        };
+
+        assert_eq!(
+            ctx.cli_exe_path(),
+            root.join("bin")
+                .join(if cfg!(windows) { "enchi.exe" } else { "enchi" })
+        );
+    }
+
+    fn ctx_with_exe(root: &std::path::Path, exe: PathBuf) -> super::AppContext {
+        super::AppContext {
+            root: root.to_path_buf(),
+            dir: root.join("work"),
+            exe_path: exe,
+            env_version: None,
+            env_shell: None,
+            path_env: None,
+            path_ext: None,
+            config: crate::config::AppConfig::default(),
+        }
+    }
+
+    #[test]
+    fn cli_exe_path_falls_back_to_the_legacy_binary_until_refreshed() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).expect("bin dir");
+        let legacy = bin.join(crate::brand::exe_name("pyenv"));
+        std::fs::write(&legacy, "old").expect("legacy");
+        let ctx = ctx_with_exe(&root, legacy.clone());
+        assert_eq!(ctx.cli_exe_path(), legacy);
+
+        let current = bin.join(crate::brand::exe_name("enchi"));
+        std::fs::write(&current, "new").expect("current");
+        assert_eq!(
+            ctx.cli_exe_path(),
+            current,
+            "the current name wins over its alias"
+        );
+    }
+
+    #[test]
+    fn default_root_is_enchi_for_fresh_homes_and_keeps_an_existing_pyenv_dir() {
+        let home = tempfile::TempDir::new().expect("tempdir");
+        assert_eq!(super::default_root(home.path()), home.path().join(".enchi"));
+
+        std::fs::create_dir_all(home.path().join(".pyenv")).unwrap();
+        assert_eq!(super::default_root(home.path()), home.path().join(".pyenv"));
+
+        std::fs::create_dir_all(home.path().join(".enchi")).unwrap();
+        assert_eq!(super::default_root(home.path()), home.path().join(".enchi"));
+    }
+
+    #[test]
+    fn path_with_managed_entries_prepends_missing_dirs() {
+        let current = if cfg!(windows) {
+            OsString::from(r"C:\Windows\System32")
+        } else {
+            OsString::from("/usr/bin")
+        };
+        let shims = PathBuf::from("/tmp/pyenv-shims");
+        let bin = PathBuf::from("/tmp/pyenv-bin");
+        let joined = super::path_with_managed_entries(&current, &[shims.clone(), bin.clone()]);
+        let parts: Vec<_> = std::env::split_paths(&joined).collect();
+        assert_eq!(parts.first(), Some(&shims));
+        assert_eq!(parts.get(1), Some(&bin));
+        let again = super::path_with_managed_entries(&joined, &[shims, bin]);
+        assert_eq!(again, joined);
+    }
+}

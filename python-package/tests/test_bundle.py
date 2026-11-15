@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from pyenv_native_bootstrap.bundle import (
+from enchi_bootstrap.bundle import (
     parse_checksum_text,
     read_manifest_from_bundle,
     read_manifest_from_zip,
@@ -27,8 +27,8 @@ class BundleTests(unittest.TestCase):
             ("ABCDEF" * 10 + "abcd"[:4]).lower(),
         )
         digest = "a" * 64
-        text = f"{digest}  pyenv-native-windows-x64.zip"
-        self.assertEqual(parse_checksum_text(text, "pyenv-native-windows-x64.zip"), digest)
+        text = f"{digest}  enchi-windows-x64.zip"
+        self.assertEqual(parse_checksum_text(text, "enchi-windows-x64.zip"), digest)
 
     def test_read_manifest_from_zip_returns_expected_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -56,11 +56,12 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             bundle_path = Path(temp_dir) / "bundle.zip"
             manifest = {
-                "bundle_name": "pyenv-native-windows-x64",
-                "bundle_version": "0.6.0",
+                "bundle_name": "enchi-windows-x64",
+                "bundle_version": "0.8.0",
                 "platform": "windows",
                 "architecture": "x64",
-                "executable": "pyenv.exe",
+                "executable": "enchi.exe",
+                "mcp_executable": "enchi-mcp.exe",
                 "installer": "self-install",
             }
             with ZipFile(bundle_path, "w") as archive:
@@ -69,7 +70,29 @@ class BundleTests(unittest.TestCase):
             parsed = read_manifest_from_zip(bundle_path)
             self.assertIsNone(parsed.install_script)
             self.assertIsNone(parsed.uninstall_script)
-            self.assertEqual(parsed.executable, "pyenv.exe")
+            self.assertIsNone(parsed.legacy_executable)
+            self.assertEqual(parsed.executable, "enchi.exe")
+
+    def test_legacy_compat_manifest_names_the_pyenv_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            bundle_path = Path(temp_dir) / "bundle.tar.gz"
+            manifest = {
+                "bundle_name": "pyenv-native-linux-x64",
+                "bundle_version": "0.8.0",
+                "platform": "linux",
+                "architecture": "x64",
+                "executable": "enchi",
+                "legacy_executable": "pyenv",
+                "installer": "self-install",
+            }
+            manifest_path = Path(temp_dir) / "bundle-manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with tarfile.open(bundle_path, "w:gz") as archive:
+                archive.add(manifest_path, arcname="bundle-manifest.json")
+
+            parsed = read_manifest_from_bundle(bundle_path)
+            self.assertEqual(parsed.executable, "enchi")
+            self.assertEqual(parsed.legacy_executable, "pyenv")
 
     def test_read_manifest_from_tar_bundle_returns_expected_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

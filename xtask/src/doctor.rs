@@ -1,5 +1,5 @@
 // ./xtask/src/doctor.rs
-//! `cargo xtask doctor`: check that this machine can build pyenv-native.
+//! `cargo xtask doctor`: check that this machine can build Enchi.
 //!
 //! Replaces `scripts/Check-Env.ps1`, now on every platform. Rust and Cargo are required.
 //! Android cross-build tooling (rustup target, cargo-ndk, NDK) is advisory unless
@@ -57,7 +57,7 @@ fn first_line(program: &str, args: &[&str]) -> Option<String> {
 }
 
 pub fn run(args: &DoctorArgs) -> Result<()> {
-    println!("--- pyenv-native dev environment check ---");
+    println!("--- Enchi dev environment check ---");
     let mut ready = true;
     let mut android_ready = true;
 
@@ -112,11 +112,11 @@ pub fn run(args: &DoctorArgs) -> Result<()> {
         android_ready = false;
     }
 
-    match first_line("pyenv", &["--version"]) {
-        Some(version) => say(Level::Info, format!("pyenv on PATH: {version}")),
+    match first_line("enchi", &["--version"]).or_else(|| first_line("pyenv", &["--version"])) {
+        Some(version) => say(Level::Info, format!("enchi/pyenv on PATH: {version}")),
         None => say(
             Level::Info,
-            "pyenv is not on PATH. That is expected before you install it.",
+            "enchi is not on PATH. That is expected before you install it.",
         ),
     }
 
@@ -280,6 +280,6 @@ mod tests {
 
     #[test]
     fn a_missing_program_has_no_version_line() {
-        assert!(first_line("pyenv-native-definitely-not-installed", &["--version"]).is_none());
+        assert!(first_line("enchi-definitely-not-installed", &["--version"]).is_none());
     }
 }

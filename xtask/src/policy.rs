@@ -210,7 +210,7 @@ pub fn gui_violations(app_js: &str, dom_utils: &str, index_html: &str, css: &str
 }
 
 fn check_gui_patterns(root: &Path) -> Result<()> {
-    let ui = root.join("crates").join("pyenv-gui").join("ui");
+    let ui = root.join("crates").join("enchi-gui").join("ui");
     let app_js = read(&ui.join("app.js"))?;
     let dom_utils = read(&ui.join("dom-utils.js"))?;
     let index_html = read(&ui.join("index.html"))?;

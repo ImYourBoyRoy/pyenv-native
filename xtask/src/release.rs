@@ -141,7 +141,7 @@ pub fn run(args: &ReleaseArgs) -> Result<()> {
     if !args.skip_validation {
         step("running the quality gate");
         run_always("cargo", &["xtask", "check", "--quick"])?;
-        step("running the Python install-package tests");
+        step("running the Python install-package tests (enchi and the legacy wrapper)");
         let mut test = vec!["xtask", "python", "test"];
         test.extend(&python_flag);
         run_always("cargo", &test)?;
@@ -152,6 +152,9 @@ pub fn run(args: &ReleaseArgs) -> Result<()> {
         let mut build = vec!["xtask", "python", "build"];
         build.extend(&python_flag);
         run_always("cargo", &build)?;
+        let mut legacy = vec!["xtask", "python", "build", "--legacy"];
+        legacy.extend(&python_flag);
+        run_always("cargo", &legacy)?;
         step("the Windows setup is built by the release workflow");
     }
 
@@ -215,18 +218,15 @@ mod tests {
 
     #[test]
     fn github_repos_parse_from_common_remote_urls() {
+        let repo = crate::brand::GITHUB_REPO;
         for url in [
-            "git@github.com:imyourboyroy/pyenv-native.git",
-            "https://github.com/imyourboyroy/pyenv-native.git",
-            "https://github.com/imyourboyroy/pyenv-native",
-            "https://github.com/imyourboyroy/pyenv-native/",
-            "ssh://git@github.com/imyourboyroy/pyenv-native.git",
+            format!("git@github.com:{repo}.git"),
+            format!("https://github.com/{repo}.git"),
+            format!("https://github.com/{repo}"),
+            format!("https://github.com/{repo}/"),
+            format!("ssh://git@github.com/{repo}.git"),
         ] {
-            assert_eq!(
-                github_repo_from_url(url).as_deref(),
-                Some("imyourboyroy/pyenv-native"),
-                "{url}"
-            );
+            assert_eq!(github_repo_from_url(&url).as_deref(), Some(repo), "{url}");
         }
         assert_eq!(github_repo_from_url("https://gitlab.com/a/b.git"), None);
         assert_eq!(github_repo_from_url("https://github.com/only-owner"), None);

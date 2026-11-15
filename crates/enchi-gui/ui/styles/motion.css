@@ -1,0 +1,357 @@
+/* ./crates/enchi-gui/ui/styles/motion.css — motion system
+   Quiet and mechanical: short fades with a few pixels of rise, a slide for the
+   nav marker, a prompt caret. No bounce, no overshoot, no blur.
+
+   Reduced motion has two switches: the OS media query and the app's own
+   html[data-reduced-motion] setting. Both collapse every duration token to
+   ~0 and switch off looping animations. Elements only ever animate *from* a
+   hidden state with fill-mode `backwards`, so with durations at ~0 they land
+   on their normal, visible style. Nothing is left hidden. */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 360ms;
+  --stagger: 20ms;   /* per-row delay; JS caps the index so a long list stays short */
+  --rise: 6px;
+  --shimmer: rgba(255, 255, 255, 0.07);
+  --dot-halo-success: rgba(76, 195, 138, 0.32);
+  --dot-halo-gold: rgba(255, 212, 59, 0.32);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-high-contrast="true"]) {
+    --shimmer: rgba(255, 255, 255, 0.7);
+    --dot-halo-success: rgba(23, 120, 74, 0.28);
+    --dot-halo-gold: rgba(138, 101, 0, 0.26);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0.01ms;
+    --dur-base: 0.01ms;
+    --dur-slow: 0.01ms;
+    --stagger: 0ms;
+    --rise: 0px;
+  }
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) {
+  --dur-fast: 0.01ms;
+  --dur-base: 0.01ms;
+  --dur-slow: 0.01ms;
+  --stagger: 0ms;
+  --rise: 0px;
+}
+
+/* ---------- keyframes ---------- */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(var(--rise)); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade-only {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@keyframes shimmer-rtl {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes sweep {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(270%); }
+}
+@keyframes sweep-rtl {
+  0%   { transform: translateX(110%); }
+  100% { transform: translateX(-270%); }
+}
+@keyframes breathe-success {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 0 4px var(--dot-halo-success); }
+}
+@keyframes breathe-gold {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 0 4px var(--dot-halo-gold); }
+}
+@keyframes caret-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ---------- page change ---------- */
+.fade-in {
+  animation: rise-in var(--dur-base) var(--ease-out) backwards;
+}
+.view.fade-in {
+  --rise: 6px;
+}
+/* Rows get .row-in (and a capped --i) from motion.js when a list is (re)populated. */
+.row-in {
+  --rise: 4px;
+  animation: rise-in var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+/* ---------- nav marker ----------
+   One element, moved by motion.js (style.setProperty). Without it the old
+   per-item ::before marker is still in place. */
+.sidebar { position: relative; }
+.nav-marker {
+  position: absolute;
+  top: 0;
+  inset-inline-start: var(--marker-x, 12px);
+  width: 3px;
+  height: var(--marker-h, 18px);
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(var(--marker-y, 0px));
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.nav-marker.is-placed { opacity: 1; }
+.nav-marker.is-animated {
+  transition: transform var(--dur-base) var(--ease-out), height var(--dur-base) var(--ease-out);
+}
+.sidebar.has-marker .nav-btn.active::before,
+.sidebar.has-marker .nav-btn[aria-current="page"]::before {
+  display: none;
+}
+.nav-btn { transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
+.nav-btn:active { transform: scale(0.99); }
+
+/* ---------- buttons ---------- */
+.btn {
+  transition:
+    background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast),
+    transform var(--dur-fast) var(--ease-out), padding-inline-start var(--dur-base) var(--ease-out);
+}
+.btn:active:not(:disabled):not(.is-busy) { transform: scale(0.98); }
+
+/* Busy: a spinner slides in at the start edge and the label stays put. motion.js
+   records the button's own start padding in --busy-px and keeps focus on it. */
+.btn.is-busy,
+.btn.is-done {
+  position: relative;
+  padding-inline-start: calc(var(--busy-px, 12px) + 18px);
+}
+.btn.is-busy { cursor: progress; }
+.btn.is-busy:disabled { opacity: 0.85; }
+.btn.is-busy::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: var(--busy-px, 12px);
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  box-sizing: border-box;
+  border: 2px solid rgba(128, 128, 128, 0.4);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin-ring 0.9s linear infinite;
+}
+/* Completion: the check draws itself (stroke-dashoffset). */
+.btn-check {
+  position: absolute;
+  inset-inline-start: var(--busy-px, 12px);
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  pointer-events: none;
+}
+.check-draw path,
+.btn-check path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: check-draw var(--dur-slow) var(--ease-out) 40ms forwards;
+}
+
+/* ---------- status dots: breathe only while something is live or pending ---------- */
+.status-dot.active-dot {
+  animation: breathe-success 3.2s var(--ease-in-out) infinite;
+}
+.status-dot.status-light-glow.gold,
+.status-dot.is-pending {
+  animation: breathe-gold 2.6s var(--ease-in-out) infinite;
+}
+
+/* ---------- skeleton rows (list loading) ---------- */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+}
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.skeleton-row:last-child { border-bottom: 0; }
+.sk-lines { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.sk {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+.sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
+  animation: shimmer 1.7s var(--ease-in-out) infinite;
+}
+.sk-title { width: 110px; height: 12px; }
+.sk-meta { width: 240px; max-width: 70%; }
+.sk-btn { width: 68px; height: 24px; border-radius: var(--radius); flex-shrink: 0; }
+.skeleton-row:nth-child(2) .sk-title { width: 84px; }
+.skeleton-row:nth-child(2) .sk-meta { width: 180px; }
+.skeleton-row:nth-child(3) .sk-title { width: 128px; }
+.skeleton-row:nth-child(3) .sk-meta { width: 210px; }
+.skeleton-row:nth-child(4) .sk-meta { width: 150px; }
+[dir="rtl"] .sk::after { animation-name: shimmer-rtl; }
+
+/* ---------- empty states: a Python prompt, not clip-art ---------- */
+.empty-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  direction: ltr;
+}
+.empty-caret {
+  width: 8px;
+  height: 16px;
+  background: currentColor;
+  animation: caret-blink 1.15s steps(1) infinite;
+}
+.empty-state.is-danger { color: var(--danger); }
+.empty-state.is-danger .empty-prompt { color: var(--danger); }
+.empty-msg { margin: 0; }
+
+/* ---------- progress bar ----------
+   <div class="pbar" style="--p:42"> is determinate; .is-indeterminate sweeps. */
+.pbar {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.pbar-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: calc(var(--p, 0) * 1%);
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--dur-slow) var(--ease-out), background-color var(--dur-base);
+}
+.pbar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2.4s var(--ease-in-out) infinite;
+}
+.pbar.is-indeterminate .pbar-fill {
+  width: 38%;
+  transition: none;
+  animation: sweep 1.6s var(--ease-in-out) infinite;
+}
+.pbar.is-indeterminate .pbar-fill::after { display: none; }
+.pbar[data-state="done"] .pbar-fill { background: var(--success); }
+.pbar[data-state="failed"] .pbar-fill { background: var(--danger); }
+.pbar[data-state="done"] .pbar-fill::after,
+.pbar[data-state="failed"] .pbar-fill::after { display: none; }
+[dir="rtl"] .pbar-fill::after { animation-name: shimmer-rtl; }
+[dir="rtl"] .pbar.is-indeterminate .pbar-fill { animation-name: sweep-rtl; }
+#pkg-update-progress-bar { transition: width var(--dur-slow) var(--ease-out); }
+
+/* ---------- modal and drawer ---------- */
+.modal-overlay {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+.modal-box { animation: modal-pop var(--dur-base) var(--ease-out) backwards; }
+.drawer { transition: right var(--dur-slow) var(--ease-out); }
+.drawer-backdrop:not([hidden]) { animation: fade-only var(--dur-base) var(--ease-out) backwards; }
+.skip-link { transition: transform var(--dur-base) var(--ease-out); }
+
+/* ---------- reduced motion: loops stop, static stand-ins remain visible ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .sk::after, .pbar-fill::after { animation: none; display: none; }
+  .pbar.is-indeterminate .pbar-fill { animation: none; width: 100%; opacity: 0.4; }
+  .status-dot.active-dot,
+  .status-dot.status-light-glow.gold,
+  .status-dot.is-pending { animation: none; }
+  .empty-caret { animation: none; }
+  .btn.is-busy::before { animation: none; border-top-color: currentColor; border-right-color: currentColor; }
+  .check-draw path, .btn-check path { animation: none; stroke-dashoffset: 0; }
+  .toast-timer { display: none; }
+  .act-spin { animation: none; }
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .sk::after,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .pbar-fill::after {
+  animation: none;
+  display: none;
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .pbar.is-indeterminate .pbar-fill {
+  animation: none;
+  width: 100%;
+  opacity: 0.4;
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .status-dot.active-dot,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .status-dot.status-light-glow.gold,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .status-dot.is-pending,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .empty-caret,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .act-spin {
+  animation: none;
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .btn.is-busy::before {
+  animation: none;
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .check-draw path,
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .btn-check path {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+html[data-reduced-motion]:not([data-reduced-motion="false"]) .toast-timer { display: none; }

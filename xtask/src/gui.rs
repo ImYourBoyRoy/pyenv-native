@@ -1,7 +1,7 @@
 // ./xtask/src/gui.rs
 //! `cargo xtask gui`: build and launch the desktop GUI for local testing.
 //!
-//! Replaces `scripts/launch_gui.ps1`, now on every platform: stop a running `pyenv-gui`, build
+//! Replaces `scripts/launch_gui.ps1`, now on every platform: stop a running `enchi-gui`, build
 //! the crate, and start the fresh binary without waiting for it to exit.
 
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ pub struct GuiArgs {
     release: bool,
 }
 
-const GUI_PACKAGE: &str = "pyenv-gui";
+const GUI_PACKAGE: &str = "enchi-gui";
 
 pub fn run(args: &GuiArgs) -> Result<()> {
     let root = repo_root();
@@ -86,7 +86,7 @@ mod tests {
         let root = Path::new("/repo");
         let exe = gui_exe(root, "release");
         let name = exe.file_name().unwrap().to_string_lossy().into_owned();
-        assert_eq!(name, format!("pyenv-gui{}", std::env::consts::EXE_SUFFIX));
+        assert_eq!(name, format!("enchi-gui{}", std::env::consts::EXE_SUFFIX));
         assert!(exe.components().any(|part| part.as_os_str() == "release"));
     }
 }

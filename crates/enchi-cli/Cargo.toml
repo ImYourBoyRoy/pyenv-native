@@ -1,0 +1,16 @@
+[package]
+name = "enchi-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+clap.workspace = true
+enchi-core = { path = "../enchi-core" }
+
+[[bin]]
+name = "enchi"
+path = "src/main.rs"
+
+[dev-dependencies]
+tempfile.workspace = true

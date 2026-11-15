@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This document explains how `pyenv-native` is structured, what it is trying to preserve from upstream `pyenv`, and where it intentionally diverges in order to provide a better native experience.
+This document explains how Enchi is structured, what it is trying to preserve from upstream `pyenv`, and where it intentionally diverges in order to provide a better native experience.
 
 The short version:
 
-> `pyenv-native` uses upstream `pyenv` as a behavioral guide, not as a runtime code dependency.
+> Enchi uses upstream `pyenv` as a behavioral guide, not as a runtime code dependency.
 
 ---
 
@@ -30,7 +30,7 @@ The short version:
 
 ### 3. Stay honest about compatibility
 
-`pyenv-native` aims for behavioral compatibility where it makes sense, but it does not try to preserve upstream shell-script implementation details when a native approach is clearly better.
+Enchi aims for behavioral compatibility where it makes sense, but it does not try to preserve upstream shell-script implementation details when a native approach is clearly better.
 
 ---
 
@@ -86,12 +86,13 @@ Packaging and distribution
 
 ```text
 crates/
-  pyenv-cli/      CLI entrypoint and public command wiring
-  pyenv-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
-  pyenv-gui/      Tauri desktop companion
-  pyenv-mcp/      stdio MCP server and agent-facing guide/config helpers
+  enchi-cli/      CLI entrypoint and public command wiring
+  enchi-core/     runtime behavior, catalogs, installers, diagnostics, shell/shim logic
+  enchi-gui/      Tauri desktop companion
+  enchi-mcp/      stdio MCP server and agent-facing guide/config helpers
 xtask/            `cargo xtask`: bundles, packaging (homebrew), native installers, python package, release, policy checks, version sync, quality gate, and contributor helpers (`doctor`, `gui`, `new-locale`, `install-hooks`)
-python-package/   Python install package wrapper for native release bundles
+python-package/   PyPI `enchi` install package (`enchi-bootstrap`) for native release bundles
+python-package-legacy/  the final PyPI `pyenv-native` release: depends on `enchi` and forwards to it
 packaging/        package-manager metadata and generators
 scripts/          publish, packaging, validation, and smoke-test helpers
 ```
@@ -100,9 +101,9 @@ scripts/          publish, packaging, validation, and smoke-test helpers
 
 ### Installer module
 
-`crates/pyenv-core/src/agent_skills.rs` backs `pyenv agent-skills`: the skill (`skills/pyenv-native/SKILL.md`) is compiled in with `include_str!`, so installing it needs no checkout; a test fails when `skills/` and the embedded list differ, or when the Claude plugin names drift from `.claude-plugin/*.json`.
+`crates/enchi-core/src/agent_skills.rs` backs `enchi agent-skills`: the skill (`skills/enchi/SKILL.md`) is compiled in with `include_str!`, so installing it needs no checkout; a test fails when `skills/` and the embedded list differ, or when the Claude plugin names drift from `.claude-plugin/*.json`.
 
-`crates/pyenv-core/src/installer/` is the single implementation of install, update, and uninstall (`pyenv self-install`, `self-update`, `self-uninstall`):
+`crates/enchi-core/src/installer/` is the single implementation of install, update, and uninstall (`enchi self-install`, `self-update`, `self-uninstall`):
 
 ```text
 layout.rs      portable root layout (bin, shims, versions, cache, logs, share)
@@ -115,7 +116,7 @@ uninstall.rs   safe removal, profile/PATH cleanup, Windows deferred removal help
 report.rs      live progress lines + install log
 ```
 
-`self_update/bundle.rs` downloads, SHA-256-verifies, and extracts the release bundle; the update then runs the *bundle's* `pyenv self-install`. `install.sh` / `install.ps1` are bootstraps that do the same download and verification for first installs.
+`self_update/bundle.rs` downloads, SHA-256-verifies, and extracts the release bundle; the update then runs the *bundle's* `enchi self-install`. `install.sh` / `install.ps1` are bootstraps that do the same download and verification for first installs.
 
 ---
 
@@ -123,7 +124,7 @@ report.rs      live progress lines + install log
 
 The Rust core owns the behavior that should be consistent across platforms:
 
-- `PYENV_ROOT` discovery,
+- `ENCHI_ROOT` discovery,
 - `.python-version` search and parsing,
 - local/global/shell precedence,
 - prefix resolution such as `3.12 -> latest matching version`,
@@ -162,7 +163,7 @@ This is one of the most important compatibility decisions in the project.
 
 ## Managed venv migration
 
-Managed virtual environments live at `PYENV_ROOT/venvs/<runtime>/<name>`. The core
+Managed virtual environments live at `ENCHI_ROOT/venvs/<runtime>/<name>`. The core
 `cmd_venv_upgrade` flow migrates one of these environments without treating a venv as
 portable across Python runtimes: it snapshots `pip freeze --all` requirement lines from the
 source interpreter, resolves the target to an installed runtime (a prefix such as `3.15`
@@ -187,7 +188,7 @@ directories such as `.venv` are intentionally not adopted or overwritten by this
 
 ## Install provider model
 
-`pyenv-native` separates **catalog knowledge** from **provider availability**.
+Enchi separates **catalog knowledge** from **provider availability**.
 
 ### Catalog knowledge
 
@@ -197,11 +198,11 @@ This answers:
 - what runtime families exist,
 - what prefixes map to what concrete versions.
 
-CPython revisions are not compiled into the binary. `pyenv install --list`, `pyenv available`, and `pyenv latest --known` read the live directory index at `https://www.python.org/ftp/python/`, inspect the source-artifact index inside zero-patch release directories, and query python.org's prerelease release metadata so patch-level prereleases are not missed. The catalog caches actual installable archive records for 24 hours under `PYENV_ROOT/cache/metadata/cpython/releases.json`. A legacy cache schema is discarded and refreshed so a numeric prerelease directory cannot become a phantom stable release. Free-threaded names (`3.13t` and newer) are derived from those release records. A new python.org patch, prerelease, or major line shows up on the next refresh without editing the repo.
+CPython revisions are not compiled into the binary. `enchi install --list`, `enchi available`, and `enchi latest --known` read the live directory index at `https://www.python.org/ftp/python/`, inspect the source-artifact index inside zero-patch release directories, and query python.org's prerelease release metadata so patch-level prereleases are not missed. The catalog caches actual installable archive records for 24 hours under `ENCHI_ROOT/cache/metadata/cpython/releases.json`. A legacy cache schema is discarded and refreshed so a numeric prerelease directory cannot become a phantom stable release. Free-threaded names (`3.13t` and newer) are derived from those release records. A new python.org patch, prerelease, or major line shows up on the next refresh without editing the repo.
 
 Provider-backed listings include alpha, beta, and release-candidate names with an explicit human-readable channel label. Stable prefix resolution remains conservative: `3.16` never falls forward to `3.16.0a1`, while an exact request for `3.16.0a1` resolves to its recorded archive. The resolver accepts both compact CPython spellings (`3.16.0a1`) and NuGet’s hyphenated spelling (`3.16.0-a1`) when the provider uses the latter.
 
-`crates/pyenv-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `PYENV_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `cargo xtask sync-known-versions` only refreshes the compiled seed from an upstream pyenv checkout.
+`crates/enchi-core/data/known_versions.txt` is the compiled base seed: non-CPython family names plus a fallback when no publisher cache exists yet. Each publisher refresh merges newly discovered names into `ENCHI_ROOT/cache/metadata/known_versions.txt`. That runtime file keeps the seed and every version seen since install. The shipped seed file is not rewritten. `cargo xtask sync-known-versions` only refreshes the compiled seed from an upstream pyenv checkout.
 
 Windows CPython builds still come from the NuGet package index, and PyPy still comes from `https://downloads.python.org/pypy/versions.json`. Those indexes are cached the same way, and their version names are merged into the runtime known-versions file. Versions python.org publishes that NuGet does not carry stay visible through the live CPython index.
 
@@ -240,7 +241,7 @@ This gives the project a native path for the most important cases while keeping 
 
 ## Agent / MCP model
 
-`pyenv-native` now includes an explicit agent-facing layer through **`pyenv-mcp`**.
+Enchi now includes an explicit agent-facing layer through **`enchi-mcp`**.
 
 ### Why it exists
 
@@ -252,9 +253,9 @@ The human CLI is great for operators, but agents need:
 - predictable tool order,
 - a stable onboarding blob.
 
-### What `pyenv-mcp` does
+### What `enchi-mcp` does
 
-`pyenv-mcp` is a stdio MCP server built directly on `pyenv-core`.
+`enchi-mcp` is a stdio MCP server built directly on `enchi-core`.
 It exposes higher-level tools such as:
 
 - project environment resolution,
@@ -275,7 +276,7 @@ Instead, it calls structured core functionality directly so that agent-facing be
 
 ### Orientation model
 
-The companion `pyenv-mcp guide` command emits a structured JSON guide that is intended to be fed directly to a model or orchestration layer before deeper work begins.
+The companion `enchi-mcp guide` command emits a structured JSON guide that is intended to be fed directly to a model or orchestration layer before deeper work begins.
 
 ---
 
@@ -286,7 +287,7 @@ Managed runtimes are treated as portable assets under a single managed root.
 Default layout:
 
 ```text
-<PYENV_ROOT>/
+<ENCHI_ROOT>/
   versions/
   shims/
   cache/
@@ -300,13 +301,13 @@ Key decisions:
 - package metadata and downloads are cached,
 - portable installs are preferred over system-level mutation.
 
-If the runtime is launched from `<root>/bin/pyenv(.exe)` and `PYENV_ROOT` is not explicitly set, the executable can infer that portable root automatically.
+If the runtime is launched from `<root>/bin/enchi(.exe)` and `ENCHI_ROOT` is not explicitly set, the executable can infer that portable root automatically.
 
 ---
 
 ## Shim model
 
-Shims are generated into `<PYENV_ROOT>/shims` and act as the execution handoff point between the user and the selected runtime.
+Shims are generated into `<ENCHI_ROOT>/shims` and act as the execution handoff point between the user and the selected runtime.
 
 ### Windows
 
@@ -359,13 +360,13 @@ The runtime still feels like `pyenv`, but shell support is generated and coordin
 
 ## Plugin and hook model
 
-`pyenv-native` preserves the idea that external commands can extend the tool.
+Enchi preserves the idea that external commands can extend the tool.
 
 ### Plugin command discovery
 
 Plugins can be discovered from:
 
-- `PYENV_ROOT/plugins/*/bin`,
+- `ENCHI_ROOT/plugins/*/bin`,
 - adjacent compatible plugin layouts,
 - `PATH` entries containing `pyenv-<command>` executables.
 
@@ -380,7 +381,7 @@ Hooks are resolved from:
 
 The runtime supports:
 
-- `pyenv hooks`,
+- `enchi hooks`,
 - completion passthrough for plugin commands,
 - upstream-style help parsing from plugin header comments,
 - structured hook output directives,
@@ -397,9 +398,10 @@ The project is designed to distribute through native assets first.
 
 ### Primary artifacts
 
-- Windows portable ZIP bundle
-- Linux portable `.tar.gz` bundle
-- macOS portable `.tar.gz` bundle
+- Windows portable ZIP bundle (`enchi-windows-<arch>.zip`)
+- Linux portable `.tar.gz` bundle (`enchi-linux-<arch>.tar.gz`)
+- macOS portable `.tar.gz` bundle (`enchi-macos-<arch>.tar.gz`)
+- the same bundles under their legacy `pyenv-native-<platform>-<arch>` names, each with an extra `pyenv` copy of the CLI (already-installed pyenv-native binaries download exactly those names to update; `cargo xtask bundle --legacy-compat`, on by default)
 - SHA-256 checksum files (bundles, standalone GUI binaries, and the bootstrap scripts)
 - bundle manifest metadata
 - generated Homebrew formula (uploaded as a release extra; no public Homebrew tap yet)
@@ -417,7 +419,7 @@ These provide zero-clone web installation paths for end users.
 
 ### Python install package
 
-The `pyenv-native` package exists for users who already have Python installed and want a `pip` / `pipx`-friendly install path.
+The `enchi` PyPI package (console script `enchi-bootstrap`) exists for users who already have Python installed and want a `pip` / `pipx`-friendly install path. The old `pyenv-native` distribution is now a thin wrapper (`python-package-legacy/`) that pins `enchi==<same version>` and forwards to `enchi-bootstrap`.
 
 Important principle:
 
@@ -431,14 +433,14 @@ The repo also includes generator-backed preparation for a Homebrew formula, trea
 
 ## Diagnostics model
 
-`pyenv doctor` exists to make common problems easier to reason about.
+`enchi doctor` exists to make common problems easier to reason about.
 
 Current checks include:
 
 - root visibility,
 - shims visibility,
 - system Python detection,
-- Windows Store alias warnings (Warn when the App Installer stub can intercept `python` before pyenv shims; `--fix` / GUI Self-Healing removes those stubs; Settings is optional persistence only),
+- Windows Store alias warnings (Warn when the App Installer stub can intercept `python` before enchi shims; `--fix` / GUI Self-Healing removes those stubs; Settings is optional persistence only),
 - Linux/macOS source-build readiness:
   - shell,
   - `make` / `gmake`,
@@ -451,7 +453,7 @@ The project favors explicit diagnostics over silent failure.
 
 ## Venv policy
 
-`pyenv-native` supports companion base-venv creation for users who want a more protected default experience.
+Enchi supports companion base-venv creation for users who want a more protected default experience.
 
 Current policy:
 
@@ -470,9 +472,9 @@ This is intentionally an enhancement, not a forced behavior change.
 
 ## Pip update policy
 
-`pyenv pip outdated --json` (and MCP `pip_outdated`) returns `{name, version, latest_version}`.
+`enchi pip outdated --json` (and MCP `pip_outdated`) returns `{name, version, latest_version}`.
 
-`pyenv pip update` / MCP `pip_update` then takes names, optional `name==version` pins, or `--all` / `all: true`. `--all` fails closed if the outdated scan cannot run. Outdated `pip` is upgraded first. There is no command that accepts the outdated JSON blob as input.
+`enchi pip update` / MCP `pip_update` then takes names, optional `name==version` pins, or `--all` / `all: true`. `--all` fails closed if the outdated scan cannot run. Outdated `pip` is upgraded first. There is no command that accepts the outdated JSON blob as input.
 
 ---
 
@@ -523,7 +525,7 @@ At the current stage, the project is **not** trying to:
 
 ## Summary
 
-`pyenv-native` is designed as a native, cross-platform runtime that keeps the best ideas from `pyenv` while improving the areas where native behavior, portability, and distribution quality matter most.
+Enchi is designed as a native, cross-platform runtime that keeps the best ideas from `pyenv` while improving the areas where native behavior, portability, and distribution quality matter most.
 
 That means:
 
@@ -533,6 +535,6 @@ That means:
 
 ## Native installers (`xtask/src/installer/`)
 
-`cargo xtask installer deb|rpm|termux|nsis|pkg|dmg` turns a release bundle into a native package without recompiling. `payload.rs` holds the shared system-package file list (binaries, desktop entry and icons, docs, the `profile.d` snippet, and `share/pyenv-native/install-source`); `deb.rs` writes Debian `ar` archives by hand (deterministic, `./`-prefixed tar entries, `md5sums`, `conffiles`, a `libc6` floor read from the ELF); `rpm_pkg.rs` uses the pure-Rust `rpm` crate; `nsis.rs` renders a `.nsi` script and runs `makensis`; `macos.rs` stages `/usr/local` plus `Pyenv Native.app` (Info.plist, an `.icns` packed from the repository PNGs, ad-hoc `codesign`) and drives `pkgbuild`/`productbuild`/`hdiutil`, so `pkg` and `dmg` run on the macOS runners (the composite action `.github/actions/macos-installer` builds and then installs, upgrades, and uninstalls the package on the runner). The macOS floor lives in `.cargo/config.toml` (`MACOSX_DEPLOYMENT_TARGET`) and a test keeps it equal to the installer's.
+`cargo xtask installer deb|rpm|termux|nsis|pkg|dmg` turns a release bundle into a native package without recompiling. `payload.rs` holds the shared system-package file list (binaries, desktop entry and icons, docs, the `profile.d` snippet, `share/enchi/install-source`, and the `pyenv` / `pyenv-mcp` compatibility symlinks; the packages are named `enchi` and replace `pyenv-native` through `Replaces`/`Provides`/`Conflicts` (deb) and `Obsoletes`/`Provides` (rpm)); `deb.rs` writes Debian `ar` archives by hand (deterministic, `./`-prefixed tar entries, `md5sums`, `conffiles`, a `libc6` floor read from the ELF); `rpm_pkg.rs` uses the pure-Rust `rpm` crate; `nsis.rs` renders a `.nsi` script and runs `makensis`; `macos.rs` stages `/usr/local` plus `Enchi.app` (Info.plist, an `.icns` packed from the repository PNGs, ad-hoc `codesign`) and drives `pkgbuild`/`productbuild`/`hdiutil`, so `pkg` and `dmg` run on the macOS runners (the composite action `.github/actions/macos-installer` builds and then installs, upgrades, and uninstalls the package on the runner). The macOS floor lives in `.cargo/config.toml` (`MACOSX_DEPLOYMENT_TARGET`) and a test keeps it equal to the installer's.
 
-The runtime side is `crates/pyenv-core/src/installer/source.rs` (reads the install-source marker so `self-update` defers to the package manager), `system_pkg.rs` (`sudo pyenv self-uninstall --system`: replays the `pkgutil --files` receipt for a `.pkg` install, limited to paths the package owns, then `pkgutil --forget`) and `arp.rs` (Windows Apps & features entry, written by `self-install` and removed by `self-uninstall`). `cargo xtask checksums` writes the release-wide `SHA256SUMS`.
+The runtime side is `crates/enchi-core/src/installer/source.rs` (reads the install-source marker so `self-update` defers to the package manager), `system_pkg.rs` (`sudo enchi self-uninstall --system`: replays the `pkgutil --files` receipt for a `.pkg` install, limited to paths the package owns, then `pkgutil --forget`) and `arp.rs` (Windows Apps & features entry, written by `self-install` and removed by `self-uninstall`). `cargo xtask checksums` writes the release-wide `SHA256SUMS`.

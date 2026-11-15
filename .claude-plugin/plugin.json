@@ -1,6 +1,6 @@
 {
-  "name": "pyenv-native",
-  "description": "Agent skills for pyenv-native — native Python version management and pyenv-mcp workflows.",
+  "name": "enchi",
+  "description": "Agent skills for Enchi (formerly pyenv-native): native Python version management and enchi-mcp workflows.",
   "author": {
     "name": "Roy Dawson IV"
   },

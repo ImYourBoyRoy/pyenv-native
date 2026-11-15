@@ -2,14 +2,14 @@
 /**
  * Capture GUI view stills and an animated WebP tour for README / docs.
  *
- * Serves crates/pyenv-gui/ui with a mocked Tauri invoke layer, then uses
+ * Serves crates/enchi-gui/ui with a mocked Tauri invoke layer, then uses
  * Playwright (Chromium) to screenshot each primary view. Does not drive the
  * OS desktop, XTest, or GNOME Remote Desktop.
  *
  * Run from repo root:
  *   node ./scripts/gui-screenshots/capture.mjs
  *
- * Inputs: crates/pyenv-gui/ui (HTML/CSS/JS), Playwright from scripts/wcagate.
+ * Inputs: crates/enchi-gui/ui (HTML/CSS/JS), Playwright from scripts/wcagate.
  * Outputs: docs/screenshots/{Dashboard,Available,Installed_Versions,VENVs,Shell,Settings,About,animated_gui}.webp
  */
 import http from 'node:http';
@@ -20,7 +20,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '../..');
-const uiRoot = path.join(repoRoot, 'crates/pyenv-gui/ui');
+const uiRoot = path.join(repoRoot, 'crates/enchi-gui/ui');
 const outDir = process.env.GUI_SCREENSHOT_OUT
   ? path.resolve(process.env.GUI_SCREENSHOT_OUT)
   : path.join(repoRoot, 'docs/screenshots');
@@ -59,7 +59,7 @@ const VIEWS = [
 
 function mockTauriSource() {
   const status = {
-    root: '/home/roy/.pyenv',
+    root: '/home/roy/.enchi',
     active_versions: ['3.14.3'],
     global_versions: ['3.14.3'],
     origin: 'global',
@@ -71,17 +71,17 @@ function mockTauriSource() {
       name: 'pondlets-play',
       base_version: '3.14.3',
       spec: '3.14.3/envs/pondlets-play',
-      path: '/home/roy/.pyenv/venvs/3.14.3/pondlets-play',
-      python_path: '/home/roy/.pyenv/venvs/3.14.3/pondlets-play/bin/python',
-      pip_path: '/home/roy/.pyenv/venvs/3.14.3/pondlets-play/bin/pip',
+      path: '/home/roy/.enchi/venvs/3.14.3/pondlets-play',
+      python_path: '/home/roy/.enchi/venvs/3.14.3/pondlets-play/bin/python',
+      pip_path: '/home/roy/.enchi/venvs/3.14.3/pondlets-play/bin/pip',
     },
     {
       name: 'server-manager',
       base_version: '3.14.3',
       spec: '3.14.3/envs/server-manager',
-      path: '/home/roy/.pyenv/venvs/3.14.3/server-manager',
-      python_path: '/home/roy/.pyenv/venvs/3.14.3/server-manager/bin/python',
-      pip_path: '/home/roy/.pyenv/venvs/3.14.3/server-manager/bin/pip',
+      path: '/home/roy/.enchi/venvs/3.14.3/server-manager',
+      python_path: '/home/roy/.enchi/venvs/3.14.3/server-manager/bin/python',
+      pip_path: '/home/roy/.enchi/venvs/3.14.3/server-manager/bin/pip',
     },
   ];
   const catalog = [
@@ -98,8 +98,8 @@ function mockTauriSource() {
   };
   const doctor = [
     { name: 'Shims on PATH', status: 'OK', detail: 'Shim directory is first on PATH.' },
-    { name: 'Shell init', status: 'OK', detail: 'Bash profile contains pyenv init.' },
-    { name: 'Install root', status: 'OK', detail: 'Managed binaries are present under ~/.pyenv.' },
+    { name: 'Shell init', status: 'OK', detail: 'Bash profile contains enchi init.' },
+    { name: 'Install root', status: 'OK', detail: 'Managed binaries are present under ~/.enchi.' },
   ];
   const shells = [
     { name: 'PowerShell 7 (pwsh)', profile_path: '/home/roy/.config/powershell/Microsoft.PowerShell_profile.ps1', is_configured: false, active_in_path: true, is_installed: true, path_label: 'PATH Active' },
@@ -119,7 +119,7 @@ function mockTauriSource() {
       { key: 'os', label: 'OS', value: 'Linux (Ubuntu 24.04 LTS)' },
       { key: 'arch', label: 'Architecture', value: 'x86_64' },
       { key: 'strategy', label: 'Install strategy', value: 'Native binaries' },
-      { key: 'root', label: 'PYENV_ROOT', value: '/home/roy/.pyenv' },
+      { key: 'root', label: 'ENCHI_ROOT', value: '/home/roy/.enchi' },
     ],
     blocking_issues: [],
     warnings: [],
@@ -127,15 +127,15 @@ function mockTauriSource() {
   const cache = {
     total_bytes: 184549376,
     entries: [
-      { name: 'All pyenv cache', path: '/home/roy/.pyenv/cache', bytes: 184549376, exists: true },
-      { name: 'Python downloads / packages', path: '/home/roy/.pyenv/cache/packages', bytes: 150994944, exists: true },
-      { name: 'python-build cache', path: '/home/roy/.pyenv/cache/python-build', bytes: 0, exists: false },
-      { name: 'Metadata cache', path: '/home/roy/.pyenv/cache/metadata', bytes: 1048576, exists: true },
+      { name: 'All Enchi cache', path: '/home/roy/.enchi/cache', bytes: 184549376, exists: true },
+      { name: 'Python downloads / packages', path: '/home/roy/.enchi/cache/packages', bytes: 150994944, exists: true },
+      { name: 'python-build cache', path: '/home/roy/.enchi/cache/python-build', bytes: 0, exists: false },
+      { name: 'Metadata cache', path: '/home/roy/.enchi/cache/metadata', bytes: 1048576, exists: true },
     ],
   };
   const installStatus = {
     is_installed: true,
-    root: '/home/roy/.pyenv',
+    root: '/home/roy/.enchi',
     is_portable: false,
     cli_on_path: true,
     profiles_configured: true,
@@ -199,7 +199,7 @@ function mockTauriSource() {
       return JSON.stringify({ dry_run: false, items: [
         { installed: '3.14.3', latest: '3.14.10', status: 'upgraded', message: 'upgraded to 3.14.10',
           venvs: [{ spec: '3.14.3/envs/pondlets-play', ok: true, message: 'moved to 3.14.10' }],
-          repinned: ['/home/roy/.pyenv/version'], removed_old: false },
+          repinned: ['/home/roy/.enchi/version'], removed_old: false },
         upgradePlan[1],
       ] });
     },
@@ -246,7 +246,7 @@ function mockTauriSource() {
 }
 
 function appCsp() {
-  const conf = JSON.parse(fs.readFileSync(path.join(repoRoot, 'crates/pyenv-gui/tauri.conf.json'), 'utf8'));
+  const conf = JSON.parse(fs.readFileSync(path.join(repoRoot, 'crates/enchi-gui/tauri.conf.json'), 'utf8'));
   return conf.app.security.csp;
 }
 

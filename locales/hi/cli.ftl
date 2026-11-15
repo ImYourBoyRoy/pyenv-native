@@ -12,33 +12,33 @@ cli-version-origin-about = वर्तमान पाइथन संस्क
 cli-prefix-about = दिए गए पाइथन संस्करण जहाँ स्थापित हैं वे पथ दिखाएँ
 cli-install-about = मूल प्रदाताओं से पाइथन संस्करण स्थापित करें
 cli-available-about = मूल प्रदाताओं से स्थापित करने योग्य पाइथन संस्करण सूचीबद्ध करें
-cli-versions-about = pyenv के लिए उपलब्ध सभी पाइथन संस्करण सूचीबद्ध करें
+cli-versions-about = enchi के लिए उपलब्ध सभी पाइथन संस्करण सूचीबद्ध करें
 cli-uninstall-about = कोई विशिष्ट पाइथन संस्करण अनइंस्टॉल करें
 cli-venv-about = प्रबंधित आभासी वातावरण बनाएँ, जाँचें और असाइन करें
 cli-pip-about = किसी रनटाइम या venv के लिए पैकेज सूचीबद्ध करें, जाँचें, स्थापित करें और अपडेट करें
-cli-init-about = pyenv के लिए शेल वातावरण कॉन्फ़िगर करें
-cli-gui-about = Pyenv Native ग्राफ़िकल डैशबोर्ड चलाएँ
-cli-rehash-about = pyenv shim पुनः बनाएँ (सभी संस्करणों में निष्पादन योग्य स्थापित करता है)
-cli-shims-about = मौजूदा pyenv shim सूचीबद्ध करें
+cli-init-about = enchi के लिए शेल वातावरण कॉन्फ़िगर करें
+cli-gui-about = Enchi ग्राफ़िकल डैशबोर्ड चलाएँ
+cli-rehash-about = enchi shim पुनः बनाएँ (सभी संस्करणों में निष्पादन योग्य स्थापित करता है)
+cli-shims-about = मौजूदा enchi shim सूचीबद्ध करें
 cli-prompt-about = वर्तमान वातावरण के लिए संक्षिप्त प्रॉम्प्ट स्ट्रिंग छापें
 cli-exec-about = चयनित पाइथन संस्करण के साथ कोई निष्पादन योग्य चलाएँ
 cli-completions-about = कमांड पूर्णता स्क्रिप्ट छापें
 cli-doctor-about = PATH, shim और स्थापना पूर्वापेक्षाओं का निदान करें
-cli-config-about = pyenv-native कॉन्फ़िगरेशन प्राप्त करें, सेट करें या दिखाएँ
-cli-self-update-about = GitHub Releases से pyenv-native अपडेट करें
+cli-config-about = Enchi कॉन्फ़िगरेशन प्राप्त करें, सेट करें या दिखाएँ
+cli-self-update-about = GitHub Releases से Enchi अपडेट करें
 cli-preflight-about = प्लेटफ़ॉर्म जानकारी और स्थापना-तैयारी preflight
 cli-environment-about = preflight का उपनाम (एजेंटों और उपयोगकर्ताओं के लिए OS/टूलचेन तथ्य)
 cli-status-about = व्यापक वातावरण स्थिति दिखाएँ (संस्करण, स्रोत, venv)
 cli-root-about = वह रूट निर्देशिका दिखाएँ जहाँ संस्करण और shim रखे जाते हैं
 cli-which-about = किसी निष्पादन योग्य का पूरा पथ दिखाएँ
 cli-whence-about = सभी पाइथन संस्करण सूचीबद्ध करें जिनमें दिया गया निष्पादन योग्य है
-cli-version-file-about = वह फ़ाइल पहचानें जो वर्तमान pyenv संस्करण सेट करती है
+cli-version-file-about = वह फ़ाइल पहचानें जो वर्तमान enchi संस्करण सेट करती है
 cli-version-file-read-about = .python-version फ़ाइल की सामग्री पढ़ें
-cli-self-install-about = रिलीज़ बंडल से pyenv-native इंस्टॉल या मरम्मत करें
-cli-self-uninstall-about = सिस्टम से pyenv-native अनइंस्टॉल करें
-cli-agent-skills-about = कोडिंग असिस्टेंट के लिए pyenv-native स्किल इंस्टॉल करें
+cli-self-install-about = रिलीज़ बंडल से Enchi इंस्टॉल या मरम्मत करें
+cli-self-uninstall-about = सिस्टम से Enchi अनइंस्टॉल करें
+cli-agent-skills-about = कोडिंग असिस्टेंट के लिए Enchi स्किल इंस्टॉल करें
 cli-help-about = किसी कमांड की सहायता दिखाएँ
-cli-commands-about = सभी उपलब्ध pyenv कमांड सूचीबद्ध करें
+cli-commands-about = सभी उपलब्ध enchi कमांड सूचीबद्ध करें
 cli-hooks-about = दिए गए कमांड के निष्पादन योग्य हुक सूचीबद्ध करें
 cli-venv-list-about = प्रबंधित आभासी वातावरण सूचीबद्ध करें
 cli-venv-info-about = प्रबंधित आभासी वातावरण का विवरण दिखाएँ
@@ -65,14 +65,14 @@ cli-help-interface = इंटरफ़ेस
 cli-help-diagnostics = निदान और कॉन्फ़िग
 cli-help-maintenance = रखरखाव
 cli-help-support = सहायता
-cli-help-usage = उपयोग: pyenv <command> [<args>]
-cli-help-useful = कुछ उपयोगी pyenv कमांड:
+cli-help-usage = उपयोग: enchi <command> [<args>]
+cli-help-useful = कुछ उपयोगी enchi कमांड:
 cli-help-concepts =
     मुख्य अवधारणाएँ:
-      Shims: हल्के एक्ज़ीक्यूटेबल (`python` या `pip`) जो कमांड रोककर मौजूदा संस्करण तक पहुँचाते हैं। pip पैकेज इंस्टॉल करने के बाद `pyenv rehash` चलाएँ।
-      Versions: `pyenv install` से इंस्टॉल, `~/.pyenv/versions` में।
-      Managed envs: `~/.pyenv/venvs/<runtime>/<name>`। `pyenv venv create` और `pyenv venv use` को प्राथमिकता दें।
-      Discovery: `pyenv install --list 3.13` या `pyenv available 3.13`।
+      Shims: हल्के एक्ज़ीक्यूटेबल (`python` या `pip`) जो कमांड रोककर मौजूदा संस्करण तक पहुँचाते हैं। pip पैकेज इंस्टॉल करने के बाद `enchi rehash` चलाएँ।
+      Versions: `enchi install` से इंस्टॉल, `~/.enchi/versions` में।
+      Managed envs: `~/.enchi/venvs/<runtime>/<name>`। `enchi venv create` और `enchi venv use` को प्राथमिकता दें।
+      Discovery: `enchi install --list 3.13` या `enchi available 3.13`।
       Selection: PYENV_VERSION, फिर `.python-version`, फिर ग्लोबल संस्करण फ़ाइल।
     
-    विस्तार के लिए `pyenv help <command>`। दस्तावेज़: https://github.com/imyourboyroy/pyenv-native
+    विस्तार के लिए `enchi help <command>`। दस्तावेज़: https://github.com/imyourboyroy/pyenv-native

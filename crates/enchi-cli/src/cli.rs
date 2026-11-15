@@ -1,0 +1,871 @@
+// ./crates/enchi-cli/src/cli.rs
+//! Clap command definitions for the `enchi` binary. This module centralizes the public CLI
+//! surface, subcommand nesting, and argument metadata while leaving execution logic to the
+//! dispatch module.
+
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "enchi",
+    version,
+    about = "Native-first, cross-platform Python version manager",
+    disable_help_subcommand = true,
+    help_template = "\
+{before-help}{name} {version}
+{about-with-newline}
+{usage-heading} {usage}
+
+SELECTION:
+  global             Set or show the global Python version
+  local              Set or show the local directory Python version
+  shell              Set or show the shell-specific Python version
+  latest             Print the latest installed or known version matching the prefix
+  version            Show the current Python version and its origin
+  version-name       Show the current Python version
+  version-origin     Explain how the current Python version is set
+  prefix             Display paths where the given Python versions are installed
+
+PROVISIONING:
+  install            Install Python versions from native providers
+  available          List installable Python versions from native providers
+  versions           List all Python versions available to pyenv
+  upgrade            Move installed runtimes to the newest patch release (and their venvs)
+  uninstall          Uninstall a specific Python version
+
+ENVIRONMENT:
+  venv               Create, inspect, and assign managed virtual environments
+  pip                List, check, install, and update packages for a runtime or venv
+
+INTERFACE:
+  init               Configure the shell environment for pyenv
+  gui                Launch the beautiful Enchi GUI dashboard
+  rehash             Rehash enchi shims (installs executables across all versions)
+  shims              List existing enchi shims
+  prompt             Print a concise prompt string for the current environment
+  exec               Run an executable with the selected Python version
+  completions        Print command completion script
+
+DIAGNOSTICS & CONFIG:
+  doctor             Verify pyenv installation and environment health
+  preflight          Platform intelligence and install readiness preflight
+  environment        Alias for preflight (OS/toolchain facts for agents and users)
+  status             Show the comprehensive environment status (versions, origins, venvs)
+  config             Display or modify Enchi configuration
+  root               Display the root directory where versions and shims are kept
+  which              Display the full path to an executable
+  whence             List all Python versions that contain the given executable
+  version-file       Detect the file that sets the current enchi version
+  version-file-read  Read the contents of a .python-version file
+
+MAINTENANCE:
+  self-install       Install or repair Enchi from a release bundle
+  self-update        Check for or install the latest published Enchi release
+  self-uninstall     Uninstall Enchi from your system
+  agent-skills       Install the Enchi skill for coding assistants
+
+SUPPORT:
+  help               Display help for a command
+  commands           List all available enchi commands
+  hooks              List executable hooks for a given command
+
+{options}
+
+CORE CONCEPTS:
+  Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands
+               and route them to the correct Python version based on your current environment.
+               Run `enchi rehash` to refresh these after installing new pip packages.
+  Versions:    Python environments installed via `enchi install`. Located in `~/.enchi/versions`.
+  Managed envs: Named virtual environments can live under `~/.enchi/venvs/<runtime>/<name>`.
+               Use `enchi venv create 3.14 api` and bind a folder with `enchi venv use api`.
+               Compatibility aliases like `enchi virtualenv` and `enchi activate` are supported,
+               but `enchi venv ...` plus `.python-version` remains the preferred workflow.
+  Discovery:   Search installable runtimes with `enchi install --list 3.13` or `enchi available 3.13`.
+  Selection:   Pyenv decides which Python version to use in this order (highest priority first):
+                 1. PYENV_VERSION environment variable (set via `enchi shell`/`enchi activate`)
+                 2. .python-version file in the current directory (set via `enchi local` or `enchi venv use`)
+                 3. The global version file (set via `enchi global`)
+
+Run `enchi help <command>` for detailed help on any command.
+Full documentation: https://github.com/imyourboyroy/pyenv-native
+"
+)]
+pub(crate) struct Cli {
+    #[command(subcommand)]
+    pub(crate) command: Option<Commands>,
+}
+
+#[derive(Debug, Subcommand)]
+#[command(disable_help_subcommand = true)]
+// Parsed once per process; boxing the install options would only add indirection.
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum Commands {
+    // --- SELECTION ---
+    #[command(next_help_heading = "SELECTION")]
+    #[command(about = "Set or show the global Python version")]
+    Global {
+        #[arg(long = "unset", help = "Remove the global version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set globally (e.g. 3.14, 3.13)")]
+        versions: Vec<String>,
+    },
+    #[command(about = "Set or show the local directory Python version")]
+    Local {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Write even if version is not installed"
+        )]
+        force: bool,
+        #[arg(long = "unset", help = "Remove the .python-version file")]
+        unset: bool,
+        #[arg(help = "Version(s) to set locally (e.g. 3.14, 3.13)")]
+        versions: Vec<String>,
+    },
+    #[command(
+        about = "Set or show the shell-specific Python version",
+        trailing_var_arg = true
+    )]
+    Shell {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Print the latest installed or known version matching the prefix")]
+    Latest {
+        #[arg(short = 'k', long = "known")]
+        known: bool,
+        #[arg(short = 'b', long = "bypass")]
+        bypass: bool,
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        prefix: String,
+    },
+    #[command(about = "Show the current Python version and its origin")]
+    Version {
+        #[arg(long = "bare")]
+        bare: bool,
+    },
+    #[command(about = "Show the current Python version")]
+    VersionName {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+    },
+    #[command(about = "Explain how the current Python version is set")]
+    VersionOrigin,
+    #[command(about = "Display paths where the given Python versions are installed")]
+    Prefix { versions: Vec<String> },
+
+    // --- PROVISIONING ---
+    #[command(next_help_heading = "PROVISIONING")]
+    #[command(about = "Install Python versions from native providers")]
+    Install {
+        #[arg(short = 'l', long = "list", help = "List all installable versions")]
+        list: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even if already installed"
+        )]
+        force: bool,
+        #[arg(long = "dry-run", help = "Preview without downloading")]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(
+            long = "known",
+            help = "List the broader catalog instead of provider builds"
+        )]
+        known: bool,
+        #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
+        family: Option<String>,
+        #[arg(help = "Version(s) to install (e.g. 3.14, 3.13, pypy3.11)")]
+        versions: Vec<String>,
+    },
+    #[command(about = "List installable Python versions from native providers")]
+    Available {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(
+            long = "known",
+            help = "List the broader catalog instead of provider builds"
+        )]
+        known: bool,
+        #[arg(long = "family", help = "Filter by runtime family (cpython, pypy)")]
+        family: Option<String>,
+        #[arg(help = "Optional pattern such as 3, 3.12, 3.13, or pypy3.11")]
+        pattern: Option<String>,
+    },
+    #[command(about = "List all Python versions available to pyenv")]
+    Versions {
+        #[arg(long = "bare")]
+        bare: bool,
+        #[arg(long = "skip-aliases")]
+        skip_aliases: bool,
+        #[arg(long = "skip-envs")]
+        skip_envs: bool,
+        #[arg(long = "executables")]
+        executables: bool,
+    },
+    #[command(
+        about = "Move installed runtimes to the newest patch release, venvs included",
+        long_about = "For each installed CPython (or the ones you name, e.g. `3.14` or `3.14.1`), find the newest patch of the same major.minor line, install it, migrate the managed venvs that used the old patch, and re-point global/local pins. It never crosses a minor line; use `enchi venv upgrade` for 3.14 -> 3.15. Nothing is removed unless you pass --remove-old. Use --check to preview."
+    )]
+    Upgrade {
+        #[arg(
+            long = "check",
+            visible_alias = "dry-run",
+            help = "Show available upgrades without changing anything"
+        )]
+        check: bool,
+        #[arg(
+            long = "no-venvs",
+            help = "Do not migrate managed venvs onto the new patch"
+        )]
+        no_venvs: bool,
+        #[arg(
+            long = "no-repin",
+            help = "Leave global/local version files on the old patch"
+        )]
+        no_repin: bool,
+        #[arg(
+            long = "remove-old",
+            help = "Uninstall the old patch once nothing depends on it"
+        )]
+        remove_old: bool,
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(
+            help = "Runtimes or major.minor lines to upgrade (default: every installed CPython)"
+        )]
+        targets: Vec<String>,
+    },
+    #[command(about = "Uninstall a specific Python version")]
+    Uninstall {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        versions: Vec<String>,
+    },
+
+    // --- ENVIRONMENT ---
+    #[command(next_help_heading = "ENVIRONMENT")]
+    #[command(about = "Create, inspect, and assign managed virtual environments")]
+    Venv {
+        #[command(subcommand)]
+        command: VenvCommands,
+    },
+    #[command(about = "List, check, install, and update pip packages for a runtime or venv")]
+    Pip {
+        #[command(subcommand)]
+        command: PipCommands,
+    },
+    #[command(hide = true, about = "Compatibility alias for `enchi venv create`")]
+    Virtualenv {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        #[arg(long = "set-local")]
+        set_local: bool,
+        #[arg(help = "Runtime + name, or just the env name to reuse the current selected runtime")]
+        args: Vec<String>,
+    },
+    #[command(hide = true, about = "Compatibility alias for `enchi venv list`")]
+    Virtualenvs {
+        #[arg(long = "bare")]
+        bare: bool,
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(
+        hide = true,
+        name = "virtualenv-delete",
+        about = "Compatibility alias for `enchi venv delete`"
+    )]
+    VirtualenvDelete {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        spec: String,
+    },
+    #[command(
+        hide = true,
+        name = "virtualenv-prefix",
+        about = "Print the full path to a managed virtual environment"
+    )]
+    VirtualenvPrefix { spec: Option<String> },
+
+    // --- INTERFACE ---
+    #[command(next_help_heading = "INTERFACE")]
+    #[command(
+        about = "Configure the shell environment for pyenv",
+        trailing_var_arg = true
+    )]
+    Init {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Launch the beautiful Enchi GUI dashboard")]
+    Gui,
+    #[command(about = "Rehash enchi shims (installs executables across all versions)")]
+    Rehash,
+    #[command(about = "List existing enchi shims")]
+    Shims {
+        #[arg(long = "short")]
+        short: bool,
+    },
+    #[command(about = "Print a concise prompt string for the current environment")]
+    Prompt,
+    #[command(
+        about = "Run an executable with the selected Python version",
+        trailing_var_arg = true
+    )]
+    Exec {
+        command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Print command completion script", trailing_var_arg = true)]
+    Completions {
+        command: String,
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    // --- DIAGNOSTICS & CONFIG ---
+    #[command(next_help_heading = "DIAGNOSTICS & CONFIG")]
+    #[command(about = "Verify pyenv installation and environment health")]
+    Doctor {
+        #[arg(long = "json")]
+        json: bool,
+        #[arg(
+            long = "fix",
+            help = "Apply safe automated fixes after showing diagnostics"
+        )]
+        fix: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip the confirmation prompt when used with --fix"
+        )]
+        force: bool,
+    },
+    #[command(
+        about = "Platform intelligence and install-readiness preflight (OS, toolchain, TLS/Xcode/Termux)"
+    )]
+    Preflight {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(about = "Alias for `preflight`: show OS/toolchain facts relevant to Enchi installs")]
+    Environment {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(about = "Show the comprehensive environment status (versions, origins, venvs)")]
+    Status {
+        #[arg(long = "json")]
+        json: bool,
+    },
+    #[command(about = "Display or modify Enchi configuration")]
+    Config {
+        #[command(subcommand)]
+        command: Option<ConfigCommands>,
+    },
+    #[command(about = "Display the root directory where versions and shims are kept")]
+    Root,
+    #[command(about = "Display the full path to an executable")]
+    Which {
+        #[arg(long = "nosystem")]
+        no_system: bool,
+        #[arg(long = "skip-advice")]
+        skip_advice: bool,
+        command: String,
+    },
+    #[command(about = "List all Python versions that contain the given executable")]
+    Whence {
+        #[arg(long = "path")]
+        path: bool,
+        command: String,
+    },
+    #[command(about = "Detect the file that sets the current enchi version")]
+    VersionFile { dir: Option<PathBuf> },
+    #[command(about = "Read the contents of a .python-version file")]
+    VersionFileRead { file: PathBuf },
+    #[command(hide = true, name = "version-file-write")]
+    VersionFileWrite {
+        #[arg(short = 'f', long = "force")]
+        force: bool,
+        file: PathBuf,
+        versions: Vec<String>,
+    },
+
+    // --- MAINTENANCE ---
+    #[command(next_help_heading = "MAINTENANCE")]
+    #[command(about = "Check for or install the latest published Enchi release")]
+    SelfUpdate {
+        #[arg(long = "check", help = "Check for updates without installing")]
+        check: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even when the current version already matches the target release"
+        )]
+        force: bool,
+        #[arg(
+            long = "github-repo",
+            help = "GitHub owner/repo that publishes Enchi release bundles"
+        )]
+        github_repo: Option<String>,
+        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
+        tag: Option<String>,
+    },
+    #[command(
+        about = "Install or repair Enchi from a release bundle",
+        long_about = "Copy enchi, enchi-mcp, and enchi-gui (when present) from the directory this binary runs from into a portable root, then set up shell/PATH integration, refresh shims, and verify the result.\n\nThe release bootstrap scripts (install.sh / install.ps1) download and verify a bundle and then run this command. Run it from an installed copy to repair shell integration."
+    )]
+    SelfInstall {
+        #[arg(
+            long = "install-root",
+            help = "Portable root to install into (default: ENCHI_ROOT or ~/.enchi)"
+        )]
+        install_root: Option<PathBuf>,
+        #[arg(
+            long = "source-dir",
+            help = "Directory holding the binaries to install (default: this binary's directory)"
+        )]
+        source_dir: Option<PathBuf>,
+        #[arg(long = "source-path", help = "Explicit path to the enchi binary")]
+        source_path: Option<PathBuf>,
+        #[arg(
+            long = "source-mcp-path",
+            help = "Explicit path to the enchi-mcp binary"
+        )]
+        source_mcp_path: Option<PathBuf>,
+        #[arg(
+            long = "source-gui-path",
+            help = "Explicit path to the enchi-gui binary"
+        )]
+        source_gui_path: Option<PathBuf>,
+        #[arg(
+            long = "shell",
+            help = "Shell to integrate with: bash, zsh, fish, sh, pwsh, cmd, or none (default: detected)"
+        )]
+        shell: Option<String>,
+        #[arg(
+            long = "add-to-user-path",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Windows: add bin and shims to the persistent user PATH"
+        )]
+        add_to_user_path: bool,
+        #[arg(
+            long = "update-shell-profile",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Add the enchi init block to the shell profile"
+        )]
+        update_shell_profile: bool,
+        #[arg(
+            long = "refresh-shims",
+            value_name = "BOOL",
+            value_parser = parse_bool_flag,
+            action = clap::ArgAction::Set,
+            default_value = "true",
+            help = "Run `enchi rehash` after installing"
+        )]
+        refresh_shims: bool,
+        #[arg(
+            long = "install-powershell7",
+            value_name = "auto|true|false",
+            default_value = "auto",
+            help = "Windows: install PowerShell 7 with winget when it is missing"
+        )]
+        install_powershell7: String,
+        #[arg(long = "log-path", help = "Where to write the install log")]
+        log_path: Option<PathBuf>,
+        #[arg(long = "lang", help = "Interface language for installer messages")]
+        lang: Option<String>,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Overwrite a non-empty install root without asking"
+        )]
+        force: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            long = "legacy-aliases",
+            value_name = "auto|always|never",
+            default_value = "auto",
+            help = "Keep pyenv, pyenv-mcp and pyenv-gui as aliases for the Enchi binaries (auto: only when upgrading a pyenv-native install)"
+        )]
+        legacy_aliases: String,
+        #[arg(long = "wait-for-pid", hide = true)]
+        wait_for_pid: Option<u32>,
+        #[arg(long = "relaunch-gui", hide = true)]
+        relaunch_gui: bool,
+    },
+    #[command(about = "Uninstall Enchi from your system")]
+    SelfUninstall {
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            long = "keep-data",
+            help = "Keep installed Python versions, virtual environments, and caches; remove only Enchi itself and its shell integration"
+        )]
+        keep_data: bool,
+        #[arg(
+            long = "keep-shell-integration",
+            help = "Leave shell profile blocks, user PATH entries, and desktop launchers untouched"
+        )]
+        keep_shell_integration: bool,
+        #[arg(
+            long = "system",
+            help = "Remove the program files installed by the macOS .pkg (run with sudo); Python versions under ENCHI_ROOT are kept"
+        )]
+        system: bool,
+        #[arg(long = "finish-after-pid", hide = true)]
+        finish_after_pid: Option<u32>,
+    },
+
+    #[command(about = "Install the Enchi skill for coding assistants")]
+    AgentSkills {
+        #[arg(
+            long = "agent",
+            value_name = "NAME",
+            default_value = "all",
+            value_parser = clap::builder::PossibleValuesParser::new(enchi_core::AGENT_NAMES),
+            help = "Agent to install for"
+        )]
+        agent: String,
+        #[arg(
+            long = "scope",
+            value_name = "SCOPE",
+            default_value = "user",
+            value_parser = ["user", "project"],
+            help = "Install for your user account, or into the current project only"
+        )]
+        scope: String,
+        #[arg(
+            long = "repo-url",
+            value_name = "URL",
+            help = "Repository the Gemini CLI, Antigravity, and Claude Code installs use (default: the public Enchi repository)"
+        )]
+        repo_url: Option<String>,
+    },
+
+    // --- SUPPORT ---
+    #[command(next_help_heading = "SUPPORT")]
+    // `pyenv help <command>` is the classic spelling; `manual-help` is kept as a hidden alias for
+    // anything that learned it while `help` was unreachable.
+    #[command(
+        name = "help",
+        alias = "manual-help",
+        about = "Display help for a command"
+    )]
+    ManualHelp {
+        #[arg(long = "usage")]
+        usage: bool,
+        command: Option<String>,
+    },
+    #[command(about = "List all available enchi commands")]
+    #[allow(clippy::enum_variant_names)]
+    Commands {
+        #[arg(long = "sh")]
+        sh: bool,
+        #[arg(long = "no-sh")]
+        no_sh: bool,
+    },
+    #[command(about = "List executable hooks for a given command")]
+    Hooks { hook: String },
+
+    // --- Compatibility Aliases (Hidden) ---
+    #[command(
+        hide = true,
+        name = "update",
+        about = "Compatibility alias for `enchi self-update`"
+    )]
+    Update {
+        #[arg(long = "check", help = "Check for updates without installing")]
+        check: bool,
+        #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
+        yes: bool,
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Reinstall even when the current version already matches the target release"
+        )]
+        force: bool,
+        #[arg(
+            long = "github-repo",
+            help = "GitHub owner/repo that publishes Enchi release bundles"
+        )]
+        github_repo: Option<String>,
+        #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
+        tag: Option<String>,
+    },
+    #[command(
+        hide = true,
+        about = "Compatibility alias for activating a managed virtual environment",
+        trailing_var_arg = true
+    )]
+    Activate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(
+        hide = true,
+        about = "Compatibility alias for deactivating the current managed virtual environment",
+        trailing_var_arg = true
+    )]
+    Deactivate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(
+        hide = true,
+        name = "virtualenv-init",
+        about = "Compatibility alias for shell init output that supports activate/deactivate",
+        trailing_var_arg = true
+    )]
+    VirtualenvInit {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(hide = true, trailing_var_arg = true, name = "sh-shell")]
+    ShShell {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(hide = true, trailing_var_arg = true, name = "sh-activate")]
+    ShActivate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(hide = true, trailing_var_arg = true, name = "sh-deactivate")]
+    ShDeactivate {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    #[command(hide = true, name = "sh-rehash")]
+    ShRehash,
+    #[command(hide = true, trailing_var_arg = true, name = "sh-cmd")]
+    ShCmd {
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    #[command(external_subcommand)]
+    External(Vec<String>),
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum ConfigCommands {
+    #[command(about = "Show the path to the config file")]
+    Path,
+    #[command(about = "Print all current configuration")]
+    Show,
+    #[command(about = "Print the value of a specific config key")]
+    Get { key: String },
+    #[command(about = "Update a config key")]
+    Set { key: String, value: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum VenvCommands {
+    #[command(about = "List managed virtual environments under ENCHI_ROOT/venvs/<runtime>/<name>")]
+    List {
+        #[arg(long = "bare", help = "Print only env specs like 3.14.7/envs/demo")]
+        bare: bool,
+        #[arg(long = "json", help = "Output the env inventory as JSON")]
+        json: bool,
+    },
+    #[command(about = "Show details for a managed virtual environment")]
+    Info {
+        #[arg(long = "json", help = "Output the env details as JSON")]
+        json: bool,
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
+        spec: String,
+    },
+    #[command(about = "Create a managed virtual environment under a specific runtime")]
+    Create {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Recreate the env if the exact target already exists"
+        )]
+        force: bool,
+        #[arg(
+            long = "set-local",
+            help = "Write the new env spec into the current directory's .python-version file"
+        )]
+        set_local: bool,
+        #[arg(help = "Installed runtime version or prefix, such as 3.12 or 3.14.7")]
+        version: String,
+        #[arg(help = "Managed env name, such as app or tooling")]
+        name: String,
+    },
+    #[command(about = "Remove a managed virtual environment")]
+    Delete {
+        #[arg(short = 'f', long = "force", help = "Skip the confirmation prompt")]
+        force: bool,
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
+        spec: String,
+    },
+    #[command(about = "Rename a managed virtual environment")]
+    Rename {
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
+        spec: String,
+        #[arg(help = "New env name")]
+        new_name: String,
+    },
+    #[command(about = "Assign a managed virtual environment to the current directory or globally")]
+    Use {
+        #[arg(
+            long = "global",
+            help = "Write the env spec into the global version file"
+        )]
+        global: bool,
+        #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
+        spec: String,
+    },
+    #[command(
+        about = "Upgrade/migrate a managed virtual environment to a new base runtime version"
+    )]
+    Upgrade {
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip confirmation prompts and overwrite any existing venv in the new runtime target if present"
+        )]
+        force: bool,
+        #[arg(
+            long = "set-local",
+            help = "Write the upgraded env spec into the current directory's .python-version file"
+        )]
+        set_local: bool,
+        #[arg(help = "The old env name or full spec (e.g. demo or 3.12.1/envs/demo) to migrate")]
+        spec: String,
+        #[arg(
+            help = "The target Python runtime version or prefix (e.g. 3.13 or 3.14.7) to upgrade to"
+        )]
+        new_runtime: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum PipCommands {
+    #[command(about = "List installed pip packages in a target environment")]
+    List {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(
+        about = "List outdated pip packages in a target environment",
+        long_about = "Query PyPI for upgrades. Use --json for {name, version, latest_version} objects that can be passed to `enchi pip update`."
+    )]
+    Outdated {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Check for broken package requirements in a target environment")]
+    Check {
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Statically pre-check a requirements file or HTTPS URL before install")]
+    Precheck {
+        #[arg(
+            short = 'r',
+            long = "requirement",
+            help = "Local path or HTTPS URL to a requirements.txt file"
+        )]
+        requirement: String,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(about = "Scan Python sources for third-party imports missing from the target")]
+    Analyze {
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+        #[arg(help = "Workspace directory to scan (defaults to the current directory)")]
+        dir: Option<String>,
+    },
+    #[command(about = "Install packages from a requirements.txt file or HTTPS URL")]
+    Install {
+        #[arg(
+            short = 'r',
+            long = "requirement",
+            help = "Local path or HTTPS URL to a requirements.txt file"
+        )]
+        requirement: String,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+    },
+    #[command(
+        name = "update-all",
+        about = "Update outdated packages in every runtime and managed venv at once",
+        long_about = "Walks every installed runtime and managed venv (or the ones you name), updates their outdated packages, and checks `pip check` afterwards. If an update leaves an environment with more broken requirements than before, the touched packages are pinned back and the environment is reported as rolled back. Use --dry-run to see what would change."
+    )]
+    UpdateAll {
+        #[arg(
+            long = "dry-run",
+            help = "List what would be updated without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(
+            long = "runtimes",
+            conflicts_with = "venvs",
+            help = "Only base runtimes"
+        )]
+        runtimes: bool,
+        #[arg(long = "venvs", help = "Only managed venvs")]
+        venvs: bool,
+        #[arg(
+            long = "allow-conflicts",
+            help = "Keep updates even if `pip check` gets worse"
+        )]
+        allow_conflicts: bool,
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Limit to these runtimes, venv specs, or venv names")]
+        only: Vec<String>,
+    },
+    #[command(
+        about = "Update pip packages inside a target environment",
+        long_about = "Upgrade named packages, optional name==version pins, or every outdated package with --all. Outdated pip is upgraded first. --all fails if the outdated scan cannot run."
+    )]
+    Update {
+        #[arg(
+            long = "all",
+            help = "Update all outdated packages; fails if the outdated scan cannot run"
+        )]
+        all: bool,
+        #[arg(help = "Runtime version or venv name")]
+        target: String,
+        #[arg(help = "Package names or name==version pins to update")]
+        packages: Vec<String>,
+    },
+}
+
+/// Parse the boolean spellings the install scripts have always accepted.
+fn parse_bool_flag(value: &str) -> Result<bool, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        other => Err(format!(
+            "invalid boolean `{other}`; use true/false, yes/no, on/off, or 1/0"
+        )),
+    }
+}

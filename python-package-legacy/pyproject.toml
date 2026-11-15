@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyenv-native"
+version = "0.7.2"
+description = "Final pyenv-native release: a thin wrapper that installs Enchi, the project's new name."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+  { name = "Roy Dawson IV", email = "Roy.Dawson.IV@gmail.com" },
+]
+keywords = ["enchi", "pyenv", "python", "pipx"]
+classifiers = [
+  "Development Status :: 7 - Inactive",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development",
+  "Topic :: System :: Installation/Setup",
+]
+# `cargo xtask set-version` keeps this pin equal to the project version.
+dependencies = [
+  "enchi==0.7.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/imyourboyroy"
+Repository = "https://github.com/imyourboyroy/pyenv-native"
+Issues = "https://github.com/imyourboyroy/pyenv-native/issues"
+
+[project.scripts]
+pyenv-native = "pyenv_native_bootstrap:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyenv_native_bootstrap"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/pyenv_native_bootstrap",
+  "LICENSE",
+  "README.md",
+  "pyproject.toml",
+]

@@ -12,33 +12,33 @@ cli-version-origin-about = 現在の Python バージョンがどのように設
 cli-prefix-about = 指定した Python バージョンのインストールパスを表示する
 cli-install-about = ネイティブ提供元から Python バージョンをインストールする
 cli-available-about = ネイティブ提供元からインストール可能な Python バージョンを一覧表示する
-cli-versions-about = pyenv が利用できるすべての Python バージョンを一覧表示する
+cli-versions-about = enchi が利用できるすべての Python バージョンを一覧表示する
 cli-uninstall-about = 指定した Python バージョンをアンインストールする
 cli-venv-about = 管理対象の仮想環境を作成、確認、割り当てる
 cli-pip-about = ランタイムまたは仮想環境のパッケージを一覧、検査、インストール、更新する
-cli-init-about = pyenv 向けにシェル環境を構成する
-cli-gui-about = Pyenv Native の GUI ダッシュボードを起動する
-cli-rehash-about = pyenv shim を再生成する（全バージョンの実行ファイルを登録）
-cli-shims-about = 既存の pyenv shim を一覧表示する
+cli-init-about = enchi 向けにシェル環境を構成する
+cli-gui-about = Enchi の GUI ダッシュボードを起動する
+cli-rehash-about = enchi shim を再生成する（全バージョンの実行ファイルを登録）
+cli-shims-about = 既存の enchi shim を一覧表示する
 cli-prompt-about = 現在の環境向けの短いプロンプト文字列を表示する
 cli-exec-about = 選択中の Python バージョンで実行ファイルを起動する
 cli-completions-about = コマンド補完スクリプトを表示する
 cli-doctor-about = PATH、shim、インストール前提条件を診断する
-cli-config-about = pyenv-native の設定を取得、変更、または表示する
-cli-self-update-about = GitHub Releases から pyenv-native を更新する
+cli-config-about = Enchi の設定を取得、変更、または表示する
+cli-self-update-about = GitHub Releases から Enchi を更新する
 cli-preflight-about = プラットフォーム情報とインストール準備の preflight
 cli-environment-about = preflight の別名（エージェントとユーザー向けの OS/ツールチェーン情報）
 cli-status-about = 包括的な環境ステータス（バージョン、由来、venv）を表示する
 cli-root-about = バージョンと shim を置くルートディレクトリを表示する
 cli-which-about = 実行ファイルのフルパスを表示する
 cli-whence-about = 指定した実行ファイルを含むすべての Python バージョンを一覧表示する
-cli-version-file-about = 現在の pyenv バージョンを設定しているファイルを検出する
+cli-version-file-about = 現在の enchi バージョンを設定しているファイルを検出する
 cli-version-file-read-about = .python-version ファイルの内容を読み取る
-cli-self-install-about = リリースバンドルから pyenv-native をインストールまたは修復する
-cli-self-uninstall-about = システムから pyenv-native をアンインストールする
-cli-agent-skills-about = コーディングアシスタント向けに pyenv-native のスキルをインストールする
+cli-self-install-about = リリースバンドルから Enchi をインストールまたは修復する
+cli-self-uninstall-about = システムから Enchi をアンインストールする
+cli-agent-skills-about = コーディングアシスタント向けに Enchi のスキルをインストールする
 cli-help-about = コマンドのヘルプを表示する
-cli-commands-about = 利用できるすべての pyenv コマンドを一覧表示する
+cli-commands-about = 利用できるすべての enchi コマンドを一覧表示する
 cli-hooks-about = 指定コマンドの実行可能なフックを一覧表示する
 cli-venv-list-about = 管理対象の仮想環境を一覧表示する
 cli-venv-info-about = 管理対象の仮想環境の詳細を表示する
@@ -65,14 +65,14 @@ cli-help-interface = インターフェイス
 cli-help-diagnostics = 診断と設定
 cli-help-maintenance = メンテナンス
 cli-help-support = サポート
-cli-help-usage = 使い方: pyenv <command> [<args>]
-cli-help-useful = よく使う pyenv コマンド:
+cli-help-usage = 使い方: enchi <command> [<args>]
+cli-help-useful = よく使う enchi コマンド:
 cli-help-concepts =
     基本概念:
-      Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `pyenv rehash`。
-      Versions: `pyenv install` で入れる環境。`~/.pyenv/versions`。
-      Managed envs: `~/.pyenv/venvs/<runtime>/<name>`。`pyenv venv create` と `pyenv venv use` を推奨。
-      Discovery: `pyenv install --list 3.13` または `pyenv available 3.13`。
+      Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `enchi rehash`。
+      Versions: `enchi install` で入れる環境。`~/.enchi/versions`。
+      Managed envs: `~/.enchi/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。
+      Discovery: `enchi install --list 3.13` または `enchi available 3.13`。
       Selection: PYENV_VERSION、次に `.python-version`、次にグローバル版。
     
-    詳細は `pyenv help <command>`。文書: https://github.com/imyourboyroy/pyenv-native
+    詳細は `enchi help <command>`。文書: https://github.com/imyourboyroy/pyenv-native

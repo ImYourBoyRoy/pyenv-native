@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result};
 
 use super::Bundle;
+use crate::brand::{self, APP_ID};
 
-const APP_ID: &str = "com.pyenv-native.gui";
 const ICON_SIZES: [&str; 4] = ["32x32", "128x128", "256x256", "512x512"];
 
 /// Where a package format puts things.
@@ -18,7 +18,7 @@ pub(crate) struct Layout {
     /// Directory for `profile.d` (`/etc/profile.d`, or `<prefix>/etc/profile.d` on Termux); none on
     /// macOS, where login shells have no such mechanism.
     pub profile_d: Option<String>,
-    /// Written to `share/pyenv-native/install-source`; read by `pyenv self-update`.
+    /// Written to `share/enchi/install-source`; read by `enchi self-update`.
     pub source: &'static str,
     /// Where the license text goes (`/usr/share/doc/...` for Debian, `/usr/share/licenses/...` for RPM).
     pub license_path: String,
@@ -32,7 +32,7 @@ impl Layout {
             prefix: "/usr".into(),
             profile_d: Some("/etc/profile.d".into()),
             source: "deb",
-            license_path: "/usr/share/doc/pyenv-native/copyright".into(),
+            license_path: "/usr/share/doc/enchi/copyright".into(),
             desktop_integration: true,
         }
     }
@@ -42,7 +42,7 @@ impl Layout {
             prefix: "/usr".into(),
             profile_d: Some("/etc/profile.d".into()),
             source: "rpm",
-            license_path: "/usr/share/licenses/pyenv-native/LICENSE".into(),
+            license_path: "/usr/share/licenses/enchi/LICENSE".into(),
             desktop_integration: true,
         }
     }
@@ -53,7 +53,7 @@ impl Layout {
             prefix: "/usr/local".into(),
             profile_d: None,
             source: "pkg",
-            license_path: "/usr/local/share/doc/pyenv-native/LICENSE".into(),
+            license_path: "/usr/local/share/doc/enchi/LICENSE".into(),
             desktop_integration: false,
         }
     }
@@ -64,7 +64,7 @@ impl Layout {
             prefix: prefix.into(),
             profile_d: Some(format!("{prefix}/etc/profile.d")),
             source: "termux",
-            license_path: format!("{prefix}/share/doc/pyenv-native/copyright"),
+            license_path: format!("{prefix}/share/doc/enchi/copyright"),
             desktop_integration: false,
         }
     }
@@ -80,9 +80,18 @@ pub(crate) struct PayloadFile {
     pub config: bool,
 }
 
+/// A symbolic link the package installs (`path` -> `target`, relative to the link's directory).
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PayloadLink {
+    /// Absolute path of the link inside the package.
+    pub path: String,
+    pub target: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct Payload {
     pub files: Vec<PayloadFile>,
+    pub links: Vec<PayloadLink>,
 }
 
 impl Payload {
@@ -111,9 +120,14 @@ impl Payload {
     /// Every directory that must exist for the files, shallowest first (deduplicated).
     pub(crate) fn directories(&self) -> Vec<String> {
         let mut dirs = BTreeSet::new();
-        for file in &self.files {
+        let paths = self
+            .files
+            .iter()
+            .map(|file| &file.path)
+            .chain(self.links.iter().map(|link| &link.path));
+        for path in paths {
             let mut current = String::new();
-            let parts: Vec<&str> = file.path.trim_start_matches('/').split('/').collect();
+            let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
             for part in &parts[..parts.len().saturating_sub(1)] {
                 current.push('/');
                 current.push_str(part);
@@ -160,20 +174,32 @@ pub(crate) fn max_glibc_minor(binary: &[u8]) -> Option<u32> {
     best
 }
 
+/// The install root for the login-shell PATH entry: an explicit `ENCHI_ROOT`, else the classic
+/// `PYENV_ROOT`, else whichever of `~/.enchi` (fresh installs) and `~/.pyenv` (pyenv-native installs
+/// that were never moved) exists, else `~/.enchi`.
 const PROFILE_D: &str = "\
-# pyenv-native: put the shims for Python versions managed in ~/.pyenv on PATH.
-# Installed by the pyenv-native package; delete this file to opt out.
-_pyenv_root=\"${PYENV_ROOT:-$HOME/.pyenv}\"
+# Enchi: put the shims for Python versions managed in ~/.enchi (or ~/.pyenv) on PATH.
+# Installed by the enchi package; delete this file to opt out.
+_enchi_root=\"${ENCHI_ROOT:-${PYENV_ROOT:-}}\"
+if [ -z \"$_enchi_root\" ]; then
+  if [ -d \"$HOME/.enchi\" ] || [ ! -d \"$HOME/.pyenv\" ]; then
+    _enchi_root=\"$HOME/.enchi\"
+  else
+    _enchi_root=\"$HOME/.pyenv\"
+  fi
+fi
 case \":$PATH:\" in
-  *\":$_pyenv_root/shims:\"*) ;;
-  *) PATH=\"$_pyenv_root/shims:$PATH\"; export PATH ;;
+  *\":$_enchi_root/shims:\"*) ;;
+  *) PATH=\"$_enchi_root/shims:$PATH\"; export PATH ;;
 esac
-unset _pyenv_root
+unset _enchi_root
 ";
 
 fn desktop_entry() -> String {
     format!(
-        "[Desktop Entry]\nType=Application\nVersion=1.0\nName=Pyenv Native\nGenericName=Python Environment Manager\nComment=Manage Python versions and virtual environments\nExec=pyenv-gui\nIcon={APP_ID}\nStartupWMClass=pyenv-gui\nCategories=Development;Utility;\nTerminal=false\n"
+        "[Desktop Entry]\nType=Application\nVersion=1.0\nName={name}\nGenericName=Python Environment Manager\nComment=Manage Python versions and virtual environments\nExec={gui}\nIcon={APP_ID}\nStartupWMClass={gui}\nCategories=Development;Utility;\nTerminal=false\n",
+        name = brand::NAME,
+        gui = brand::GUI,
     )
 }
 
@@ -190,7 +216,9 @@ fn debian_copyright(license: &str) -> String {
         })
         .collect();
     format!(
-        "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\nUpstream-Name: pyenv-native\nSource: https://github.com/imyourboyroy/pyenv-native\n\nFiles: *\nCopyright: pyenv-native contributors\nLicense: MIT\n{indented}"
+        "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\nUpstream-Name: {name}\nSource: {url}\n\nFiles: *\nCopyright: {name} contributors\nLicense: MIT\n{indented}",
+        name = brand::NAME,
+        url = brand::repo_url(),
     )
 }
 
@@ -206,7 +234,7 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     };
 
     let prefix = &layout.prefix;
-    for name in ["pyenv", "pyenv-mcp"] {
+    for name in [brand::CLI, brand::MCP] {
         let data = bundle
             .read(name)
             .with_context(|| format!("the bundle has no `{name}` executable"))?;
@@ -214,10 +242,10 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     }
     let gui = bundle.manifest.gui && layout.desktop_integration;
     if gui {
-        let data = bundle
-            .read("pyenv-gui")
-            .context("the manifest lists pyenv-gui but the bundle lacks it")?;
-        push(format!("{prefix}/bin/pyenv-gui"), 0o755, data, false);
+        let data = bundle.read(brand::GUI).with_context(|| {
+            format!("the manifest lists {} but the bundle lacks it", brand::GUI)
+        })?;
+        push(format!("{prefix}/bin/{}", brand::GUI), 0o755, data, false);
         push(
             format!("{prefix}/share/applications/{APP_ID}.desktop"),
             0o644,
@@ -239,14 +267,14 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     }
 
     push(
-        format!("{prefix}/share/pyenv-native/install-source"),
+        format!("{prefix}/share/{}/install-source", brand::PACKAGE),
         0o644,
         format!("{}\n", layout.source).into_bytes(),
         false,
     );
     if let Some(profile_d) = &layout.profile_d {
         push(
-            format!("{profile_d}/pyenv-native.sh"),
+            format!("{profile_d}/{}.sh", brand::PACKAGE),
             0o644,
             PROFILE_D.as_bytes().to_vec(),
             true,
@@ -260,7 +288,7 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     ] {
         if let Some(data) = bundle.read(source) {
             push(
-                format!("{prefix}/share/doc/pyenv-native/{name}"),
+                format!("{prefix}/share/doc/{}/{name}", brand::PACKAGE),
                 0o644,
                 data,
                 false,
@@ -278,7 +306,19 @@ pub(crate) fn system_payload(bundle: &Bundle, layout: &Layout) -> Result<Payload
     }
 
     files.sort_by(|a, b| a.path.cmp(&b.path));
-    Ok(Payload { files })
+    // Compatibility links so scripts and MCP configs written for pyenv-native keep resolving; the
+    // real executables are the `enchi*` ones above.
+    let links = [
+        (brand::LEGACY_CLI, brand::CLI),
+        (brand::LEGACY_MCP, brand::MCP),
+    ]
+    .into_iter()
+    .map(|(link, target)| PayloadLink {
+        path: format!("{prefix}/bin/{link}"),
+        target: target.to_string(),
+    })
+    .collect();
+    Ok(Payload { files, links })
 }
 
 #[cfg(test)]
@@ -313,25 +353,31 @@ mod tests {
         };
         let payload = Payload {
             files: vec![
-                exe("/usr/bin/pyenv", b"GLIBC_2.31"),
-                exe("/usr/bin/pyenv-gui", b"GLIBC_2.35"),
+                exe("/usr/bin/enchi", b"GLIBC_2.31"),
+                exe("/usr/bin/enchi-gui", b"GLIBC_2.35"),
                 exe("/usr/share/doc/x", b"GLIBC_2.99"),
             ],
+            links: vec![],
         };
         assert_eq!(payload.glibc_floor(), Some(35));
-        assert_eq!(Payload { files: vec![] }.glibc_floor(), None);
+        assert_eq!(Payload::default().glibc_floor(), None);
     }
 
     #[test]
     fn directories_are_listed_parents_first_without_duplicates() {
         let payload = Payload {
-            files: vec![file("/usr/bin/pyenv"), file("/usr/share/doc/x/README")],
+            files: vec![file("/usr/bin/enchi"), file("/usr/share/doc/x/README")],
+            links: vec![PayloadLink {
+                path: "/usr/sbin/pyenv".into(),
+                target: "enchi".into(),
+            }],
         };
         assert_eq!(
             payload.directories(),
             [
                 "/usr",
                 "/usr/bin",
+                "/usr/sbin",
                 "/usr/share",
                 "/usr/share/doc",
                 "/usr/share/doc/x"
@@ -343,6 +389,7 @@ mod tests {
     fn installed_size_rounds_up_to_kib() {
         let payload = Payload {
             files: vec![file("/a"), file("/b")],
+            links: vec![],
         };
         assert_eq!(payload.installed_size_kib(), 4);
     }
@@ -364,14 +411,83 @@ mod tests {
 
     #[test]
     fn profile_snippet_is_posix_and_guards_against_duplicates() {
-        assert!(PROFILE_D.contains("${PYENV_ROOT:-$HOME/.pyenv}"));
+        assert!(PROFILE_D.contains("${ENCHI_ROOT:-${PYENV_ROOT:-}}"));
+        assert!(PROFILE_D.contains("$HOME/.enchi"));
+        assert!(PROFILE_D.contains("$HOME/.pyenv"));
         assert!(PROFILE_D.contains("case \":$PATH:\" in"));
         assert!(!PROFILE_D.contains("[["));
+    }
+
+    fn fake_bundle() -> Bundle {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["enchi", "enchi-mcp", "README.md", "LICENSE"] {
+            std::fs::write(dir.path().join(name), format!("{name} contents")).unwrap();
+        }
+        Bundle {
+            dir,
+            manifest: super::super::Manifest {
+                version: "1.0.0".into(),
+                platform: "linux".into(),
+                architecture: "x64".into(),
+                gui: false,
+            },
+        }
+    }
+
+    #[test]
+    fn system_payload_installs_enchi_and_legacy_compat_links() {
+        let payload = system_payload(&fake_bundle(), &Layout::debian()).unwrap();
+        let paths: Vec<&str> = payload.files.iter().map(|f| f.path.as_str()).collect();
+        for expected in [
+            "/usr/bin/enchi",
+            "/usr/bin/enchi-mcp",
+            "/usr/share/enchi/install-source",
+            "/etc/profile.d/enchi.sh",
+            "/usr/share/doc/enchi/README.md",
+            "/usr/share/doc/enchi/copyright",
+        ] {
+            assert!(
+                paths.contains(&expected),
+                "{expected} missing from {paths:?}"
+            );
+        }
+        assert!(
+            paths.iter().all(|path| !path.contains("pyenv")),
+            "no regular file keeps the old name: {paths:?}"
+        );
+        let links: Vec<(&str, &str)> = payload
+            .links
+            .iter()
+            .map(|l| (l.path.as_str(), l.target.as_str()))
+            .collect();
+        assert_eq!(
+            links,
+            [
+                ("/usr/bin/pyenv", "enchi"),
+                ("/usr/bin/pyenv-mcp", "enchi-mcp")
+            ]
+        );
+        let marker = payload
+            .files
+            .iter()
+            .find(|f| f.path == "/usr/share/enchi/install-source")
+            .unwrap();
+        assert_eq!(marker.data, b"deb\n");
+    }
+
+    #[test]
+    fn desktop_entry_uses_the_enchi_app_id_and_gui() {
+        let entry = desktop_entry();
+        assert!(entry.contains("Name=Enchi\n"));
+        assert!(entry.contains("Exec=enchi-gui\n"));
+        assert!(entry.contains("Icon=io.github.imyourboyroy.enchi\n"));
+        assert!(entry.contains("StartupWMClass=enchi-gui\n"));
     }
 
     #[test]
     fn copyright_wraps_blank_lines_as_dot_lines() {
         let text = debian_copyright("MIT License\n\nPermission is hereby granted");
         assert!(text.contains("License: MIT\n MIT License\n .\n Permission"));
+        assert!(text.contains("Upstream-Name: Enchi\n"));
     }
 }

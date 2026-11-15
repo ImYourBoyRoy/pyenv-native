@@ -22,7 +22,7 @@ gemini skills install /path/to/pyenv-native/skills/ --scope workspace
 Or use the installer:
 
 ```bash
-pyenv agent-skills --agent gemini
+enchi agent-skills --agent gemini
 ```
 
 ## Verify
@@ -39,8 +39,8 @@ Install the agent skills from https://github.com/imyourboyroy/pyenv-native using
 
 ## Persistent context (optional)
 
-For always-on rules, add `@skills/pyenv-native/SKILL.md` to project `GEMINI.md`. Prefer on-demand skills for most workflows.
+For always-on rules, add `@skills/enchi/SKILL.md` to project `GEMINI.md`. Prefer on-demand skills for most workflows.
 
 ## MCP
 
-Configure `pyenv-mcp` in `~/.gemini/config.json` when managing Python environments from Gemini.
+Configure `enchi-mcp` in `~/.gemini/config.json` when managing Python environments from Gemini.

@@ -12,33 +12,33 @@ cli-version-origin-about = شرح كيفية تعيين إصدار بايثون 
 cli-prefix-about = عرض المسارات التي ثُبّتت فيها إصدارات بايثون المعطاة
 cli-install-about = تثبيت إصدارات بايثون من المزوّدين الأصليين
 cli-available-about = سرد إصدارات بايثون القابلة للتثبيت من المزوّدين الأصليين
-cli-versions-about = سرد جميع إصدارات بايثون المتاحة لـ pyenv
+cli-versions-about = سرد جميع إصدارات بايثون المتاحة لـ enchi
 cli-uninstall-about = إلغاء تثبيت إصدار بايثون محدد
 cli-venv-about = إنشاء البيئات الافتراضية المُدارة وفحصها وتعيينها
 cli-pip-about = سرد الحزم وفحصها وتثبيتها وتحديثها لوقت تشغيل أو venv
-cli-init-about = تهيئة بيئة الصدفة لـ pyenv
-cli-gui-about = تشغيل لوحة معلومات Pyenv Native الرسومية
-cli-rehash-about = إعادة توليد shim الخاصة بـ pyenv (يثبّت التنفيذيات عبر جميع الإصدارات)
-cli-shims-about = سرد shim الموجودة لـ pyenv
+cli-init-about = تهيئة بيئة الصدفة لـ enchi
+cli-gui-about = تشغيل لوحة معلومات Enchi الرسومية
+cli-rehash-about = إعادة توليد shim الخاصة بـ enchi (يثبّت التنفيذيات عبر جميع الإصدارات)
+cli-shims-about = سرد shim الموجودة لـ enchi
 cli-prompt-about = طباعة سلسلة موجزة لموجّه البيئة الحالية
 cli-exec-about = تشغيل برنامج تنفيذي بإصدار بايثون المحدد
 cli-completions-about = طباعة سكربت إكمال الأوامر
 cli-doctor-about = تشخيص PATH وshim ومتطلبات التثبيت
-cli-config-about = قراءة إعدادات pyenv-native أو تعيينها أو عرضها
-cli-self-update-about = تحديث pyenv-native من إصدارات GitHub
+cli-config-about = قراءة إعدادات Enchi أو تعيينها أو عرضها
+cli-self-update-about = تحديث Enchi من إصدارات GitHub
 cli-preflight-about = معلومات المنصة وpreflight جاهزية التثبيت
 cli-environment-about = اسم بديل لـ preflight (حقائق نظام التشغيل/سلسلة الأدوات للوكلاء والمستخدمين)
 cli-status-about = عرض حالة البيئة الشاملة (الإصدارات والمصادر وvenv)
 cli-root-about = عرض المجلد الجذر حيث تُحفظ الإصدارات وshim
 cli-which-about = عرض المسار الكامل لتنفيذي
 cli-whence-about = سرد جميع إصدارات بايثون التي تحتوي على التنفيذي المعطى
-cli-version-file-about = اكتشاف الملف الذي يعيّن إصدار pyenv الحالي
+cli-version-file-about = اكتشاف الملف الذي يعيّن إصدار enchi الحالي
 cli-version-file-read-about = قراءة محتويات ملف .python-version
-cli-self-install-about = تثبيت pyenv-native أو إصلاحه من حزمة إصدار
-cli-self-uninstall-about = إلغاء تثبيت pyenv-native من النظام
-cli-agent-skills-about = تثبيت مهارة pyenv-native لمساعدي البرمجة
+cli-self-install-about = تثبيت Enchi أو إصلاحه من حزمة إصدار
+cli-self-uninstall-about = إلغاء تثبيت Enchi من النظام
+cli-agent-skills-about = تثبيت مهارة Enchi لمساعدي البرمجة
 cli-help-about = عرض مساعدة أمر
-cli-commands-about = سرد جميع أوامر pyenv المتاحة
+cli-commands-about = سرد جميع أوامر enchi المتاحة
 cli-hooks-about = سرد الخطافات التنفيذية لأمر معطى
 cli-venv-list-about = سرد البيئات الافتراضية المُدارة
 cli-venv-info-about = عرض تفاصيل بيئة افتراضية مُدارة
@@ -65,14 +65,14 @@ cli-help-interface = الواجهة
 cli-help-diagnostics = التشخيص والإعداد
 cli-help-maintenance = الصيانة
 cli-help-support = الدعم
-cli-help-usage = الاستخدام: pyenv <command> [<args>]
-cli-help-useful = أوامر pyenv المفيدة:
+cli-help-usage = الاستخدام: enchi <command> [<args>]
+cli-help-useful = أوامر enchi المفيدة:
 cli-help-concepts =
     المفاهيم الأساسية:
-      Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `pyenv rehash` بعد تثبيت حزم pip.
-      Versions: بيئات تُثبَّت عبر `pyenv install` تحت `~/.pyenv/versions`.
-      Managed envs: `~/.pyenv/venvs/<runtime>/<name>`. يُفضَّل `pyenv venv create` و`pyenv venv use`.
-      Discovery: `pyenv install --list 3.13` أو `pyenv available 3.13`.
+      Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `enchi rehash` بعد تثبيت حزم pip.
+      Versions: بيئات تُثبَّت عبر `enchi install` تحت `~/.enchi/versions`.
+      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.
+      Discovery: `enchi install --list 3.13` أو `enchi available 3.13`.
       Selection: PYENV_VERSION ثم `.python-version` ثم ملف الإصدار العام.
     
-    للتفاصيل شغّل `pyenv help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native
+    للتفاصيل شغّل `enchi help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native

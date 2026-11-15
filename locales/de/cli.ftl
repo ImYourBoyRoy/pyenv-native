@@ -12,12 +12,12 @@ cli-version-origin-about = Erklären, wie die aktuelle Python-Version festgelegt
 cli-prefix-about = Pfade anzeigen, in denen die angegebenen Python-Versionen installiert sind
 cli-install-about = Python-Versionen von nativen Anbietern installieren
 cli-available-about = Installierbare Python-Versionen von nativen Anbietern auflisten
-cli-versions-about = Alle für pyenv verfügbaren Python-Versionen auflisten
+cli-versions-about = Alle für enchi verfügbaren Python-Versionen auflisten
 cli-uninstall-about = Eine bestimmte Python-Version deinstallieren
 cli-venv-about = Verwaltete virtuelle Umgebungen erstellen, prüfen und zuweisen
 cli-pip-about = Pakete für eine Laufzeit oder venv auflisten, prüfen, installieren und aktualisieren
-cli-init-about = Die Shell-Umgebung für pyenv konfigurieren
-cli-gui-about = Die grafische Pyenv Native-Übersicht starten
+cli-init-about = Die Shell-Umgebung für enchi konfigurieren
+cli-gui-about = Die grafische Enchi-Übersicht starten
 cli-rehash-about = pyenv-Shims neu hashen (installiert ausführbare Dateien über alle Versionen)
 cli-shims-about = Vorhandene pyenv-Shims auflisten
 cli-prompt-about = Eine kurze Eingabeaufforderung für die aktuelle Umgebung ausgeben
@@ -25,7 +25,7 @@ cli-exec-about = Eine ausführbare Datei mit der ausgewählten Python-Version au
 cli-completions-about = Befehlsergänzungsskript ausgeben
 cli-doctor-about = PATH, Shims und Installationsvoraussetzungen diagnostizieren
 cli-config-about = pyenv-native-Konfiguration abrufen, setzen oder anzeigen
-cli-self-update-about = pyenv-native über GitHub Releases aktualisieren
+cli-self-update-about = Enchi über GitHub Releases aktualisieren
 cli-preflight-about = Plattforminformationen und Installationsbereitschafts-preflight
 cli-environment-about = Alias für preflight (OS-/Toolchain-Fakten für Agenten und Benutzer)
 cli-status-about = Den umfassenden Umgebungsstatus anzeigen (Versionen, Herkunft, venvs)
@@ -34,8 +34,8 @@ cli-which-about = Den vollständigen Pfad zu einer ausführbaren Datei anzeigen
 cli-whence-about = Alle Python-Versionen auflisten, die die angegebene ausführbare Datei enthalten
 cli-version-file-about = Die Datei erkennen, die die aktuelle pyenv-Version festlegt
 cli-version-file-read-about = Den Inhalt einer .python-version-Datei lesen
-cli-self-install-about = pyenv-native aus einem Release-Bundle installieren oder reparieren
-cli-self-uninstall-about = pyenv-native vom System deinstallieren
+cli-self-install-about = Enchi aus einem Release-Bundle installieren oder reparieren
+cli-self-uninstall-about = Enchi vom System deinstallieren
 cli-agent-skills-about = Den pyenv-native-Skill für Coding-Assistenten installieren
 cli-help-about = Hilfe für einen Befehl anzeigen
 cli-commands-about = Alle verfügbaren pyenv-Befehle auflisten
@@ -65,14 +65,14 @@ cli-help-interface = OBERFLÄCHE
 cli-help-diagnostics = DIAGNOSE & KONFIG
 cli-help-maintenance = WARTUNG
 cli-help-support = UNTERSTÜTZUNG
-cli-help-usage = Aufruf: pyenv <command> [<args>]
+cli-help-usage = Aufruf: enchi <command> [<args>]
 cli-help-useful = Nützliche pyenv-Befehle:
 cli-help-concepts =
     KERNKONZEPTE:
-      Shims: leichte Executables (`python` oder `pip`), die Befehle abfangen und an die aktuelle Version weiterleiten. Nach pip-Paketen `pyenv rehash` ausführen.
-      Versions: mit `pyenv install` installierte Umgebungen unter `~/.pyenv/versions`.
-      Managed envs: `~/.pyenv/venvs/<runtime>/<name>`. Bevorzugen Sie `pyenv venv create` und `pyenv venv use`.
-      Discovery: `pyenv install --list 3.13` oder `pyenv available 3.13`.
+      Shims: leichte Executables (`python` oder `pip`), die Befehle abfangen und an die aktuelle Version weiterleiten. Nach pip-Paketen `enchi rehash` ausführen.
+      Versions: mit `enchi install` installierte Umgebungen unter `~/.enchi/versions`.
+      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. Bevorzugen Sie `enchi venv create` und `enchi venv use`.
+      Discovery: `enchi install --list 3.13` oder `enchi available 3.13`.
       Selection: PYENV_VERSION, dann `.python-version`, dann die globale Versionsdatei.
     
-    `pyenv help <command>` für Details. Docs: https://github.com/imyourboyroy/pyenv-native
+    `enchi help <command>` für Details. Docs: https://github.com/imyourboyroy/pyenv-native

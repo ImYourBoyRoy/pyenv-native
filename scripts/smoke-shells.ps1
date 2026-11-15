@@ -1,19 +1,20 @@
 # ./scripts/smoke-shells.ps1
 <#
-Purpose: Smoke-test Windows shell integration for pyenv-native across PowerShell 7, Windows PowerShell 5.1, and CMD using a temporary portable root.
-How to run: pwsh -NoLogo -NoProfile -File .\scripts\smoke-shells.ps1 [-PyenvExe <path>]
-Inputs: Optional path to a built pyenv.exe binary. Defaults to ../target/debug/pyenv.exe.
-Outputs/side effects: Launches each target shell in a temporary workspace, evaluates generated init code, and verifies that `pyenv shell 3.13.12` resolves correctly.
+Purpose: Smoke-test Windows shell integration for Enchi across PowerShell 7, Windows PowerShell 5.1, and CMD using a temporary portable root.
+How to run: pwsh -NoLogo -NoProfile -File .\scripts\smoke-shells.ps1 [-EnchiExe <path>]
+Inputs: Optional path to a built enchi.exe binary (-PyenvExe is accepted as an alias). Defaults to ../target/debug/enchi.exe.
+Outputs/side effects: Launches each target shell in a temporary workspace, evaluates generated init code, and verifies that the shell wrapper (`enchi`, or the `pyenv` compatibility alias, whichever the init code defines) resolves `shell 3.13.12` correctly.
 Notes: Designed for CI smoke coverage of shell wrappers and dotted-version forwarding behavior on Windows.
 #>
 
 param(
-    [string]$PyenvExe = (Join-Path $PSScriptRoot '..\target\debug\pyenv.exe')
+    [Alias('PyenvExe')]
+    [string]$EnchiExe = (Join-Path $PSScriptRoot '..\target\debug\enchi.exe')
 )
 
 $ErrorActionPreference = 'Stop'
 
-$resolvedPyenvExe = (Resolve-Path $PyenvExe).ProviderPath
+$resolvedEnchiExe = (Resolve-Path $EnchiExe).ProviderPath
 $smokeRoot = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')).ProviderPath '.tmp-shell-smoke-windows'
 if (Test-Path $smokeRoot) {
     Remove-Item -Recurse -Force $smokeRoot
@@ -39,13 +40,13 @@ function New-SmokeLayout {
     )
 
     $layoutRoot = Join-Path $smokeRoot $Name
-    $layoutPyenvRoot = Join-Path $layoutRoot '.pyenv'
+    $layoutInstallRoot = Join-Path $layoutRoot '.enchi'
     $layoutWorkDir = Join-Path $layoutRoot 'work'
-    New-Item -ItemType Directory -Force -Path (Join-Path $layoutPyenvRoot 'versions\3.13.12') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $layoutInstallRoot 'versions\3.13.12') | Out-Null
     New-Item -ItemType Directory -Force -Path $layoutWorkDir | Out-Null
     return @{
         Root = $layoutRoot
-        PyenvRoot = $layoutPyenvRoot
+        EnchiRoot = $layoutInstallRoot
         WorkDir = $layoutWorkDir
     }
 }
@@ -55,34 +56,37 @@ $ps5Layout = New-SmokeLayout -Name 'powershell'
 $cmdLayout = New-SmokeLayout -Name 'cmd'
 
 $pwshCommand = @"
-`$env:PYENV_ROOT = '$($pwshLayout.PyenvRoot.Replace("'", "''"))'
+`$env:ENCHI_ROOT = '$($pwshLayout.EnchiRoot.Replace("'", "''"))'
 Set-Location '$($pwshLayout.WorkDir.Replace("'", "''"))'
-`$__pyenv_init = (& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
-if (-not `$__pyenv_init) { throw 'Expected non-empty pyenv init output' }
-Invoke-Expression `$__pyenv_init
-# Regression: init must still return capturable stdout after the pyenv function shadows the exe.
-`$__pyenv_init2 = (pyenv init --no-rehash - pwsh) -join [Environment]::NewLine
-if (-not `$__pyenv_init2) { throw 'pyenv init returned empty after function load (stdout not pipelined)' }
-if (`$__pyenv_init2 -notmatch 'function pyenv') { throw 'Captured init output missing pyenv function' }
-pyenv shell 3.13.12
+`$__init = (& '$($resolvedEnchiExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__init) { throw 'Expected non-empty init output' }
+Invoke-Expression `$__init
+# The init code defines the `enchi` wrapper function (and possibly the `pyenv` alias); test whichever exists.
+`$__wrapper = if (Get-Command enchi -CommandType Function -ErrorAction SilentlyContinue) { 'enchi' } else { 'pyenv' }
+# Regression: init must still return capturable stdout after the wrapper function shadows the exe.
+`$__init2 = (& `$__wrapper init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__init2) { throw "`$__wrapper init returned empty after function load (stdout not pipelined)" }
+if (`$__init2 -notmatch ('function ' + `$__wrapper)) { throw "Captured init output missing the `$__wrapper function" }
+& `$__wrapper shell 3.13.12
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
-`$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
+`$result = & '$($resolvedEnchiExe.Replace("'", "''"))' version-name
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 if ((`$result | Select-Object -Last 1).Trim() -ne '3.13.12') { throw 'Expected version-name to resolve to 3.13.12' }
 "@
 
 $ps5Command = @"
-`$env:PYENV_ROOT = '$($ps5Layout.PyenvRoot.Replace("'", "''"))'
+`$env:ENCHI_ROOT = '$($ps5Layout.EnchiRoot.Replace("'", "''"))'
 Set-Location '$($ps5Layout.WorkDir.Replace("'", "''"))'
-`$__pyenv_init = (& '$($resolvedPyenvExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
-if (-not `$__pyenv_init) { throw 'Expected non-empty pyenv init output' }
-Invoke-Expression `$__pyenv_init
-`$__pyenv_init2 = (pyenv init --no-rehash - pwsh) -join [Environment]::NewLine
-if (-not `$__pyenv_init2) { throw 'pyenv init returned empty after function load (stdout not pipelined)' }
-if (`$__pyenv_init2 -notmatch 'function pyenv') { throw 'Captured init output missing pyenv function' }
-pyenv shell 3.13.12
+`$__init = (& '$($resolvedEnchiExe.Replace("'", "''"))' init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__init) { throw 'Expected non-empty init output' }
+Invoke-Expression `$__init
+`$__wrapper = if (Get-Command enchi -CommandType Function -ErrorAction SilentlyContinue) { 'enchi' } else { 'pyenv' }
+`$__init2 = (& `$__wrapper init --no-rehash - pwsh) -join [Environment]::NewLine
+if (-not `$__init2) { throw "`$__wrapper init returned empty after function load (stdout not pipelined)" }
+if (`$__init2 -notmatch ('function ' + `$__wrapper)) { throw "Captured init output missing the `$__wrapper function" }
+& `$__wrapper shell 3.13.12
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
-`$result = & '$($resolvedPyenvExe.Replace("'", "''"))' version-name
+`$result = & '$($resolvedEnchiExe.Replace("'", "''"))' version-name
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 if ((`$result | Select-Object -Last 1).Trim() -ne '3.13.12') { throw 'Expected version-name to resolve to 3.13.12' }
 "@
@@ -93,20 +97,20 @@ Invoke-Smoke -Name 'Windows PowerShell 5.1' -Executable 'powershell' -Command $p
 $cmdScript = @"
 @echo off
 setlocal
-set "PYENV_ROOT=$($cmdLayout.PyenvRoot)"
+set "ENCHI_ROOT=$($cmdLayout.EnchiRoot)"
 cd /d "$($cmdLayout.WorkDir)"
-findstr /c:"doskey pyenv=" "$($cmdLayout.Root)\init.cmd" >nul || exit /b 1
+findstr /c:"doskey enchi=" "$($cmdLayout.Root)\init.cmd" >nul || findstr /c:"doskey pyenv=" "$($cmdLayout.Root)\init.cmd" >nul || exit /b 1
 set "PYENV_SHELL=cmd"
-for /f "delims=" %%i in ('"$resolvedPyenvExe" sh-cmd shell 3.13.12') do %%i
+for /f "delims=" %%i in ('"$resolvedEnchiExe" sh-cmd shell 3.13.12') do %%i
 if errorlevel 1 exit /b 1
-for /f "delims=" %%i in ('"$resolvedPyenvExe" version-name') do set "RESULT=%%i"
+for /f "delims=" %%i in ('"$resolvedEnchiExe" version-name') do set "RESULT=%%i"
 if /I not "%RESULT%"=="3.13.12" (
   echo Expected version-name to resolve to 3.13.12 but found %RESULT%
   exit /b 1
 )
 "@
 $cmdInitScriptPath = Join-Path $cmdLayout.Root 'init.cmd'
-& $resolvedPyenvExe init --no-rehash - cmd | Set-Content -Path $cmdInitScriptPath -Encoding ascii
+& $resolvedEnchiExe init --no-rehash - cmd | Set-Content -Path $cmdInitScriptPath -Encoding ascii
 $cmdScriptPath = Join-Path $cmdLayout.Root 'smoke.cmd'
 Set-Content -Path $cmdScriptPath -Value $cmdScript -Encoding ascii
 Write-Host 'Smoke testing CMD...' -ForegroundColor Cyan

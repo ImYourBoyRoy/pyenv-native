@@ -1,37 +1,41 @@
-# <img src="crates/pyenv-gui/icons/icon.svg" width="48" height="48" valign="middle"> pyenv-native
+# <img src="crates/enchi-gui/icons/icon.svg" width="48" height="48" valign="middle"> Enchi
 
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-2563eb?style=for-the-badge)
 ![Runtime](https://img.shields.io/badge/runtime-Rust-D97706?style=for-the-badge&logo=rust&logoColor=white)
 ![PyPI](https://img.shields.io/badge/PyPI-pip%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
-Native Rust Python version manager inspired by `pyenv`. Ships **`pyenv`** (CLI), **`pyenv-mcp`** (agents), and **`pyenv gui`**.
+Native Rust Python version manager inspired by `pyenv`. Ships **`enchi`** (CLI), **`enchi-mcp`** (agents), and **`enchi gui`**.
 
 Windows, Linux, and macOS are supported. Android/Termux is experimental (source builds).
 
-![Pyenv-Native GUI](docs/screenshots/animated_gui.webp)
+> **Enchi is the new name of pyenv-native.** Existing installs update in place with `pyenv self-update`, keep `pyenv` as an alias, and keep their `~/.pyenv` root. See [docs/MIGRATING.md](./docs/MIGRATING.md).
+
+![Enchi GUI](docs/screenshots/animated_gui.webp)
 
 ---
 
 ## Install
 
-Pick the block for the machine you are on. Coding agents: run that block, then `pyenv doctor`. Do not guess a classic bash-pyenv install.
+Pick the block for the machine you are on. Coding agents: run that block, then `enchi doctor`. Do not guess a classic bash-pyenv install.
 
 ### Windows (PowerShell 7+)
 
 ```powershell
 irm https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.ps1 | iex
-pyenv doctor
+enchi doctor
 ```
 
 ### Linux / macOS / Termux
 
 ```bash
 curl -fsSL https://github.com/imyourboyroy/pyenv-native/releases/latest/download/install.sh | sh
-export PATH="$HOME/.pyenv/bin:$PATH"
-eval "$("$HOME/.pyenv/bin/pyenv" init - bash)"   # use zsh or fish if that is your shell
-pyenv doctor
+export PATH="$HOME/.enchi/bin:$PATH"
+eval "$("$HOME/.enchi/bin/enchi" init - bash)"   # use zsh or fish if that is your shell
+enchi doctor
 ```
+
+A fresh install lives in `~/.enchi`. Upgrading an existing pyenv-native install keeps its root (usually `~/.pyenv`), so use `$HOME/.pyenv/bin` in the two lines above.
 
 Open a **new terminal** after install so shims are on PATH. On Termux, install compilers first: `pkg install clang make pkg-config libffi openssl readline ncurses`.
 
@@ -41,27 +45,29 @@ Releases from v0.7.0 on also attach native installers, built from the same binar
 
 | System | Asset | Updates through |
 | --- | --- | --- |
-| Windows x64 / ARM64 | `pyenv-native-windows-<arch>-setup.exe` (per-user, no admin; `/S` for silent) | `pyenv self-update` |
-| Debian / Ubuntu | `pyenv-native_<version>_<amd64\|arm64>.deb` | `apt` |
-| Fedora / RHEL / openSUSE | `pyenv-native-<version>-1.<x86_64\|aarch64>.rpm` | `dnf` / `zypper` |
-| macOS Apple silicon / Intel | `pyenv-native-macos-<arm64\|x64>.pkg` (and a `.dmg` that carries it) | installing a newer `.pkg` over it |
-| Termux (Android) | `pyenv-native_<version>_aarch64.deb` | `pkg` |
+| Windows x64 / ARM64 | `enchi-windows-<arch>-setup.exe` (per-user, no admin; `/S` for silent) | `enchi self-update` |
+| Debian / Ubuntu | `enchi_<version>_<amd64\|arm64>.deb` | `apt` |
+| Fedora / RHEL / openSUSE | `enchi-<version>-1.<x86_64\|aarch64>.rpm` | `dnf` / `zypper` |
+| macOS Apple silicon / Intel | `enchi-macos-<arm64\|x64>.pkg` (and a `.dmg` that carries it) | installing a newer `.pkg` over it |
+| Termux (Android) | `enchi_<version>_aarch64.deb` | `pkg` |
 
 ```bash
-sudo apt install ./pyenv-native_<version>_amd64.deb      # or: sudo dnf install ./pyenv-native-<version>-1.x86_64.rpm
-sudo installer -pkg pyenv-native-macos-arm64.pkg -target /   # macOS (or double-click it)
+sudo apt install ./enchi_<version>_amd64.deb      # or: sudo dnf install ./enchi-<version>-1.x86_64.rpm
+sudo installer -pkg enchi-macos-arm64.pkg -target /   # macOS (or double-click it)
 ```
 
-Every asset has a `.sha256` file, the release carries a combined `SHA256SUMS` and a CycloneDX SBOM, and assets have GitHub build-provenance attestations (`gh attestation verify <file> --repo imyourboyroy/pyenv-native`). Package installs put `pyenv` in the system prefix (`/usr/local` on macOS, plus `Pyenv Native.app` in Applications); Python versions and shims still live in `~/.pyenv`, which the package adds to `PATH` through `/etc/profile.d`. Details, upgrades from script installs, and the package-managed update rules: [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md#native-installers).
+Every asset has a `.sha256` file, the release carries a combined `SHA256SUMS` and a CycloneDX SBOM, and assets have GitHub build-provenance attestations (`gh attestation verify <file> --repo imyourboyroy/pyenv-native`). Package installs put `enchi` and `enchi-mcp` in the system prefix (`/usr/local` on macOS, plus `Enchi.app` in Applications) with `pyenv` / `pyenv-mcp` as compatibility links; Python versions and shims live per user in `~/.enchi` (an existing `~/.pyenv` keeps being used), which the package adds to `PATH` through `/etc/profile.d`. The `.deb` and `.rpm` are named `enchi` and replace the old `pyenv-native` package. Details, upgrades from script installs, and the package-managed update rules: [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md#native-installers).
 
 ### pipx (any OS with Python)
 
 ```bash
-pipx install pyenv-native
-pyenv-native install --install-root "$HOME/.pyenv"
+pipx install enchi
+enchi-bootstrap install --github-repo imyourboyroy/pyenv-native
 ```
 
-A Homebrew formula is generated on each release (`pyenv-native.rb` asset), but there is no public Homebrew tap yet. Do not run `brew install pyenv-native`.
+(`enchi-bootstrap` is the console script, so it never shadows the real `enchi`. `imyourboyroy/pyenv-native` is the repository that publishes releases; it keeps that name until the repository is renamed.)
+
+A Homebrew formula is generated on each release (`enchi.rb` asset), but there is no public Homebrew tap yet. Do not run `brew install enchi`.
 
 Full handbook (shells, tags, custom roots): [docs/INSTRUCTIONS.md](./docs/INSTRUCTIONS.md)
 
@@ -70,20 +76,20 @@ Full handbook (shells, tags, custom roots): [docs/INSTRUCTIONS.md](./docs/INSTRU
 ## After install
 
 ```bash
-pyenv install 3.14          # latest matching 3.14.x
-pyenv global 3.14
-pyenv venv create 3.14 app
-pyenv venv upgrade app 3.15     # migrate the managed venv after 3.15 is installed
-pyenv local 3.14/envs/app
-pyenv which python
-pyenv gui                   # optional desktop UI
+enchi install 3.14          # latest matching 3.14.x
+enchi global 3.14
+enchi venv create 3.14 app
+enchi venv upgrade app 3.15     # migrate the managed venv after 3.15 is installed
+enchi local 3.14/envs/app
+enchi which python
+enchi gui                   # optional desktop UI
 ```
 
-Managed venvs live under `PYENV_ROOT/venvs/<runtime>/<name>`. Version selection is **shell → local `.python-version` → parents → global → system**.
+Managed venvs live under `<root>/venvs/<runtime>/<name>`, where the root is `ENCHI_ROOT` (the classic `PYENV_ROOT` is still honoured), an existing install's root, or `~/.enchi`. Version selection is **shell → local `.python-version` → parents → global → system**.
 
-CPython alpha, beta, and release-candidate builds are discovered dynamically, labeled by channel, and installable by their exact version (for example, `pyenv install 3.16.0a1`). Stable prefixes do not silently select prereleases.
+CPython alpha, beta, and release-candidate builds are discovered dynamically, labeled by channel, and installable by their exact version (for example, `enchi install 3.16.0a1`). Stable prefixes do not silently select prereleases.
 
-Managed venvs can be migrated to another installed Python with `pyenv venv upgrade app 3.15`. The toolkit snapshots package requirement lines, tries to preserve exact versions, and automatically retries ordinary version pins as lower bounds when the target Python rejects an old release. It verifies the staged environment with `pip check`, finalizes the replacement transactionally, and preserves the managed environment name. Failed inventory, compatibility resolution, or verification leaves the source environment intact.
+Managed venvs can be migrated to another installed Python with `enchi venv upgrade app 3.15`. The toolkit snapshots package requirement lines, tries to preserve exact versions, and automatically retries ordinary version pins as lower bounds when the target Python rejects an old release. It verifies the staged environment with `pip check`, finalizes the replacement transactionally, and preserves the managed environment name. Failed inventory, compatibility resolution, or verification leaves the source environment intact.
 
 ---
 
@@ -91,38 +97,38 @@ Managed venvs can be migrated to another installed Python with `pyenv venv upgra
 
 | | Windows | Linux / macOS |
 | :--- | :--- | :--- |
-| **Upgrade** | Re-run `install.ps1`, or `pyenv self-update --yes` | Re-run `install.sh`, or `pyenv self-update --yes` |
-| **Uninstall** | `pyenv self-uninstall`, or `irm …/uninstall.ps1 \| iex` | `pyenv self-uninstall`, or `curl …/uninstall.sh \| sh -s -- --remove-root` |
+| **Upgrade** | Re-run `install.ps1`, or `enchi self-update --yes` | Re-run `install.sh`, or `enchi self-update --yes` |
+| **Uninstall** | `enchi self-uninstall`, or `irm …/uninstall.ps1 \| iex` | `enchi self-uninstall`, or `curl …/uninstall.sh \| sh -s -- --remove-root` |
 
-pipx: `pipx upgrade pyenv-native` then `pyenv-native install --install-root "$HOME/.pyenv"`.
+pipx: `pipx upgrade enchi` then `enchi-bootstrap install --github-repo imyourboyroy/pyenv-native`.
 
 ---
 
 ## For coding agents
 
-1. If **pyenv-mcp** is connected: `get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`. Details: [docs/MCP.md](./docs/MCP.md).
-2. If MCP is missing: install with the OS command above, then CLI (`pyenv local`, `pyenv install`, `pyenv venv create`, `pyenv which python`).
+1. If **enchi-mcp** is connected: `get_toolkit_guide` → `resolve_project_environment` → `ensure_runtime` → `ensure_project_venv`. Details: [docs/MCP.md](./docs/MCP.md).
+2. If MCP is missing: install with the OS command above, then CLI (`enchi local`, `enchi install`, `enchi venv create`, `enchi which python`).
 3. Never `pip install` into an unknown global Python. Resolve the interpreter first.
 
 ### Validate managed-venv migration
 
 The deterministic migration fixtures exercise an exact restore, the lower-bound
 compatibility retry, transactional replacement, and source preservation after a
-failed retry. They use temporary `PYENV_ROOT` directories and symlink/junction
-existing runtimes; they do not modify the installed pyenv root.
+failed retry. They use temporary `ENCHI_ROOT` directories and symlink/junction
+existing runtimes; they do not modify the installed root.
 
 ```bash
 ./scripts/test-venv-migration.sh 3.14.3 3.15.2
 ```
 
 On Windows, run the PowerShell equivalent with two installed runtimes (or set
-`INSTALLED_PYENV_ROOT` to an isolated runtime root):
+`INSTALLED_ENCHI_ROOT` to an isolated runtime root):
 
 ```powershell
 .\scripts\test-venv-migration.ps1 -SourceRuntime 3.14.3 -TargetRuntime 3.15.0
 ```
 
-Register MCP: `pyenv-mcp print-config` (paste into Cursor MCP settings). Quick JSON: `pyenv-mcp guide`.
+Register MCP: `enchi-mcp print-config` (paste into Cursor MCP settings). Quick JSON: `enchi-mcp guide`.
 
 **Install agent skills** (Cursor, Claude Code, Gemini CLI, Copilot, and more):
 
@@ -131,8 +137,8 @@ Install the agent skills from https://github.com/imyourboyroy/pyenv-native
 ```
 
 ```bash
-# Windows, macOS, Linux: the skill is built into pyenv
-pyenv agent-skills --agent all
+# Windows, macOS, Linux: the skill is built into enchi
+enchi agent-skills --agent all
 ```
 
 Guides: [docs/agent-skills/README.md](./docs/agent-skills/README.md) · [getting-started.md](./docs/agent-skills/getting-started.md)
@@ -141,7 +147,7 @@ Guides: [docs/agent-skills/README.md](./docs/agent-skills/README.md) · [getting
 
 ## GUI
 
-Launch with `pyenv gui` after a native install. Native bundles for Windows, Linux, and macOS ship `pyenv-gui` next to `pyenv`. Standalone binaries and `.sha256` files are on [GitHub Releases](https://github.com/imyourboyroy/pyenv-native/releases/latest).
+Launch with `enchi gui` after a native install. Native bundles for Windows, Linux, and macOS ship `enchi-gui` next to `enchi`. Standalone binaries and `.sha256` files are on [GitHub Releases](https://github.com/imyourboyroy/pyenv-native/releases/latest).
 
 | Dashboard | Install Runtimes | Installed | Venvs |
 | :---: | :---: | :---: | :---: |
@@ -170,14 +176,15 @@ The GUI, CLI, doctor, and installer follow the OS language, or a choice in Setti
 | [MCP](./docs/MCP.md) | Agent tools and recommended order |
 | [GUI](./docs/GUI.md) | Desktop companion |
 | [I18N](./docs/I18N.md) | GUI/CLI/doctor languages, locale tags, fonts |
+| [MIGRATING](./docs/MIGRATING.md) | Coming from pyenv-native: what changed and what did not |
 
 ---
 
 ## Issues
 
-[Open an issue](https://github.com/imyourboyroy/pyenv-native/issues) with OS, architecture, shell, `pyenv doctor` output, and logs from `.pyenv/logs/`. Run `pyenv preflight` before source installs on macOS, Linux, or Android.
+[Open an issue](https://github.com/imyourboyroy/pyenv-native/issues) with OS, architecture, shell, `enchi doctor` output, and logs from `<root>/logs/` (`~/.enchi/logs/`, or `~/.pyenv/logs/` on an install that predates the rename). Run `enchi preflight` before source installs on macOS, Linux, or Android.
 
-`pyenv-native` is an independent reimplementation inspired by `pyenv`. It is not affiliated with or endorsed by the official pyenv project.
+Enchi (formerly pyenv-native) is an independent reimplementation inspired by `pyenv`. It is not affiliated with or endorsed by the official pyenv project.
 
 Created by: **Roy Dawson IV** | [GitHub](https://github.com/imyourboyroy) | [PyPI](https://pypi.org/user/ImYourBoyRoy/) | License: **MIT**
 

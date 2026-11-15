@@ -1,8 +1,8 @@
 {
-  "name": "pyenv-native-wcagate",
+  "name": "enchi-wcagate",
   "private": true,
   "type": "module",
-  "description": "WCAGate accessibility evidence gate for the pyenv-native Tauri GUI.",
+  "description": "WCAGate accessibility evidence gate for the Enchi Tauri GUI.",
   "scripts": {
     "wcagate:doctor": "wcagate doctor",
     "wcagate:prepare": "wcagate prepare",

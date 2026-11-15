@@ -13,21 +13,21 @@ git clone https://github.com/imyourboyroy/pyenv-native.git
 2. Ensure present:
 
 - `AGENTS.md` (root)
-- `skills/pyenv-native/SKILL.md`
+- `skills/enchi/SKILL.md`
 
 No separate install step — the agent discovers skills from the workspace.
 
 ## Agent prompt
 
 ```text
-Use the pyenv-native workspace skills from https://github.com/imyourboyroy/pyenv-native — read AGENTS.md and invoke the pyenv-native skill when managing Python environments
+Use the Enchi workspace skills from https://github.com/imyourboyroy/pyenv-native — read AGENTS.md and invoke the Enchi skill when managing Python environments
 ```
 
 ## Expected behavior
 
-- Python version / venv tasks → load `pyenv-native` skill
+- Python version / venv tasks → load the `enchi` skill
 - Prefer MCP tool order from skill before raw shell
 
 ## MCP
 
-Register `pyenv-mcp` in OpenCode MCP config when available.
+Register `enchi-mcp` in OpenCode MCP config when available.
