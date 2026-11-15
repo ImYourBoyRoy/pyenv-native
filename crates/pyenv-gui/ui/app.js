@@ -13,6 +13,20 @@ function invoke(cmd, args) {
     }
     return fn(cmd, args);
 }
+// Forward UI faults to the Rust log (stderr). Silent when the backend is absent, and the
+// only way to see CSP violations inside the real webview.
+function reportUi(kind, detail) {
+    try {
+        const fn = window.__TAURI__?.core?.invoke;
+        if (typeof fn === 'function') fn('ui_report', { kind, detail: String(detail).slice(0, 600) }).catch(() => {});
+    } catch (_) { /* reporting must never throw */ }
+}
+document.addEventListener('securitypolicyviolation', (e) => {
+    reportUi('csp', `${e.violatedDirective} blocked=${e.blockedURI} at ${e.sourceFile || 'inline'}:${e.lineNumber}`);
+});
+window.addEventListener('error', (e) => reportUi('error', `${e.message} at ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', (e) => reportUi('rejection', e.reason?.message || e.reason));
+
 const {
     lockAppShell,
     unlockAppShell,
@@ -97,7 +111,7 @@ function createStepLoader() {
     loader.style.width = '12px';
     loader.style.height = '12px';
     loader.style.borderWidth = '2px';
-    loader.style.borderTopColor = '#ffd43b';
+    loader.style.borderTopColor = 'var(--accent-gold)';
     loader.setAttribute('aria-hidden', 'true');
     return loader;
 }
@@ -130,7 +144,7 @@ function setFooterAppStatus(kind, detail = '') {
         span.style.color = 'var(--danger)';
         span.textContent = t('gui-update-available', { version: detail }, `Update Available: v${detail}`);
     } else if (kind === 'uptodate') {
-        span.style.color = '#10b981';
+        span.style.color = 'var(--success)';
         span.textContent = t('gui-uptodate-check', null, '✓ Up to Date');
     } else if (kind === 'offline') {
         span.style.opacity = '0.5';
@@ -142,7 +156,7 @@ function setFooterAppStatus(kind, detail = '') {
 function appendFooterPortableBadge() {
     const statusEl = document.getElementById('footer-app-status');
     if (!statusEl || statusEl.querySelector('[data-portable-badge]')) return;
-    const badge = createBadge(t('gui-portable', null, 'Portable'), 'badge badge-success', 'font-size:10px; padding: 2px 6px; margin-left: 8px;');
+    const badge = createBadge(t('gui-portable', null, 'Portable'), 'badge badge-success badge-inline');
     badge.dataset.portableBadge = 'true';
     statusEl.appendChild(document.createTextNode(' '));
     statusEl.appendChild(badge);
@@ -405,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 availableLoaded = false;
                 loadVenvs();
                 loadConfig();
-                showAlert(t('gui-project-folder-title', null, 'Project Folder'), `${t('gui-now-using', null, 'Now using')}:<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
+                showAlert(t('gui-project-folder-title', null, 'Project Folder'), `${t('gui-now-using', null, 'Now using')}:<br><code class="code-sm code-dim">${escapeHtml(selectedDir)}</code>`);
             }
         } catch (err) {
             showAlert(t('gui-error', null, 'Error'), t('gui-workspace-change-failed', null, 'Failed to change workspace directory:') + '\n' + escapeHtml(err));
@@ -881,7 +895,7 @@ async function openAppExecutionAliases() {
                 'gui-doctor-open-aliases-failed',
                 null,
                 'Could not open App execution aliases. On Windows 11, open Settings > Apps > Advanced app settings > App execution aliases and turn off App Installer python.exe and python3.exe.'
-            )}<br><code style="font-size:11px;">${escapeHtml(detail)}</code>`
+            )}<br><code class="code-sm">${escapeHtml(detail)}</code>`
         );
     }
 }
@@ -1021,24 +1035,23 @@ async function loadInstalled() {
             summary.style.display = 'block';
             summary.replaceChildren();
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;';
+            row.className = 'summary-row';
 
             const info = document.createElement('div');
             const eyebrow = document.createElement('div');
-            eyebrow.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:4px;';
+            eyebrow.className = 'summary-eyebrow';
             eyebrow.textContent = t('gui-current-setup', null, 'Current setup');
             const activeLine = document.createElement('div');
-            activeLine.style.cssText = 'font-size:14px;font-weight:600;';
+            activeLine.className = 'summary-main';
             activeLine.textContent = t('gui-active-global', { active: activeLabel, global: globalLabel }, `Active: ${activeLabel} • Global: ${globalLabel}`);
             const originLine = document.createElement('div');
-            originLine.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:6px;';
+            originLine.className = 'summary-meta';
             originLine.textContent = t('gui-origin-line', { origin: status.origin }, `Origin: ${status.origin}`);
             info.append(eyebrow, activeLine, originLine);
 
             const installBtn = createActionButton(t('gui-install-new-runtime', null, 'Install New Runtime'), 'navigate', 'view-available', 'btn btn-primary', {
                 title: t('gui-open-catalog-title', null, 'Open the install catalog.'),
             });
-            installBtn.style.fontSize = '12px';
             row.append(info, installBtn);
             summary.appendChild(row);
         }
@@ -1057,13 +1070,12 @@ async function loadInstalled() {
         const managedVersions = displayVersions.filter(entry => !entry.isSystem);
         if (managedVersions.length === 0) {
             const empty = document.createElement('div');
-            empty.className = 'empty-state';
-            empty.style.padding = '32px 16px';
+            empty.className = 'empty-state empty-state-roomy';
             const title = document.createElement('div');
-            title.style.cssText = 'font-size:15px;font-weight:600;margin-bottom:8px;';
+            title.className = 'empty-title';
             title.textContent = t('gui-no-runtimes', null, 'No managed runtimes installed yet');
             const hint = document.createElement('div');
-            hint.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:16px;';
+            hint.className = 'empty-hint';
             hint.textContent = t('gui-install-runtime-hint', null, 'Install a Python 2 or 3 runtime to get started.');
             empty.append(title, hint, createActionButton(t('gui-nav-available', null, 'Install Runtimes'), 'navigate', 'view-available', 'btn btn-primary', {
                 title: t('gui-open-catalog-title', null, 'Open the install catalog.'),
@@ -1668,7 +1680,7 @@ async function setLocal(v, { pickFolder = false } = {}) {
         if (!pickFolder && currentWorkspaceDir) {
             const yes = await showConfirm(
                 t('gui-make-local', null, 'Make Local'),
-                `${t('gui-make-local-confirm', { version: escapeHtml(v) }, `Pin ${escapeHtml(v)} to the current project folder?`)}<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(currentWorkspaceDir)}</code>`,
+                `${t('gui-make-local-confirm', { version: escapeHtml(v) }, `Pin ${escapeHtml(v)} to the current project folder?`)}<br><code class="code-sm code-dim">${escapeHtml(currentWorkspaceDir)}</code>`,
             );
             if (!yes) return;
             selectedDir = currentWorkspaceDir;
@@ -1687,7 +1699,7 @@ async function setLocal(v, { pickFolder = false } = {}) {
         await invoke('set_local', { version: v, path: selectedDir });
         loadDashboard();
         loadInstalled();
-        showAlert(t('gui-local-set-title', null, 'Local Version Set'), `${t('gui-local-set-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} pinned to:`)}<br><code style="font-size: 12px; opacity: 0.8;">${escapeHtml(selectedDir)}</code>`);
+        showAlert(t('gui-local-set-title', null, 'Local Version Set'), `${t('gui-local-set-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} pinned to:`)}<br><code class="code-sm code-dim">${escapeHtml(selectedDir)}</code>`);
     } catch (err) {
         showAlert(t('gui-error', null, 'Error'), t('gui-set-local-failed', null, 'Failed to set local version:') + '\n' + escapeHtml(err));
     }
@@ -2066,7 +2078,7 @@ function resetStepRow(stepId, num, label, desc) {
     }
     if (icon) {
         setStepIconContent(icon, num);
-        icon.style.background = 'rgba(255,255,255,0.05)';
+        icon.style.background = 'var(--surface-3)';
         icon.style.color = 'var(--text-muted)';
     }
     if (lbl) lbl.textContent = label;
@@ -2083,8 +2095,8 @@ function markStepInProgress(stepId, label, desc) {
     if (row) row.style.opacity = '1';
     if (icon) {
         setStepIconContent(icon, createStepLoader());
-        icon.style.background = 'rgba(255, 212, 59, 0.1)';
-        icon.style.color = '#ffd43b';
+        icon.style.background = 'var(--gold-soft)';
+        icon.style.color = 'var(--accent-gold)';
     }
     if (lbl) lbl.textContent = label;
     if (dsc) dsc.textContent = desc;
@@ -2100,8 +2112,8 @@ function markStepSuccess(stepId, label, desc) {
         setStepIconContent(icon, createStepSvg([
             { tag: 'polyline', attrs: { points: '20 6 9 17 4 12' } },
         ]));
-        icon.style.background = 'rgba(16, 185, 129, 0.15)';
-        icon.style.color = '#10b981';
+        icon.style.background = 'var(--success-soft)';
+        icon.style.color = 'var(--success)';
     }
     if (lbl) lbl.textContent = label;
     if (dsc) dsc.textContent = desc;
@@ -2118,8 +2130,8 @@ function markStepWarning(stepId, label, desc) {
             { tag: 'line', attrs: { x1: '18', y1: '6', x2: '6', y2: '18' } },
             { tag: 'line', attrs: { x1: '6', y1: '6', x2: '18', y2: '18' } },
         ]));
-        icon.style.background = 'rgba(239, 68, 68, 0.15)';
-        icon.style.color = '#ef4444';
+        icon.style.background = 'var(--danger-soft)';
+        icon.style.color = 'var(--danger)';
     }
     if (lbl) lbl.textContent = label;
     if (dsc) dsc.textContent = desc;
@@ -2585,7 +2597,7 @@ function renderOutdatedChecklist() {
         arrowSpan.textContent = '→';
 
         const latestSpan = document.createElement('span');
-        latestSpan.style.color = '#ffd43b';
+        latestSpan.style.color = 'var(--accent-gold)';
         latestSpan.style.fontWeight = '600';
         latestSpan.textContent = p.latest_version;
 
@@ -2682,7 +2694,7 @@ btnUpdateSelected.addEventListener('click', async () => {
             btnUpdateSelected.textContent = t('gui-update-selected-packages', null, 'Update Selected Packages');
         }, 1500);
         
-        showAlert(t('gui-packages-updated', null, 'Packages Updated'), `${t('gui-packages-updated-body', null, 'Successfully upgraded packages:')}<br><code style="font-size: 11px;">${escapeHtml(pkgs.join(', '))}</code>`);
+        showAlert(t('gui-packages-updated', null, 'Packages Updated'), `${t('gui-packages-updated-body', null, 'Successfully upgraded packages:')}<br><code class="code-sm">${escapeHtml(pkgs.join(', '))}</code>`);
         
         // Refresh installed packages table
         loadDrawerPackages();
@@ -2735,16 +2747,16 @@ function renderPrecheckResults(precheck) {
     
     // 1. Result Banner
     if (precheck.is_safe) {
-        precheckBanner.style.background = 'rgba(16, 185, 129, 0.1)';
-        precheckBanner.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+        precheckBanner.style.background = 'var(--success-soft)';
+        precheckBanner.style.border = '1px solid var(--success)';
         precheckBanner.style.color = 'var(--success)';
         precheckBannerIcon.textContent = '✓';
         precheckBannerText.textContent = t('gui-env-safe', null, 'Environment is safe and fully compatible!');
         btnInstallImported.disabled = false;
     } else {
-        precheckBanner.style.background = 'rgba(239, 68, 68, 0.1)';
-        precheckBanner.style.border = '1px solid rgba(239, 68, 68, 0.2)';
-        precheckBanner.style.color = '#f87171';
+        precheckBanner.style.background = 'var(--danger-soft)';
+        precheckBanner.style.border = '1px solid var(--danger)';
+        precheckBanner.style.color = 'var(--danger)';
         precheckBannerIcon.textContent = '⚠';
         precheckBannerText.textContent = t('gui-version-mismatch', null, 'Version mismatch or conflicts detected.');
         btnInstallImported.disabled = false; // We still allow installation, but with warning
@@ -2792,7 +2804,7 @@ function renderPrecheckResults(precheck) {
                 ));
             } else if (p.version === 'not installed') {
                 const pending = document.createElement('span');
-                pending.style.color = '#60a5fa';
+                pending.style.color = 'var(--accent)';
                 pending.textContent = t('gui-pending-install', null, 'Pending Install');
                 statusTd.appendChild(pending);
             } else {
@@ -2922,9 +2934,9 @@ if (btnScanImports) {
                     scannedMissingImports.forEach(pkg => {
                         const badge = document.createElement('span');
                         badge.className = 'badge';
-                        badge.style.background = 'rgba(239, 68, 68, 0.1)';
-                        badge.style.color = '#f87171';
-                        badge.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                        badge.style.background = 'var(--danger-soft)';
+                        badge.style.color = 'var(--danger)';
+                        badge.style.border = '1px solid var(--danger)';
                         badge.style.marginRight = '4px';
                         badge.style.marginBottom = '4px';
                         badge.textContent = pkg;
@@ -2948,9 +2960,9 @@ if (btnScanImports) {
                     installedImports.forEach(pkg => {
                         const badge = document.createElement('span');
                         badge.className = 'badge';
-                        badge.style.background = 'rgba(16, 185, 129, 0.1)';
-                        badge.style.color = '#34d399';
-                        badge.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+                        badge.style.background = 'var(--success-soft)';
+                        badge.style.color = 'var(--success)';
+                        badge.style.border = '1px solid var(--success)';
                         badge.style.marginRight = '4px';
                         badge.style.marginBottom = '4px';
                         badge.textContent = `${pkg.name} (${pkg.version})`;
@@ -2962,7 +2974,7 @@ if (btnScanImports) {
             if (scanImportsResults) scanImportsResults.style.display = 'block';
             
         } catch (err) {
-            showAlert(t('gui-scan-failed', null, 'Scan Failed'), `${t('gui-scan-failed-imports', null, 'Failed to statically scan workspace codebase imports:')}<br><code style="font-size: 11px;">${escapeHtml(err)}</code>`);
+            showAlert(t('gui-scan-failed', null, 'Scan Failed'), `${t('gui-scan-failed-imports', null, 'Failed to statically scan workspace codebase imports:')}<br><code class="code-sm">${escapeHtml(err)}</code>`);
         } finally {
             if (scanImportsLoading) scanImportsLoading.style.display = 'none';
             btnScanImports.disabled = false;
@@ -2995,7 +3007,7 @@ if (btnInstallMissingImports) {
                 });
                 installedCount++;
             } catch (err) {
-                showAlert(t('gui-installation-failed', null, 'Installation Failed'), `${t('gui-install-dep-failed', { name: escapeHtml(pkg) }, `Failed to install dependency ${escapeHtml(pkg)}:`)}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+                showAlert(t('gui-installation-failed', null, 'Installation Failed'), `${t('gui-install-dep-failed', { name: escapeHtml(pkg) }, `Failed to install dependency ${escapeHtml(pkg)}:`)}<br><code class="code-sm">${escapeHtml(err)}</code>`);
                 btnInstallMissingImports.disabled = false;
                 btnInstallMissingImports.textContent = t('gui-install-missing', null, 'Install Missing Dependencies');
                 return;
@@ -3070,9 +3082,8 @@ loadDashboard = async function() {
 };
 
 // ─── Shell Integration & Diagnostics ───
-function createShellStatusBadge(label, style) {
-    const badge = createBadge(label, 'badge', style);
-    return badge;
+function createShellStatusBadge(label, tone) {
+    return createBadge(label, `badge badge-${tone}`);
 }
 
 async function loadPlatformIntelligence() {
@@ -3153,24 +3164,24 @@ async function loadPlatformIntelligence() {
                 blockersEl.replaceChildren();
                 if (blockers.length) {
                     const title = document.createElement('div');
-                    title.style.cssText = 'font-size: 11px; font-weight: 600; color: #f87171; margin-bottom: 6px;';
+                    title.className = 'intel-title intel-title-danger';
                     title.textContent = t('gui-blocking-install', null, 'Blocking before install');
                     blockersEl.appendChild(title);
                     blockers.forEach((issue) => {
                         const row = document.createElement('div');
-                        row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
+                        row.className = 'intel-row';
                         row.textContent = `• ${issue}`;
                         blockersEl.appendChild(row);
                     });
                 }
                 if (warnings.length) {
                     const warnTitle = document.createElement('div');
-                    warnTitle.style.cssText = `font-size: 11px; font-weight: 600; color: #fbbf24; margin-bottom: 6px;${blockers.length ? ' margin-top: 10px;' : ''}`;
+                    warnTitle.className = blockers.length ? 'intel-title intel-title-warn intel-title-spaced' : 'intel-title intel-title-warn';
                     warnTitle.textContent = t('gui-prereq-attention', null, 'Install prerequisites needing attention');
                     blockersEl.appendChild(warnTitle);
                     warnings.forEach((issue) => {
                         const row = document.createElement('div');
-                        row.style.cssText = 'font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px;';
+                        row.className = 'intel-row';
                         row.textContent = `• ${issue}`;
                         blockersEl.appendChild(row);
                     });
@@ -3212,40 +3223,31 @@ async function loadShellCards() {
 
         statuses.forEach((status) => {
             const card = document.createElement('div');
-            card.className = 'status-card glass fade-in';
-            card.style.display = 'flex';
-            card.style.flexDirection = 'column';
-            card.style.justifyContent = 'space-between';
-            card.style.minHeight = '180px';
-            if (!status.is_installed) card.style.opacity = '0.55';
+            card.className = 'shell-card fade-in';
+            if (!status.is_installed) card.classList.add('is-missing');
 
             const top = document.createElement('div');
             const title = document.createElement('h3');
-            title.style.margin = '0 0 8px';
-            title.style.color = '#fff';
-            title.style.fontSize = '16px';
+            title.className = 'shell-card-title';
             title.textContent = status.name;
 
             const badges = document.createElement('div');
-            badges.style.marginBottom = '12px';
-            badges.style.display = 'flex';
-            badges.style.flexWrap = 'wrap';
-            badges.style.gap = '4px';
+            badges.className = 'shell-card-badges';
 
             if (!status.is_installed) {
                 badges.appendChild(createShellStatusBadge(
                     t('gui-shell-not-detected', null, 'Not Detected'),
-                    'background: rgba(148, 163, 184, 0.08); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15);',
+                    'muted',
                 ));
             } else if (status.is_configured) {
                 badges.appendChild(createShellStatusBadge(
                     t('gui-shell-configured', null, 'Configured'),
-                    'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);',
+                    'success',
                 ));
             } else {
                 badges.appendChild(createShellStatusBadge(
                     t('gui-shell-not-configured', null, 'Not Configured'),
-                    'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);',
+                    'warn',
                 ));
             }
 
@@ -3260,39 +3262,28 @@ async function loadShellCards() {
                 const pathSoft = !pathOk && status.is_configured;
                 badges.appendChild(createShellStatusBadge(
                     pathLabel,
-                    pathOk
-                        ? 'background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); margin-left: 8px;'
-                        : pathSoft
-                            ? 'background: rgba(59, 130, 246, 0.1); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.2); margin-left: 8px;'
-                            : 'background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); margin-left: 8px;',
+                    pathOk ? 'success' : (pathSoft ? 'info' : 'warn'),
                 ));
             }
 
             const profile = document.createElement('div');
-            profile.style.fontSize = '11px';
-            profile.style.color = 'var(--text-muted)';
-            profile.style.wordBreak = 'break-all';
-            profile.style.lineHeight = '1.4';
+            profile.className = 'shell-card-profile';
             const profileLabel = document.createElement('strong');
             profileLabel.textContent = t('gui-shell-profile-file', null, 'Profile File:');
             profile.append(profileLabel, document.createElement('br'), document.createTextNode(status.profile_path));
             top.append(title, badges, profile);
 
             const actions = document.createElement('div');
-            actions.style.marginTop = '16px';
+            actions.className = 'shell-card-actions';
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn';
-            btn.style.width = '100%';
-            btn.style.padding = '8px';
-            btn.style.fontSize = '11px';
-            btn.style.fontWeight = '600';
             btn.id = `btn-cfg-${sanitizeDomId(status.name)}`;
 
             if (!status.is_installed) {
                 const wantsPwsh = status.name.toLowerCase().includes('powershell 7');
                 if (wantsPwsh) {
-                    btn.classList.add('btn-gold');
+                    btn.classList.add('btn-primary');
                     btn.textContent = t('gui-install-pwsh', null, 'Install PowerShell 7');
                     btn.disabled = false;
                     btn.addEventListener('click', async () => {
@@ -3318,7 +3309,7 @@ async function loadShellCards() {
                 btn.textContent = t('gui-shell-configured', null, 'Configured');
                 btn.disabled = true;
             } else {
-                btn.classList.add('btn-gold');
+                btn.classList.add('btn-primary');
                 btn.textContent = t('gui-shell-auto-configure', null, 'Auto-Configure Shell');
                 btn.addEventListener('click', async () => {
                     btn.disabled = true;
@@ -3327,7 +3318,7 @@ async function loadShellCards() {
                         await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
                         showAlert(
                             t('gui-shell-configured-title', null, 'Shell Configured'),
-                            `Successfully injected pyenv-native shell initialization block into profile:<br><code style="font-size: 11px;">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
+                            `Successfully injected pyenv-native shell initialization block into profile:<br><code class="code-sm">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
                         );
                         loadShellIntegration();
                     } catch (err) {
@@ -3441,7 +3432,7 @@ async function runDoctorDiagnostics() {
         if (doctorResults) doctorResults.style.display = 'block';
     } catch(err) {
         console.error("Doctor failed:", err);
-        showAlert(t('gui-diagnostics-failed', null, 'Diagnostics Failed'), `${t('gui-doctor-could-not-complete', null, 'Doctor could not complete:')}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+        showAlert(t('gui-diagnostics-failed', null, 'Diagnostics Failed'), `${t('gui-doctor-could-not-complete', null, 'Doctor could not complete:')}<br><code class="code-sm">${escapeHtml(err)}</code>`);
         if (doctorHealthyCard) doctorHealthyCard.style.display = 'none';
         if (doctorIssuesCard) doctorIssuesCard.style.display = 'none';
         syncWindowsDoctorAliasButtons(false);
@@ -3468,14 +3459,14 @@ async function attemptDoctorFix() {
 
         let message = '';
         if (applied.length > 0) {
-            message += `${t('gui-applied-repairs', null, 'Applied the following automated repairs:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
+            message += `${t('gui-applied-repairs', null, 'Applied the following automated repairs:')}<br><ul class="alert-list">`;
             applied.forEach((act) => {
                 message += `<li>${escapeHtml(act)}</li>`;
             });
             message += `</ul>`;
         }
         if (manual.length > 0) {
-            message += `${t('gui-manual-follow-up', null, 'Manual follow-up still recommended:')}<br><ul style='margin: 8px 0; padding-left: 20px; font-size: 11px;'>`;
+            message += `${t('gui-manual-follow-up', null, 'Manual follow-up still recommended:')}<br><ul class="alert-list">`;
             manual.forEach((item) => {
                 const description = escapeHtml(item.description || item.key || '');
                 const hint = item.command_hint ? ` (${escapeHtml(item.command_hint)})` : '';
@@ -3490,7 +3481,7 @@ async function attemptDoctorFix() {
         // Re-run diagnostics
         runDoctorDiagnostics();
     } catch(err) {
-        showAlert(t('gui-self-healing-failed', null, 'Self-Healing Failed'), `${t('gui-self-healing-failed-body', null, 'Failed to automatically repair system environment:')}<br><code style="font-size:11px;">${escapeHtml(err)}</code>`);
+        showAlert(t('gui-self-healing-failed', null, 'Self-Healing Failed'), `${t('gui-self-healing-failed-body', null, 'Failed to automatically repair system environment:')}<br><code class="code-sm">${escapeHtml(err)}</code>`);
         btnDoctorFix.disabled = false;
         btnDoctorFix.textContent = t('gui-doctor-fix', null, 'Attempt Self-Healing Repair');
     }

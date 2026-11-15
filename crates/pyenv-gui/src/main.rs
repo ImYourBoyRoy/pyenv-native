@@ -9,6 +9,7 @@
 //! its own confirmation modals.
 
 mod desktop_integration;
+mod smoke;
 
 use pyenv_core::PyenvCommandExt;
 
@@ -139,6 +140,94 @@ async fn install_version(workspace_dir: Option<String>, version: String) -> Resu
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+/// Forward a progress line to the UI as an `operation-progress` event keyed by operation id.
+fn emit_progress(app: &tauri::AppHandle, operation_id: &str, step: &str) {
+    use tauri::Emitter;
+    let _ = app.emit(
+        "operation-progress",
+        serde_json::json!({ "id": operation_id, "step": step }),
+    );
+}
+
+fn to_json<T: serde::Serialize>(value: &T) -> Result<String, String> {
+    serde_json::to_string(value).map_err(|e| format!("serialize failed: {e}"))
+}
+
+/// Newest patch available for each installed CPython (no changes made).
+#[tauri::command]
+async fn plan_runtime_upgrades(workspace_dir: Option<String>) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let items = pyenv_core::plan_upgrades(&ctx, &[]).map_err(|e| e.to_string())?;
+        to_json(&items)
+    })
+    .await
+}
+
+/// Install newer patches, migrate their venvs, and re-pin. Progress arrives as events.
+#[tauri::command]
+async fn run_runtime_upgrades(
+    app: tauri::AppHandle,
+    workspace_dir: Option<String>,
+    operation_id: String,
+    targets: Vec<String>,
+    remove_old: bool,
+) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let options = pyenv_core::UpgradeOptions {
+            targets,
+            remove_old,
+            ..Default::default()
+        };
+        let report = pyenv_core::run_upgrades(&ctx, &options, &mut |step| {
+            emit_progress(&app, &operation_id, step);
+        })
+        .map_err(|e| e.to_string())?;
+        to_json(&report)
+    })
+    .await
+}
+
+/// Which environments have outdated packages (no changes made).
+#[tauri::command]
+async fn plan_bulk_package_updates(workspace_dir: Option<String>) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let options = pyenv_core::BulkUpdateOptions {
+            dry_run: true,
+            ..Default::default()
+        };
+        let report = pyenv_core::update_all_packages(&ctx, &options, &mut |_| {})
+            .map_err(|e| e.to_string())?;
+        to_json(&report)
+    })
+    .await
+}
+
+/// Update outdated packages across every runtime and venv (or `only`). Progress arrives as events.
+#[tauri::command]
+async fn run_bulk_package_updates(
+    app: tauri::AppHandle,
+    workspace_dir: Option<String>,
+    operation_id: String,
+    only: Vec<String>,
+) -> Result<String, String> {
+    run_blocking(move || {
+        let ctx = get_context_with_dir(workspace_dir)?;
+        let options = pyenv_core::BulkUpdateOptions {
+            only,
+            ..Default::default()
+        };
+        let report = pyenv_core::update_all_packages(&ctx, &options, &mut |step| {
+            emit_progress(&app, &operation_id, step);
+        })
+        .map_err(|e| e.to_string())?;
+        to_json(&report)
+    })
+    .await
 }
 
 /// Uninstall a Python version asynchronously.
@@ -1364,8 +1453,16 @@ fn main() {
     desktop_integration::prepare_linux_runtime();
 
     tauri::Builder::default()
-        .setup(|app| desktop_integration::prepare_app(app))
+        .setup(|app| {
+            smoke::start(app);
+            desktop_integration::prepare_app(app)
+        })
         .invoke_handler(tauri::generate_handler![
+            smoke::ui_report,
+            plan_runtime_upgrades,
+            run_runtime_upgrades,
+            plan_bulk_package_updates,
+            run_bulk_package_updates,
             get_status,
             get_available_versions,
             get_installed_versions,

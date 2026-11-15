@@ -21,7 +21,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '../..');
 const uiRoot = path.join(repoRoot, 'crates/pyenv-gui/ui');
-const outDir = path.join(repoRoot, 'docs/screenshots');
+const outDir = process.env.GUI_SCREENSHOT_OUT
+  ? path.resolve(process.env.GUI_SCREENSHOT_OUT)
+  : path.join(repoRoot, 'docs/screenshots');
+const COLOR_SCHEME = process.env.GUI_COLOR_SCHEME === 'light' ? 'light' : 'dark';
 const tmpDir = path.join(repoRoot, '.tmp-gui-screenshots');
 const playwrightEntry = path.join(
   repoRoot,
@@ -45,6 +48,10 @@ const VIEWS = [
   { nav: 'view-available', file: 'Available', wait: waitCatalog },
   { nav: 'view-installed', file: 'Installed_Versions', wait: waitInstalled },
   { nav: 'view-venvs', file: 'VENVs', wait: waitVenvs },
+  { nav: 'view-installed', file: 'Upgrades', pre: openUpgradePlan, wait: waitUpgradePlan },
+  { nav: 'view-installed', file: 'Upgrades_Done', pre: applyUpgrades, wait: waitUpgradeDone },
+  { nav: 'view-venvs', file: 'Bulk_Update', pre: openBulkPlan, wait: waitBulkPlan },
+  { nav: 'view-venvs', file: 'Bulk_Update_Done', pre: applyBulk, wait: waitBulkDone },
   { nav: 'view-shell', file: 'Shell', wait: waitShell },
   { nav: 'view-settings', file: 'Settings', wait: waitSettings },
   { nav: 'view-about', file: 'About', wait: waitAbout },
@@ -165,14 +172,62 @@ function mockTauriSource() {
     get_outdated_packages: () => JSON.stringify([]),
   };
 
-  async function invoke(cmd) {
+  const listeners = [];
+  const emit = (payload) => listeners.forEach((cb) => cb({ payload }));
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const upgradePlan = [
+    { installed: '3.14.3', latest: '3.14.10', status: 'available', message: '3.14.10 is available', venvs: [], repinned: [], removed_old: false },
+    { installed: '3.13.7', latest: '3.13.7', status: 'up_to_date', message: 'already the newest patch', venvs: [], repinned: [], removed_old: false },
+  ];
+  const outdatedVenvs = [
+    { spec: '3.14.3/envs/pondlets-play', kind: 'venv', status: 'planned', message: '2 package(s) would be updated', conflicts_before: 0, conflicts_after: 0, updated: [],
+      outdated: [{ name: 'requests', version: '2.31.0', latest_version: '2.32.3' }, { name: 'pip', version: '26.2.2', latest_version: '26.3' }] },
+    { spec: '3.14.3/envs/server-manager', kind: 'venv', status: 'planned', message: '1 package(s) would be updated', conflicts_before: 0, conflicts_after: 0, updated: [],
+      outdated: [{ name: 'qh3', version: '1.9.4', latest_version: '2.1.0' }] },
+    { spec: '3.14.3', kind: 'runtime', status: 'up_to_date', message: 'all packages are current', conflicts_before: 0, conflicts_after: 0, updated: [], outdated: [] },
+  ];
+
+  Object.assign(handlers, {
+    ui_report: () => null,
+    plan_runtime_upgrades: () => JSON.stringify(upgradePlan),
+    run_runtime_upgrades: async (args) => {
+      for (const step of ['3.14.3 -> 3.14.10: installing 3.14.10', '3.14.3 -> 3.14.10: migrating venv 3.14.3/envs/pondlets-play']) {
+        emit({ id: args.operationId, step });
+        await sleep(120);
+      }
+      return JSON.stringify({ dry_run: false, items: [
+        { installed: '3.14.3', latest: '3.14.10', status: 'upgraded', message: 'upgraded to 3.14.10',
+          venvs: [{ spec: '3.14.3/envs/pondlets-play', ok: true, message: 'moved to 3.14.10' }],
+          repinned: ['/home/roy/.pyenv/version'], removed_old: false },
+        upgradePlan[1],
+      ] });
+    },
+    plan_bulk_package_updates: () => JSON.stringify({ dry_run: true, targets: outdatedVenvs,
+      summary: { targets: 3, up_to_date: 1, updated: 0, packages_updated: 0, rolled_back: 0, failed: 0, skipped: 0 } }),
+    run_bulk_package_updates: async (args) => {
+      emit({ id: args.operationId, step: '[1/3] 3.14.3/envs/pondlets-play' });
+      await sleep(120);
+      emit({ id: args.operationId, step: '[2/3] 3.14.3/envs/server-manager' });
+      await sleep(120);
+      const done = outdatedVenvs.slice(0, 2).map((t) => ({ ...t, status: 'updated', updated: t.outdated.map((o) => o.name), message: t.outdated.length + ' package(s) updated' }));
+      return JSON.stringify({ dry_run: false, targets: [...done, outdatedVenvs[2]],
+        summary: { targets: 3, up_to_date: 1, updated: 2, packages_updated: 3, rolled_back: 0, failed: 0, skipped: 0 } });
+    },
+  });
+
+  async function invoke(cmd, args) {
     if (!(cmd in handlers)) {
       throw new Error('Unmocked Tauri command: ' + cmd);
     }
-    return handlers[cmd]();
+    return handlers[cmd](args || {});
   }
 
-  window.__TAURI__ = { core: { invoke }, invoke };
+  window.__TAURI__ = {
+    core: { invoke },
+    invoke,
+    event: { listen: async (_name, cb) => { listeners.push(cb); return () => { const i = listeners.indexOf(cb); if (i >= 0) listeners.splice(i, 1); }; } },
+  };
   localStorage.setItem('pyenv-workspace-dir', '/home/roy/projects/pondlets-play');
 
   const originalFetch = window.fetch.bind(window);
@@ -188,6 +243,11 @@ function mockTauriSource() {
   };
 })();
 `;
+}
+
+function appCsp() {
+  const conf = JSON.parse(fs.readFileSync(path.join(repoRoot, 'crates/pyenv-gui/tauri.conf.json'), 'utf8'));
+  return conf.app.security.csp;
 }
 
 function startServer() {
@@ -207,7 +267,11 @@ function startServer() {
           res.end('not found');
           return;
         }
-        res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
+        res.writeHead(200, {
+          'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
+          // Serve with the same CSP the Tauri window enforces so style regressions show up here.
+          'Content-Security-Policy': appCsp(),
+        });
         res.end(data);
       });
     });
@@ -228,6 +292,31 @@ async function waitCatalog(page) {
   await page.waitForFunction(() => document.querySelectorAll('#available-list .version-card').length >= 6);
 }
 
+async function openUpgradePlan(page) {
+  await page.locator('#btn-check-upgrades').click();
+}
+async function waitUpgradePlan(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#upgrade-panel .maint-row').length >= 2);
+}
+async function applyUpgrades(page) {
+  await page.locator('#upgrade-panel .maint-actions .btn-primary').click();
+}
+async function waitUpgradeDone(page) {
+  await page.waitForFunction(() => /upgraded to 3\.14\.10/.test(document.getElementById('upgrade-panel')?.textContent || ''));
+}
+async function openBulkPlan(page) {
+  await page.locator('#btn-bulk-update').click();
+}
+async function waitBulkPlan(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#bulk-panel .maint-row').length >= 2);
+}
+async function applyBulk(page) {
+  await page.locator('#bulk-panel .maint-actions .btn-primary').click();
+}
+async function waitBulkDone(page) {
+  await page.waitForFunction(() => /package\(s\) updated in 2 environment/.test(document.getElementById('bulk-panel')?.textContent || ''));
+}
+
 async function waitInstalled(page) {
   await page.waitForFunction(() => document.querySelectorAll('#installed-list .version-card').length >= 2);
 }
@@ -237,7 +326,7 @@ async function waitVenvs(page) {
 }
 
 async function waitShell(page) {
-  await page.waitForFunction(() => document.querySelectorAll('#shell-status-cards .status-card').length >= 3);
+  await page.waitForFunction(() => document.querySelectorAll('#shell-status-cards .shell-card').length >= 3);
   await page.waitForFunction(() => document.getElementById('platform-intel-verdict')?.textContent?.trim() === 'Ready');
   await page.evaluate(() => document.getElementById('btn-run-doctor')?.click());
   await page.locator('#doctor-healthy-card').waitFor({ state: 'visible' });
@@ -304,21 +393,26 @@ async function main() {
     const page = await browser.newPage({
       viewport: { width: WIDTH, height: HEIGHT },
       deviceScaleFactor: 2,
+      colorScheme: COLOR_SCHEME,
+    });
+    const cspViolations = [];
+    page.on('console', (msg) => {
+      if (/Content Security Policy|Refused to/i.test(msg.text())) cspViolations.push(msg.text());
     });
     await page.addInitScript(mockTauriSource());
     await page.goto(`${origin}/index.html`, { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.fonts?.status === 'loaded' || document.fonts?.status === 'loading');
     await page.evaluate(() => document.fonts.ready);
     await waitDashboard(page);
-    await page.addStyleTag({
-      content: '* { animation-duration: 0s !important; transition-duration: 0s !important; }',
-    });
+    // Freeze motion through the app's own prefers-reduced-motion rules (inline styles are blocked by CSP).
+    await page.emulateMedia({ reducedMotion: 'reduce' });
 
     const pngs = [];
     for (const view of VIEWS) {
       if (view.nav !== 'view-dashboard') {
         await page.locator(`.nav-btn[data-view="${view.nav}"]`).click();
       }
+      if (view.pre) await view.pre(page);
       await page.evaluate(() => {
         document.querySelector('.content')?.scrollTo(0, 0);
         document.getElementById('main-content')?.scrollTo(0, 0);
@@ -338,6 +432,9 @@ async function main() {
 
     encodeAnimation(pngs, path.join(outDir, 'animated_gui.webp'));
     console.log('wrote animated_gui.webp');
+    if (cspViolations.length) {
+      throw new Error(`CSP violations (${cspViolations.length}):\n${cspViolations.slice(0, 8).join('\n')}`);
+    }
   } finally {
     await browser.close();
     server.close();

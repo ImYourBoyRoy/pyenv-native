@@ -80,9 +80,9 @@ body {
   gap: 8px;
   width: 100%;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-2);
   color: var(--text-main);
   font: inherit;
   cursor: pointer;
@@ -96,7 +96,7 @@ body {
 
 .lang-switcher-code {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--accent);
   min-width: 2.2em;
@@ -121,8 +121,8 @@ body {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid var(--glass-border);
-  background: rgba(12, 14, 20, 0.98);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
   z-index: 40;
 }
 
@@ -135,7 +135,7 @@ body {
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-2);
   color: var(--text-main);
   font: inherit;
   font-size: 12px;
@@ -166,7 +166,7 @@ body {
 
 .lang-option:hover,
 .lang-option[aria-selected="true"] {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--accent-soft);
 }
 
 .lang-option-native {

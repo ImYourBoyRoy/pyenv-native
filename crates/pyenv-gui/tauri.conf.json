@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "security": {
       "capabilities": ["main-capability"],
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://api.github.com; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'"
     },
     "windows": [
       {

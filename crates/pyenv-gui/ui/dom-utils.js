@@ -77,9 +77,6 @@
                 }
                 const el = document.createElement(child.tagName.toLowerCase());
                 if (child.className) el.className = child.className;
-                if (child.tagName === 'CODE' && child.getAttribute('style')) {
-                    el.setAttribute('style', child.getAttribute('style'));
-                }
                 parent.appendChild(el);
                 copyNode(child, el);
             });
@@ -88,27 +85,57 @@
         copyNode(template.content, container);
     }
 
+    // Skeleton rows stand in for a list while it loads (shape of a .version-card).
+    function createSkeleton(message, rows = 4) {
+        const wrap = document.createElement('div');
+        wrap.className = 'skeleton';
+        wrap.setAttribute('role', 'status');
+        const label = document.createElement('span');
+        label.className = 'sr-only loading-label';
+        label.textContent = message || 'Loading…';
+        wrap.appendChild(label);
+        for (let i = 0; i < rows; i += 1) {
+            const row = document.createElement('div');
+            row.className = 'skeleton-row';
+            row.setAttribute('aria-hidden', 'true');
+            const lines = document.createElement('div');
+            lines.className = 'sk-lines';
+            const title = document.createElement('span');
+            title.className = 'sk sk-title';
+            const meta = document.createElement('span');
+            meta.className = 'sk sk-meta';
+            lines.append(title, meta);
+            const btn = document.createElement('span');
+            btn.className = 'sk sk-btn';
+            row.append(lines, btn);
+            wrap.appendChild(row);
+        }
+        return wrap;
+    }
+
     function setRegionLoading(container, isLoading, message) {
         if (!container) return;
         container.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         if (isLoading) {
-            if (container.querySelector('.version-card, .status-card, .cache-row')) {
+            if (container.querySelector('.version-card, .status-card, .cache-row, .shell-card, .skeleton')) {
                 return;
             }
-            container.replaceChildren();
-            const state = document.createElement('div');
-            state.className = 'empty-state';
-            state.setAttribute('role', 'status');
-            const loader = document.createElement('div');
-            loader.className = 'loader';
-            loader.setAttribute('aria-hidden', 'true');
-            const label = document.createElement('div');
-            label.className = 'loading-label';
-            label.textContent = message || 'Loading…';
-            state.append(loader, label);
-            container.appendChild(state);
+            container.replaceChildren(createSkeleton(message));
             return;
         }
+    }
+
+    // The ">>> |" motif used by empty states. Decorative, so hidden from assistive tech.
+    function createPrompt() {
+        const prompt = document.createElement('div');
+        prompt.className = 'empty-prompt';
+        prompt.setAttribute('aria-hidden', 'true');
+        const marker = document.createElement('span');
+        marker.textContent = '>>>';
+        const caret = document.createElement('span');
+        caret.className = 'empty-caret';
+        prompt.append(marker, caret);
+        return prompt;
     }
 
     function showEmptyState(container, message, options = {}) {
@@ -117,8 +144,11 @@
         container.replaceChildren();
         const state = document.createElement('div');
         state.className = 'empty-state';
-        if (options.danger) state.style.color = 'var(--danger)';
-        state.textContent = message;
+        if (options.danger) state.classList.add('is-danger');
+        const text = document.createElement('p');
+        text.className = 'empty-msg';
+        text.textContent = message;
+        state.append(createPrompt(), text);
         container.appendChild(state);
     }
 
@@ -180,10 +210,9 @@
         });
     }
 
-    function createBadge(text, className, style) {
+    function createBadge(text, className) {
         const badge = document.createElement('span');
         badge.className = className || 'badge';
-        if (style) badge.setAttribute('style', style);
         badge.textContent = text;
         return badge;
     }
@@ -196,6 +225,8 @@
         trapFocus,
         appendRichMessage,
         setRegionLoading,
+        createSkeleton,
+        createPrompt,
         showEmptyState,
         createActionButton,
         createWarningBadge,

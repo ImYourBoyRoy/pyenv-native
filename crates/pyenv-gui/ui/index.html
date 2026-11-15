@@ -11,7 +11,9 @@
 <body>
   <a class="skip-link" href="#main-content" data-i18n="gui-skip-main">Skip to main content</a>
   <div id="aria-live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
-  <div id="status-toast" class="status-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div class="status-dock" id="status-dock">
+    <div id="status-toast" class="status-toast" role="status" aria-live="polite" aria-atomic="false" aria-relevant="additions text"></div>
+  </div>
   <div class="bg-gradient"></div>
 
   <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar" data-i18n-aria="gui-titlebar-aria">
@@ -306,20 +308,24 @@
       </section>
 
       <!-- INSTALLED VIEW -->
-      <section id="view-installed" class="view" style="display:none;">
+      <section id="view-installed" class="view is-hidden">
         <div class="header-row">
           <h1 class="page-title" data-i18n="gui-page-installed">Installed Runtimes</h1>
-          <button class="btn btn-primary" id="btn-refresh-installed" title="Reload installed runtimes." data-i18n-title="gui-refresh-installed-title">
-            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
-              stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+          <div class="header-actions">
+            <button type="button" class="btn btn-outline" id="btn-check-upgrades" title="Look for newer patch releases of the runtimes you have installed." data-i18n="gui-check-upgrades" data-i18n-title="gui-check-upgrades-title">Check for upgrades</button>
+          <button class="btn btn-outline" id="btn-refresh-installed" title="Reload installed runtimes." data-i18n-title="gui-refresh-installed-title">
+            <svg class="sx-1" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round">
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
             <span data-i18n="gui-refresh">Refresh</span>
           </button>
+          </div>
         </div>
-        <div id="installed-global-summary" class="glass" style="display:none; margin-bottom: 20px; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--glass-border);"></div>
+        <div id="upgrade-panel" class="maint-panel" hidden aria-live="polite"></div>
+        <div id="installed-global-summary" class="glass"></div>
         <div id="installed-list" class="card-list">
           <div class="empty-state">
             <div class="loader"></div>
@@ -328,9 +334,11 @@
       </section>
 
       <!-- VIRTUAL ENVIRONMENTS VIEW -->
-      <section id="view-venvs" class="view" style="display:none;">
+      <section id="view-venvs" class="view is-hidden">
         <div class="header-row">
           <h1 class="page-title" data-i18n="gui-page-venvs">Virtual Environments</h1>
+          <div class="header-actions">
+          <button type="button" class="btn btn-outline btn-compact" id="btn-bulk-update" title="Update outdated packages in every runtime and virtual environment." data-i18n="gui-update-all-packages" data-i18n-title="gui-update-all-packages-title">Update all packages</button>
           <button type="button" class="btn btn-outline btn-compact" id="btn-refresh-venvs" title="Reload virtual environments." data-i18n-title="gui-refresh-venvs-title">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -340,7 +348,9 @@
             </svg>
             <span data-i18n="gui-refresh">Refresh</span>
           </button>
+          </div>
         </div>
+        <div id="bulk-panel" class="maint-panel" hidden aria-live="polite"></div>
         <div class="venv-create-row">
           <label class="sr-only" for="venv-name" data-i18n="gui-env-name">Environment name</label>
           <input type="text" id="venv-name" placeholder="New environment name" class="search-input" autocomplete="off" title="Name for the new virtual environment." data-i18n-placeholder="gui-new-env-name" data-i18n-title="gui-venv-name-title">
@@ -358,105 +368,105 @@
       </section>
 
       <!-- SHELL INTEGRATION VIEW -->
-      <section id="view-shell" class="view" style="display:none;">
+      <section id="view-shell" class="view is-hidden">
         <div class="header-row">
           <h1 class="page-title" data-i18n="gui-page-shell-full">Shell Integration & Diagnostics</h1>
-          <button class="btn btn-outline" id="btn-refresh-shells" style="font-size: 12px; padding: 6px 12px;" title="Reload shell and doctor status." data-i18n="gui-refresh-shells" data-i18n-title="gui-refresh-shells-title">Refresh Status</button>
+          <button class="btn btn-outline" id="btn-refresh-shells" title="Reload shell and doctor status." data-i18n="gui-refresh-shells" data-i18n-title="gui-refresh-shells-title">Refresh Status</button>
         </div>
         
-        <p style="color: var(--text-muted); font-size: 14px; margin-top: -16px; margin-bottom: 24px; max-width: 600px;" data-i18n="gui-shell-intro">
+        <p class="sx-2" data-i18n="gui-shell-intro">
           For shims and automatic version switching to work properly, pyenv-native must be initialized in your active shell's startup profile.
         </p>
 
-        <div class="glass platform-intel-panel" id="platform-intel-panel" style="margin-bottom: 28px; padding: 24px; border-radius: 16px; max-width: 800px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
+        <div class="glass platform-intel-panel" id="platform-intel-panel">
+          <div class="sx-3">
             <div>
-              <h3 style="margin: 0 0 6px 0; color: #fff; font-size: 16px;" data-i18n="gui-host-environment">Host Environment</h3>
-              <p id="platform-intel-summary" style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.45;" data-i18n="gui-loading-platform">
+              <h2 class="sx-4" data-i18n="gui-host-environment">Host Environment</h2>
+              <p id="platform-intel-summary" data-i18n="gui-loading-platform">
                 Loading platform intelligence…
               </p>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="sx-5">
               <span id="platform-intel-verdict" class="platform-intel-verdict">…</span>
-              <button class="btn btn-outline" id="btn-refresh-platform-intel" style="font-size: 11px; padding: 4px 10px;" title="Reload host preflight." data-i18n="gui-refresh" data-i18n-title="gui-refresh-platform-title">Refresh</button>
+              <button class="btn btn-outline" id="btn-refresh-platform-intel" title="Reload host preflight." data-i18n="gui-refresh" data-i18n-title="gui-refresh-platform-title">Refresh</button>
             </div>
           </div>
           <div id="platform-intel-facts" class="platform-intel-facts"></div>
-          <div id="platform-intel-blockers" style="display: none; margin-top: 14px;"></div>
+          <div id="platform-intel-blockers"></div>
         </div>
 
-        <div id="shell-status-cards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
+        <div id="shell-status-cards" class="shell-cards">
           <!-- Dynamically populated Shell Cards -->
         </div>
 
         <!-- DOCTOR DIAGNOSTICS & SELF-HEALING -->
-        <div id="doctor-section" class="glass" style="margin-top: 32px; padding: 24px; border-radius: 16px; max-width: 800px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="margin: 0; color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24;">
+        <div id="doctor-section" class="glass">
+          <div class="sx-6">
+            <h2 class="sx-7">
+              <svg class="sx-8" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
               </svg>
               <span data-i18n="gui-doctor-title">System Health & Self-Healing Diagnostics</span>
-            </h3>
-            <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-              <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases" hidden style="font-size: 11px; padding: 4px 10px;" title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">Open App execution aliases</button>
-              <button class="btn btn-outline" id="btn-run-doctor" style="font-size: 11px; padding: 4px 10px;" title="Re-run doctor checks." data-i18n="gui-doctor-run" data-i18n-title="gui-doctor-run-title">Run Diagnostics</button>
+            </h2>
+            <div class="sx-9">
+              <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases" hidden title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">Open App execution aliases</button>
+              <button class="btn btn-outline" id="btn-run-doctor" title="Re-run doctor checks." data-i18n="gui-doctor-run" data-i18n-title="gui-doctor-run-title">Run Diagnostics</button>
             </div>
           </div>
           
-          <div id="doctor-loading" class="empty-state" style="display: none; padding: 20px;">
+          <div id="doctor-loading" class="empty-state">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-analyzing-prereqs">Analyzing system prerequisites...</div>
+            <div class="sx-10" data-i18n="gui-analyzing-prereqs">Analyzing system prerequisites...</div>
           </div>
           
-          <div id="doctor-results" style="display: none;">
-            <div id="doctor-issues-card" class="glass" style="padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.02); display: none;">
-              <div style="font-weight: 600; color: #fbbf24; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <div class="is-hidden" id="doctor-results">
+            <div id="doctor-issues-card" class="glass">
+              <div class="sx-11">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 <span data-i18n="gui-doctor-issues">Potential System Health Issues Discovered</span>
               </div>
-              <div id="doctor-issues-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
+              <div id="doctor-issues-list">
                 <!-- Dynamically populated issues -->
               </div>
               <div class="doctor-actions">
-                <button class="btn btn-gold" id="btn-doctor-fix" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Apply automated repairs from doctor." data-i18n="gui-doctor-fix" data-i18n-title="gui-doctor-fix-title">
+                <button class="btn btn-gold" id="btn-doctor-fix" title="Apply automated repairs from doctor." data-i18n="gui-doctor-fix" data-i18n-title="gui-doctor-fix-title">
                   Attempt Self-Healing Repair
                 </button>
-                <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases-card" hidden style="width: 100%; padding: 8px; font-size: 12px; font-weight: 600;" title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">
+                <button type="button" class="btn btn-outline" id="btn-doctor-open-aliases-card" hidden title="Open Windows Settings to App execution aliases." data-open-app-aliases data-i18n="gui-doctor-open-aliases" data-i18n-title="gui-doctor-open-aliases-title">
                   Open App execution aliases
                 </button>
               </div>
             </div>
             
-            <div id="doctor-healthy-card" class="glass" style="padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02); display: none;">
-              <div style="font-weight: 600; color: #34d399; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+            <div id="doctor-healthy-card" class="glass">
+              <div class="sx-12">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span data-i18n="gui-doctor-healthy">System Health is Perfect!</span>
               </div>
-              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0 0;" data-i18n="gui-doctor-healthy-body">
+              <p class="sx-13" data-i18n="gui-doctor-healthy-body">
                 All system path configurations, shims, compilers, and dependencies are fully aligned.
               </p>
             </div>
           </div>
         </div>
 
-        <div class="glass" style="margin-top: 32px; padding: 24px; border-radius: 16px; max-width: 800px;">
-          <h3 style="margin-top: 0; color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+        <div class="glass sx-14">
+          <h2 class="sx-15">
+            <svg class="sx-16" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
             <span data-i18n="gui-shims-title">Understanding Shell Shims</span>
-          </h3>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 0;" data-i18n="gui-shims-body">
+          </h2>
+          <p class="sx-17" data-i18n="gui-shims-body">
             When you run python or pip in your terminal, the shell calls the pyenv-native shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute pyenv doctor in your shell.
           </p>
         </div>
       </section>
 
       <!-- AVAILABLE VIEW -->
-      <section id="view-available" class="view" style="display:none;">
+      <section id="view-available" class="view is-hidden">
         <div class="header-row">
           <h1 class="page-title" data-i18n="gui-page-available">Installable Runtimes</h1>
           <div class="catalog-toolbar">
@@ -488,7 +498,7 @@
       </section>
 
       <!-- SETTINGS VIEW -->
-      <section id="view-settings" class="view" style="display:none;" aria-labelledby="settings-title">
+      <section id="view-settings" class="view is-hidden" aria-labelledby="settings-title">
         <h1 class="page-title" id="settings-title" data-i18n="gui-page-settings">Settings</h1>
         <p class="settings-page-intro" data-i18n="gui-settings-intro">Tune install defaults, virtual environments, cache, and accessibility. Platform-only options appear when relevant.</p>
         <div class="card-list settings-grid">
@@ -564,7 +574,7 @@
             <legend data-i18n="gui-cache-legend">Cache</legend>
             <p class="setting-help settings-intro" data-i18n="gui-cache-intro">Monitor download and build caches. Purge only removes cache files — installed runtimes and venvs are kept.</p>
             <div id="cache-stats" class="cache-stats" aria-live="polite">
-              <div class="empty-state" style="padding: 12px;" data-i18n="gui-loading-cache">Loading cache usage…</div>
+              <div class="empty-state sx-18" data-i18n="gui-loading-cache">Loading cache usage…</div>
             </div>
             <div class="setting-row cache-actions">
               <button type="button" class="btn btn-outline" id="btn-refresh-cache" title="Reload cache sizes." data-i18n="gui-refresh" data-i18n-title="gui-refresh-cache-title">Refresh</button>
@@ -605,14 +615,14 @@
             </div>
           </fieldset>
         </div>
-        <p id="config-save-status" class="setting-help" role="status" aria-live="polite" style="margin-top: 16px; min-height: 1.2em;"></p>
+        <p id="config-save-status" class="setting-help" role="status" aria-live="polite"></p>
       </section>
       <!-- ABOUT VIEW -->
-      <section id="view-about" class="view" style="display:none;">
+      <section id="view-about" class="view is-hidden">
         <h1 class="page-title" data-i18n="gui-page-about">About Pyenv-Native</h1>
-        <div class="card glass" style="padding: 32px;">
-          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-            <div class="brand-icon" style="width: 48px; height: 48px; border-radius: 14px; font-size: 20px;">
+        <div class="card glass sx-19">
+          <div class="sx-20">
+            <div class="brand-icon sx-21">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
                 <defs>
                   <linearGradient id="aboutBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -685,22 +695,22 @@
               </svg>
             </div>
             <div>
-              <h2 style="margin: 0; font-size: 20px;">Pyenv-Native</h2>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Version <span
+              <h2 class="sx-22">Pyenv-Native</h2>
+              <div class="sx-23">Version <span
                   id="about-version">…</span></div>
             </div>
           </div>
-          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 16px 0; font-size: 14px;" data-i18n="gui-about-blurb-1">
+          <p class="sx-24" data-i18n="gui-about-blurb-1">
             A specialized, zero-dependency cross-platform engine that brings the pyenv workflow to Linux, macOS, and Windows — fast shims, managed virtual environments, and a unified GUI.
           </p>
-          <p style="color: var(--text-muted); line-height: 1.7; margin: 0 0 28px 0; font-size: 14px;" data-i18n="gui-about-blurb-2">
+          <p class="sx-25" data-i18n="gui-about-blurb-2">
             Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging, shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments, and system configurations — all from one place.
           </p>
-          <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 8px;">
-            <div
-              style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;" data-i18n="gui-created-by">
+          <div class="sx-26">
+            <div class="sx-27"
+              data-i18n="gui-created-by">
               Created by Roy Dawson IV</div>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="sx-28">
               <button type="button" class="btn btn-primary" id="btn-open-website" title="Open the project website." data-i18n="gui-website" data-i18n-title="gui-website-title">Website</button>
               <button type="button" class="btn btn-outline" id="btn-open-github" title="Open the GitHub repository." data-i18n="gui-github" data-i18n-title="gui-github-title">GitHub Repository</button>
               <button type="button" class="btn btn-outline" id="btn-open-pypi" title="Open the PyPI profile." data-i18n="gui-pypi" data-i18n-title="gui-pypi-title">PyPI Profile</button>
@@ -723,8 +733,8 @@
   <div id="drawer-venv-upgrader" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="upgrader-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="upgrader-target-title" data-i18n="gui-migrate-title">Migrate Environment</h3>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="upgrader-target-subtitle" data-i18n="gui-migrate-subtitle">Move this venv to another installed Python runtime</div>
+        <h3 id="upgrader-target-title" data-i18n="gui-migrate-title">Migrate Environment</h3>
+        <div id="upgrader-target-subtitle" data-i18n="gui-migrate-subtitle">Move this venv to another installed Python runtime</div>
       </div>
       <button type="button" class="drawer-close" id="btn-close-upgrader" aria-label="Close upgrade panel" title="Close" data-i18n-aria="gui-close-upgrade" data-i18n-title="gui-close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -734,76 +744,76 @@
       </button>
     </div>
 
-    <div class="drawer-content-container" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;">
+    <div class="drawer-content-container sx-29">
       <!-- Step 1: Select target version -->
-      <div id="upgrader-setup-card" class="glass" style="padding: 16px; border-radius: 8px;">
-        <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--text-heading); font-size: 13px;" data-i18n="gui-select-target-runtime">Select Target Runtime</h4>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <select id="upgrader-target-version" class="dropdown" style="width: 100%;" title="Installed Python to migrate this venv onto." data-i18n-title="gui-upgrader-target-title">
+      <div id="upgrader-setup-card" class="glass">
+        <h4 class="sx-30" data-i18n="gui-select-target-runtime">Select Target Runtime</h4>
+        <div class="sx-31">
+          <select id="upgrader-target-version" class="dropdown" title="Installed Python to migrate this venv onto." data-i18n-title="gui-upgrader-target-title">
             <option value="" data-i18n="gui-select-target">Select Target…</option>
           </select>
-          <button class="btn btn-gold" id="btn-start-upgrade" style="width: 100%; font-weight: 600; padding: 10px;" title="Recreate this venv on the selected runtime." data-i18n="gui-start-migration" data-i18n-title="gui-start-migration-title">
+          <button class="btn btn-gold" id="btn-start-upgrade" title="Recreate this venv on the selected runtime." data-i18n="gui-start-migration" data-i18n-title="gui-start-migration-title">
             Start Migration Wizard
           </button>
         </div>
       </div>
 
       <!-- Progressive steps checklist card -->
-      <div id="upgrader-progress-card" class="glass" style="padding: 16px; border-radius: 8px; display: none;">
-        <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--text-heading); font-size: 13px;" data-i18n="gui-migration-progress">Migration Progress</h4>
+      <div id="upgrader-progress-card" class="glass">
+        <h4 class="sx-32" data-i18n="gui-migration-progress">Migration Progress</h4>
         
-        <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="sx-33">
           <!-- Step: Backup -->
-          <div class="upgrader-step-row" id="step-row-backup" style="display: flex; align-items: center; gap: 12px;">
-            <div class="upgrader-step-icon" id="step-icon-backup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">1</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-backup" data-i18n="gui-step-inventory">Inventory old environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-backup" data-i18n="gui-step-inventory-desc">Discovering installed packages…</div>
+          <div class="upgrader-step-row" id="step-row-backup">
+            <div class="upgrader-step-icon" id="step-icon-backup">1</div>
+            <div class="sx-34">
+              <div id="step-label-backup" data-i18n="gui-step-inventory">Inventory old environment</div>
+              <div id="step-desc-backup" data-i18n="gui-step-inventory-desc">Discovering installed packages…</div>
             </div>
           </div>
 
           <!-- Step: Recreate -->
-          <div class="upgrader-step-row" id="step-row-recreate" style="display: flex; align-items: center; gap: 12px;">
-            <div class="upgrader-step-icon" id="step-icon-recreate" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">2</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-recreate" data-i18n="gui-step-create">Create fresh environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-recreate" data-i18n="gui-step-create-desc">Rebuilding venv under target version…</div>
+          <div class="upgrader-step-row" id="step-row-recreate">
+            <div class="upgrader-step-icon" id="step-icon-recreate">2</div>
+            <div class="sx-34">
+              <div id="step-label-recreate" data-i18n="gui-step-create">Create fresh environment</div>
+              <div id="step-desc-recreate" data-i18n="gui-step-create-desc">Rebuilding venv under target version…</div>
             </div>
           </div>
 
           <!-- Step: Restore -->
-          <div class="upgrader-step-row" id="step-row-restore" style="display: flex; align-items: center; gap: 12px;">
-            <div class="upgrader-step-icon" id="step-icon-restore" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">3</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-restore" data-i18n="gui-step-restore">Restore packages</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-restore" data-i18n="gui-step-restore-desc">Progressively reinstalling packages…</div>
+          <div class="upgrader-step-row" id="step-row-restore">
+            <div class="upgrader-step-icon" id="step-icon-restore">3</div>
+            <div class="sx-34">
+              <div id="step-label-restore" data-i18n="gui-step-restore">Restore packages</div>
+              <div id="step-desc-restore" data-i18n="gui-step-restore-desc">Progressively reinstalling packages…</div>
             </div>
           </div>
 
           <!-- Step: Verify -->
-          <div class="upgrader-step-row" id="step-row-verify" style="display: flex; align-items: center; gap: 12px;">
-            <div class="upgrader-step-icon" id="step-icon-verify" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">4</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-verify" data-i18n="gui-step-verify">Dependency diagnostics</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-verify" data-i18n="gui-step-verify-desc">Running pip check verification…</div>
+          <div class="upgrader-step-row" id="step-row-verify">
+            <div class="upgrader-step-icon" id="step-icon-verify">4</div>
+            <div class="sx-34">
+              <div id="step-label-verify" data-i18n="gui-step-verify">Dependency diagnostics</div>
+              <div id="step-desc-verify" data-i18n="gui-step-verify-desc">Running pip check verification…</div>
             </div>
           </div>
 
           <!-- Step: Cleanup -->
-          <div class="upgrader-step-row" id="step-row-cleanup" style="display: flex; align-items: center; gap: 12px;">
-            <div class="upgrader-step-icon" id="step-icon-cleanup" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">5</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);" id="step-label-cleanup" data-i18n="gui-step-cleanup">Cleanup old environment</div>
-              <div style="font-size: 10px; color: var(--text-muted);" id="step-desc-cleanup" data-i18n="gui-step-cleanup-desc">Removing old virtual environment…</div>
+          <div class="upgrader-step-row" id="step-row-cleanup">
+            <div class="upgrader-step-icon" id="step-icon-cleanup">5</div>
+            <div class="sx-34">
+              <div id="step-label-cleanup" data-i18n="gui-step-cleanup">Cleanup old environment</div>
+              <div id="step-desc-cleanup" data-i18n="gui-step-cleanup-desc">Removing old virtual environment…</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Dark console log card -->
-      <div id="upgrader-log-card" class="glass" style="padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 180px; max-height: 280px; box-sizing: border-box;">
-        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="gui-migration-logs">Migration Logs</div>
-        <div id="upgrader-console" style="background: rgba(0, 0, 0, 0.3); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 10px; color: #a3b3c2; overflow-y: auto; flex: 1; line-height: 1.5; white-space: pre-wrap; box-sizing: border-box;" data-i18n="gui-migration-begin">Select a target Python version to begin migration.</div>
+      <div id="upgrader-log-card" class="glass">
+        <div class="sx-35" data-i18n="gui-migration-logs">Migration Logs</div>
+        <div id="upgrader-console" data-i18n="gui-migration-begin">Select a target Python version to begin migration.</div>
       </div>
     </div>
   </div>
@@ -812,8 +822,8 @@
   <div id="drawer-package-manager" class="drawer glass" role="dialog" aria-modal="true" aria-labelledby="drawer-target-title" aria-hidden="true" inert>
     <div class="drawer-header">
       <div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 600;" id="drawer-target-title" data-i18n="gui-package-explorer">Package Explorer</h3>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="drawer-target-subtitle" data-i18n="gui-target-environment">Target Environment</div>
+        <h3 id="drawer-target-title" data-i18n="gui-package-explorer">Package Explorer</h3>
+        <div id="drawer-target-subtitle" data-i18n="gui-target-environment">Target Environment</div>
       </div>
       <button type="button" class="drawer-close" id="btn-close-drawer" aria-label="Close package explorer" title="Close" data-i18n-aria="gui-close-packages" data-i18n-title="gui-close">
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -825,7 +835,7 @@
 
     <div class="drawer-tabs" role="tablist" aria-label="Package explorer sections" data-i18n-aria="gui-packages-sections">
       <button type="button" class="drawer-tab-btn active" data-drawer-tab="tab-installed" role="tab" id="tab-btn-installed" aria-selected="true" aria-controls="tab-installed" title="Packages already in this environment." data-i18n-title="gui-tab-installed-title"><span data-i18n="gui-installed-label">Installed</span></button>
-      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates" title="Outdated packages that can be upgraded." data-i18n-title="gui-tab-updates-title"><span data-i18n="gui-drawer-updates">Updates</span> <span id="updates-count-badge" style="display:none; background:#ffd43b; color:#0b0c10; padding:1px 5px; border-radius:10px; font-size:9px; font-weight:700; margin-left:4px;">0</span></button>
+      <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-updates" role="tab" id="tab-btn-updates" aria-selected="false" aria-controls="tab-updates" title="Outdated packages that can be upgraded." data-i18n-title="gui-tab-updates-title"><span data-i18n="gui-drawer-updates">Updates</span> <span id="updates-count-badge">0</span></button>
       <button type="button" class="drawer-tab-btn" data-drawer-tab="tab-import" role="tab" id="tab-btn-import" aria-selected="false" aria-controls="tab-import" title="Precheck a requirements file or scan a codebase." data-i18n="gui-drawer-import" data-i18n-title="gui-drawer-import-title">Import (Precheck)</button>
     </div>
 
@@ -833,29 +843,29 @@
       <!-- INSTALLED TAB CONTENT -->
       <div id="tab-installed" class="drawer-tab-content active" role="tabpanel" aria-labelledby="tab-btn-installed">
         <!-- Pip Cozy Self-Update Card -->
-        <div id="pip-self-update-card" style="display: none; background: rgba(255, 212, 59, 0.1); border: 1px solid rgba(255, 212, 59, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 12px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span class="status-dot status-light-glow gold" style="width: 8px; height: 8px; border-radius: 50%;"></span>
+        <div id="pip-self-update-card">
+          <div class="sx-36">
+            <span class="status-dot status-light-glow gold sx-37"></span>
             <div>
-              <div style="font-size: 12px; font-weight: 600; color: #ffd43b;" data-i18n="gui-pip-update-card">Pip Update Available</div>
-              <div style="font-size: 11px; color: var(--text-muted);" id="pip-self-update-versions" data-i18n="gui-pip-update-help">Upgrading pip enhances resolver stability.</div>
+              <div class="sx-38" data-i18n="gui-pip-update-card">Pip Update Available</div>
+              <div id="pip-self-update-versions" data-i18n="gui-pip-update-help">Upgrading pip enhances resolver stability.</div>
             </div>
           </div>
-          <button class="btn btn-gold" id="btn-upgrade-pip" style="font-size: 11px; padding: 6px 12px; height: auto;" title="Upgrade pip in this environment." data-i18n="gui-update" data-i18n-title="gui-upgrade-pip-title">Update</button>
+          <button class="btn btn-gold" id="btn-upgrade-pip" title="Upgrade pip in this environment." data-i18n="gui-update" data-i18n-title="gui-upgrade-pip-title">Update</button>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-          <div class="search-box" style="width: 100%; padding: 6px 12px;">
+        <div class="sx-39">
+          <div class="search-box sx-40">
             <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <label class="sr-only" for="drawer-package-search" data-i18n="gui-search-packages">Search installed packages</label>
-            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." style="font-size: 12px;" aria-label="Search installed packages" title="Filter installed packages by name." data-i18n-placeholder="gui-search-packages" data-i18n-aria="gui-search-packages-aria" data-i18n-title="gui-search-packages-title" />
+            <input type="search" id="drawer-package-search" placeholder="Search installed packages..." aria-label="Search installed packages" title="Filter installed packages by name." data-i18n-placeholder="gui-search-packages" data-i18n-aria="gui-search-packages-aria" data-i18n-title="gui-search-packages-title" />
           </div>
         </div>
 
-        <div class="table-container" style="max-height: calc(100vh - 240px);">
+        <div class="table-container sx-41">
           <table class="package-table" aria-label="Installed packages" data-i18n-aria="gui-installed-packages-aria">
             <thead>
               <tr>
@@ -868,54 +878,54 @@
               <!-- Dynamically populated -->
             </tbody>
           </table>
-          <div id="drawer-package-empty" class="empty-state" style="display: none;" data-i18n="gui-no-packages">No packages found.</div>
+          <div id="drawer-package-empty" class="empty-state is-hidden" data-i18n="gui-no-packages">No packages found.</div>
           <div id="drawer-package-loading" class="empty-state">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-querying-packages">Querying packages...</div>
+            <div class="sx-10" data-i18n="gui-querying-packages">Querying packages...</div>
           </div>
         </div>
       </div>
 
       <!-- UPDATES TAB CONTENT -->
       <div id="tab-updates" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-updates" hidden>
-        <div id="updates-scan-prompt" class="empty-state" style="padding: 30px 20px;">
-          <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
-          <div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;" data-i18n="gui-check-outdated">Check for Outdated Packages</div>
-          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;" data-i18n="gui-check-outdated-body">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
-          <button class="btn btn-primary" id="btn-scan-outdated" style="font-size: 12px;" title="Check PyPI for newer package versions." data-i18n="gui-scan-environment" data-i18n-title="gui-scan-environment-title">Scan Environment</button>
+        <div id="updates-scan-prompt" class="empty-state">
+          <div class="sx-42">🔍</div>
+          <div class="sx-43" data-i18n="gui-check-outdated">Check for Outdated Packages</div>
+          <p class="sx-44" data-i18n="gui-check-outdated-body">Scan this environment against the upstream PyPI registry to find available upgrades.</p>
+          <button class="btn btn-primary" id="btn-scan-outdated" title="Check PyPI for newer package versions." data-i18n="gui-scan-environment" data-i18n-title="gui-scan-environment-title">Scan Environment</button>
         </div>
 
-        <div id="updates-scanning" class="empty-state" style="display: none; padding: 40px 20px;">
+        <div id="updates-scanning" class="empty-state">
           <div class="loader"></div>
-          <div style="font-size: 12px; margin-top: 12px;" data-i18n="gui-scanning-pypi">Scanning PyPI catalog...</div>
+          <div class="sx-45" data-i18n="gui-scanning-pypi">Scanning PyPI catalog...</div>
         </div>
 
-        <div id="updates-checklist-view" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500;">
+        <div class="is-hidden" id="updates-checklist-view">
+          <div class="sx-46">
+            <label class="sx-47">
               <input type="checkbox" id="chk-select-all-updates" /> <span data-i18n="gui-select-all-packages">Select All Packages</span>
             </label>
-            <span style="color: var(--text-muted);" id="selected-updates-count">0 selected</span>
+            <span id="selected-updates-count">0 selected</span>
           </div>
 
-          <div class="updates-list-container" style="max-height: calc(100vh - 280px); margin-bottom: 20px;">
+          <div class="updates-list-container sx-48">
             <div class="updates-checkbox-list" id="updates-checklist">
               <!-- Dynamically populated -->
             </div>
           </div>
 
           <!-- Progress Tracker for Package Updates -->
-          <div id="pkg-update-progress-container" class="glass" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 11px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span id="pkg-update-progress-text" style="color: var(--text-main); font-weight: 500;" data-i18n="gui-upgrading-packages">Upgrading packages...</span>
-              <span id="pkg-update-progress-percent" style="color: var(--success); font-weight: 600;">0%</span>
+          <div id="pkg-update-progress-container" class="glass">
+            <div class="sx-49">
+              <span id="pkg-update-progress-text" data-i18n="gui-upgrading-packages">Upgrading packages...</span>
+              <span id="pkg-update-progress-percent">0%</span>
             </div>
-            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
-            <div id="pkg-update-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pkg-update-progress-text" style="width: 0%; height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);"></div>
+            <div class="sx-50">
+            <div id="pkg-update-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pkg-update-progress-text"></div>
             </div>
           </div>
 
-          <button class="btn btn-gold" id="btn-update-selected" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600;" disabled title="Upgrade the packages you checked." data-i18n="gui-update-selected-packages" data-i18n-title="gui-update-selected-title">
+          <button class="btn btn-gold" id="btn-update-selected" disabled title="Upgrade the packages you checked." data-i18n="gui-update-selected-packages" data-i18n-title="gui-update-selected-title">
             Update Selected Packages
           </button>
         </div>
@@ -923,33 +933,33 @@
 
       <!-- IMPORT TAB CONTENT -->
       <div id="tab-import" class="drawer-tab-content" role="tabpanel" aria-labelledby="tab-btn-import" hidden>
-        <div style="margin-bottom: 16px;">
+        <div class="sx-51">
           <label class="setting-label" for="import-requirements-path" data-i18n="gui-requirements-label">Requirements File or URL</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" style="flex: 1; font-size: 12px; padding: 6px 12px;" title="Local requirements file or GitHub URL." data-i18n-placeholder="gui-requirements-placeholder" data-i18n-title="gui-requirements-path-title" />
-            <button class="btn btn-outline" id="btn-precheck-import" style="font-size: 11px; padding: 6px 12px;" title="Check requirements for conflicts before install." data-i18n="gui-precheck" data-i18n-title="gui-precheck-title">Precheck</button>
+          <div class="sx-52">
+            <input type="text" id="import-requirements-path" placeholder="Paste local path or GitHub URL..." class="search-input" title="Local requirements file or GitHub URL." data-i18n-placeholder="gui-requirements-placeholder" data-i18n-title="gui-requirements-path-title" />
+            <button class="btn btn-outline" id="btn-precheck-import" title="Check requirements for conflicts before install." data-i18n="gui-precheck" data-i18n-title="gui-precheck-title">Precheck</button>
           </div>
-          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;" data-i18n="gui-github-url-help">
+          <div class="sx-53" data-i18n="gui-github-url-help">
             GitHub URLs are auto-translated (for example github.com blob links become raw.githubusercontent.com) for static conflict checking before install.
           </div>
         </div>
 
-        <div id="import-precheck-loading" class="empty-state" style="display: none; padding: 20px;">
+        <div id="import-precheck-loading" class="empty-state">
           <div class="loader loader-sm"></div>
-          <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-running-conflict">Running conflict analysis...</div>
+          <div class="sx-10" data-i18n="gui-running-conflict">Running conflict analysis...</div>
         </div>
 
         <!-- Precheck Diagnostic Dashboard -->
-        <div id="import-precheck-dashboard" style="display: none; margin-bottom: 20px;">
+        <div id="import-precheck-dashboard">
           <!-- Result Banner -->
-          <div id="precheck-banner" style="padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-            <span id="precheck-banner-icon" style="font-size: 14px;"></span>
+          <div id="precheck-banner">
+            <span id="precheck-banner-icon"></span>
             <span id="precheck-banner-text"></span>
           </div>
 
           <!-- Active conflicts warnings list -->
-          <div id="precheck-conflicts-section" style="display: none; margin-bottom: 16px;">
-            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--danger); letter-spacing: 0.5px; margin-bottom: 8px;" data-i18n="gui-mismatch-mappings">Version Mismatch Mappings</div>
+          <div id="precheck-conflicts-section">
+            <div class="sx-54" data-i18n="gui-mismatch-mappings">Version Mismatch Mappings</div>
             <div class="import-issues-container" id="precheck-conflicts-list">
               <!-- Dynamically populated -->
             </div>
@@ -957,9 +967,9 @@
 
           <!-- Resolved packages summary -->
           <div>
-            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;" data-i18n="gui-resolved-deps">Resolved Dependencies</div>
-            <div class="table-container" style="max-height: 180px;">
-              <table class="package-table" style="font-size: 11px;" aria-label="Resolved import dependencies" data-i18n-aria="gui-import-deps-aria">
+            <div class="sx-55" data-i18n="gui-resolved-deps">Resolved Dependencies</div>
+            <div class="table-container sx-56">
+              <table class="package-table sx-57" aria-label="Resolved import dependencies" data-i18n-aria="gui-import-deps-aria">
                 <thead>
                   <tr>
                     <th scope="col" data-i18n="gui-col-package">Package</th>
@@ -975,53 +985,53 @@
           </div>
         </div>
 
-        <button class="btn btn-primary" id="btn-install-imported" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 600; margin-top: 10px;" disabled title="Install the prechecked requirements." data-i18n="gui-install-dependencies" data-i18n-title="gui-install-deps-title">
+        <button class="btn btn-primary" id="btn-install-imported" disabled title="Install the prechecked requirements." data-i18n="gui-install-dependencies" data-i18n-title="gui-install-deps-title">
           Install Dependencies
         </button>
 
         <!-- CODEBASE SCANNER SECTION -->
-        <div style="margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
-            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin: 0;" data-i18n="gui-codebase-analyzer">Codebase Import Analyzer</label>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline" id="btn-select-scan-folder" style="font-size: 11px; padding: 4px 10px;" title="Choose a project folder to scan." data-i18n="gui-select-folder" data-i18n-title="gui-select-folder-title">Select Folder</button>
-              <button class="btn btn-outline" id="btn-scan-imports" style="font-size: 11px; padding: 4px 10px;" title="Find third-party imports missing from this environment." data-i18n="gui-scan" data-i18n-title="gui-scan-imports-title">Scan</button>
+        <div class="sx-58">
+          <div class="sx-59">
+            <label class="sx-60" data-i18n="gui-codebase-analyzer">Codebase Import Analyzer</label>
+            <div class="sx-61">
+              <button class="btn btn-outline" id="btn-select-scan-folder" title="Choose a project folder to scan." data-i18n="gui-select-folder" data-i18n-title="gui-select-folder-title">Select Folder</button>
+              <button class="btn btn-outline" id="btn-scan-imports" title="Find third-party imports missing from this environment." data-i18n="gui-scan" data-i18n-title="gui-scan-imports-title">Scan</button>
             </div>
           </div>
-          <p id="scan-folder-label" style="color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: -4px; margin-bottom: 8px; word-break: break-all;" data-i18n="gui-scan-folder-help">
+          <p id="scan-folder-label" data-i18n="gui-scan-folder-help">
             Choose a project folder, then scan. Only third-party (pip-installable) imports are reported — stdlib and private modules are skipped.
           </p>
 
-          <div id="scan-imports-loading" class="empty-state" style="display: none; padding: 20px;">
+          <div id="scan-imports-loading" class="empty-state">
             <div class="loader loader-sm"></div>
-            <div style="font-size: 11px; margin-top: 8px;" data-i18n="gui-analyzing-ast">Analyzing workspace AST...</div>
+            <div class="sx-10" data-i18n="gui-analyzing-ast">Analyzing workspace AST...</div>
           </div>
 
-          <div id="scan-imports-results" style="display: none;">
+          <div class="is-hidden" id="scan-imports-results">
             <!-- Missing dependencies card -->
-            <div id="scan-missing-card" class="glass" style="padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(239, 68, 68, 0.15); background: rgba(239, 68, 68, 0.02);">
-              <div style="font-weight: 600; color: #f87171; font-size: 11px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <div id="scan-missing-card" class="glass">
+              <div class="sx-62">
                 <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                 <span data-i18n="gui-missing-deps">Missing Dependencies Discovered</span>
               </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;" id="scan-missing-desc" data-i18n="gui-missing-deps-body">
+              <div id="scan-missing-desc" data-i18n="gui-missing-deps-body">
                 These libraries are used in the codebase but not currently installed.
               </div>
-              <div id="scan-missing-badges" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+              <div id="scan-missing-badges">
                 <!-- Missing package badges -->
               </div>
-              <button class="btn btn-gold" id="btn-install-missing-imports" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;" title="Install the missing third-party imports." data-i18n="gui-install-missing" data-i18n-title="gui-install-missing-title">
+              <button class="btn btn-gold" id="btn-install-missing-imports" title="Install the missing third-party imports." data-i18n="gui-install-missing" data-i18n-title="gui-install-missing-title">
                 Install Missing Dependencies
               </button>
             </div>
 
             <!-- Installed dependencies card -->
-            <div id="scan-installed-card" class="glass" style="padding: 12px; border-radius: 8px;">
-              <div style="font-weight: 600; color: #34d399; font-size: 11px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <div id="scan-installed-card" class="glass">
+              <div class="sx-63">
                 <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span data-i18n="gui-aligned-deps">Aligned Dependencies</span>
               </div>
-              <div id="scan-installed-badges" style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <div id="scan-installed-badges">
                 <!-- Installed package badges -->
               </div>
             </div>
@@ -1035,8 +1045,8 @@
 
   <footer class="app-footer" id="app-footer" role="contentinfo">
     <div class="footer-left">
-      <span style="font-weight: 600;" id="footer-version">Pyenv-Native</span>
-      <span id="footer-app-status" style="color: var(--text-muted);"></span>
+      <span id="footer-version">Pyenv-Native</span>
+      <span id="footer-app-status"></span>
     </div>
     <div class="footer-right">
       <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer pyenv-native." data-i18n="gui-footer-check-updates" data-i18n-title="gui-footer-updates-title">Check for Updates</button>
@@ -1044,7 +1054,9 @@
   </footer>
   <script src="dom-utils.js"></script>
   <script src="i18n.js"></script>
+  <script src="motion.js"></script>
   <script src="app.js"></script>
+  <script src="maintenance.js"></script>
 </body>
 
 </html>

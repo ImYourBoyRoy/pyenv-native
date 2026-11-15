@@ -1,22 +1,89 @@
-/* ./crates/pyenv-gui/ui/styles/tokens.css — design tokens */
+/* ./crates/pyenv-gui/ui/styles/tokens.css — design tokens
+   Two themes (dark default, light via prefers-color-scheme). Surfaces are
+   solid; elevation comes from borders, not blur or glow. Python blue is the
+   action colour; Python yellow marks "pending" and the brand only. */
 :root {
-  --bg-color: #0b0c10; 
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-hover: rgba(255, 255, 255, 0.08);
-  --text-main: #f8fafc;
-  --text-primary: #f8fafc;
-  --text-heading: #f1f5f9;
-  --text-muted: #94a3b8;
-  --accent: #3b82f6;
-  --accent-glow: rgba(59, 130, 246, 0.5);
+  color-scheme: dark;
+
+  --bg-color: #14171c;
+  --surface: #1a1e25;
+  --surface-2: #21262e;
+  --surface-3: #2a3039;
+  --glass-border: #2b313a;
+  --border-strong: #3a424d;
+  --glass-hover: rgba(255, 255, 255, 0.06);
+  --glass-bg: var(--surface);
+
+  --text-main: #e6e9ee;
+  --text-primary: #e6e9ee;
+  --text-heading: #f4f6f9;
+  --text-muted: #9aa3af;
+
+  --accent: #6ba6d9;
+  --accent-strong: #356fa6;
+  --accent-hover: #2d6399;
+  --accent-on: #ffffff;
+  --accent-soft: rgba(107, 166, 217, 0.14);
+  --accent-glow: rgba(107, 166, 217, 0.35);
+  --gold: #ffd43b;
   --accent-gold: #ffd43b;
-  --success: #10b981;
-  --danger: #ef4444;
+  --gold-soft: rgba(255, 212, 59, 0.12);
+  --success: #4cc38a;
+  --success-soft: rgba(76, 195, 138, 0.13);
+  --danger: #f2706f;
+  --danger-soft: rgba(242, 112, 111, 0.13);
+  --warn: #f0b83e;
+  --warn-soft: rgba(240, 184, 62, 0.12);
+
+  --overlay: rgba(6, 8, 11, 0.62);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%239aa3af' stroke-width='1.6' d='M2.5 4.5l3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+
+  --radius: 6px;
+  --radius-lg: 10px;
   --titlebar-height: 32px;
-  --sidebar-width: 260px;
-  --footer-height: 36px;
+  --sidebar-width: 232px;
+  --footer-height: 32px;
   --focus-ring: 2px solid var(--accent);
   --focus-offset: 2px;
   --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", "Menlo", Consolas, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-high-contrast="true"]) {
+    color-scheme: light;
+
+    --bg-color: #f5f4f1;
+    --surface: #ffffff;
+    --surface-2: #f0efeb;
+    --surface-3: #e6e4de;
+    --glass-border: #dedbd3;
+    --border-strong: #c4c0b6;
+    --glass-hover: rgba(20, 24, 30, 0.06);
+
+    --text-main: #1c2027;
+    --text-primary: #1c2027;
+    --text-heading: #10141a;
+    --text-muted: #565d68;
+
+    --accent: #2b6699;
+    --accent-strong: #2b6699;
+    --accent-hover: #235580;
+    --accent-on: #ffffff;
+    --accent-soft: rgba(43, 102, 153, 0.1);
+    --accent-glow: rgba(43, 102, 153, 0.3);
+    --gold: #ffd43b;
+    --accent-gold: #8a6500;
+    --gold-soft: rgba(255, 212, 59, 0.28);
+    --success: #17784a;
+    --success-soft: rgba(23, 120, 74, 0.1);
+    --danger: #b3322f;
+    --danger-soft: rgba(179, 50, 47, 0.09);
+    --warn: #8a5a00;
+    --warn-soft: rgba(240, 184, 62, 0.2);
+
+    --overlay: rgba(28, 32, 39, 0.4);
+    --shadow-pop: 0 8px 24px rgba(28, 32, 39, 0.16);
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23565d68' stroke-width='1.6' d='M2.5 4.5l3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  }
 }

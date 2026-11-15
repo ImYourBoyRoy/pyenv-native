@@ -8,6 +8,10 @@
 @import url("styles/drawer.css");
 @import url("styles/pages.css");
 @import url("styles/i18n.css");
+@import url("styles/motion.css");
+@import url("styles/feedback.css");
+@import url("styles/maintenance.css");
+@import url("styles/inline.css");
 
 @font-face {
   font-family: "Inter";

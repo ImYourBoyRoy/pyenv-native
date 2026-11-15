@@ -11,6 +11,8 @@ The **Pyenv Native GUI** is a desktop dashboard built with Tauri v2 for managing
 - **Project folder**: The folder bar stays visible on every page. **Make Local** writes `.python-version` there; **Pin to another folder…** in a card’s **More** menu opens a picker without changing the bar.
 - **Pip Package Explorer**: Drawer focused on a target interpreter to browse installed dependencies, audit updates, statically pre-check requirements.txt constraints, and scan codebase imports.
 - **Codebase Import Analyzer**: Statically parses Python source in the active workspace, flags missing third-party imports, and can install them progressively.
+- **Runtime upgrades**: **Check for upgrades** on Installed Runtimes lists the newest patch for each installed CPython. One button installs them, moves the managed venvs onto the new patch, and updates your pins; old runtimes are kept.
+- **Update all packages**: on Virtual Environments, plans package updates across every runtime and venv, then applies them with `pip check` rollback per environment. Progress shows in the Activity tray.
 - **Pip Updates**: Audits packages against PyPI with a multiselect checklist. The gold update button stays dimmed until at least one package is selected. Outdated `pip` is updated first.
 - **Conflict Pre-checker**: Resolves local files or HTTPS URLs (GitHub blob links translated to raw) before `pip install`.
 - **Visual Management**: Browse and install CPython 2.x / 3.x and PyPy. Latest patch per line is the default; Python 2 stays in the catalog for legacy projects. Alpha, beta, and release-candidate builds remain visible with a channel badge instead of being presented as stable releases.
@@ -34,6 +36,10 @@ The **Pyenv Native GUI** is a desktop dashboard built with Tauri v2 for managing
 | Install Runtimes | Shell Integration | Settings |
 | :---: | :---: | :---: |
 | ![Available](./screenshots/Available.webp) | ![Shell](./screenshots/Shell.webp) | ![Settings](./screenshots/Settings.webp) |
+
+| Runtime upgrades | Update all packages |
+| :---: | :---: |
+| ![Runtime upgrades](./screenshots/Upgrades.webp) | ![Update all packages](./screenshots/Bulk_Update_Done.webp) |
 
 ![About](./screenshots/About.webp)
 
