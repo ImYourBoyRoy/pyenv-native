@@ -6,5 +6,5 @@ mod helpers;
 mod tests;
 mod types;
 
-pub use commands::{cmd_prefix, cmd_uninstall, cmd_versions};
+pub use commands::{cmd_prefix, cmd_uninstall, cmd_versions, plan_uninstall};
 pub use types::VersionsCommandOptions;

@@ -1004,6 +1004,7 @@ version = "0.7.2"
 dependencies = [
  "clap",
  "enchi-core",
+ "serde_json",
  "tempfile",
 ]
 

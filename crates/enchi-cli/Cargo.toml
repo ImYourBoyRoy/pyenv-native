@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 clap.workspace = true
 enchi-core = { path = "../enchi-core" }
+serde_json.workspace = true
 
 [[bin]]
 name = "enchi"

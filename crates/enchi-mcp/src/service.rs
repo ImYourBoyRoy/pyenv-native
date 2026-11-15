@@ -14,18 +14,21 @@ use crate::model::{
     EnsureProjectVenvParams, EnsureRuntimeParams, InstallInstructionParams, JsonForwardResponse,
     PipAnalyzeParams, PipInstallParams, PipListParams, PipPrecheckParams, PipUpdateParams,
     ProjectPathParams, ProjectVenvResponse, RuntimeInventory, SelfUpdateParams,
-    SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide, UpdateAllPackagesParams,
-    UpgradeRuntimesParams, VenvUpgradeParams, VersionCatalogResponse, VersionSelectionResponse,
+    SetGlobalVersionParams, SetLocalVersionParams, ToolkitGuide, UninstallRuntimeParams,
+    UpdateAllPackagesParams, UpgradeRuntimesParams, VenvDeleteParams, VenvRenameParams,
+    VenvUpgradeParams, VersionCatalogResponse, VersionSelectionResponse, WhichParams,
 };
 use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_context, build_install_instructions,
     build_toolkit_guide, doctor_fix_response, doctor_response, ensure_project_venv_response,
     ensure_runtime_response, get_config_response, inspect_environment_response,
-    list_available_versions_response, pip_analyze_imports_response, pip_check_response,
-    pip_install_response, pip_list_response, pip_outdated_response, pip_precheck_response,
-    pip_update_response, preflight_response, resolve_runtime_inventory, self_update_response,
-    set_config_response, set_global_versions_response, set_local_versions_response,
-    update_all_packages_response, upgrade_runtimes_response, venv_upgrade_response,
+    list_available_versions_response, list_venvs_response, pip_analyze_imports_response,
+    pip_check_response, pip_install_response, pip_list_response, pip_outdated_response,
+    pip_precheck_response, pip_update_response, preflight_response, resolve_runtime_inventory,
+    self_update_response, set_config_response, set_global_versions_response,
+    set_local_versions_response, uninstall_runtime_response, update_all_packages_response,
+    upgrade_runtimes_response, venv_delete_response, venv_rename_response, venv_upgrade_response,
+    which_response,
 };
 
 #[derive(Debug, Clone)]
@@ -44,6 +47,16 @@ impl EnchiMcpServer {
         Self {
             tool_router: Self::tool_router(),
         }
+    }
+
+    /// Names of every tool the server registers (used to keep the toolkit guide in step).
+    #[cfg(test)]
+    pub(crate) fn registered_tool_names() -> Vec<String> {
+        Self::tool_router()
+            .list_all()
+            .into_iter()
+            .map(|tool| tool.name.to_string())
+            .collect()
     }
 }
 
@@ -485,6 +498,95 @@ impl EnchiMcpServer {
             &params.new_runtime,
             params.force.unwrap_or(false),
             params.set_local.unwrap_or(false),
+        )
+        .map(Json)
+        .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "list_venvs",
+        annotations(read_only_hint = true, open_world_hint = false),
+        description = "List every managed virtual environment (spec, base runtime, location, interpreter and pip paths). Use it to pick a spec for venv_upgrade, venv_rename, venv_delete or pip tools."
+    )]
+    pub async fn list_venvs(
+        &self,
+        Parameters(params): Parameters<ProjectPathParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        list_venvs_response(&ctx)
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "which",
+        annotations(read_only_hint = true, open_world_hint = false),
+        description = "Resolve an executable (python, pytest, ...) the way the shims would for the current selection, returning its full path. Set no_system=true to refuse the system PATH fallback."
+    )]
+    pub async fn which(
+        &self,
+        Parameters(params): Parameters<WhichParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        which_response(&ctx, &params.command, params.no_system.unwrap_or(false))
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "uninstall_runtime",
+        annotations(read_only_hint = false, destructive_hint = true),
+        description = "Remove installed Python runtimes by exact version name (for example 3.12.10). Plan-only unless apply=true; call it without apply first and show the user the plan. Refuses when managed venvs depend on the runtime unless remove_dependent_venvs=true (prefer venv_upgrade to move them first). Never prompts."
+    )]
+    pub async fn uninstall_runtime(
+        &self,
+        Parameters(params): Parameters<UninstallRuntimeParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(None).map_err(|error| error.to_string())?;
+        tokio::task::spawn_blocking(move || {
+            uninstall_runtime_response(
+                &ctx,
+                params.versions,
+                params.apply.unwrap_or(false),
+                params.remove_dependent_venvs.unwrap_or(false),
+            )
+        })
+        .await
+        .map_err(|error| error.to_string())?
+        .map(Json)
+        .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "venv_delete",
+        annotations(read_only_hint = false, destructive_hint = true),
+        description = "Delete a managed virtual environment. Plan-only unless apply=true; call it without apply first and show the user the plan. Update any .python-version files that pointed at it afterwards."
+    )]
+    pub async fn venv_delete(
+        &self,
+        Parameters(params): Parameters<VenvDeleteParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        venv_delete_response(&ctx, &params.spec, params.apply.unwrap_or(false))
+            .map(Json)
+            .map_err(|error| error.to_string())
+    }
+
+    #[tool(
+        name = "venv_rename",
+        annotations(read_only_hint = false, destructive_hint = true),
+        description = "Rename a managed virtual environment. Plan-only unless apply=true. Entry-point scripts inside the venv keep the old path, so prefer venv_upgrade or recreating the venv if pip or console scripts stop working afterwards."
+    )]
+    pub async fn venv_rename(
+        &self,
+        Parameters(params): Parameters<VenvRenameParams>,
+    ) -> Result<Json<JsonForwardResponse>, String> {
+        let ctx = build_context(params.project_dir).map_err(|error| error.to_string())?;
+        venv_rename_response(
+            &ctx,
+            &params.spec,
+            &params.new_name,
+            params.apply.unwrap_or(false),
         )
         .map(Json)
         .map_err(|error| error.to_string())

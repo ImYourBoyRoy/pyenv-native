@@ -69,8 +69,35 @@ mod cases {
             "self_update",
             "venv_upgrade",
             "doctor_fix",
+            "list_venvs",
+            "which",
+            "uninstall_runtime",
+            "venv_delete",
+            "venv_rename",
         ] {
             assert!(names.contains(&expected), "missing tool {expected}");
+        }
+    }
+
+    #[test]
+    fn toolkit_guide_documents_every_registered_tool() {
+        let guide = crate::ops::build_toolkit_guide(
+            "imyourboyroy/pyenv-native",
+            Some(Path::new("/tmp/.enchi")),
+            "enchi",
+            Path::new("/tmp/enchi-mcp"),
+            Path::new("/tmp/.enchi"),
+        );
+        let documented: Vec<&str> = guide
+            .tool_summaries
+            .iter()
+            .map(|summary| summary.tool_name.as_str())
+            .collect();
+        for name in crate::service::EnchiMcpServer::registered_tool_names() {
+            assert!(
+                documented.contains(&name.as_str()),
+                "tool `{name}` is registered but missing from get_toolkit_guide"
+            );
         }
     }
 

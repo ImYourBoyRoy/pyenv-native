@@ -69,6 +69,10 @@ pub fn cmd_versions(ctx: &AppContext, options: &VersionsCommandOptions) -> Comma
         .map(|value| value.to_ascii_lowercase())
         .collect::<HashSet<_>>();
 
+    if options.json {
+        return versions_json(ctx, entries);
+    }
+
     let mut stdout = Vec::new();
     let mut num_versions = 0usize;
 
@@ -100,6 +104,104 @@ pub fn cmd_versions(ctx: &AppContext, options: &VersionsCommandOptions) -> Comma
     }
 
     CommandReport::success(stdout)
+}
+
+/// `enchi versions --json`: every selectable version with whether it is currently active.
+fn versions_json(ctx: &AppContext, entries: Vec<super::types::VersionEntry>) -> CommandReport {
+    let current = resolve_selected_versions(ctx, false)
+        .versions
+        .into_iter()
+        .map(|value| value.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+
+    let mut items = Vec::new();
+    if system_prefix(ctx).is_some() {
+        items.push(serde_json::json!({
+            "name": "system",
+            "kind": "system",
+            "active": current.contains("system"),
+            "link_target": serde_json::Value::Null,
+        }));
+    }
+    for entry in entries {
+        let kind = if entry.name.contains("/envs/") {
+            "venv"
+        } else if entry.link_target.is_some() {
+            "alias"
+        } else {
+            "runtime"
+        };
+        items.push(serde_json::json!({
+            "name": entry.name,
+            "kind": kind,
+            "active": current.contains(&entry.name.to_ascii_lowercase()),
+            "link_target": entry.link_target.as_ref().map(|path| path.display().to_string()),
+        }));
+    }
+
+    match serde_json::to_string_pretty(&items) {
+        Ok(text) => CommandReport::success(text.lines().map(ToOwned::to_owned).collect()),
+        Err(error) => CommandReport::failure(vec![format!("enchi: {error}")], 1),
+    }
+}
+
+/// What `enchi uninstall <versions>` would remove, without touching anything (`--dry-run`).
+///
+/// Applies the same safety checks as [`cmd_uninstall`], so a plan that succeeds is one the real
+/// command would accept; dependent managed venvs are listed because uninstalling removes them.
+pub fn plan_uninstall(ctx: &AppContext, versions: &[String]) -> CommandReport {
+    if versions.is_empty() {
+        return CommandReport::failure(
+            vec!["enchi: uninstall operation requires at least one version argument".to_string()],
+            1,
+        );
+    }
+
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    for version in versions {
+        if version.trim().is_empty() || version.starts_with('-') {
+            stderr.push(format!("enchi: invalid version argument `{version}`"));
+            continue;
+        }
+        if !is_safe_relative_path(version) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it is not a safe version path"
+            ));
+            continue;
+        }
+        let version_dir = installed_version_dir(ctx, version);
+        if !path_stays_under(&ctx.versions_dir(), &version_dir) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it resolves outside the versions directory"
+            ));
+            continue;
+        }
+        if !version_dir.exists() {
+            stderr.push(format!("enchi: version `{version}` not installed"));
+            continue;
+        }
+
+        stdout.push(format!(
+            "Would uninstall {version} ({})",
+            version_dir.display()
+        ));
+        let dependent_envs = managed_venv_entries_for_base(ctx, version).unwrap_or_default();
+        for (spec, _) in &dependent_envs {
+            stdout.push(format!(
+                "Would also remove dependent managed venv {spec} (requires --force)"
+            ));
+        }
+    }
+    if stderr.is_empty() {
+        stdout.push("Dry run: nothing was changed.".to_string());
+    }
+    let exit_code = if stderr.is_empty() { 0 } else { 1 };
+    CommandReport {
+        stdout,
+        stderr,
+        exit_code,
+    }
 }
 
 pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> CommandReport {

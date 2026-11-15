@@ -131,6 +131,159 @@ pub fn cmd_venv_create(
     }
 }
 
+/// What `enchi venv create <runtime> <name>` would do, without creating anything (`--dry-run`).
+pub fn plan_venv_create(
+    ctx: &AppContext,
+    requested_version: &str,
+    name: &str,
+    force: bool,
+) -> CommandReport {
+    if !is_safe_env_name(name) {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: invalid managed venv name `{name}`; use letters, numbers, ., _, or -"
+            )],
+            1,
+        );
+    }
+    let resolved = match resolve_installed_runtime_version(ctx, requested_version) {
+        Ok(version) => version,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
+    let collisions = find_env_name_matches(ctx, name).unwrap_or_default();
+    let exact_spec = managed_venv_spec(&resolved, name);
+    if !collisions.is_empty() && !(force && collisions.iter().all(|item| item.spec == exact_spec)) {
+        return CommandReport::failure(vec![format_collision_error(name, &collisions)], 1);
+    }
+    let path = managed_venv_dir(ctx, &resolved, name);
+    if path.exists() && !force {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: managed venv `{exact_spec}` already exists; use --force to recreate it"
+            )],
+            1,
+        );
+    }
+    let mut stdout = vec![format!(
+        "Would create managed venv {exact_spec} from runtime {resolved} at {}",
+        path.display()
+    )];
+    if path.exists() {
+        stdout.push("Would first remove the existing environment (--force).".to_string());
+    }
+    stdout.push("Dry run: nothing was changed.".to_string());
+    CommandReport::success(stdout)
+}
+
+/// What `enchi venv delete <spec>` would remove, without removing it (`--dry-run`).
+pub fn plan_venv_delete(ctx: &AppContext, spec: &str) -> CommandReport {
+    match resolve_managed_venv(ctx, spec) {
+        Ok(info) => CommandReport::success(vec![
+            format!(
+                "Would remove managed venv {} ({})",
+                info.spec,
+                info.path.display()
+            ),
+            "Dry run: nothing was changed.".to_string(),
+        ]),
+        Err(error) => CommandReport::failure(vec![error.to_string()], 1),
+    }
+}
+
+/// What `enchi venv rename <spec> <new-name>` would do, without renaming (`--dry-run`).
+pub fn plan_venv_rename(ctx: &AppContext, spec: &str, new_name: &str) -> CommandReport {
+    let info = match resolve_managed_venv(ctx, spec) {
+        Ok(info) => info,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
+    if !is_safe_env_name(new_name) {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: invalid managed venv name `{new_name}`; use letters, numbers, ., _, or -"
+            )],
+            1,
+        );
+    }
+    let collisions = find_env_name_matches(ctx, new_name).unwrap_or_default();
+    if collisions.iter().any(|item| item.spec != info.spec) {
+        return CommandReport::failure(vec![format_collision_error(new_name, &collisions)], 1);
+    }
+    let target = managed_venv_dir(ctx, &info.base_version, new_name);
+    if target.exists() {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: managed venv target already exists at {}",
+                target.display()
+            )],
+            1,
+        );
+    }
+    CommandReport::success(vec![
+        format!(
+            "Would rename managed venv {} -> {}/envs/{new_name}",
+            info.spec, info.base_version
+        ),
+        "Dry run: nothing was changed.".to_string(),
+    ])
+}
+
+/// What `enchi venv upgrade <spec> <runtime>` would do, without recreating anything (`--dry-run`).
+pub fn plan_venv_upgrade(
+    ctx: &AppContext,
+    spec: &str,
+    new_runtime: &str,
+    force: bool,
+) -> CommandReport {
+    let info = match resolve_managed_venv(ctx, spec) {
+        Ok(info) => info,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
+    let resolved = match resolve_installed_runtime_version(ctx, new_runtime) {
+        Ok(version) => version,
+        Err(error) => {
+            return CommandReport::failure(
+                vec![
+                    format!("enchi: target new runtime `{new_runtime}` is not installed."),
+                    format!("Error: {error}"),
+                    format!("Hint: install it first with `enchi install {new_runtime}`"),
+                ],
+                1,
+            );
+        }
+    };
+    if info.base_version == resolved {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: managed venv {} is already using runtime {resolved}",
+                info.spec
+            )],
+            1,
+        );
+    }
+    let destination = managed_venv_dir(ctx, &resolved, &info.name);
+    if destination.exists() && !force {
+        return CommandReport::failure(
+            vec![format!(
+                "enchi: target managed venv `{}` already exists at {}; use --force to replace it",
+                managed_venv_spec(&resolved, &info.name),
+                destination.display()
+            )],
+            1,
+        );
+    }
+    let mut stdout = vec![format!(
+        "Would migrate managed venv {} from runtime {} to {resolved}, recreating it at {} and reinstalling its packages",
+        info.spec,
+        info.base_version,
+        destination.display()
+    )];
+    if destination.exists() {
+        stdout.push("Would replace the existing target venv (kept as a rollback until the migration succeeds).".to_string());
+    }
+    stdout.push("Dry run: nothing was changed.".to_string());
+    CommandReport::success(stdout)
+}
+
 pub fn cmd_venv_delete(ctx: &AppContext, spec: &str, force: bool) -> CommandReport {
     let info = match resolve_managed_venv(ctx, spec) {
         Ok(info) => info,

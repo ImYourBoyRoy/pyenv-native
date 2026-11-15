@@ -9,6 +9,8 @@ pub struct VersionsCommandOptions {
     pub skip_aliases: bool,
     pub skip_envs: bool,
     pub executables: bool,
+    /// Print a JSON array of `{ name, active, kind, link_target }` instead of text.
+    pub json: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

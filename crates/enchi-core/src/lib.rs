@@ -80,7 +80,7 @@ pub use installer::{
     powershell_profile_path, profile_path, remove_profile_block, run_self_install,
     run_self_uninstall,
 };
-pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions};
+pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions, plan_uninstall};
 pub use meta::{
     EnvironmentStatus, ManagedVenvSummary, build_environment_status, cmd_commands, cmd_completions,
     cmd_help, cmd_prompt, cmd_shims, cmd_status,
@@ -89,8 +89,8 @@ pub use pip::{
     BulkScope, BulkSummary, BulkUpdateOptions, BulkUpdateReport, DependencyConflict,
     OutdatedPackage, PipPackage, PrecheckResult, TargetKind, TargetResult, TargetStatus,
     cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
-    cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, resolve_interpreter_path,
-    update_all_packages,
+    cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, plan_pip_install,
+    plan_pip_update, resolve_interpreter_path, update_all_packages,
 };
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use preflight::{
@@ -116,7 +116,8 @@ pub use upgrade::{
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
     cmd_venv_rename, cmd_venv_upgrade, cmd_venv_upgrade_noninteractive, cmd_venv_use,
-    list_managed_venvs, resolve_installed_runtime_version, resolve_managed_venv,
+    list_managed_venvs, plan_venv_create, plan_venv_delete, plan_venv_rename, plan_venv_upgrade,
+    resolve_installed_runtime_version, resolve_managed_venv,
 };
 pub use venv_compat::{
     cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,

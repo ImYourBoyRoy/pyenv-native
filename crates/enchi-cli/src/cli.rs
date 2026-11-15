@@ -108,6 +108,8 @@ pub(crate) enum Commands {
     Global {
         #[arg(long = "unset", help = "Remove the global version file")]
         unset: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Version(s) to set globally (e.g. 3.14, 3.13)")]
         versions: Vec<String>,
     },
@@ -121,6 +123,8 @@ pub(crate) enum Commands {
         force: bool,
         #[arg(long = "unset", help = "Remove the .python-version file")]
         unset: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Version(s) to set locally (e.g. 3.14, 3.13)")]
         versions: Vec<String>,
     },
@@ -140,12 +144,16 @@ pub(crate) enum Commands {
         bypass: bool,
         #[arg(short = 'f', long = "force")]
         force: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         prefix: String,
     },
     #[command(about = "Show the current Python version and its origin")]
     Version {
         #[arg(long = "bare")]
         bare: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
     #[command(about = "Show the current Python version")]
     VersionName {
@@ -155,7 +163,11 @@ pub(crate) enum Commands {
     #[command(about = "Explain how the current Python version is set")]
     VersionOrigin,
     #[command(about = "Display paths where the given Python versions are installed")]
-    Prefix { versions: Vec<String> },
+    Prefix {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+        versions: Vec<String>,
+    },
 
     // --- PROVISIONING ---
     #[command(next_help_heading = "PROVISIONING")]
@@ -207,6 +219,8 @@ pub(crate) enum Commands {
         skip_envs: bool,
         #[arg(long = "executables")]
         executables: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
     #[command(
         about = "Move installed runtimes to the newest patch release, venvs included",
@@ -243,8 +257,20 @@ pub(crate) enum Commands {
     },
     #[command(about = "Uninstall a specific Python version")]
     Uninstall {
-        #[arg(short = 'f', long = "force")]
+        #[arg(
+            short = 'f',
+            long = "force",
+            help = "Skip the confirmation prompt and remove dependent managed venvs"
+        )]
         force: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+        #[arg(help = "Version(s) to uninstall (e.g. 3.12.10)")]
         versions: Vec<String>,
     },
 
@@ -306,11 +332,16 @@ pub(crate) enum Commands {
     #[command(about = "Launch the Enchi GUI dashboard")]
     Gui,
     #[command(about = "Rehash enchi shims (installs executables across all versions)")]
-    Rehash,
+    Rehash {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+    },
     #[command(about = "List existing enchi shims")]
     Shims {
         #[arg(long = "short")]
         short: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
     #[command(about = "Print a concise prompt string for the current environment")]
     Prompt,
@@ -371,13 +402,18 @@ pub(crate) enum Commands {
         command: Option<ConfigCommands>,
     },
     #[command(about = "Display the root directory where versions and shims are kept")]
-    Root,
+    Root {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+    },
     #[command(about = "Display the full path to an executable")]
     Which {
         #[arg(long = "nosystem")]
         no_system: bool,
         #[arg(long = "skip-advice")]
         skip_advice: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         command: String,
     },
     #[command(about = "List all Python versions that contain the given executable")]
@@ -419,6 +455,8 @@ pub(crate) enum Commands {
         github_repo: Option<String>,
         #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
         tag: Option<String>,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
     #[command(
         about = "Install or repair Enchi from a release bundle",
@@ -529,6 +567,8 @@ pub(crate) enum Commands {
             help = "Remove the program files installed by the macOS .pkg (run with sudo); Python versions under ENCHI_ROOT are kept"
         )]
         system: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(long = "finish-after-pid", hide = true)]
         finish_after_pid: Option<u32>,
     },
@@ -557,6 +597,8 @@ pub(crate) enum Commands {
             help = "Repository the Gemini CLI, Antigravity, and Claude Code installs use (default: the public Enchi repository)"
         )]
         repo_url: Option<String>,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
 
     // --- SUPPORT ---
@@ -608,6 +650,8 @@ pub(crate) enum Commands {
         github_repo: Option<String>,
         #[arg(long = "tag", help = "Specific release tag to install, such as v0.1.8")]
         tag: Option<String>,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
     },
     #[command(
         hide = true,
@@ -667,13 +711,28 @@ pub(crate) enum Commands {
 #[derive(Debug, Subcommand)]
 pub(crate) enum ConfigCommands {
     #[command(about = "Show the path to the config file")]
-    Path,
+    Path {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+    },
     #[command(about = "Print all current configuration")]
-    Show,
+    Show {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+    },
     #[command(about = "Print the value of a specific config key")]
-    Get { key: String },
+    Get {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+        key: String,
+    },
     #[command(about = "Update a config key")]
-    Set { key: String, value: String },
+    Set {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+        key: String,
+        value: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -705,6 +764,13 @@ pub(crate) enum VenvCommands {
             help = "Write the new env spec into the current directory's .python-version file"
         )]
         set_local: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Installed runtime version or prefix, such as 3.12 or 3.14.7")]
         version: String,
         #[arg(help = "Managed env name, such as app or tooling")]
@@ -714,11 +780,25 @@ pub(crate) enum VenvCommands {
     Delete {
         #[arg(short = 'f', long = "force", help = "Skip the confirmation prompt")]
         force: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
     },
     #[command(about = "Rename a managed virtual environment")]
     Rename {
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
         #[arg(help = "New env name")]
@@ -731,6 +811,8 @@ pub(crate) enum VenvCommands {
             help = "Write the env spec into the global version file"
         )]
         global: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Env name or full env spec like 3.14.7/envs/demo")]
         spec: String,
     },
@@ -749,6 +831,13 @@ pub(crate) enum VenvCommands {
             help = "Write the upgraded env spec into the current directory's .python-version file"
         )]
         set_local: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "The old env name or full spec (e.g. demo or 3.12.1/envs/demo) to migrate")]
         spec: String,
         #[arg(
@@ -792,11 +881,15 @@ pub(crate) enum PipCommands {
             help = "Local path or HTTPS URL to a requirements.txt file"
         )]
         requirement: String,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Runtime version or venv name")]
         target: String,
     },
     #[command(about = "Scan Python sources for third-party imports missing from the target")]
     Analyze {
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Runtime version or venv name")]
         target: String,
         #[arg(help = "Workspace directory to scan (defaults to the current directory)")]
@@ -810,6 +903,13 @@ pub(crate) enum PipCommands {
             help = "Local path or HTTPS URL to a requirements.txt file"
         )]
         requirement: String,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Runtime version or venv name")]
         target: String,
     },
@@ -852,6 +952,13 @@ pub(crate) enum PipCommands {
             help = "Update all outdated packages; fails if the outdated scan cannot run"
         )]
         all: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
         #[arg(help = "Runtime version or venv name")]
         target: String,
         #[arg(help = "Package names or name==version pins to update")]

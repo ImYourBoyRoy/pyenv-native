@@ -86,6 +86,32 @@ SUPPORT:
 - `enchi which <command>` — Show the full path to an executable (e.g., `pip`).
 - `enchi whence <command>` — List all Python versions that contain the given executable.
 
+## Automation: `--json` and `--dry-run`
+
+The commands you would script accept `--json`; shell-integration commands (`init`, `shell`, `activate`, `exec`, `completions`) print what the shell needs and have no JSON form. Commands with a natural data shape print it directly (`status`, `doctor`, `versions`, `available`, `venv list|info`, `pip list|outdated|check|update-all`, `upgrade`). Everything else prints one result document:
+
+```json
+{
+  "schema": "enchi.result/1",
+  "command": "uninstall",
+  "ok": true,
+  "exit_code": 0,
+  "dry_run": false,
+  "data": { },
+  "output": ["enchi: 3.12.0 uninstalled"],
+  "errors": []
+}
+```
+
+- `ok` and `exit_code` match the process exit status; stderr stays empty in JSON mode, so parse stdout only.
+- `output` is the text the command would have printed; `data` carries typed values where there are any (`root` and `which` give `path`, `global`/`local` give `versions`, `prefix` gives `paths`, `config get` gives `value`).
+- **Machine mode never prompts.** A destructive command (`uninstall`, `venv delete`, `venv upgrade`) refuses with a clear error unless you pass `--force` (or use `--dry-run`); `self-update` and `self-uninstall` need `--yes`.
+- `--dry-run` validates and prints what would happen without changing anything, on `install`, `uninstall`, `upgrade` (`--check`), `venv create|delete|rename|upgrade`, `pip install|update|update-all`. A dry run applies the same safety checks as the real command, so a plan that succeeds is one the real command accepts.
+
+Combine them for agents: `enchi uninstall 3.12.10 --dry-run --json`, then the same line with `--force` instead of `--dry-run`.
+
+Not covered yet: `self-uninstall` has `--json` but no `--dry-run`, and `self-install` has neither (it streams its progress as it works).
+
 ## Native Power Features
 
 ### Managed Virtual Environments (`venv`)

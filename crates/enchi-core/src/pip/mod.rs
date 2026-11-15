@@ -16,6 +16,7 @@ pub use bulk::{
 };
 pub use operations::{
     cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
-    cmd_pip_precheck_requirements, cmd_pip_update, resolve_interpreter_path,
+    cmd_pip_precheck_requirements, cmd_pip_update, plan_pip_install, plan_pip_update,
+    resolve_interpreter_path,
 };
 pub use types::{DependencyConflict, OutdatedPackage, PipPackage, PrecheckResult};

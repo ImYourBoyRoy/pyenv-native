@@ -303,6 +303,44 @@ pub struct PipUpdateParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct WhichParams {
+    /// Executable to resolve, such as `python` or `pytest`.
+    pub command: String,
+    /// Do not fall back to the system PATH when the selected runtime lacks it.
+    pub no_system: Option<bool>,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UninstallRuntimeParams {
+    /// Exact installed version directory names, such as `3.12.10`.
+    pub versions: Vec<String>,
+    /// `false` (default) returns the plan only; `true` removes the runtimes.
+    pub apply: Option<bool>,
+    /// Also delete managed venvs built on these runtimes (default false: refuse instead).
+    pub remove_dependent_venvs: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VenvDeleteParams {
+    /// Managed env spec such as `3.14.7/envs/api`, or a unique env name.
+    pub spec: String,
+    /// `false` (default) returns the plan only; `true` deletes the environment.
+    pub apply: Option<bool>,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VenvRenameParams {
+    /// Managed env spec such as `3.14.7/envs/api`, or a unique env name.
+    pub spec: String,
+    pub new_name: String,
+    /// `false` (default) returns the plan only; `true` renames the environment.
+    pub apply: Option<bool>,
+    pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PipAnalyzeParams {
     pub target: String,
     pub dir_path: String,

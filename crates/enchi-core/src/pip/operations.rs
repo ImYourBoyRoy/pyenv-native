@@ -616,6 +616,71 @@ pub fn cmd_pip_install(ctx: &AppContext, target: &str, path_or_url: &str) -> Com
     CommandReport::success(stdout_str.lines().map(ToOwned::to_owned).collect())
 }
 
+/// What `enchi pip install -r <file-or-url> <target>` would do (`--dry-run`): the target must
+/// resolve and the requirements must pass the static precheck, but nothing is installed.
+pub fn plan_pip_install(ctx: &AppContext, target: &str, path_or_url: &str) -> CommandReport {
+    if let Err(error) = resolve_interpreter_path(ctx, target) {
+        return CommandReport::failure(vec![error], 1);
+    }
+    let precheck = cmd_pip_precheck_requirements(ctx, target, path_or_url);
+    if precheck.exit_code != 0 {
+        return precheck;
+    }
+    let mut stdout = precheck.stdout;
+    stdout.push(format!("Would install {path_or_url} into {target}"));
+    stdout.push("Dry run: nothing was changed.".to_string());
+    CommandReport::success(stdout)
+}
+
+/// What `enchi pip update` would change (`--dry-run`), derived from the outdated scan.
+pub fn plan_pip_update(
+    ctx: &AppContext,
+    target: &str,
+    packages: &[String],
+    all: bool,
+) -> CommandReport {
+    if let Err(error) = resolve_interpreter_path(ctx, target) {
+        return CommandReport::failure(vec![error], 1);
+    }
+    let outdated_report = cmd_pip_outdated(ctx, target, true);
+    if outdated_report.exit_code != 0 {
+        let mut lines =
+            vec!["enchi: the outdated scan failed, so no plan can be made.".to_string()];
+        lines.extend(outdated_report.stderr);
+        return CommandReport::failure(lines, 1);
+    }
+    let outdated: Vec<OutdatedPackage> =
+        match serde_json::from_str(&outdated_report.stdout.join("\n")) {
+            Ok(items) => items,
+            Err(error) => {
+                return CommandReport::failure(
+                    vec![format!("enchi: outdated JSON was unreadable: {error}")],
+                    1,
+                );
+            }
+        };
+
+    let wanted: Vec<String> = packages
+        .iter()
+        .map(|name| name.split("==").next().unwrap_or(name).to_lowercase())
+        .collect();
+    let mut stdout = Vec::new();
+    for item in &outdated {
+        let selected = all || wanted.iter().any(|name| name == &item.name.to_lowercase());
+        if selected {
+            stdout.push(format!(
+                "Would update {} {} -> {}",
+                item.name, item.version, item.latest_version
+            ));
+        }
+    }
+    if stdout.is_empty() {
+        stdout.push("Nothing to update.".to_string());
+    }
+    stdout.push("Dry run: nothing was changed.".to_string());
+    CommandReport::success(stdout)
+}
+
 /// Executes individual/batch package upgrades, optionally upgrading pip first if a pip update is available.
 pub fn cmd_pip_update(
     ctx: &AppContext,

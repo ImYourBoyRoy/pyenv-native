@@ -25,6 +25,8 @@ use enchi_core::{
     cmd_version_file_read, cmd_version_file_write, cmd_version_name, cmd_version_origin,
     cmd_versions, cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_init,
     cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan, parse_agents,
+    plan_pip_install, plan_pip_update, plan_uninstall, plan_venv_create, plan_venv_delete,
+    plan_venv_rename, plan_venv_upgrade,
 };
 
 use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
@@ -276,11 +278,190 @@ fn join_single_char_tokens(tokens: &[OsString]) -> Option<String> {
     Some(joined)
 }
 
+/// Run a command, rendering the result as JSON when the command was given `--json`.
 fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
+    let Some(mode) = json_mode(&command) else {
+        return run_command(ctx, command);
+    };
+    if let Some(refusal) = json_guard(&command) {
+        return refusal.into_json(mode.command, mode.dry_run, None);
+    }
+    let report = run_command(ctx, command);
+    let data = envelope_data(mode.command, &report);
+    report.into_json(mode.command, mode.dry_run, data)
+}
+
+/// How a `--json` command is reported: its name in the envelope and whether it was a dry run.
+struct JsonMode {
+    command: &'static str,
+    dry_run: bool,
+}
+
+impl JsonMode {
+    fn new(command: &'static str, dry_run: bool) -> Option<Self> {
+        Some(Self { command, dry_run })
+    }
+}
+
+/// `Some` when the command asked for `--json` and has no typed JSON of its own, so its text
+/// result is wrapped in the `enchi.result/1` envelope. Commands with native JSON (`status`,
+/// `venv list`, `pip outdated`, ...) print their own documents and are not listed here.
+fn json_mode(command: &Commands) -> Option<JsonMode> {
+    match command {
+        Commands::Global { json: true, .. } => JsonMode::new("global", false),
+        Commands::Local { json: true, .. } => JsonMode::new("local", false),
+        Commands::Latest { json: true, .. } => JsonMode::new("latest", false),
+        Commands::Version { json: true, .. } => JsonMode::new("version", false),
+        Commands::Prefix { json: true, .. } => JsonMode::new("prefix", false),
+        Commands::Uninstall {
+            json: true,
+            dry_run,
+            ..
+        } => JsonMode::new("uninstall", *dry_run),
+        Commands::Rehash { json: true } => JsonMode::new("rehash", false),
+        Commands::Shims { json: true, .. } => JsonMode::new("shims", false),
+        Commands::Root { json: true } => JsonMode::new("root", false),
+        Commands::Which { json: true, .. } => JsonMode::new("which", false),
+        Commands::SelfUpdate { json: true, .. } | Commands::Update { json: true, .. } => {
+            JsonMode::new("self-update", false)
+        }
+        Commands::SelfUninstall { json: true, .. } => JsonMode::new("self-uninstall", false),
+        Commands::AgentSkills { json: true, .. } => JsonMode::new("agent-skills", false),
+        Commands::Config {
+            command: Some(command),
+        } => match command {
+            ConfigCommands::Path { json: true } => JsonMode::new("config path", false),
+            ConfigCommands::Show { json: true } => JsonMode::new("config show", false),
+            ConfigCommands::Get { json: true, .. } => JsonMode::new("config get", false),
+            ConfigCommands::Set { json: true, .. } => JsonMode::new("config set", false),
+            _ => None,
+        },
+        Commands::Venv { command } => match command {
+            VenvCommands::Create {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("venv create", *dry_run),
+            VenvCommands::Delete {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("venv delete", *dry_run),
+            VenvCommands::Rename {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("venv rename", *dry_run),
+            VenvCommands::Use { json: true, .. } => JsonMode::new("venv use", false),
+            VenvCommands::Upgrade {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("venv upgrade", *dry_run),
+            _ => None,
+        },
+        Commands::Pip { command } => match command {
+            PipCommands::Precheck { json: true, .. } => JsonMode::new("pip precheck", false),
+            PipCommands::Analyze { json: true, .. } => JsonMode::new("pip analyze", false),
+            PipCommands::Install {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("pip install", *dry_run),
+            PipCommands::Update {
+                json: true,
+                dry_run,
+                ..
+            } => JsonMode::new("pip update", *dry_run),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Machine mode never prompts. A destructive command without `--force`/`--yes` (and not a dry
+/// run) is refused with a message saying how to confirm, instead of blocking on stdin.
+fn json_guard(command: &Commands) -> Option<CommandReport> {
+    let missing = |flag: &str, what: &str| {
+        Some(CommandReport::failure(
+            vec![format!(
+                "enchi: `{what} --json` never prompts; pass {flag} to confirm (or --dry-run to preview)"
+            )],
+            1,
+        ))
+    };
+    match command {
+        Commands::Uninstall {
+            json: true,
+            force: false,
+            dry_run: false,
+            ..
+        } => missing("--force", "uninstall"),
+        Commands::SelfUpdate {
+            json: true,
+            yes: false,
+            check: false,
+            ..
+        }
+        | Commands::Update {
+            json: true,
+            yes: false,
+            check: false,
+            ..
+        } => missing("--yes", "self-update"),
+        Commands::SelfUninstall {
+            json: true,
+            yes: false,
+            ..
+        } => missing("--yes", "self-uninstall"),
+        Commands::Venv { command } => match command {
+            VenvCommands::Delete {
+                json: true,
+                force: false,
+                dry_run: false,
+                ..
+            } => missing("--force", "venv delete"),
+            VenvCommands::Upgrade {
+                json: true,
+                force: false,
+                dry_run: false,
+                ..
+            } => missing("--force", "venv upgrade"),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Typed `data` for the envelope of commands whose result is a simple value or list.
+fn envelope_data(command: &str, report: &CommandReport) -> Option<serde_json::Value> {
+    if report.exit_code != 0 || report.stdout.is_empty() {
+        return None;
+    }
+    let first = report.stdout[0].clone();
+    match command {
+        "root" => Some(serde_json::json!({ "path": first })),
+        "which" => Some(serde_json::json!({ "path": first })),
+        "config path" => Some(serde_json::json!({ "path": first })),
+        "config get" => Some(serde_json::json!({ "value": first })),
+        "latest" => Some(serde_json::json!({ "version": first })),
+        "prefix" => {
+            let paths: Vec<String> = std::env::split_paths(&first)
+                .map(|path| path.display().to_string())
+                .collect();
+            Some(serde_json::json!({ "paths": paths }))
+        }
+        "global" | "local" => Some(serde_json::json!({ "versions": report.stdout })),
+        "shims" => Some(serde_json::json!({ "shims": report.stdout })),
+        _ => None,
+    }
+}
+
+fn run_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
     match command {
         Commands::ManualHelp { usage, command } => cmd_help(ctx, command.as_deref(), usage),
         Commands::Commands { sh, no_sh } => cmd_commands(ctx, sh, no_sh),
-        Commands::Root => cmd_root(ctx),
+        Commands::Root { .. } => cmd_root(ctx),
         Commands::Gui => dispatch_gui(ctx),
         Commands::Hooks { hook } => cmd_hooks(ctx, &hook),
         Commands::Doctor { json, fix, force } => dispatch_doctor(ctx, json, fix, force),
@@ -292,6 +473,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             force,
             github_repo,
             tag,
+            ..
         } => cmd_self_update(
             ctx,
             &SelfUpdateOptions {
@@ -349,6 +531,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             keep_shell_integration,
             system,
             finish_after_pid,
+            ..
         } => {
             let mut options = SelfUninstallOptions::new(ctx.root.clone());
             options.system = system;
@@ -362,6 +545,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             agent,
             scope,
             repo_url,
+            ..
         } => dispatch_agent_skills(&agent, &scope, repo_url),
         Commands::Update {
             check,
@@ -369,6 +553,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             force,
             github_repo,
             tag,
+            ..
         } => cmd_self_update(
             ctx,
             &SelfUpdateOptions {
@@ -390,22 +575,26 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         } => cmd_version_file_write(ctx, &file, &versions, force),
         Commands::VersionOrigin => cmd_version_origin(ctx),
         Commands::VersionName { force } => cmd_version_name(ctx, force),
-        Commands::Version { bare } => cmd_version(ctx, bare),
+        Commands::Version { bare, .. } => cmd_version(ctx, bare),
         Commands::Status { json } => cmd_status(ctx, json),
         Commands::Prompt => cmd_prompt(ctx),
-        Commands::Global { unset, versions } => cmd_global(ctx, &versions, unset),
+        Commands::Global {
+            unset, versions, ..
+        } => cmd_global(ctx, &versions, unset),
         Commands::Local {
             force,
             unset,
             versions,
+            ..
         } => cmd_local(ctx, &versions, unset, force),
         Commands::Latest {
             known,
             bypass,
             force,
             prefix,
+            ..
         } => cmd_latest(ctx, &prefix, known, bypass, force),
-        Commands::Prefix { versions } => cmd_prefix(ctx, &versions),
+        Commands::Prefix { versions, .. } => cmd_prefix(ctx, &versions),
         Commands::Init { args } => cmd_init(ctx, &args),
         Commands::Shell { args } => cmd_shell(ctx, &args),
         Commands::Activate { args } => cmd_activate(ctx, &args),
@@ -415,6 +604,7 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             skip_aliases,
             skip_envs,
             executables,
+            json,
         } => cmd_versions(
             ctx,
             &VersionsCommandOptions {
@@ -422,12 +612,14 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
                 skip_aliases,
                 skip_envs,
                 executables,
+                json,
             },
         ),
         Commands::Which {
             no_system,
             skip_advice,
             command,
+            ..
         } => cmd_which(ctx, &command, no_system, skip_advice),
         Commands::Whence { path, command } => cmd_whence(ctx, &command, path),
         Commands::Install {
@@ -473,7 +665,18 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             };
             cmd_upgrade(ctx, &options, json, &mut |line| eprintln!("{line}"))
         }
-        Commands::Uninstall { force, versions } => cmd_uninstall(ctx, &versions, force),
+        Commands::Uninstall {
+            force,
+            dry_run,
+            versions,
+            ..
+        } => {
+            if dry_run {
+                plan_uninstall(ctx, &versions)
+            } else {
+                cmd_uninstall(ctx, &versions, force)
+            }
+        }
         Commands::Venv { command } => dispatch_venv(ctx, command),
         Commands::Pip { command } => dispatch_pip(ctx, command),
         Commands::Virtualenv {
@@ -485,8 +688,8 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
         Commands::VirtualenvDelete { force, spec } => cmd_virtualenv_delete(ctx, &spec, force),
         Commands::VirtualenvPrefix { spec } => cmd_virtualenv_prefix(ctx, spec.as_deref()),
         Commands::VirtualenvInit { args } => cmd_virtualenv_init(ctx, &args),
-        Commands::Rehash => cmd_rehash(ctx),
-        Commands::Shims { short } => cmd_shims(ctx, short),
+        Commands::Rehash { .. } => cmd_rehash(ctx),
+        Commands::Shims { short, .. } => cmd_shims(ctx, short),
         Commands::Completions { command, args } => cmd_completions(ctx, &command, &args),
         Commands::ShShell { args } => cmd_sh_shell(ctx, &args),
         Commands::ShActivate { args } => cmd_sh_activate(ctx, &args),
@@ -567,11 +770,11 @@ fn dispatch_doctor(ctx: &AppContext, json: bool, fix: bool, force: bool) -> Comm
 }
 
 fn dispatch_config(ctx: &mut AppContext, command: Option<ConfigCommands>) -> CommandReport {
-    match command.unwrap_or(ConfigCommands::Show) {
-        ConfigCommands::Path => cmd_config_path(ctx),
-        ConfigCommands::Show => cmd_config_show(ctx),
-        ConfigCommands::Get { key } => cmd_config_get(ctx, &key),
-        ConfigCommands::Set { key, value } => cmd_config_set(ctx, &key, &value),
+    match command.unwrap_or(ConfigCommands::Show { json: false }) {
+        ConfigCommands::Path { .. } => cmd_config_path(ctx),
+        ConfigCommands::Show { .. } => cmd_config_show(ctx),
+        ConfigCommands::Get { key, .. } => cmd_config_get(ctx, &key),
+        ConfigCommands::Set { key, value, .. } => cmd_config_set(ctx, &key, &value),
     }
 }
 
@@ -582,12 +785,42 @@ fn dispatch_venv(ctx: &AppContext, command: VenvCommands) -> CommandReport {
         VenvCommands::Create {
             force,
             set_local,
+            dry_run,
             version,
             name,
-        } => cmd_venv_create(ctx, &version, &name, force, set_local),
-        VenvCommands::Delete { force, spec } => cmd_venv_delete(ctx, &spec, force),
-        VenvCommands::Rename { spec, new_name } => cmd_venv_rename(ctx, &spec, &new_name),
-        VenvCommands::Use { global, spec } => cmd_venv_use(
+            ..
+        } => {
+            if dry_run {
+                plan_venv_create(ctx, &version, &name, force)
+            } else {
+                cmd_venv_create(ctx, &version, &name, force, set_local)
+            }
+        }
+        VenvCommands::Delete {
+            force,
+            dry_run,
+            spec,
+            ..
+        } => {
+            if dry_run {
+                plan_venv_delete(ctx, &spec)
+            } else {
+                cmd_venv_delete(ctx, &spec, force)
+            }
+        }
+        VenvCommands::Rename {
+            dry_run,
+            spec,
+            new_name,
+            ..
+        } => {
+            if dry_run {
+                plan_venv_rename(ctx, &spec, &new_name)
+            } else {
+                cmd_venv_rename(ctx, &spec, &new_name)
+            }
+        }
+        VenvCommands::Use { global, spec, .. } => cmd_venv_use(
             ctx,
             &spec,
             if global {
@@ -599,9 +832,17 @@ fn dispatch_venv(ctx: &AppContext, command: VenvCommands) -> CommandReport {
         VenvCommands::Upgrade {
             force,
             set_local,
+            dry_run,
             spec,
             new_runtime,
-        } => cmd_venv_upgrade(ctx, &spec, &new_runtime, force, set_local),
+            ..
+        } => {
+            if dry_run {
+                plan_venv_upgrade(ctx, &spec, &new_runtime, force)
+            } else {
+                cmd_venv_upgrade(ctx, &spec, &new_runtime, force, set_local)
+            }
+        }
     }
 }
 
@@ -613,15 +854,24 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
         PipCommands::Precheck {
             requirement,
             target,
+            ..
         } => cmd_pip_precheck_requirements(ctx, &target, &requirement),
-        PipCommands::Analyze { target, dir } => {
+        PipCommands::Analyze { target, dir, .. } => {
             let dir = dir.unwrap_or_else(|| ctx.dir.display().to_string());
             cmd_pip_analyze_imports(ctx, &target, &dir)
         }
         PipCommands::Install {
             requirement,
             target,
-        } => cmd_pip_install(ctx, &target, &requirement),
+            dry_run,
+            ..
+        } => {
+            if dry_run {
+                plan_pip_install(ctx, &target, &requirement)
+            } else {
+                cmd_pip_install(ctx, &target, &requirement)
+            }
+        }
         PipCommands::UpdateAll {
             dry_run,
             runtimes,
@@ -646,7 +896,15 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
             all,
             target,
             packages,
-        } => cmd_pip_update(ctx, &target, &packages, all),
+            dry_run,
+            ..
+        } => {
+            if dry_run {
+                plan_pip_update(ctx, &target, &packages, all)
+            } else {
+                cmd_pip_update(ctx, &target, &packages, all)
+            }
+        }
     }
 }
 
