@@ -5,7 +5,7 @@ description: Manages Python runtimes and project venvs via Enchi and enchi-mcp. 
 
 # Enchi
 
-Native Rust Python version manager (pyenv-compatible; formerly pyenv-native). Human CLI: `enchi` (`pyenv` remains as an alias on upgraded installs). Agent surface: **`enchi-mcp`** MCP server (`pyenv-mcp` remains as an alias).
+Native Rust Python runtime & environment manager (pyenv-compatible; formerly pyenv-native). Human CLI: `enchi` (`pyenv` remains as an alias on upgraded installs). Agent surface: **`enchi-mcp`** MCP server (`pyenv-mcp` remains as an alias).
 
 ## When to use
 

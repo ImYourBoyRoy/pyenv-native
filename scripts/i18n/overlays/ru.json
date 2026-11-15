@@ -1,5 +1,5 @@
 {
-  "cli-about": "Нативный кроссплатформенный менеджер версий Python",
+  "cli-about": "Менеджер сред выполнения и окружений Python",
   "cli-global-about": "Задать или показать глобальную версию Python",
   "cli-local-about": "Задать или показать локальную версию Python каталога",
   "cli-shell-about": "Задать или показать версию Python для текущей оболочки",
@@ -11,6 +11,7 @@
   "cli-install-about": "Установить версии Python из нативных источников",
   "cli-available-about": "Список устанавливаемых версий Python из нативных источников",
   "cli-versions-about": "Список всех версий Python, доступных enchi",
+  "cli-upgrade-about": "Перенести установленные среды на последний патч-релиз (вместе с venv)",
   "cli-uninstall-about": "Удалить указанную версию Python",
   "cli-venv-about": "Создавать, просматривать и назначать управляемые виртуальные окружения",
   "cli-pip-about": "Просматривать, проверять, устанавливать и обновлять пакеты для среды выполнения или venv",
@@ -666,7 +667,7 @@
   "install-mcp-helper": "Помощник настройки MCP: { $command }",
   "install-installed-gui": "Установленный GUI: { $path }",
   "install-log-file": "Файл журнала: { $path }",
-  "cli-help-concepts": "ОСНОВНЫЕ ПОНЯТИЯ:\n  Shims: лёгкие исполняемые файлы (`python` или `pip`), перехватывающие команды и направляющие их к текущей версии. После установки pip-пакетов выполните `enchi rehash`.\n  Versions: окружения, установленные через `enchi install`, в `~/.enchi/versions`.\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`. Предпочитайте `enchi venv create` и `enchi venv use`.\n  Discovery: `enchi install --list 3.13` или `enchi available 3.13`.\n  Selection: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.\n\nПодробности: `enchi help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "ОСНОВНЫЕ ПОНЯТИЯ:\n  Shims: лёгкие исполняемые файлы (`python` или `pip`), перехватывающие команды и направляющие их к текущей версии. После установки pip-пакетов выполните `enchi rehash`.\n  Versions: окружения, установленные через `enchi install`, в `$(enchi root)/versions`.\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Предпочитайте `enchi venv create` и `enchi venv use`.\n  Discovery: `enchi install --list 3.13` или `enchi available 3.13`.\n  Selection: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.\n\nПодробности: `enchi help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-pwsh7": "Установить PowerShell 7 (pwsh) для хуков плагинов и инициализации оболочки",
   "gui-open-installed": "Открыть установленные среды выполнения",
   "gui-open-venvs": "Открыть виртуальные окружения",

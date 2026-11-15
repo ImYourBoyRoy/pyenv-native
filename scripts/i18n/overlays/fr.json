@@ -1,5 +1,5 @@
 {
-  "cli-about": "Gestionnaire natif et multiplateforme de versions Python",
+  "cli-about": "Gestionnaire de runtimes et d'environnements Python",
   "cli-global-about": "Définir ou afficher la version Python globale",
   "cli-local-about": "Définir ou afficher la version Python du répertoire local",
   "cli-shell-about": "Définir ou afficher la version Python propre au shell",
@@ -11,6 +11,7 @@
   "cli-install-about": "Installer des versions Python depuis des fournisseurs natifs",
   "cli-available-about": "Lister les versions Python installables depuis des fournisseurs natifs",
   "cli-versions-about": "Lister toutes les versions Python disponibles pour enchi",
+  "cli-upgrade-about": "Faire passer les runtimes installés au dernier correctif (venvs inclus)",
   "cli-uninstall-about": "Désinstaller une version Python précise",
   "cli-venv-about": "Créer, inspecter et attribuer des environnements virtuels gérés",
   "cli-pip-about": "Lister, vérifier, installer et mettre à jour les paquets d’un runtime ou d’un venv",
@@ -666,7 +667,7 @@
   "install-mcp-helper": "Assistant de configuration MCP : { $command }",
   "install-installed-gui": "GUI installée : { $path }",
   "install-log-file": "Fichier journal : { $path }",
-  "cli-help-concepts": "CONCEPTS:\n  Shims : exécutables légers (`python` ou `pip`) qui interceptent les commandes et les acheminent vers la version actuelle. Exécutez `enchi rehash` après l’installation de paquets pip.\n  Versions : environnements installés via `enchi install`, sous `~/.enchi/versions`.\n  Managed envs : `~/.enchi/venvs/<runtime>/<name>`. Préférez `enchi venv create` et `enchi venv use`.\n  Discovery : `enchi install --list 3.13` ou `enchi available 3.13`.\n  Selection : PYENV_VERSION, puis `.python-version`, puis le fichier global.\n\nExécutez `enchi help <command>`. Docs : https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "CONCEPTS:\n  Shims : exécutables légers (`python` ou `pip`) qui interceptent les commandes et les acheminent vers la version actuelle. Exécutez `enchi rehash` après l’installation de paquets pip.\n  Versions : environnements installés via `enchi install`, sous `$(enchi root)/versions`.\n  Managed envs : `$(enchi root)/venvs/<runtime>/<name>`. Préférez `enchi venv create` et `enchi venv use`.\n  Discovery : `enchi install --list 3.13` ou `enchi available 3.13`.\n  Selection : PYENV_VERSION, puis `.python-version`, puis le fichier global.\n\nExécutez `enchi help <command>`. Docs : https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-pwsh7": "Installer PowerShell 7 (pwsh) pour les hooks de plugin et l’init du shell",
   "gui-open-installed": "Ouvrir les runtimes installés",
   "gui-open-venvs": "Ouvrir les environnements virtuels",

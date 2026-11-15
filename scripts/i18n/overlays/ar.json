@@ -1,5 +1,5 @@
 {
-  "cli-about": "مدير إصدارات بايثون أصلي المنحى ومتعدد المنصات",
+  "cli-about": "مدير بيئات وأوقات تشغيل Python",
   "cli-global-about": "تعيين أو عرض إصدار بايثون العام",
   "cli-local-about": "تعيين أو عرض إصدار بايثون لمجلد محلي",
   "cli-shell-about": "تعيين أو عرض إصدار بايثون الخاص بالصدفة",
@@ -11,6 +11,7 @@
   "cli-install-about": "تثبيت إصدارات بايثون من المزوّدين الأصليين",
   "cli-available-about": "سرد إصدارات بايثون القابلة للتثبيت من المزوّدين الأصليين",
   "cli-versions-about": "سرد جميع إصدارات بايثون المتاحة لـ enchi",
+  "cli-upgrade-about": "نقل بيئات التشغيل المثبّتة إلى أحدث إصدار تصحيحي (مع venvs)",
   "cli-uninstall-about": "إلغاء تثبيت إصدار بايثون محدد",
   "cli-venv-about": "إنشاء البيئات الافتراضية المُدارة وفحصها وتعيينها",
   "cli-pip-about": "سرد الحزم وفحصها وتثبيتها وتحديثها لوقت تشغيل أو venv",
@@ -666,7 +667,7 @@
   "install-mcp-helper": "مساعد إعداد MCP: { $command }",
   "install-installed-gui": "GUI المثبَّت: { $path }",
   "install-log-file": "ملف السجل: { $path }",
-  "cli-help-concepts": "المفاهيم الأساسية:\n  Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `enchi rehash` بعد تثبيت حزم pip.\n  Versions: بيئات تُثبَّت عبر `enchi install` تحت `~/.enchi/versions`.\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.\n  Discovery: `enchi install --list 3.13` أو `enchi available 3.13`.\n  Selection: PYENV_VERSION ثم `.python-version` ثم ملف الإصدار العام.\n\nللتفاصيل شغّل `enchi help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "المفاهيم الأساسية:\n  Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `enchi rehash` بعد تثبيت حزم pip.\n  Versions: بيئات تُثبَّت عبر `enchi install` تحت `$(enchi root)/versions`.\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.\n  Discovery: `enchi install --list 3.13` أو `enchi available 3.13`.\n  Selection: PYENV_VERSION ثم `.python-version` ثم ملف الإصدار العام.\n\nللتفاصيل شغّل `enchi help <command>`. التوثيق: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-pwsh7": "تثبيت PowerShell 7 (pwsh) لخطافات الإضافات وتهيئة الصدفة",
   "gui-open-installed": "فتح أوقات التشغيل المثبتة",
   "gui-open-venvs": "فتح البيئات الافتراضية",

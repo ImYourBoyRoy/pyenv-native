@@ -1,7 +1,7 @@
 # ./locales/tr/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = Yerel odaklı, çapraz platformlu Python sürüm yöneticisi
+cli-about = Python çalışma zamanı ve ortam yöneticisi
 cli-global-about = Genel Python sürümünü ayarla veya göster
 cli-local-about = Dizin yerel Python sürümünü ayarla veya göster
 cli-shell-about = Kabuğa özel Python sürümünü ayarla veya göster
@@ -13,6 +13,7 @@ cli-prefix-about = Verilen Python sürümlerinin kurulduğu yolları göster
 cli-install-about = Yerel sağlayıcılardan Python sürümleri kur
 cli-available-about = Yerel sağlayıcılardan kurulabilir Python sürümlerini listele
 cli-versions-about = enchi için kullanılabilir tüm Python sürümlerini listele
+cli-upgrade-about = Kurulu çalışma zamanlarını en yeni yama sürümüne taşı (venv'ler dahil)
 cli-uninstall-about = Belirli bir Python sürümünü kaldır
 cli-venv-about = Yönetilen sanal ortamları oluştur, incele ve ata
 cli-pip-about = Bir çalışma zamanı veya venv için paketleri listele, denetle, kur ve güncelle
@@ -70,8 +71,8 @@ cli-help-useful = Yararlı enchi komutları:
 cli-help-concepts =
     TEMEL KAVRAMLAR:
       Shims: komutları yakalayıp geçerli sürüme yönlendiren hafif çalıştırılabilirler (`python` veya `pip`). pip paketlerinden sonra `enchi rehash` çalıştırın.
-      Versions: `enchi install` ile kurulan ortamlar, `~/.enchi/versions` altında.
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. `enchi venv create` ve `enchi venv use` tercih edin.
+      Versions: `enchi install` ile kurulan ortamlar, `$(enchi root)/versions` altında.
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. `enchi venv create` ve `enchi venv use` tercih edin.
       Discovery: `enchi install --list 3.13` veya `enchi available 3.13`.
       Selection: PYENV_VERSION, sonra `.python-version`, sonra genel sürüm dosyası.
     

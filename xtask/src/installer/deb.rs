@@ -19,7 +19,7 @@ use super::{Manifest, package_version, source_date_epoch};
 use crate::brand;
 
 const MAINTAINER: &str = "Enchi maintainers <noreply@users.noreply.github.com>";
-const DESCRIPTION: &str = "Native, cross-platform Python version manager\n Enchi installs and switches between Python runtimes, manages virtual\n environments, and ships an MCP server for coding agents. It is a single Rust\n binary that keeps compatibility with the classic pyenv workflow.\n .\n Python versions and shims live in ~/.enchi (existing ~/.pyenv installs are kept\n as they are); this package updates through the system package manager.\n .\n Enchi is the new name of pyenv-native: this package replaces it, and installs\n pyenv and pyenv-mcp as compatibility symlinks.";
+const DESCRIPTION: &str = "Python Runtime & Environment Manager\n Enchi installs and switches between Python runtimes, manages virtual\n environments, and ships an MCP server for coding agents. It is a single Rust\n binary that keeps compatibility with the classic pyenv workflow.\n .\n Python versions and shims live in ~/.enchi (existing ~/.pyenv installs are kept\n as they are); this package updates through the system package manager.\n .\n Enchi is the new name of pyenv-native: this package replaces it, and installs\n pyenv and pyenv-mcp as compatibility symlinks.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flavor {
@@ -343,9 +343,7 @@ mod tests {
         assert!(control.contains("Conflicts: pyenv-native, pyenv\n"));
         assert!(control.contains("\nProvides: pyenv-native\n"));
         assert!(control.contains("\nReplaces: pyenv-native\n"));
-        assert!(
-            control.contains("\nDescription: Native, cross-platform Python version manager\n ")
-        );
+        assert!(control.contains("\nDescription: Python Runtime & Environment Manager\n "));
     }
 
     #[test]

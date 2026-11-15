@@ -32,7 +32,7 @@ pub(crate) fn write(payload: &Payload, manifest: &Manifest, output_root: &Path) 
         &version,
         "MIT",
         arch,
-        "Native, cross-platform Python version manager",
+        "Python Runtime & Environment Manager",
     );
     builder
         .using_config(config)

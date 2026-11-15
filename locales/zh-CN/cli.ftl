@@ -1,7 +1,7 @@
 # ./locales/zh-CN/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = 原生优先、跨平台的 Python 版本管理器
+cli-about = Python 运行时与环境管理器
 cli-global-about = 设置或显示全局 Python 版本
 cli-local-about = 设置或显示当前目录的 Python 版本
 cli-shell-about = 设置或显示当前 shell 的 Python 版本
@@ -13,6 +13,7 @@ cli-prefix-about = 显示指定 Python 版本的安装路径
 cli-install-about = 从原生提供方安装 Python 版本
 cli-available-about = 列出原生提供方可安装的 Python 版本
 cli-versions-about = 列出 enchi 可用的全部 Python 版本
+cli-upgrade-about = 将已安装的运行时升级到最新补丁版本（含其虚拟环境）
 cli-uninstall-about = 卸载指定的 Python 版本
 cli-venv-about = 创建、查看并指定托管虚拟环境
 cli-pip-about = 列出、检查、安装并更新运行时或虚拟环境中的包
@@ -70,8 +71,8 @@ cli-help-useful = 常用 enchi 命令：
 cli-help-concepts =
     核心概念：
       Shims：拦截 `python` / `pip` 并路由到当前版本。安装 pip 包后运行 `enchi rehash`。
-      Versions：通过 `enchi install` 安装，位于 `~/.enchi/versions`。
-      Managed envs：`~/.enchi/venvs/<runtime>/<name>`。优先使用 `enchi venv create` 和 `enchi venv use`。
+      Versions：通过 `enchi install` 安装，位于 `$(enchi root)/versions`。
+      Managed envs：`$(enchi root)/venvs/<runtime>/<name>`。优先使用 `enchi venv create` 和 `enchi venv use`。
       Discovery：`enchi install --list 3.13` 或 `enchi available 3.13`。
       Selection：PYENV_VERSION，然后是 `.python-version`，然后是全局版本文件。
     

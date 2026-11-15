@@ -1,5 +1,5 @@
 {
-  "cli-about": "Gestor nativo y multiplataforma de versiones de Python",
+  "cli-about": "Gestor de runtimes y entornos de Python",
   "cli-global-about": "Establecer o mostrar la versión global de Python",
   "cli-local-about": "Establecer o mostrar la versión de Python del directorio local",
   "cli-shell-about": "Establecer o mostrar la versión de Python específica del shell",
@@ -11,6 +11,7 @@
   "cli-install-about": "Instalar versiones de Python desde proveedores nativos",
   "cli-available-about": "Listar las versiones de Python instalables desde proveedores nativos",
   "cli-versions-about": "Listar todas las versiones de Python disponibles para enchi",
+  "cli-upgrade-about": "Mover los runtimes instalados a la última versión de parche (y sus venvs)",
   "cli-uninstall-about": "Desinstalar una versión concreta de Python",
   "cli-venv-about": "Crear, inspeccionar y asignar entornos virtuales gestionados",
   "cli-pip-about": "Listar, comprobar, instalar y actualizar paquetes de un runtime o venv",
@@ -481,7 +482,7 @@
   "cli-help-support": "SOPORTE",
   "cli-help-usage": "Uso: enchi <command> [<args>]",
   "cli-help-useful": "Algunos comandos útiles de enchi:",
-  "cli-help-concepts": "CONCEPTOS:\n  Shims: ejecutables ligeros (`python` o `pip`) que interceptan comandos y los enrutan a la versión actual. Ejecute `enchi rehash` tras instalar paquetes pip.\n  Versions: entornos instalados con `enchi install`, en `~/.enchi/versions`.\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`. Prefiera `enchi venv create` y `enchi venv use`.\n  Discovery: `enchi install --list 3.13` o `enchi available 3.13`.\n  Selection: PYENV_VERSION, luego `.python-version`, luego el archivo global.\n\nEjecute `enchi help <command>`. Docs: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "CONCEPTOS:\n  Shims: ejecutables ligeros (`python` o `pip`) que interceptan comandos y los enrutan a la versión actual. Ejecute `enchi rehash` tras instalar paquetes pip.\n  Versions: entornos instalados con `enchi install`, en `$(enchi root)/versions`.\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Prefiera `enchi venv create` y `enchi venv use`.\n  Discovery: `enchi install --list 3.13` o `enchi available 3.13`.\n  Selection: PYENV_VERSION, luego `.python-version`, luego el archivo global.\n\nEjecute `enchi help <command>`. Docs: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-rehash": "Actualizar los lanzadores shim en { $path }",
   "doctor-fix-path-bin": "Añadir el directorio bin de enchi al PATH del shell",
   "gui-creating": "Creando…",

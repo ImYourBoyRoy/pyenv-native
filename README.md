@@ -5,7 +5,7 @@
 ![PyPI](https://img.shields.io/badge/PyPI-pip%20%2F%20pipx-3775A9?style=for-the-badge&logo=pypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-15803D?style=for-the-badge)
 
-Native Rust Python version manager inspired by `pyenv`. Ships **`enchi`** (CLI), **`enchi-mcp`** (agents), and **`enchi gui`**.
+**Python Runtime & Environment Manager**: a native Rust tool, compatible with `pyenv` workflows. Ships **`enchi`** (CLI), **`enchi-mcp`** (agents), and **`enchi gui`**.
 
 Windows, Linux, and macOS are supported. Android/Termux is experimental (source builds).
 

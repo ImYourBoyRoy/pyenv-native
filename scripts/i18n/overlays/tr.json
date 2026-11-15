@@ -1,5 +1,5 @@
 {
-  "cli-about": "Yerel odaklı, çapraz platformlu Python sürüm yöneticisi",
+  "cli-about": "Python çalışma zamanı ve ortam yöneticisi",
   "cli-global-about": "Genel Python sürümünü ayarla veya göster",
   "cli-local-about": "Dizin yerel Python sürümünü ayarla veya göster",
   "cli-shell-about": "Kabuğa özel Python sürümünü ayarla veya göster",
@@ -11,6 +11,7 @@
   "cli-install-about": "Yerel sağlayıcılardan Python sürümleri kur",
   "cli-available-about": "Yerel sağlayıcılardan kurulabilir Python sürümlerini listele",
   "cli-versions-about": "enchi için kullanılabilir tüm Python sürümlerini listele",
+  "cli-upgrade-about": "Kurulu çalışma zamanlarını en yeni yama sürümüne taşı (venv'ler dahil)",
   "cli-uninstall-about": "Belirli bir Python sürümünü kaldır",
   "cli-venv-about": "Yönetilen sanal ortamları oluştur, incele ve ata",
   "cli-pip-about": "Bir çalışma zamanı veya venv için paketleri listele, denetle, kur ve güncelle",
@@ -666,7 +667,7 @@
   "install-mcp-helper": "MCP yapılandırma yardımcısı: { $command }",
   "install-installed-gui": "Kurulan GUI: { $path }",
   "install-log-file": "Günlük dosyası: { $path }",
-  "cli-help-concepts": "TEMEL KAVRAMLAR:\n  Shims: komutları yakalayıp geçerli sürüme yönlendiren hafif çalıştırılabilirler (`python` veya `pip`). pip paketlerinden sonra `enchi rehash` çalıştırın.\n  Versions: `enchi install` ile kurulan ortamlar, `~/.enchi/versions` altında.\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`. `enchi venv create` ve `enchi venv use` tercih edin.\n  Discovery: `enchi install --list 3.13` veya `enchi available 3.13`.\n  Selection: PYENV_VERSION, sonra `.python-version`, sonra genel sürüm dosyası.\n\nAyrıntı için `enchi help <command>`. Belgeler: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "TEMEL KAVRAMLAR:\n  Shims: komutları yakalayıp geçerli sürüme yönlendiren hafif çalıştırılabilirler (`python` veya `pip`). pip paketlerinden sonra `enchi rehash` çalıştırın.\n  Versions: `enchi install` ile kurulan ortamlar, `$(enchi root)/versions` altında.\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. `enchi venv create` ve `enchi venv use` tercih edin.\n  Discovery: `enchi install --list 3.13` veya `enchi available 3.13`.\n  Selection: PYENV_VERSION, sonra `.python-version`, sonra genel sürüm dosyası.\n\nAyrıntı için `enchi help <command>`. Belgeler: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-pwsh7": "Eklenti kancaları ve kabuk init için PowerShell 7 (pwsh) kurun",
   "gui-open-installed": "Kurulu çalışma zamanlarını aç",
   "gui-open-venvs": "Sanal ortamları aç",

@@ -1,7 +1,7 @@
 # ./locales/ar/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = مدير إصدارات بايثون أصلي المنحى ومتعدد المنصات
+cli-about = مدير بيئات وأوقات تشغيل Python
 cli-global-about = تعيين أو عرض إصدار بايثون العام
 cli-local-about = تعيين أو عرض إصدار بايثون لمجلد محلي
 cli-shell-about = تعيين أو عرض إصدار بايثون الخاص بالصدفة
@@ -13,6 +13,7 @@ cli-prefix-about = عرض المسارات التي ثُبّتت فيها إصد
 cli-install-about = تثبيت إصدارات بايثون من المزوّدين الأصليين
 cli-available-about = سرد إصدارات بايثون القابلة للتثبيت من المزوّدين الأصليين
 cli-versions-about = سرد جميع إصدارات بايثون المتاحة لـ enchi
+cli-upgrade-about = نقل بيئات التشغيل المثبّتة إلى أحدث إصدار تصحيحي (مع venvs)
 cli-uninstall-about = إلغاء تثبيت إصدار بايثون محدد
 cli-venv-about = إنشاء البيئات الافتراضية المُدارة وفحصها وتعيينها
 cli-pip-about = سرد الحزم وفحصها وتثبيتها وتحديثها لوقت تشغيل أو venv
@@ -70,8 +71,8 @@ cli-help-useful = أوامر enchi المفيدة:
 cli-help-concepts =
     المفاهيم الأساسية:
       Shims: ملفات تنفيذ خفيفة (`python` أو `pip`) تعترض الأوامر وتوجّهها إلى الإصدار الحالي. شغّل `enchi rehash` بعد تثبيت حزم pip.
-      Versions: بيئات تُثبَّت عبر `enchi install` تحت `~/.enchi/versions`.
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.
+      Versions: بيئات تُثبَّت عبر `enchi install` تحت `$(enchi root)/versions`.
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. يُفضَّل `enchi venv create` و`enchi venv use`.
       Discovery: `enchi install --list 3.13` أو `enchi available 3.13`.
       Selection: PYENV_VERSION ثم `.python-version` ثم ملف الإصدار العام.
     

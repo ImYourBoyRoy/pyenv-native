@@ -1,7 +1,7 @@
 # ./locales/ko/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = 네이티브 우선의 크로스 플랫폼 Python 버전 관리자
+cli-about = Python 런타임 및 환경 관리자
 cli-global-about = 전역 Python 버전을 설정하거나 표시합니다
 cli-local-about = 현재 디렉터리의 Python 버전을 설정하거나 표시합니다
 cli-shell-about = 셸 전용 Python 버전을 설정하거나 표시합니다
@@ -13,6 +13,7 @@ cli-prefix-about = 지정한 Python 버전의 설치 경로를 표시합니다
 cli-install-about = 네이티브 제공자에서 Python 버전을 설치합니다
 cli-available-about = 네이티브 제공자에서 설치 가능한 Python 버전을 나열합니다
 cli-versions-about = pyenv에서 사용할 수 있는 모든 Python 버전을 나열합니다
+cli-upgrade-about = 설치된 런타임을 최신 패치 릴리스로 옮깁니다(venv 포함)
 cli-uninstall-about = 지정한 Python 버전을 제거합니다
 cli-venv-about = 관리형 가상 환경을 만들고 확인하고 지정합니다
 cli-pip-about = 런타임 또는 가상 환경의 패키지를 나열, 검사, 설치, 업데이트합니다
@@ -70,8 +71,8 @@ cli-help-useful = 유용한 enchi 명령:
 cli-help-concepts =
     핵심 개념:
       Shims: `python` / `pip`을 가로채 현재 버전으로 보내는 실행 파일. pip 패키지 설치 후 `enchi rehash`를 실행하세요.
-      Versions: `enchi install`로 설치하며 `~/.enchi/versions`에 있습니다.
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. `enchi venv create`와 `enchi venv use`를 권장합니다.
+      Versions: `enchi install`로 설치하며 `$(enchi root)/versions`에 있습니다.
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. `enchi venv create`와 `enchi venv use`를 권장합니다.
       Discovery: `enchi install --list 3.13` 또는 `enchi available 3.13`.
       Selection: PYENV_VERSION, 그다음 `.python-version`, 그다음 전역 버전 파일.
     

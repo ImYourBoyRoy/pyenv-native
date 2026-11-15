@@ -15,7 +15,7 @@ use super::public_docs::PUBLIC_COMMAND_DOCS;
 pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> CommandReport {
     let target = command
         .map(str::trim)
-        .filter(|value| !value.is_empty() && *value != "pyenv");
+        .filter(|value| !value.is_empty() && *value != "pyenv" && *value != "enchi");
 
     let Some(command_name) = target else {
         return render_top_level_help(usage_only);
@@ -39,7 +39,7 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
         let usage = external_doc
             .as_ref()
             .map(|doc| doc.usage.clone())
-            .unwrap_or_else(|| format!("Usage: pyenv {command_name} [<args>]"));
+            .unwrap_or_else(|| format!("Usage: enchi {command_name} [<args>]"));
         if usage_only {
             return CommandReport::success_one(usage);
         }
@@ -57,7 +57,7 @@ pub fn cmd_help(ctx: &AppContext, command: Option<&str>, usage_only: bool) -> Co
             usage,
             String::new(),
             format!(
-                "`{command_name}` is provided by an external pyenv plugin and does not expose built-in help text."
+                "`{command_name}` is provided by an external plugin and does not expose built-in help text."
             ),
         ]);
     }
@@ -105,7 +105,7 @@ fn parse_external_command_doc(path: &Path, command_name: &str) -> Option<Externa
     }
 
     let usage = parse_header_usage(&header)
-        .unwrap_or_else(|| format!("Usage: pyenv {command_name} [<args>]"));
+        .unwrap_or_else(|| format!("Usage: enchi {command_name} [<args>]"));
     let summary = header
         .iter()
         .find_map(|line| {

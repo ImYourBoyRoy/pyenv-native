@@ -67,7 +67,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
     },
     CommandDoc {
         name: "init",
-        summary: "Configure the shell environment for pyenv",
+        summary: "Configure the shell environment for Enchi",
         usage: "Usage: enchi init [-|--path] [--detect-shell] [--no-push-path] [--no-rehash] [<shell>]",
         help: &[
             "Prints shell initialization code that adds shims to PATH, sets the PYENV_SHELL",
@@ -104,7 +104,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
     },
     CommandDoc {
         name: "completions",
-        summary: "List completions for a pyenv command",
+        summary: "List completions for an Enchi command",
         usage: "Usage: enchi completions <command> [arg1 arg2...]",
         help: &[
             "Prints candidate completions for built-in commands and plugin commands that support `--complete`.",
@@ -118,7 +118,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
         help: &[
             "Performs a series of health checks and reports potential problems:",
             "  - Verifies ENCHI_ROOT exists and is accessible",
-            "  - Checks that pyenv bin and shims directories are on PATH",
+            "  - Checks that the Enchi bin and shims directories are on PATH",
             "  - Detects pyenv-win conflicts (stale ENCHI_ROOT, PATH shadowing)",
             "  - Warns about Windows Store Python aliases",
             "  - On Linux/macOS/Android, verifies source-build prerequisites (make, gcc/clang, etc.)",
@@ -295,7 +295,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "  --keep-shell-integration    Leave profile blocks, user PATH entries, and launchers",
             "  --system                    Remove the files the macOS .pkg installed (run with sudo)",
             "",
-            "A pyenv installed by a system package (deb, rpm, Termux) is not removed by this",
+            "An Enchi installed by a system package (deb, rpm, Termux) is not removed by this",
             "command; it prints the package-manager command to run instead.",
         ],
         completions: &[
@@ -335,7 +335,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
     },
     CommandDoc {
         name: "config",
-        summary: "Inspect or change pyenv configuration",
+        summary: "Inspect or change Enchi configuration",
         usage: "Usage: enchi config path|show|get|set ...",
         help: &[
             "Reads or updates the persisted `config.toml` under the active enchi root.",

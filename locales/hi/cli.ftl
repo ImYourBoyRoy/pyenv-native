@@ -1,7 +1,7 @@
 # ./locales/hi/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = मूल-प्राथमिक, क्रॉस-प्लेटफ़ॉर्म पाइथन संस्करण प्रबंधक
+cli-about = Python रनटाइम और एनवायरनमेंट मैनेजर
 cli-global-about = वैश्विक पाइथन संस्करण सेट करें या दिखाएँ
 cli-local-about = स्थानीय फ़ोल्डर का पाइथन संस्करण सेट करें या दिखाएँ
 cli-shell-about = शेल-विशिष्ट पाइथन संस्करण सेट करें या दिखाएँ
@@ -13,6 +13,7 @@ cli-prefix-about = दिए गए पाइथन संस्करण जह
 cli-install-about = मूल प्रदाताओं से पाइथन संस्करण स्थापित करें
 cli-available-about = मूल प्रदाताओं से स्थापित करने योग्य पाइथन संस्करण सूचीबद्ध करें
 cli-versions-about = enchi के लिए उपलब्ध सभी पाइथन संस्करण सूचीबद्ध करें
+cli-upgrade-about = इंस्टॉल किए गए रनटाइम को नवीनतम पैच रिलीज़ पर ले जाएँ (venv सहित)
 cli-uninstall-about = कोई विशिष्ट पाइथन संस्करण अनइंस्टॉल करें
 cli-venv-about = प्रबंधित आभासी वातावरण बनाएँ, जाँचें और असाइन करें
 cli-pip-about = किसी रनटाइम या venv के लिए पैकेज सूचीबद्ध करें, जाँचें, स्थापित करें और अपडेट करें
@@ -70,8 +71,8 @@ cli-help-useful = कुछ उपयोगी enchi कमांड:
 cli-help-concepts =
     मुख्य अवधारणाएँ:
       Shims: हल्के एक्ज़ीक्यूटेबल (`python` या `pip`) जो कमांड रोककर मौजूदा संस्करण तक पहुँचाते हैं। pip पैकेज इंस्टॉल करने के बाद `enchi rehash` चलाएँ।
-      Versions: `enchi install` से इंस्टॉल, `~/.enchi/versions` में।
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`। `enchi venv create` और `enchi venv use` को प्राथमिकता दें।
+      Versions: `enchi install` से इंस्टॉल, `$(enchi root)/versions` में।
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`। `enchi venv create` और `enchi venv use` को प्राथमिकता दें।
       Discovery: `enchi install --list 3.13` या `enchi available 3.13`।
       Selection: PYENV_VERSION, फिर `.python-version`, फिर ग्लोबल संस्करण फ़ाइल।
     

@@ -1,7 +1,7 @@
 # ./locales/pt-BR/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = Gerenciador nativo e multiplataforma de versões do Python
+cli-about = Gerenciador de runtimes e ambientes Python
 cli-global-about = Definir ou mostrar a versão global do Python
 cli-local-about = Definir ou mostrar a versão do Python do diretório local
 cli-shell-about = Definir ou mostrar a versão do Python específica do shell
@@ -13,6 +13,7 @@ cli-prefix-about = Exibir os caminhos onde as versões indicadas do Python estã
 cli-install-about = Instalar versões do Python a partir de provedores nativos
 cli-available-about = Listar versões instaláveis do Python a partir de provedores nativos
 cli-versions-about = Listar todas as versões do Python disponíveis para o enchi
+cli-upgrade-about = Mover os runtimes instalados para o patch mais recente (e seus venvs)
 cli-uninstall-about = Desinstalar uma versão específica do Python
 cli-venv-about = Criar, inspecionar e atribuir ambientes virtuais gerenciados
 cli-pip-about = Listar, verificar, instalar e atualizar pacotes de um runtime ou venv
@@ -70,8 +71,8 @@ cli-help-useful = Alguns comandos úteis do enchi:
 cli-help-concepts =
     CONCEITOS:
       Shims: executáveis leves (`python` ou `pip`) que interceptam comandos e os encaminham à versão atual. Execute `enchi rehash` após instalar pacotes pip.
-      Versions: ambientes instalados com `enchi install`, em `~/.enchi/versions`.
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. Prefira `enchi venv create` e `enchi venv use`.
+      Versions: ambientes instalados com `enchi install`, em `$(enchi root)/versions`.
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. Prefira `enchi venv create` e `enchi venv use`.
       Discovery: `enchi install --list 3.13` ou `enchi available 3.13`.
       Selection: PYENV_VERSION, depois `.python-version`, depois o arquivo global.
     

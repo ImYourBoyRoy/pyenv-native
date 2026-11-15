@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "enchi",
     version,
-    about = "Native-first, cross-platform Python version manager",
+    about = "Python Runtime & Environment Manager",
     disable_help_subcommand = true,
     help_template = "\
 {before-help}{name} {version}
@@ -31,7 +31,7 @@ SELECTION:
 PROVISIONING:
   install            Install Python versions from native providers
   available          List installable Python versions from native providers
-  versions           List all Python versions available to pyenv
+  versions           List all Python versions available to enchi
   upgrade            Move installed runtimes to the newest patch release (and their venvs)
   uninstall          Uninstall a specific Python version
 
@@ -40,8 +40,8 @@ ENVIRONMENT:
   pip                List, check, install, and update packages for a runtime or venv
 
 INTERFACE:
-  init               Configure the shell environment for pyenv
-  gui                Launch the beautiful Enchi GUI dashboard
+  init               Configure the shell environment for enchi
+  gui                Launch the Enchi GUI dashboard
   rehash             Rehash enchi shims (installs executables across all versions)
   shims              List existing enchi shims
   prompt             Print a concise prompt string for the current environment
@@ -49,7 +49,7 @@ INTERFACE:
   completions        Print command completion script
 
 DIAGNOSTICS & CONFIG:
-  doctor             Verify pyenv installation and environment health
+  doctor             Diagnose PATH, shims, and install prerequisites
   preflight          Platform intelligence and install readiness preflight
   environment        Alias for preflight (OS/toolchain facts for agents and users)
   status             Show the comprehensive environment status (versions, origins, venvs)
@@ -77,13 +77,13 @@ CORE CONCEPTS:
   Shims:       Lightweight executables (like `python` or `pip`) that intercept your commands
                and route them to the correct Python version based on your current environment.
                Run `enchi rehash` to refresh these after installing new pip packages.
-  Versions:    Python environments installed via `enchi install`. Located in `~/.enchi/versions`.
-  Managed envs: Named virtual environments can live under `~/.enchi/venvs/<runtime>/<name>`.
+  Versions:    Python environments installed via `enchi install`. Located in `$(enchi root)/versions`.
+  Managed envs: Named virtual environments can live under `$(enchi root)/venvs/<runtime>/<name>`.
                Use `enchi venv create 3.14 api` and bind a folder with `enchi venv use api`.
                Compatibility aliases like `enchi virtualenv` and `enchi activate` are supported,
                but `enchi venv ...` plus `.python-version` remains the preferred workflow.
   Discovery:   Search installable runtimes with `enchi install --list 3.13` or `enchi available 3.13`.
-  Selection:   Pyenv decides which Python version to use in this order (highest priority first):
+  Selection:   Enchi decides which Python version to use in this order (highest priority first):
                  1. PYENV_VERSION environment variable (set via `enchi shell`/`enchi activate`)
                  2. .python-version file in the current directory (set via `enchi local` or `enchi venv use`)
                  3. The global version file (set via `enchi global`)
@@ -197,7 +197,7 @@ pub(crate) enum Commands {
         #[arg(help = "Optional pattern such as 3, 3.12, 3.13, or pypy3.11")]
         pattern: Option<String>,
     },
-    #[command(about = "List all Python versions available to pyenv")]
+    #[command(about = "List all Python versions available to enchi")]
     Versions {
         #[arg(long = "bare")]
         bare: bool,
@@ -296,14 +296,14 @@ pub(crate) enum Commands {
     // --- INTERFACE ---
     #[command(next_help_heading = "INTERFACE")]
     #[command(
-        about = "Configure the shell environment for pyenv",
+        about = "Configure the shell environment for enchi",
         trailing_var_arg = true
     )]
     Init {
         #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    #[command(about = "Launch the beautiful Enchi GUI dashboard")]
+    #[command(about = "Launch the Enchi GUI dashboard")]
     Gui,
     #[command(about = "Rehash enchi shims (installs executables across all versions)")]
     Rehash,
@@ -332,7 +332,7 @@ pub(crate) enum Commands {
 
     // --- DIAGNOSTICS & CONFIG ---
     #[command(next_help_heading = "DIAGNOSTICS & CONFIG")]
-    #[command(about = "Verify pyenv installation and environment health")]
+    #[command(about = "Diagnose PATH, shims, and install prerequisites")]
     Doctor {
         #[arg(long = "json")]
         json: bool,

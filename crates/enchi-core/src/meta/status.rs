@@ -34,7 +34,7 @@ pub fn cmd_status(ctx: &AppContext, json: bool) -> CommandReport {
     }
 
     let mut stdout = Vec::new();
-    stdout.push("Pyenv Environment Status:".to_string());
+    stdout.push("Enchi Environment Status:".to_string());
     stdout.push(format!("  Root: {}", status.root.display()));
 
     if status.active_versions.is_empty() {

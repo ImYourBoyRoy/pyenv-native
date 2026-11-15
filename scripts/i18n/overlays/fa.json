@@ -1,5 +1,5 @@
 {
-  "cli-about": "مدیر نسخه‌های پایتون بومی‌محور و چندسکویی",
+  "cli-about": "مدیر Python برای زمان‌اجرا و محیط‌ها",
   "cli-global-about": "تنظیم یا نمایش نسخهٔ سراسری پایتون",
   "cli-local-about": "تنظیم یا نمایش نسخهٔ پایتون پوشهٔ محلی",
   "cli-shell-about": "تنظیم یا نمایش نسخهٔ پایتون مخصوص پوسته",
@@ -11,6 +11,7 @@
   "cli-install-about": "نصب نسخه‌های پایتون از ارائه‌دهندگان بومی",
   "cli-available-about": "فهرست نسخه‌های قابل نصب پایتون از ارائه‌دهندگان بومی",
   "cli-versions-about": "فهرست همهٔ نسخه‌های پایتون در دسترس enchi",
+  "cli-upgrade-about": "انتقال زمان‌اجراهای نصب‌شده به جدیدترین نسخهٔ وصله (به‌همراه venvها)",
   "cli-uninstall-about": "حذف نصب یک نسخهٔ مشخص پایتون",
   "cli-venv-about": "ایجاد، بررسی و تخصیص محیط‌های مجازی مدیریت‌شده",
   "cli-pip-about": "فهرست، بررسی، نصب و به‌روزرسانی بسته‌ها برای یک ران‌تایم یا venv",
@@ -666,7 +667,7 @@
   "install-mcp-helper": "یاور پیکربندی MCP: { $command }",
   "install-installed-gui": "GUI نصب‌شده: { $path }",
   "install-log-file": "پروندهٔ گزارش: { $path }",
-  "cli-help-concepts": "مفاهیم اصلی:\n  Shims: اجراپذیرهای سبک (`python` یا `pip`) که فرمان‌ها را رهگیری و به نسخهٔ جاری می‌فرستند. پس از نصب بسته‌های pip دستور `enchi rehash` را اجرا کنید.\n  Versions: محیط‌های نصب‌شده با `enchi install` در `~/.enchi/versions`.\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`. ترجیح دهید `enchi venv create` و `enchi venv use`.\n  Discovery: `enchi install --list 3.13` یا `enchi available 3.13`.\n  Selection: PYENV_VERSION، سپس `.python-version`، سپس پروندهٔ نسخهٔ سراسری.\n\nبرای جزئیات `enchi help <command>`. مستندات: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "مفاهیم اصلی:\n  Shims: اجراپذیرهای سبک (`python` یا `pip`) که فرمان‌ها را رهگیری و به نسخهٔ جاری می‌فرستند. پس از نصب بسته‌های pip دستور `enchi rehash` را اجرا کنید.\n  Versions: محیط‌های نصب‌شده با `enchi install` در `$(enchi root)/versions`.\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. ترجیح دهید `enchi venv create` و `enchi venv use`.\n  Discovery: `enchi install --list 3.13` یا `enchi available 3.13`.\n  Selection: PYENV_VERSION، سپس `.python-version`، سپس پروندهٔ نسخهٔ سراسری.\n\nبرای جزئیات `enchi help <command>`. مستندات: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-pwsh7": "نصب PowerShell 7 (pwsh) برای قلاب‌های افزونه و راه‌اندازی پوسته",
   "gui-open-installed": "باز کردن زمان‌اجراهای نصب‌شده",
   "gui-open-venvs": "باز کردن محیط‌های مجازی",

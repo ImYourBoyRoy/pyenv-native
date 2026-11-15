@@ -57,7 +57,7 @@ pub struct HomebrewArgs {
     formula_name: String,
     #[arg(
         long,
-        default_value = "Cross-platform, native-first Python version manager (formerly pyenv-native)"
+        default_value = "Python Runtime & Environment Manager (formerly pyenv-native)"
     )]
     description: String,
     #[arg(long)]

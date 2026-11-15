@@ -90,6 +90,6 @@ mod cases {
         );
         let about = lookup_for_tag("zh-CN", "cli-about");
         assert!(!about.contains("Unknown localization key"));
-        assert_eq!(about, "原生优先、跨平台的 Python 版本管理器");
+        assert_eq!(about, "Python 运行时与环境管理器");
     }
 }

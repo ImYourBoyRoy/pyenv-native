@@ -150,6 +150,7 @@ fn localized_help_template() -> String {
                 ("install", "cli-install-about"),
                 ("available", "cli-available-about"),
                 ("versions", "cli-versions-about"),
+                ("upgrade", "cli-upgrade-about"),
                 ("uninstall", "cli-uninstall-about"),
             ],
         ),

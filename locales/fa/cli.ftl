@@ -1,7 +1,7 @@
 # ./locales/fa/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = مدیر نسخه‌های پایتون بومی‌محور و چندسکویی
+cli-about = مدیر Python برای زمان‌اجرا و محیط‌ها
 cli-global-about = تنظیم یا نمایش نسخهٔ سراسری پایتون
 cli-local-about = تنظیم یا نمایش نسخهٔ پایتون پوشهٔ محلی
 cli-shell-about = تنظیم یا نمایش نسخهٔ پایتون مخصوص پوسته
@@ -13,6 +13,7 @@ cli-prefix-about = نمایش مسیرهایی که نسخه‌های داده�
 cli-install-about = نصب نسخه‌های پایتون از ارائه‌دهندگان بومی
 cli-available-about = فهرست نسخه‌های قابل نصب پایتون از ارائه‌دهندگان بومی
 cli-versions-about = فهرست همهٔ نسخه‌های پایتون در دسترس enchi
+cli-upgrade-about = انتقال زمان‌اجراهای نصب‌شده به جدیدترین نسخهٔ وصله (به‌همراه venvها)
 cli-uninstall-about = حذف نصب یک نسخهٔ مشخص پایتون
 cli-venv-about = ایجاد، بررسی و تخصیص محیط‌های مجازی مدیریت‌شده
 cli-pip-about = فهرست، بررسی، نصب و به‌روزرسانی بسته‌ها برای یک ران‌تایم یا venv
@@ -70,8 +71,8 @@ cli-help-useful = فرمان‌های مفید enchi:
 cli-help-concepts =
     مفاهیم اصلی:
       Shims: اجراپذیرهای سبک (`python` یا `pip`) که فرمان‌ها را رهگیری و به نسخهٔ جاری می‌فرستند. پس از نصب بسته‌های pip دستور `enchi rehash` را اجرا کنید.
-      Versions: محیط‌های نصب‌شده با `enchi install` در `~/.enchi/versions`.
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`. ترجیح دهید `enchi venv create` و `enchi venv use`.
+      Versions: محیط‌های نصب‌شده با `enchi install` در `$(enchi root)/versions`.
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`. ترجیح دهید `enchi venv create` و `enchi venv use`.
       Discovery: `enchi install --list 3.13` یا `enchi available 3.13`.
       Selection: PYENV_VERSION، سپس `.python-version`، سپس پروندهٔ نسخهٔ سراسری.
     

@@ -1,5 +1,5 @@
 // ./crates/enchi-cli/src/main.rs
-//! CLI entrypoint for the native-first pyenv implementation. This binary keeps startup small
+//! CLI entrypoint for the native-first Enchi implementation. This binary keeps startup small
 //! by delegating clap definitions to `cli.rs` and command execution to `dispatch.rs`.
 
 mod cli;

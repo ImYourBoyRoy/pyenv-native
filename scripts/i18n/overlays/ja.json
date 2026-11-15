@@ -1,5 +1,5 @@
 {
-  "cli-about": "ネイティブ優先のクロスプラットフォーム Python バージョン管理ツール",
+  "cli-about": "Python ランタイム & 環境マネージャー",
   "cli-global-about": "グローバルな Python バージョンを設定または表示する",
   "cli-local-about": "カレントディレクトリの Python バージョンを設定または表示する",
   "cli-shell-about": "シェル固有の Python バージョンを設定または表示する",
@@ -11,6 +11,7 @@
   "cli-install-about": "ネイティブ提供元から Python バージョンをインストールする",
   "cli-available-about": "ネイティブ提供元からインストール可能な Python バージョンを一覧表示する",
   "cli-versions-about": "enchi が利用できるすべての Python バージョンを一覧表示する",
+  "cli-upgrade-about": "インストール済みランタイムを最新パッチへ移行（venv も含む）",
   "cli-uninstall-about": "指定した Python バージョンをアンインストールする",
   "cli-venv-about": "管理対象の仮想環境を作成、確認、割り当てる",
   "cli-pip-about": "ランタイムまたは仮想環境のパッケージを一覧、検査、インストール、更新する",
@@ -481,7 +482,7 @@
   "cli-help-support": "サポート",
   "cli-help-usage": "使い方: enchi <command> [<args>]",
   "cli-help-useful": "よく使う enchi コマンド:",
-  "cli-help-concepts": "基本概念:\n  Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `enchi rehash`。\n  Versions: `enchi install` で入れる環境。`~/.enchi/versions`。\n  Managed envs: `~/.enchi/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。\n  Discovery: `enchi install --list 3.13` または `enchi available 3.13`。\n  Selection: PYENV_VERSION、次に `.python-version`、次にグローバル版。\n\n詳細は `enchi help <command>`。文書: https://github.com/imyourboyroy/pyenv-native",
+  "cli-help-concepts": "基本概念:\n  Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `enchi rehash`。\n  Versions: `enchi install` で入れる環境。`$(enchi root)/versions`。\n  Managed envs: `$(enchi root)/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。\n  Discovery: `enchi install --list 3.13` または `enchi available 3.13`。\n  Selection: PYENV_VERSION、次に `.python-version`、次にグローバル版。\n\n詳細は `enchi help <command>`。文書: https://github.com/imyourboyroy/pyenv-native",
   "doctor-fix-rehash": "{ $path } の shim ランチャーを更新する",
   "doctor-fix-path-bin": "enchi の bin ディレクトリをシェルの PATH に追加する",
   "doctor-fix-pwsh7": "プラグインフックとシェル初期化のため PowerShell 7 (pwsh) をインストールする",

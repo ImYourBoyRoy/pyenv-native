@@ -1,7 +1,7 @@
 # ./locales/ja/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = ネイティブ優先のクロスプラットフォーム Python バージョン管理ツール
+cli-about = Python ランタイム & 環境マネージャー
 cli-global-about = グローバルな Python バージョンを設定または表示する
 cli-local-about = カレントディレクトリの Python バージョンを設定または表示する
 cli-shell-about = シェル固有の Python バージョンを設定または表示する
@@ -13,6 +13,7 @@ cli-prefix-about = 指定した Python バージョンのインストールパ�
 cli-install-about = ネイティブ提供元から Python バージョンをインストールする
 cli-available-about = ネイティブ提供元からインストール可能な Python バージョンを一覧表示する
 cli-versions-about = enchi が利用できるすべての Python バージョンを一覧表示する
+cli-upgrade-about = インストール済みランタイムを最新パッチへ移行（venv も含む）
 cli-uninstall-about = 指定した Python バージョンをアンインストールする
 cli-venv-about = 管理対象の仮想環境を作成、確認、割り当てる
 cli-pip-about = ランタイムまたは仮想環境のパッケージを一覧、検査、インストール、更新する
@@ -70,8 +71,8 @@ cli-help-useful = よく使う enchi コマンド:
 cli-help-concepts =
     基本概念:
       Shims: `python` / `pip` を横取りして現在のバージョンへ送る実行ファイル。pip パッケージ追加後は `enchi rehash`。
-      Versions: `enchi install` で入れる環境。`~/.enchi/versions`。
-      Managed envs: `~/.enchi/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。
+      Versions: `enchi install` で入れる環境。`$(enchi root)/versions`。
+      Managed envs: `$(enchi root)/venvs/<runtime>/<name>`。`enchi venv create` と `enchi venv use` を推奨。
       Discovery: `enchi install --list 3.13` または `enchi available 3.13`。
       Selection: PYENV_VERSION、次に `.python-version`、次にグローバル版。
     
