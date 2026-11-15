@@ -90,6 +90,20 @@ npm --prefix scripts/wcagate run wcagate:prepare
 npm --prefix scripts/wcagate run wcagate:audit
 ```
 
+## Branding
+
+Everything brand-specific in the UI lives in three places, so a rename is a small change:
+
+| What | Where |
+|---|---|
+| Product name and command shown in the UI | `crates/pyenv-gui/ui/brand.js` (`Brand.name`, `Brand.command`), plus `BRAND_ARGS` in `crates/pyenv-core/src/i18n/catalog.rs` |
+| Logo (sidebar and About page) | `crates/pyenv-gui/ui/brand/mark.svg` |
+| Accent colour | `--accent` and `--accent-strong` in `crates/pyenv-gui/ui/styles/tokens.css` |
+
+Locale strings use the `{ $brand }` and `{ $command }` placeholders instead of the literal name, in every language. The window
+icons (`crates/pyenv-gui/icons`), the Tauri bundle identifier and the repository links in `app.js` are separate and must be
+changed by hand.
+
 ---
 
 The GUI is a companion to the CLI. Changes in the GUI are reflected in the terminal and vice versa.

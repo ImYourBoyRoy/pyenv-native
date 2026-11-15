@@ -43,14 +43,18 @@ This document is a plan, not a promise. Items move as we learn. Each phase lists
 
 ---
 
-## Phase 0 — Quick GUI pass (before backend work)
+## Phase 0 — Quick GUI pass (before backend work) — done
 
 Scope: only what makes the redesign shippable and brand-ready. No new backend features.
 
-- Commit the `gui-redesign` work on its own branch (it is currently uncommitted).
-- Brand-ready tokens: one accent, wordmark slot and app icon slot so a rename is a one-file change.
-- Translate or mark the 34 English placeholder strings; keep `cargo xtask policy` green.
-- Wire the Activity tray into the older install / venv-upgrade flows so feedback is consistent.
+- ✅ Commit the `gui-redesign` work on its own branch.
+- ✅ Brand slot: product name in `ui/brand.js` (`{ $brand }` in every locale), logo in `ui/brand/mark.svg`,
+  accent in `tokens.css`. See [GUI.md](GUI.md#branding). Window icons, the Tauri bundle id and repo links stay manual.
+- ✅ Translated the 34 English placeholder strings plus 16 missing Activity/toast strings into all 13
+  locales. These are machine translations and have not had a native-speaker review.
+- ✅ Activity tray wired into install, uninstall, venv create/delete/upgrade, pip upgrade and requirements installs.
+  These calls show elapsed time and an outcome but no step progress; the backend only reports steps for
+  the newer upgrade and bulk-update commands. Moves to Phase 7.
 
 **Done when:** `cargo xtask check` and `cargo xtask policy` pass, screenshots regenerated, GUI smoke
 tour (`PYENV_GUI_SMOKE=1`) clean.

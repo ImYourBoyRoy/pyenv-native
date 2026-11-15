@@ -201,10 +201,15 @@ fn lookup_lang_with_args(
     id: &str,
     args: &HashMap<String, String>,
 ) -> String {
-    let fluent_args: HashMap<Cow<'static, str>, FluentValue<'_>> = args
+    // Brand variables are always available to messages; explicit args win.
+    let mut fluent_args: HashMap<Cow<'static, str>, FluentValue<'_>> = BRAND_ARGS
         .iter()
-        .map(|(key, value)| (Cow::Owned(key.clone()), FluentValue::from(value.as_str())))
+        .map(|(key, value)| (Cow::Borrowed(*key), FluentValue::from(*value)))
         .collect();
+    fluent_args.extend(
+        args.iter()
+            .map(|(key, value)| (Cow::Owned(key.clone()), FluentValue::from(value.as_str()))),
+    );
     LOCALES
         .try_lookup_with_args(lang, id, &fluent_args)
         .or_else(|| {
@@ -218,6 +223,10 @@ fn try_lookup_lang(lang: &LanguageIdentifier, id: &str) -> Option<String> {
         .try_lookup(lang, id)
         .or_else(|| LOCALES.try_lookup(&"en-US".parse().expect("en-US"), id))
 }
+
+/// Values for `{ $brand }` / `{ $command }` in the catalogs. Keep in sync with
+/// `crates/pyenv-gui/ui/brand.js`, which supplies the same values to the webview.
+const BRAND_ARGS: [(&str, &str); 2] = [("brand", "Pyenv Native"), ("command", "pyenv")];
 
 const ENGLISH_CATALOG: &str = concat!(
     include_str!("../../../../locales/en-US/gui.ftl"),

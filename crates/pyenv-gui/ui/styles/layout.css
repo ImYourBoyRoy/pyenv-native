@@ -66,7 +66,7 @@
   color: var(--text-heading);
   flex-shrink: 0;
 }
-.brand-icon svg { width: 100%; height: 100%; }
+.brand-icon svg, .brand-icon img, .brand-mark { width: 100%; height: 100%; display: block; }
 .brand-title {
   font-size: 14px;
   font-weight: 600;

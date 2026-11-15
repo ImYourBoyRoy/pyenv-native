@@ -14,9 +14,10 @@
     };
 
     function interpolate(template, args) {
-        if (!args) return template;
+        // Brand variables ({ $brand }, { $command }) are always available; callers' args win.
+        const vars = { ...(global.Brand ? global.Brand.args : null), ...(args || {}) };
         return String(template).replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => (
-            args[name] !== undefined && args[name] !== null ? String(args[name]) : `{ $${name} }`
+            vars[name] !== undefined && vars[name] !== null ? String(vars[name]) : `{ $${name} }`
         ));
     }
 

@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Pyenv Native</title>
+  <title>{ $brand }</title>
 </head>
 
 <body>
@@ -17,7 +17,7 @@
   <div class="bg-gradient"></div>
 
   <header data-tauri-drag-region class="titlebar" role="banner" aria-label="Application title bar" data-i18n-aria="gui-titlebar-aria">
-    <div class="titlebar-label" data-i18n="gui-titlebar-label">pyenv-native dashboard</div>
+    <div class="titlebar-label" data-i18n="gui-titlebar-label">{ $brand } dashboard</div>
     <div class="titlebar-controls">
       <button type="button" class="titlebar-button" id="titlebar-minimize" aria-label="Minimize window" title="Minimize" data-i18n-aria="gui-window-minimize" data-i18n-title="gui-window-minimize">
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
@@ -42,79 +42,10 @@
     <aside class="sidebar glass">
       <div class="brand">
         <div class="brand-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-            <defs>
-              <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#0E121A" />
-                <stop offset="100%" stop-color="#040608" />
-              </linearGradient>
-
-              <linearGradient id="activeYellow" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFE873" />
-                <stop offset="100%" stop-color="#FFD43B" />
-              </linearGradient>
-
-              <linearGradient id="glassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
-                <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
-              </linearGradient>
-              <linearGradient id="glassRight" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
-                <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
-              </linearGradient>
-            </defs>
-
-            <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad)" />
-
-            <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
-            <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
-            <path d="M 231 66 L 231 306" stroke="#306998" stroke-width="2" opacity="0.5" />
-
-            <g>
-              <path d="M 141 331 L 231 376 L 231 391 L 141 346 Z" fill="#20496E" opacity="0.7" />
-              <path d="M 321 331 L 231 376 L 231 391 L 321 346 Z" fill="#1A3B5C" opacity="0.7" />
-              <path d="M 231 286 L 321 331 L 231 376 L 141 331 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
-                stroke-width="2" />
-            </g>
-
-            <g>
-              <path d="M 141 151 L 231 196 L 231 211 L 141 166 Z" fill="#20496E" opacity="0.7" />
-              <path d="M 321 151 L 231 196 L 231 211 L 321 166 Z" fill="#1A3B5C" opacity="0.7" />
-              <path d="M 231 106 L 321 151 L 231 196 L 141 151 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
-                stroke-width="2" />
-            </g>
-
-            <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
-              stroke-dasharray="6,4" opacity="0.3" />
-
-            <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#glassLeft)" />
-            <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#glassRight)" />
-
-            <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
-              stroke="rgba(255,255,255,0.15)" stroke-width="2" />
-            <path d="M 231 66 L 371 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
-            <path d="M 231 66 L 91 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
-            <path d="M 231 206 L 231 446" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
-
-            <g stroke="#FFD43B" stroke-width="3" stroke-dasharray="4,4" opacity="0.8">
-              <path d="M 231 196 L 331 246" />
-              <path d="M 321 241 L 421 291" />
-              <path d="M 231 286 L 331 336" />
-              <path d="M 141 241 L 241 291" />
-            </g>
-
-            <g>
-              <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
-              <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
-              <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#activeYellow)" />
-              <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF" stroke-width="2"
-                stroke-linejoin="round" />
-            </g>
-
-          </svg>
+          <img class="brand-mark" src="brand/mark.svg" alt="" width="512" height="512">
         </div>
         <div>
-          <div class="brand-title" data-i18n="gui-brand-title">Pyenv Native</div>
+          <div class="brand-title" data-i18n="gui-brand-title">{ $brand }</div>
           <small class="brand-subtitle" data-i18n="gui-brand-subtitle">Environment Manager</small>
         </div>
       </div>
@@ -375,7 +306,7 @@
         </div>
         
         <p class="sx-2" data-i18n="gui-shell-intro">
-          For shims and automatic version switching to work properly, pyenv-native must be initialized in your active shell's startup profile.
+          For shims and automatic version switching to work properly, { $brand } must be initialized in your active shell's startup profile.
         </p>
 
         <div class="glass platform-intel-panel" id="platform-intel-panel">
@@ -460,7 +391,7 @@
             <span data-i18n="gui-shims-title">Understanding Shell Shims</span>
           </h2>
           <p class="sx-17" data-i18n="gui-shims-body">
-            When you run python or pip in your terminal, the shell calls the pyenv-native shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute pyenv doctor in your shell.
+            When you run python or pip in your terminal, the shell calls the { $brand } shims first. These shims intercept execution and dynamically route the call to the currently selected global, local, or virtual environment runtime. To verify active shim health manually at any time, execute pyenv doctor in your shell.
           </p>
         </div>
       </section>
@@ -518,7 +449,7 @@
             <div class="setting-row">
               <div>
                 <label class="setting-label" for="config-windows.registry_mode" data-i18n="gui-registry-mode">Registry Mode</label>
-                <span class="setting-help" id="help-registry-mode" data-i18n="gui-windows-help-long">When enabled, pyenv-native writes HKCU PEP-514 keys under Software\Python\PyenvNative so IDEs can find managed interpreters. Official python.org PythonCore keys are not modified. No effect on Linux or macOS.</span>
+                <span class="setting-help" id="help-registry-mode" data-i18n="gui-windows-help-long">When enabled, { $brand } writes HKCU PEP-514 keys under Software\Python\PyenvNative so IDEs can find managed interpreters. Official python.org PythonCore keys are not modified. No effect on Linux or macOS.</span>
               </div>
               <select id="config-windows.registry_mode" class="dropdown" aria-describedby="help-registry-mode">
                 <option value="disabled" data-i18n="gui-registry-disabled-default">Disabled (default)</option>
@@ -619,83 +550,14 @@
       </section>
       <!-- ABOUT VIEW -->
       <section id="view-about" class="view is-hidden">
-        <h1 class="page-title" data-i18n="gui-page-about">About Pyenv-Native</h1>
+        <h1 class="page-title" data-i18n="gui-page-about">About { $brand }</h1>
         <div class="card glass sx-19">
           <div class="sx-20">
             <div class="brand-icon sx-21">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-                <defs>
-                  <linearGradient id="aboutBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#0E121A" />
-                    <stop offset="100%" stop-color="#040608" />
-                  </linearGradient>
-
-                  <linearGradient id="aboutActiveYellow" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#FFE873" />
-                    <stop offset="100%" stop-color="#FFD43B" />
-                  </linearGradient>
-
-                  <linearGradient id="aboutGlassLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="rgba(75, 139, 190, 0.15)" />
-                    <stop offset="100%" stop-color="rgba(75, 139, 190, 0.02)" />
-                  </linearGradient>
-                  <linearGradient id="aboutGlassRight" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="rgba(100, 160, 210, 0.1)" />
-                    <stop offset="100%" stop-color="rgba(30, 60, 90, 0.05)" />
-                  </linearGradient>
-                </defs>
-
-                <rect width="512" height="512" rx="115" ry="115" fill="url(#aboutBgGrad)" />
-
-                <path d="M 231 66 L 91 136 L 91 376 L 231 306 Z" fill="#141C2B" opacity="0.6" />
-                <path d="M 231 66 L 371 136 L 371 376 L 231 306 Z" fill="#0D131C" opacity="0.6" />
-                <path d="M 231 66 L 231 306" stroke="#306998" stroke-width="2" opacity="0.5" />
-
-                <g>
-                  <path d="M 141 331 L 231 376 L 231 391 L 141 346 Z" fill="#20496E" opacity="0.7" />
-                  <path d="M 321 331 L 231 376 L 231 391 L 321 346 Z" fill="#1A3B5C" opacity="0.7" />
-                  <path d="M 231 286 L 321 331 L 231 376 L 141 331 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
-                    stroke-width="2" />
-                </g>
-
-                <g>
-                  <path d="M 141 151 L 231 196 L 231 211 L 141 166 Z" fill="#20496E" opacity="0.7" />
-                  <path d="M 321 151 L 231 196 L 231 211 L 321 166 Z" fill="#1A3B5C" opacity="0.7" />
-                  <path d="M 231 106 L 321 151 L 231 196 L 141 151 Z" fill="rgba(48, 105, 152, 0.3)" stroke="#4B8BBE"
-                    stroke-width="2" />
-                </g>
-
-                <path d="M 231 196 L 321 241 L 231 286 L 141 241 Z" fill="none" stroke="#FFD43B" stroke-width="2"
-                  stroke-dasharray="6,4" opacity="0.3" />
-
-                <path d="M 91 136 L 231 206 L 231 446 L 91 376 Z" fill="url(#aboutGlassLeft)" />
-                <path d="M 371 136 L 231 206 L 231 446 L 371 376 Z" fill="url(#aboutGlassRight)" />
-
-                <path d="M 231 66 L 91 136 L 91 376 L 231 446 L 371 376 L 371 136 Z" fill="none"
-                  stroke="rgba(255,255,255,0.15)" stroke-width="2" />
-                <path d="M 231 66 L 371 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
-                <path d="M 231 66 L 91 136" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
-                <path d="M 231 206 L 231 446" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
-
-                <g stroke="#FFD43B" stroke-width="3" stroke-dasharray="4,4" opacity="0.8">
-                  <path d="M 231 196 L 331 246" />
-                  <path d="M 321 241 L 421 291" />
-                  <path d="M 231 286 L 331 336" />
-                  <path d="M 141 241 L 241 291" />
-                </g>
-
-                <g>
-                  <path d="M 241 291 L 331 336 L 331 356 L 241 311 Z" fill="#B8860B" />
-                  <path d="M 421 291 L 331 336 L 331 356 L 421 311 Z" fill="#D4AF37" />
-                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="url(#aboutActiveYellow)" />
-                  <path d="M 331 246 L 421 291 L 331 336 L 241 291 Z" fill="none" stroke="#FFFFFF" stroke-width="2"
-                    stroke-linejoin="round" />
-                </g>
-
-              </svg>
+              <img class="brand-mark" src="brand/mark.svg" alt="" width="512" height="512">
             </div>
             <div>
-              <h2 class="sx-22">Pyenv-Native</h2>
+              <h2 class="sx-22" data-i18n="gui-brand-title">{ $brand }</h2>
               <div class="sx-23">Version <span
                   id="about-version">…</span></div>
             </div>
@@ -704,7 +566,7 @@
             A specialized, zero-dependency cross-platform engine that brings the pyenv workflow to Linux, macOS, and Windows — fast shims, managed virtual environments, and a unified GUI.
           </p>
           <p class="sx-25" data-i18n="gui-about-blurb-2">
-            Written in pure, deeply typed Rust, pyenv-native bridges classic pyenv workflows with modern packaging, shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments, and system configurations — all from one place.
+            Written in pure, deeply typed Rust, { $brand } bridges classic pyenv workflows with modern packaging, shell integration, and (on Windows) PEP-514 IDE discovery when enabled. Manage Python versions, virtual environments, and system configurations — all from one place.
           </p>
           <div class="sx-26">
             <div class="sx-27"
@@ -1045,13 +907,14 @@
 
   <footer class="app-footer" id="app-footer" role="contentinfo">
     <div class="footer-left">
-      <span id="footer-version">Pyenv-Native</span>
+      <span id="footer-version" data-i18n="gui-brand-title">{ $brand }</span>
       <span id="footer-app-status"></span>
     </div>
     <div class="footer-right">
-      <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer pyenv-native." data-i18n="gui-footer-check-updates" data-i18n-title="gui-footer-updates-title">Check for Updates</button>
+      <button type="button" class="footer-update-btn" id="footer-btn" title="Check GitHub for a newer { $brand }." data-i18n="gui-footer-check-updates" data-i18n-title="gui-footer-updates-title">Check for Updates</button>
     </div>
   </footer>
+  <script src="brand.js"></script>
   <script src="dom-utils.js"></script>
   <script src="i18n.js"></script>
   <script src="motion.js"></script>

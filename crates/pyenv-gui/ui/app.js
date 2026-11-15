@@ -9,7 +9,7 @@ document.addEventListener('contextmenu', (event) => {
 function invoke(cmd, args) {
     const fn = window.__TAURI__?.core?.invoke || window.__TAURI__?.invoke;
     if (typeof fn !== 'function') {
-        return Promise.reject(new Error('Pyenv Native GUI backend is not connected. Launch with `pyenv gui`.'));
+        return Promise.reject(new Error(`${Brand.name} GUI backend is not connected. Launch with \`${Brand.command} gui\`.`));
     }
     return fn(cmd, args);
 }
@@ -57,7 +57,7 @@ const VIEW_TITLES = {
     'view-shell': 'Shell Integration',
     'view-available': 'Installable Runtimes',
     'view-settings': 'Configuration',
-    'view-about': 'About Pyenv-Native',
+    'view-about': `About ${Brand.name}`,
 };
 
 function viewTitle(viewId) {
@@ -71,7 +71,7 @@ function viewTitle(viewId) {
         'view-about': 'gui-view-about',
     };
     if (window.I18n?.t && ids[viewId]) return window.I18n.t(ids[viewId]);
-    return VIEW_TITLES[viewId] || 'Pyenv Native';
+    return VIEW_TITLES[viewId] || Brand.name;
 }
 
 function t(id, args, fallback) {
@@ -433,14 +433,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cachedAppVersion) {
             const versionEl = document.getElementById('footer-version');
             if (versionEl) {
-                versionEl.textContent = t('gui-app-version', { version: cachedAppVersion }, `Pyenv-Native v${cachedAppVersion}`);
+                versionEl.textContent = t('gui-app-version', { version: cachedAppVersion }, `${Brand.name} v${cachedAppVersion}`);
             }
             const aboutEl = document.getElementById('about-version');
             if (aboutEl) aboutEl.textContent = cachedAppVersion;
         }
         const active = document.querySelector('.nav-btn.active')?.dataset.view;
         if (active) {
-            document.title = `${viewTitle(active)} · ${t('gui-app-title', null, 'Pyenv Native')}`;
+            document.title = `${viewTitle(active)} · ${t('gui-app-title', null, Brand.name)}`;
             if (active === 'view-dashboard') loadDashboard();
             if (active === 'view-installed') loadInstalled();
             if (active === 'view-venvs') loadVenvs();
@@ -603,7 +603,7 @@ function showView(viewId) {
         heading.focus({ preventScroll: true });
     }
     lastNavInput = 'pointer';
-    document.title = `${viewTitle(viewId)} · ${t('gui-app-title', null, 'Pyenv Native')}`;
+    document.title = `${viewTitle(viewId)} · ${t('gui-app-title', null, Brand.name)}`;
     announce(t('gui-showing-view', { view: viewTitle(viewId) }, `Showing ${viewTitle(viewId)}`));
 }
 
@@ -1510,14 +1510,31 @@ document.getElementById('available-search').addEventListener('input', () => {
 });
 
 // ─── Actions ───
+/**
+ * Run a long backend call as a row in the Activity tray (elapsed time, outcome, details on failure).
+ * Rethrows, so each caller keeps its own button state and error dialog.
+ */
+async function tracked(kind, label, work) {
+    const activity = window.Activity?.start(`${kind}-${Date.now()}`, label);
+    try {
+        const result = await work();
+        activity?.done();
+        return result;
+    } catch (err) {
+        activity?.fail(String(err).split('\n')[0], String(err));
+        throw err;
+    }
+}
+
 async function installTarget(v, btnEl) {
     btnEl.disabled = true;
     const originalText = btnEl.textContent;
     btnEl.textContent = t('gui-installing', null, 'Installing…');
     btnEl.setAttribute('aria-busy', 'true');
-    
+
     try {
-        await invoke('install_version', { workspaceDir: getWorkspaceDir(), version: v });
+        await tracked('install', t('gui-activity-install', { version: v }, `Installing Python ${v}`),
+            () => invoke('install_version', { workspaceDir: getWorkspaceDir(), version: v }));
         btnEl.textContent = t('gui-installed-ok', null, 'Installed ✓');
         btnEl.classList.remove('btn-primary');
         btnEl.classList.add('btn-outline');
@@ -1560,7 +1577,8 @@ document.getElementById('btn-create-venv')?.addEventListener('click', async () =
     btn.disabled = true;
     btn.innerText = t('gui-creating', null, 'Creating…');
     try {
-        await invoke('create_venv', { workspaceDir: getWorkspaceDir(), baseVersion: base, name: name });
+        await tracked('create-venv', t('gui-activity-create-venv', { name }, `Creating environment ${name}`),
+            () => invoke('create_venv', { workspaceDir: getWorkspaceDir(), baseVersion: base, name: name }));
         document.getElementById('venv-name').value = '';
         loadVenvs();
         loadDashboard();
@@ -1576,7 +1594,8 @@ async function deleteVenv(name) {
     const yes = await showConfirm(t('gui-delete-venv-confirm-title', null, 'Delete Virtual Environment'), t('gui-delete-venv-confirm-body', { name }, `Are you sure you want to delete venv ${name}? This cannot be undone.`));
     if (!yes) return;
     try {
-        await invoke('delete_venv', { workspaceDir: getWorkspaceDir(), spec: name });
+        await tracked('delete-venv', t('gui-activity-delete-venv', { name }, `Deleting environment ${name}`),
+            () => invoke('delete_venv', { workspaceDir: getWorkspaceDir(), spec: name }));
         loadVenvs();
         loadDashboard();
     } catch(err) {
@@ -1617,7 +1636,7 @@ async function checkUpdates() {
                     t(
                         'gui-up-to-date-body',
                         { version: check.currentTag },
-                        `pyenv-native ${check.currentTag} is up to date.`,
+                        `${Brand.name} ${check.currentTag} is up to date.`,
                     ),
                 ),
             );
@@ -1838,7 +1857,8 @@ async function uninstallVersion(v) {
     }
     
     try {
-        await invoke('uninstall_version', { workspaceDir: getWorkspaceDir(), version: v });
+        await tracked('uninstall', t('gui-activity-uninstall', { version: v }, `Removing Python ${v}`),
+            () => invoke('uninstall_version', { workspaceDir: getWorkspaceDir(), version: v }));
         installedVersionsSet = installedVersionsSet.filter(x => x !== v);
         showAlert(t('gui-uninstalled-title', null, 'Uninstalled'), t('gui-uninstalled-body', { version: escapeHtml(v) }, `Python ${escapeHtml(v)} has been removed.`));
         loadInstalled();
@@ -1867,7 +1887,7 @@ async function initAppVersion({ refreshRemote = false } = {}) {
         }
         const version = cachedAppVersion;
         const versionEl = document.getElementById('footer-version');
-        if (versionEl) versionEl.textContent = t('gui-app-version', { version }, `Pyenv-Native v${version}`);
+        if (versionEl) versionEl.textContent = t('gui-app-version', { version }, `${Brand.name} v${version}`);
 
         const aboutEl = document.getElementById('about-version');
         if (aboutEl) aboutEl.textContent = version;
@@ -2246,11 +2266,13 @@ if (btnStartUpgrade) {
         markStepInProgress('cleanup', 'Cleanup old environment', 'Waiting for core migrate...');
 
         try {
-            const log = await invoke('upgrade_venv', {
-                workspaceDir: getWorkspaceDir(),
-                spec: upgraderSourceSpec,
-                newRuntime: targetVer,
-            });
+            const log = await tracked('upgrade-venv',
+                t('gui-activity-upgrade-venv', { name: upgraderSourceName, version: targetVer }, `Moving ${upgraderSourceName} to Python ${targetVer}`),
+                () => invoke('upgrade_venv', {
+                    workspaceDir: getWorkspaceDir(),
+                    spec: upgraderSourceSpec,
+                    newRuntime: targetVer,
+                }));
             applyUpgradeProgressLog(String(log || ''), true);
             showAlert(t('gui-migration-success', null, 'Migration Success'), t('gui-migration-success-body', { name: escapeHtml(upgraderSourceName), version: escapeHtml(targetVer) }, `Managed virtual environment ${escapeHtml(upgraderSourceName)} has been fully migrated to Python ${escapeHtml(targetVer)}.`));
             loadVenvs();
@@ -2447,12 +2469,14 @@ btnUpgradePip.addEventListener('click', async () => {
     btnUpgradePip.textContent = t('gui-upgrading-packages', null, 'Upgrading packages…');
     
     try {
-        await invoke('update_pip_packages', {
-            workspaceDir: getWorkspaceDir(),
-            target: currentExplorerTarget,
-            packages: ["pip"],
-            all: false
-        });
+        await tracked('upgrade-pip',
+            t('gui-activity-upgrade-pip', { target: venvDisplayName(currentExplorerTarget) }, `Upgrading pip in ${venvDisplayName(currentExplorerTarget)}`),
+            () => invoke('update_pip_packages', {
+                workspaceDir: getWorkspaceDir(),
+                target: currentExplorerTarget,
+                packages: ["pip"],
+                all: false
+            }));
         showAlert(t('gui-pip-upgraded', null, 'Pip Upgraded'), t('gui-pip-upgraded-body', null, 'pip self-update completed successfully.'));
         loadDrawerPackages();
     } catch(err) {
@@ -2839,11 +2863,13 @@ btnInstallImported.addEventListener('click', async () => {
     btnInstallImported.textContent = t('gui-installing-deps', null, 'Installing Dependencies…');
     
     try {
-        await invoke('install_requirements', {
-            workspaceDir: getWorkspaceDir(),
-            target: currentExplorerTarget,
-            pathOrUrl: pathOrUrl
-        });
+        await tracked('install-requirements',
+            t('gui-activity-install-requirements', { target: venvDisplayName(currentExplorerTarget) }, `Installing requirements into ${venvDisplayName(currentExplorerTarget)}`),
+            () => invoke('install_requirements', {
+                workspaceDir: getWorkspaceDir(),
+                target: currentExplorerTarget,
+                pathOrUrl: pathOrUrl
+            }));
         
         showAlert(t('gui-installation-complete', null, 'Installation Complete'), t('gui-installation-complete-body', null, 'Dependencies installed successfully.'));
         
@@ -3318,7 +3344,7 @@ async function loadShellCards() {
                         await invoke('configure_shell', { shellName: status.name, profilePath: status.profile_path });
                         showAlert(
                             t('gui-shell-configured-title', null, 'Shell Configured'),
-                            `Successfully injected pyenv-native shell initialization block into profile:<br><code class="code-sm">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
+                            `Successfully injected ${Brand.name} shell initialization block into profile:<br><code class="code-sm">${escapeHtml(status.profile_path)}</code><br><br>Restart your terminal shell for the changes to take effect!`,
                         );
                         loadShellIntegration();
                     } catch (err) {
