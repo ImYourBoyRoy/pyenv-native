@@ -33,6 +33,8 @@ pub struct SelfUninstallOptions {
     pub system: bool,
     /// Internal: this process is the detached helper finishing removal after its parent exited.
     pub finish_after_pid: Option<u32>,
+    /// Describe what would be removed and change nothing.
+    pub dry_run: bool,
 }
 
 impl SelfUninstallOptions {
@@ -44,6 +46,7 @@ impl SelfUninstallOptions {
             keep_shell_integration: false,
             system: false,
             finish_after_pid: None,
+            dry_run: false,
         }
     }
 }
@@ -55,10 +58,15 @@ pub fn run_self_uninstall(
 ) -> Result<(), String> {
     let mut reporter = Reporter::new(sink);
     if options.system {
-        return super::system_pkg::remove_system_package(&mut reporter);
+        return super::system_pkg::remove_system_package(&mut reporter, options.dry_run);
     }
     let layout = InstallLayout::new(options.root.clone());
     assert_safe_root(&layout)?;
+
+    if options.dry_run {
+        preview_uninstall(&mut reporter, &layout, options);
+        return Ok(());
+    }
 
     if let Some(pid) = options.finish_after_pid {
         wait_for_exit(pid, Duration::from_secs(120));
@@ -89,11 +97,98 @@ pub fn run_self_uninstall(
         .and_then(|exe| super::source::package_source_for(&exe))
     {
         reporter.plain(&format!(
-            "The pyenv program itself was installed by a {source} package; remove it with: {}",
+            "The enchi program itself was installed by a {source} package; remove it with: {}",
             super::source::remove_command(&source)
         ));
     }
     Ok(())
+}
+
+/// `--dry-run`: say what the uninstall would remove, without removing or changing anything.
+fn preview_uninstall(
+    reporter: &mut Reporter<'_>,
+    layout: &InstallLayout,
+    options: &SelfUninstallOptions,
+) {
+    reporter.plain(&format!(
+        "Would uninstall Enchi from {}.",
+        layout.root().display()
+    ));
+
+    if options.keep_shell_integration {
+        reporter.plain("Would leave shell profiles, the user PATH, and desktop launchers alone.");
+    } else {
+        let mut touched_profile = false;
+        if let Some(home) = profile::home_dir() {
+            for (kind, path) in profile::known_profile_paths(&home) {
+                if kind != ShellKind::None && profile::profile_has_block(&path) {
+                    touched_profile = true;
+                    reporter.plain(&format!(
+                        "Would remove the Enchi block from {}",
+                        path.display()
+                    ));
+                }
+            }
+        }
+        if !touched_profile {
+            reporter.plain("No shell profile contains an Enchi block.");
+        }
+        if cfg!(windows) {
+            reporter.plain(
+                "Would remove Enchi entries from the user PATH and clear ENCHI_ROOT / PYENV_ROOT when they point at this root.",
+            );
+            reporter.plain("Would remove Enchi from Apps & features.");
+        }
+        #[cfg(target_os = "linux")]
+        if super::desktop::desktop_entry_present() {
+            reporter.plain("Would remove the GUI desktop launcher and icons.");
+        }
+    }
+
+    for target in removal_targets(layout, options.keep_data) {
+        if target.exists() {
+            reporter.plain(&format!("Would remove {}", target.display()));
+        }
+    }
+    let versions = count_entries(&layout.versions_dir());
+    let venvs = count_venvs(&layout.root().join("venvs"));
+    if options.keep_data {
+        reporter.plain(&format!(
+            "Would keep {versions} installed Python version(s), {venvs} managed venv(s), caches, and configuration."
+        ));
+    } else {
+        reporter.plain(&format!(
+            "Would delete everything under the root, including {versions} installed Python version(s) and {venvs} managed venv(s)."
+        ));
+    }
+    if let Some(source) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| super::source::package_source_for(&exe))
+    {
+        reporter.plain(&format!(
+            "The enchi program itself was installed by a {source} package and would stay; remove it with: {}",
+            super::source::remove_command(&source)
+        ));
+    }
+    reporter.plain("Dry run: nothing was changed.");
+}
+
+fn count_entries(dir: &Path) -> usize {
+    fs::read_dir(dir)
+        .map(|entries| entries.flatten().count())
+        .unwrap_or(0)
+}
+
+/// Managed venvs live at `venvs/<runtime>/<name>`.
+fn count_venvs(dir: &Path) -> usize {
+    fs::read_dir(dir)
+        .map(|runtimes| {
+            runtimes
+                .flatten()
+                .map(|runtime| count_entries(&runtime.path()))
+                .sum()
+        })
+        .unwrap_or(0)
 }
 
 /// Refuse roots that are not plausibly a Enchi install.

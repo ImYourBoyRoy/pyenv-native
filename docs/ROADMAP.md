@@ -197,10 +197,10 @@ mid-run failure resumes cleanly; rollback restores the original state.
 
 ## Phase 7 — Backend polish and GUI association
 
-- `--json` and `--dry-run` on every older command; consistent `--force` semantics. **Mostly done:**
-  the scriptable commands accept `--json` (uniform `enchi.result/1` envelope, no prompts in machine
-  mode), and `uninstall`, `venv create|delete|rename|upgrade` and `pip install|update` have
-  `--dry-run`. Still open: `--dry-run` for `self-uninstall`, and a `--json` form for `self-install`.
+- `--json` and `--dry-run` on every older command; consistent `--force` semantics. **Done:** the
+  scriptable commands accept `--json` (uniform `enchi.result/1` envelope, no prompts in machine
+  mode), and `uninstall`, `venv create|delete|rename|upgrade`, `pip install|update`, `self-install`
+  and `self-uninstall` have `--dry-run`.
 - Catalog robustness: cache negative results, retry with backoff, clear UX when a publisher omits a
   checksum.
 - MCP tools for every new capability, plan-first, annotated, with progress events.

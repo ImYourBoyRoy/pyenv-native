@@ -14,6 +14,25 @@ mod cases {
     };
 
     #[test]
+    fn config_show_leaves_out_sections_with_nothing_set() {
+        use super::super::commands::without_empty_sections;
+
+        let shown = without_empty_sections(
+            "[storage]\n\n[windows]\nregistry_mode = \"disabled\"\n\n[install]\n\n[ui]\nlanguage = \"en-US\"\n",
+        );
+        assert_eq!(
+            shown,
+            vec![
+                "[windows]".to_string(),
+                "registry_mode = \"disabled\"".to_string(),
+                String::new(),
+                "[ui]".to_string(),
+                "language = \"en-US\"".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn default_config_uses_root_versions_and_cache_dirs() {
         let temp = TempDir::new().expect("tempdir");
         let root = temp.path().join(".pyenv");

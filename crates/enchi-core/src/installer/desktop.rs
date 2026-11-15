@@ -98,6 +98,18 @@ pub(crate) fn install_desktop_entry(layout: &InstallLayout) -> io::Result<Vec<St
     ])
 }
 
+/// Whether a launcher written by this or a previous release is present. Read-only; used by
+/// `--dry-run` previews.
+pub(crate) fn desktop_entry_present() -> bool {
+    let Some(data_home) = data_home() else {
+        return false;
+    };
+    let applications = data_home.join("applications");
+    [APP_ID, LEGACY_APP_ID]
+        .iter()
+        .any(|id| applications.join(format!("{id}.desktop")).exists())
+}
+
 /// Remove the launcher and icons written by `install_desktop_entry`. Returns whether anything
 /// was removed.
 pub(crate) fn remove_desktop_entry() -> bool {

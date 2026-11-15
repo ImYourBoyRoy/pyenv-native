@@ -21,7 +21,7 @@ mod cases {
     fn english_error_catalog_matches_legacy_copy() {
         assert_eq!(
             lookup_for_tag("en-US", "error-missing-home"),
-            "enchi: cannot determine home directory for PYENV_ROOT"
+            "enchi: cannot determine home directory for ENCHI_ROOT"
         );
         let mut args = HashMap::new();
         args.insert("key".into(), "ui.language".into());

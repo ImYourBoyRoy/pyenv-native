@@ -472,6 +472,14 @@ pub fn remove_profile_block(path: &Path) -> io::Result<bool> {
     Ok(true)
 }
 
+/// Whether `path` holds an Enchi (or legacy pyenv-native) block that removal would take out.
+/// Read-only; used by `--dry-run` previews.
+pub fn profile_has_block(path: &Path) -> bool {
+    fs::read_to_string(path)
+        .map(|text| remove_block(&text).1)
+        .unwrap_or(false)
+}
+
 /// Shell snippet that activates Enchi in the *current* shell without reopening the terminal.
 pub fn current_shell_hint(kind: ShellKind, exe: &Path, bin_dir: &Path) -> Option<String> {
     let exe = exe.to_string_lossy();

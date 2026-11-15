@@ -4,6 +4,7 @@
 
 mod cli;
 mod dispatch;
+mod style;
 
 use std::process::ExitCode;
 use std::thread;

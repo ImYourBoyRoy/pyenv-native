@@ -325,7 +325,16 @@ fn json_mode(command: &Commands) -> Option<JsonMode> {
         Commands::SelfUpdate { json: true, .. } | Commands::Update { json: true, .. } => {
             JsonMode::new("self-update", false)
         }
-        Commands::SelfUninstall { json: true, .. } => JsonMode::new("self-uninstall", false),
+        Commands::SelfUninstall {
+            json: true,
+            dry_run,
+            ..
+        } => JsonMode::new("self-uninstall", *dry_run),
+        Commands::SelfInstall {
+            json: true,
+            dry_run,
+            ..
+        } => JsonMode::new("self-install", *dry_run),
         Commands::AgentSkills { json: true, .. } => JsonMode::new("agent-skills", false),
         Commands::Config {
             command: Some(command),
@@ -412,8 +421,16 @@ fn json_guard(command: &Commands) -> Option<CommandReport> {
         Commands::SelfUninstall {
             json: true,
             yes: false,
+            dry_run: false,
             ..
         } => missing("--yes", "self-uninstall"),
+        Commands::SelfInstall {
+            json: true,
+            yes: false,
+            force: false,
+            dry_run: false,
+            ..
+        } => missing("--yes", "self-install"),
         Commands::Venv { command } => match command {
             VenvCommands::Delete {
                 json: true,
@@ -503,9 +520,13 @@ fn run_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             legacy_aliases,
             wait_for_pid,
             relaunch_gui,
+            dry_run,
+            json,
         } => dispatch_self_install(
             ctx,
             SelfInstallArgs {
+                dry_run,
+                json,
                 install_root,
                 source_dir,
                 source_path,
@@ -531,9 +552,11 @@ fn run_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             keep_shell_integration,
             system,
             finish_after_pid,
+            dry_run,
             ..
         } => {
             let mut options = SelfUninstallOptions::new(ctx.root.clone());
+            options.dry_run = dry_run;
             options.system = system;
             options.yes = yes;
             options.keep_data = keep_data;
@@ -1024,12 +1047,14 @@ fn shim_invocation_name() -> Option<String> {
 }
 
 fn emit_report(report: CommandReport) -> ExitCode {
+    // Styling applies to interactive terminals only; pipes and `--json` see the plain text.
+    let style = crate::style::Style::detect();
     for line in report.stderr {
-        let _ = writeln!(io::stderr(), "{line}");
+        let _ = writeln!(io::stderr(), "{}", style.stderr_line(&line));
     }
 
     for line in report.stdout {
-        let _ = writeln!(io::stdout(), "{line}");
+        let _ = writeln!(io::stdout(), "{}", style.stdout_line(&line));
     }
 
     ExitCode::from(report.exit_code as u8)
@@ -1054,6 +1079,8 @@ struct SelfInstallArgs {
     legacy_aliases: String,
     wait_for_pid: Option<u32>,
     relaunch_gui: bool,
+    dry_run: bool,
+    json: bool,
 }
 
 /// Run `self-install`, printing progress as it happens rather than after the fact.
@@ -1112,6 +1139,12 @@ fn dispatch_self_install(ctx: &AppContext, args: SelfInstallArgs) -> CommandRepo
     options.yes = args.yes;
     options.wait_for_pid = args.wait_for_pid;
     options.relaunch_gui = args.relaunch_gui;
+    options.dry_run = args.dry_run;
+
+    // Machine mode collects the whole transcript for the result envelope instead of streaming it.
+    if args.json {
+        return enchi_core::cmd_self_install(&options);
+    }
 
     let mut sink = |line: &str| {
         let mut stdout = io::stdout().lock();

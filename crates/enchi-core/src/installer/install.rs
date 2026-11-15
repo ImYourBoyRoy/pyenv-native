@@ -69,6 +69,8 @@ pub struct SelfInstallOptions {
     pub relaunch_gui: bool,
     /// Whether to keep `pyenv`, `pyenv-mcp` and `pyenv-gui` as copies next to the Enchi binaries.
     pub legacy_aliases: LegacyAliases,
+    /// Describe what would be installed and change nothing.
+    pub dry_run: bool,
 }
 
 /// Policy for the pre-Enchi command names.
@@ -111,6 +113,7 @@ impl SelfInstallOptions {
             wait_for_pid: None,
             relaunch_gui: false,
             legacy_aliases: LegacyAliases::Auto,
+            dry_run: false,
         }
     }
 }
@@ -174,6 +177,20 @@ fn install_with_reporter(
     });
 
     print_summary(reporter, options, &sources, &layout, &log_path);
+    if options.dry_run {
+        preview_install(
+            reporter,
+            options,
+            &sources,
+            &layout,
+            was_legacy_install || had_legacy_alias,
+        );
+        return Ok(SelfInstallOutcome {
+            layout,
+            log_path,
+            profiles_changed: Vec::new(),
+        });
+    }
     confirm(options)?;
 
     // Nothing is written to disk until the install is confirmed.
@@ -262,6 +279,75 @@ fn install_with_reporter(
         log_path,
         profiles_changed,
     })
+}
+
+/// `--dry-run`: list what the install would create, copy and edit. Reads only.
+fn preview_install(
+    reporter: &mut Reporter<'_>,
+    options: &SelfInstallOptions,
+    sources: &Sources,
+    layout: &InstallLayout,
+    upgrading_legacy: bool,
+) {
+    let missing: Vec<String> = layout
+        .managed_dirs()
+        .iter()
+        .filter(|dir| !dir.exists())
+        .map(|dir| dir.display().to_string())
+        .collect();
+    if missing.is_empty() {
+        reporter.plain("Would reuse the existing directories under the install root.");
+    } else {
+        reporter.plain(&format!("Would create: {}", missing.join(", ")));
+    }
+
+    let mut binaries = vec![layout.cli_exe().display().to_string()];
+    if sources.mcp.is_some() {
+        binaries.push(layout.mcp_exe().display().to_string());
+    }
+    if sources.gui.is_some() {
+        binaries.push(layout.gui_exe().display().to_string());
+    }
+    reporter.plain(&format!("Would install: {}", binaries.join(", ")));
+
+    let keep_aliases = match options.legacy_aliases {
+        LegacyAliases::Always => true,
+        LegacyAliases::Never => false,
+        LegacyAliases::Auto => upgrading_legacy,
+    };
+    if keep_aliases {
+        reporter
+            .plain("Would keep pyenv, pyenv-mcp and pyenv-gui as aliases for the Enchi binaries.");
+    }
+
+    if options.update_shell_profile && options.shell.has_profile() {
+        let target =
+            profile::home_dir().and_then(|home| profile::profile_path(options.shell, &home));
+        match target {
+            Some(path) if profile::profile_has_block(&path) => reporter.plain(&format!(
+                "Would update the Enchi block in {}",
+                path.display()
+            )),
+            Some(path) => reporter.plain(&format!(
+                "Would add the Enchi init block to {}",
+                path.display()
+            )),
+            None => reporter.plain("Would add the Enchi init block to your shell profile."),
+        }
+    } else {
+        reporter.plain("Would leave shell profiles alone.");
+    }
+    if cfg!(windows) && options.add_to_user_path {
+        reporter.plain("Would add bin and shims to the user PATH.");
+    }
+    #[cfg(target_os = "linux")]
+    if sources.gui.is_some() {
+        reporter.plain("Would install the GUI desktop launcher and icons.");
+    }
+    if options.refresh_shims {
+        reporter.plain("Would refresh shims and run sanity checks.");
+    }
+    reporter.plain("Dry run: nothing was changed.");
 }
 
 fn wait_for_exit(pid: u32, timeout: Duration) {

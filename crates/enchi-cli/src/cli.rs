@@ -537,6 +537,13 @@ pub(crate) enum Commands {
         #[arg(short = 'y', long = "yes", help = "Skip the confirmation prompt")]
         yes: bool,
         #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(long = "json", help = "Output the result as JSON")]
+        json: bool,
+        #[arg(
             long = "legacy-aliases",
             value_name = "auto|always|never",
             default_value = "auto",
@@ -567,6 +574,11 @@ pub(crate) enum Commands {
             help = "Remove the program files installed by the macOS .pkg (run with sudo); Python versions under ENCHI_ROOT are kept"
         )]
         system: bool,
+        #[arg(
+            long = "dry-run",
+            help = "Show what would happen without changing anything"
+        )]
+        dry_run: bool,
         #[arg(long = "json", help = "Output the result as JSON")]
         json: bool,
         #[arg(long = "finish-after-pid", hide = true)]

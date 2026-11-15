@@ -131,6 +131,13 @@ mod cases {
                 "",
             )
             .expect("python");
+            for (version, name) in [
+                ("3.12.6", "python"),
+                ("3.12.6", "pip"),
+                ("3.13.2", "python"),
+            ] {
+                mark_executable(&ctx.versions_dir().join(version).join("bin").join(name));
+            }
         }
 
         let report = cmd_versions(
@@ -143,6 +150,37 @@ mod cases {
 
         assert_eq!(report.exit_code, 0);
         assert_eq!(report.stdout, vec!["pip".to_string(), "python".to_string()]);
+    }
+
+    fn mark_executable(path: &std::path::Path) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("chmod");
+        }
+        #[cfg(not(unix))]
+        let _ = path;
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn files_that_are_not_executable_never_become_shims() {
+        let (_temp, ctx) = test_context();
+        let bin = ctx.versions_dir().join("3.12.6").join("bin");
+        fs::create_dir_all(&bin).expect("bin");
+        for name in ["python", "activate", "Activate.ps1", ".gitignore"] {
+            fs::write(bin.join(name), "").expect("file");
+        }
+        mark_executable(&bin.join("python"));
+
+        let report = cmd_versions(
+            &ctx,
+            &VersionsCommandOptions {
+                executables: true,
+                ..VersionsCommandOptions::default()
+            },
+        );
+        assert_eq!(report.stdout, vec!["python".to_string()]);
     }
 
     #[test]

@@ -220,6 +220,100 @@ fn uninstall_refuses_roots_that_are_not_installs() {
 
 /// The arguments the pyenv-native updater passes to `<bundle>/pyenv self-install` (see
 /// `installer_command` in the releases that shipped it). A bridge release must satisfy exactly this.
+#[test]
+fn install_dry_run_describes_the_install_and_writes_nothing() {
+    let sandbox = Sandbox::new();
+    fs::write(sandbox.bashrc(), "export KEEP=1\n").unwrap();
+
+    let output = sandbox.install(&["--dry-run"]);
+    let shown = text(&output);
+    assert!(output.status.success(), "{shown}");
+    assert!(shown.contains("Would install:"), "{shown}");
+    assert!(
+        shown.contains("Would add the Enchi init block to"),
+        "{shown}"
+    );
+    assert!(shown.contains("Dry run: nothing was changed."), "{shown}");
+    assert!(!sandbox.root.exists(), "a dry run must not create the root");
+    assert_eq!(
+        fs::read_to_string(sandbox.bashrc()).unwrap(),
+        "export KEEP=1\n"
+    );
+}
+
+#[test]
+fn uninstall_dry_run_lists_removals_and_keeps_everything() {
+    let sandbox = Sandbox::new();
+    assert!(sandbox.install(&[]).status.success());
+    let profile_before = fs::read_to_string(sandbox.bashrc()).unwrap();
+
+    let output = sandbox.run(&sandbox.installed(), &["self-uninstall", "--dry-run"]);
+    let shown = text(&output);
+    assert!(output.status.success(), "{shown}");
+    assert!(
+        shown.contains("Would remove the Enchi block from"),
+        "{shown}"
+    );
+    assert!(shown.contains("Would remove "), "{shown}");
+    assert!(shown.contains("Dry run: nothing was changed."), "{shown}");
+    assert!(sandbox.installed().is_file(), "binaries must still exist");
+    assert_eq!(
+        fs::read_to_string(sandbox.bashrc()).unwrap(),
+        profile_before
+    );
+
+    let kept = sandbox.run(
+        &sandbox.installed(),
+        &["self-uninstall", "--dry-run", "--keep-data"],
+    );
+    assert!(text(&kept).contains("Would keep"), "{}", text(&kept));
+}
+
+#[test]
+fn machine_mode_install_and_uninstall_never_prompt() {
+    let sandbox = Sandbox::new();
+
+    let refused = sandbox.run(
+        &sandbox.bundle.join("enchi"),
+        &[
+            "self-install",
+            "--json",
+            "--install-root",
+            &sandbox.root.to_string_lossy(),
+        ],
+    );
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(
+        text(&refused).contains("never prompts"),
+        "{}",
+        text(&refused)
+    );
+    assert!(!sandbox.root.exists());
+
+    let planned = sandbox.run(
+        &sandbox.bundle.join("enchi"),
+        &[
+            "self-install",
+            "--json",
+            "--dry-run",
+            "--install-root",
+            &sandbox.root.to_string_lossy(),
+        ],
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&planned.stdout).expect("self-install --json prints JSON");
+    assert_eq!(value["command"], "self-install");
+    assert_eq!(value["dry_run"], true);
+    assert_eq!(value["ok"], true, "{value}");
+    assert!(!sandbox.root.exists());
+
+    assert!(sandbox.install(&[]).status.success());
+    let refused = sandbox.run(&sandbox.installed(), &["self-uninstall", "--json"]);
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(text(&refused).contains("never prompts"));
+    assert!(sandbox.installed().is_file());
+}
+
 fn legacy_updater_args(root: &Path) -> Vec<String> {
     [
         "self-install",

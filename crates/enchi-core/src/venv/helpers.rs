@@ -32,14 +32,15 @@ pub(super) fn pip_for_prefix(prefix: &Path) -> Option<PathBuf> {
 }
 
 pub(super) fn is_safe_env_name(value: &str) -> bool {
-    let trimmed = value.trim();
-    if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+    // Not trimmed: the directory is created from the name exactly as given, so a name with
+    // surrounding spaces must be rejected, not silently accepted and then created with spaces.
+    if value.is_empty() || value == "." || value == ".." {
         return false;
     }
-    if trimmed.contains('/') || trimmed.contains('\\') {
+    if value.contains('/') || value.contains('\\') {
         return false;
     }
-    trimmed
+    value
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
 }

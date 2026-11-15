@@ -60,7 +60,7 @@ mod cases {
             report
                 .stdout
                 .iter()
-                .any(|line| line.contains("[OK] pyenv-bin-on-path"))
+                .any(|line| line.contains("[OK] bin-on-path"))
         );
         assert!(
             report
@@ -78,7 +78,7 @@ mod cases {
         assert_eq!(report.exit_code, 0);
         let payload = report.stdout.join("\n");
         assert!(payload.contains("\"checks\""));
-        assert!(payload.contains("\"pyenv-bin-on-path\""));
+        assert!(payload.contains("\"bin-on-path\""));
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod cases {
         let checks = collect_checks_for_platform(&ctx, env::consts::OS, options);
         let bin = checks
             .iter()
-            .find(|check| check.name == "pyenv-bin-on-path")
+            .find(|check| check.name == "bin-on-path")
             .expect("bin check");
         let shims = checks
             .iter()
@@ -195,7 +195,7 @@ mod cases {
             collect_checks_for_platform(&ctx, env::consts::OS, DoctorOptions::default());
         let cli_bin = cli_checks
             .iter()
-            .find(|check| check.name == "pyenv-bin-on-path")
+            .find(|check| check.name == "bin-on-path")
             .expect("cli bin");
         assert_eq!(cli_bin.status, DoctorStatus::Warn);
     }

@@ -15,6 +15,18 @@ use super::{
     resolve_installed_runtime_version,
 };
 
+#[test]
+fn env_names_are_checked_exactly_as_given() {
+    use super::helpers::is_safe_env_name;
+    for good in ["api", "my-env_2", "a.b"] {
+        assert!(is_safe_env_name(good), "{good}");
+    }
+    // Surrounding whitespace used to pass a trimmed check and then create a folder with spaces.
+    for bad in ["", ".", "..", " api", "api ", "a b", "a/b", "a\\b"] {
+        assert!(!is_safe_env_name(bad), "{bad:?}");
+    }
+}
+
 fn python_file_name() -> &'static str {
     if cfg!(windows) {
         "python.exe"

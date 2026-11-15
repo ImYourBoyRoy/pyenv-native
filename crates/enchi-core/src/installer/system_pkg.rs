@@ -80,7 +80,10 @@ fn is_root() -> bool {
 }
 
 /// Remove the files the `.pkg` installed. Per-user data under `ENCHI_ROOT` is not touched.
-pub(crate) fn remove_system_package(reporter: &mut Reporter<'_>) -> Result<(), String> {
+pub(crate) fn remove_system_package(
+    reporter: &mut Reporter<'_>,
+    dry_run: bool,
+) -> Result<(), String> {
     if !cfg!(target_os = "macos") {
         return Err(
             "enchi: --system removes the macOS .pkg install only; on other systems use your package manager"
@@ -91,11 +94,11 @@ pub(crate) fn remove_system_package(reporter: &mut Reporter<'_>) -> Result<(), S
         .map_err(|error| format!("enchi: cannot locate this executable: {error}"))?;
     if package_source_for(&exe).as_deref() != Some("pkg") {
         return Err(
-            "enchi: this pyenv was not installed by the macOS .pkg, so there are no system files to remove"
+            "enchi: this Enchi was not installed by the macOS .pkg, so there are no system files to remove"
                 .to_string(),
         );
     }
-    if !is_root() {
+    if !dry_run && !is_root() {
         return Err(
             "enchi: removing system files needs administrator rights; run `sudo enchi self-uninstall --system`"
                 .to_string(),
@@ -122,6 +125,24 @@ pub(crate) fn remove_system_package(reporter: &mut Reporter<'_>) -> Result<(), S
     }
 
     let plan = removal_plan(&listing_text);
+    if dry_run {
+        const SHOWN: usize = 12;
+        for path in plan.iter().rev().take(SHOWN) {
+            reporter.plain(&format!("Would remove {}", path.display()));
+        }
+        if plan.len() > SHOWN {
+            reporter.plain(&format!(
+                "...and {} more installed paths.",
+                plan.len() - SHOWN
+            ));
+        }
+        reporter.plain(&format!(
+            "Would forget {} installer receipt(s). Per-user data under ENCHI_ROOT is not touched.",
+            receipts.len()
+        ));
+        reporter.plain("Dry run: nothing was changed.");
+        return Ok(());
+    }
     let mut removed = 0usize;
     for path in &plan {
         match remove_entry(path) {

@@ -234,7 +234,7 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
     CommandDoc {
         name: "self-install",
         summary: "Install or repair Enchi from a release bundle",
-        usage: "Usage: enchi self-install [--install-root <dir>] [--source-dir <dir>] [--shell <name>] [-f|--force] [-y|--yes] [...]",
+        usage: "Usage: enchi self-install [--install-root <dir>] [--source-dir <dir>] [--shell <name>] [-f|--force] [-y|--yes] [--dry-run] [--json] [...]",
         help: &[
             "Copies `enchi`, `enchi-mcp`, and `enchi-gui` (when present) from the directory this",
             "binary runs from into a portable root, then sets up shell and PATH integration,",
@@ -257,6 +257,9 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "  --lang <tag>                  Interface language for installer messages",
             "  -f, --force                   Overwrite a non-empty install root without asking",
             "  -y, --yes                     Skip the confirmation prompt",
+            "  --dry-run                     Show what would be created, copied and edited; change nothing",
+            "  --json                        One `enchi.result/1` document; never prompts, so a real",
+            "                                install needs `--yes` (or `--force`)",
             "",
             "Package-managed installs (deb, rpm, Termux, macOS .pkg) are updated with the",
             "package manager instead.",
@@ -278,12 +281,14 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "--force",
             "-y",
             "--yes",
+            "--dry-run",
+            "--json",
         ],
     },
     CommandDoc {
         name: "self-uninstall",
         summary: "Uninstall Enchi from your system",
-        usage: "Usage: enchi self-uninstall [-y|--yes] [--keep-data] [--keep-shell-integration] [--system]",
+        usage: "Usage: enchi self-uninstall [-y|--yes] [--keep-data] [--keep-shell-integration] [--system] [--dry-run] [--json]",
         help: &[
             "Removes Enchi, its shell-profile block, Windows PATH entries, and desktop",
             "launchers. Installed Python versions, virtual environments, and caches are removed",
@@ -294,6 +299,9 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "  --keep-data                 Keep Python versions, virtual environments, and caches",
             "  --keep-shell-integration    Leave profile blocks, user PATH entries, and launchers",
             "  --system                    Remove the files the macOS .pkg installed (run with sudo)",
+            "  --dry-run                   List what would be removed, and what would be kept; change nothing",
+            "  --json                      One `enchi.result/1` document; never prompts, so a real",
+            "                              removal needs `--yes`",
             "",
             "An Enchi installed by a system package (deb, rpm, Termux) is not removed by this",
             "command; it prints the package-manager command to run instead.",
@@ -304,6 +312,8 @@ pub(super) const SYSTEM_COMMAND_DOCS: &[CommandDoc] = &[
             "--keep-data",
             "--keep-shell-integration",
             "--system",
+            "--dry-run",
+            "--json",
         ],
     },
     CommandDoc {

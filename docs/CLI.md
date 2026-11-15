@@ -106,12 +106,11 @@ The commands you would script accept `--json`; shell-integration commands (`init
 - `ok` and `exit_code` match the process exit status; stderr stays empty in JSON mode, so parse stdout only.
 - `output` is the text the command would have printed; `data` carries typed values where there are any (`root` and `which` give `path`, `global`/`local` give `versions`, `prefix` gives `paths`, `config get` gives `value`).
 - **Machine mode never prompts.** A destructive command (`uninstall`, `venv delete`, `venv upgrade`) refuses with a clear error unless you pass `--force` (or use `--dry-run`); `self-update` and `self-uninstall` need `--yes`.
-- `--dry-run` validates and prints what would happen without changing anything, on `install`, `uninstall`, `upgrade` (`--check`), `venv create|delete|rename|upgrade`, `pip install|update|update-all`. A dry run applies the same safety checks as the real command, so a plan that succeeds is one the real command accepts.
+- `--dry-run` validates and prints what would happen without changing anything, on `install`, `uninstall`, `upgrade` (`--check`), `venv create|delete|rename|upgrade`, `pip install|update|update-all`, `self-install` and `self-uninstall` (including `self-uninstall --system` on macOS). A dry run applies the same safety checks as the real command, so a plan that succeeds is one the real command accepts.
+
+- Colour is added to human output only on an interactive terminal. Pipes, redirects and `--json` always get plain text, and `NO_COLOR` (or `CLICOLOR=0`, or `TERM=dumb`) turns it off everywhere.
 
 Combine them for agents: `enchi uninstall 3.12.10 --dry-run --json`, then the same line with `--force` instead of `--dry-run`.
-
-Not covered yet: `self-uninstall` has `--json` but no `--dry-run`, and `self-install` has neither (it streams its progress as it works).
-
 ## Native Power Features
 
 ### Managed Virtual Environments (`venv`)

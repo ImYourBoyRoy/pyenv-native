@@ -77,7 +77,7 @@ mod cases {
 
         let checks = vec![
             DoctorCheck {
-                name: "pyenv-bin-on-path".to_string(),
+                name: "bin-on-path".to_string(),
                 status: DoctorStatus::Warn,
                 detail: "bin missing from process PATH".to_string(),
             },

@@ -66,7 +66,7 @@ pub(super) fn collect_checks_for_platform(
     });
 
     checks.push(path_membership_check(
-        "pyenv-bin-on-path",
+        "bin-on-path",
         path_contains(ctx.path_env.as_ref(), &exe_dir),
         desktop_profiles_ok,
         &exe_dir,

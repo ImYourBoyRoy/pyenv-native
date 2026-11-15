@@ -75,7 +75,7 @@ pub fn collect_shim_names_from_prefix(
         for entry in fs::read_dir(&directory).map_err(io_error)? {
             let entry = entry.map_err(io_error)?;
             let path = entry.path();
-            if !path.is_file() {
+            if !path.is_file() || !is_runnable(&path) {
                 continue;
             }
 
@@ -88,6 +88,25 @@ pub fn collect_shim_names_from_prefix(
     let mut values = names.into_iter().collect::<Vec<_>>();
     values.sort_by_key(|value| value.to_ascii_lowercase());
     Ok(values)
+}
+
+/// Whether a file in a `bin` directory is something a shim should exist for. On Unix that means
+/// it has an execute bit, which leaves out the `activate*` scripts that are meant to be sourced,
+/// `Activate.ps1`, and stray files such as `.gitignore`. Windows has no execute bit, so every file
+/// is a candidate there (extensions decide in [`normalize_shim_name`]).
+fn is_runnable(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::metadata(path)
+            .map(|meta| meta.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        true
+    }
 }
 
 pub fn normalize_shim_name(path: &Path, path_ext: Option<&OsStr>) -> Option<String> {
