@@ -8,7 +8,7 @@ use crate::model::{WorkflowRecipe, WorkflowStep};
 pub(super) fn build_common_workflows() -> Vec<WorkflowRecipe> {
     vec![
         WorkflowRecipe {
-            name: "install_pyenv_native".to_string(),
+            name: "install_enchi".to_string(),
             goal: "Teach a user or another system how to install Enchi itself and register the MCP server.".to_string(),
             steps: vec![
                 WorkflowStep {
@@ -44,7 +44,7 @@ pub(super) fn build_common_workflows() -> Vec<WorkflowRecipe> {
                 },
                 WorkflowStep {
                     tool_name: Some("ensure_runtime".to_string()),
-                    description: "Install or reuse the selected CPython version. Watch progress_steps and ~/.pyenv/logs/install-progress.jsonl during long source builds.".to_string(),
+                    description: "Install or reuse the selected CPython version. Watch progress_steps and <root>/logs/install-progress.jsonl during long source builds.".to_string(),
                     example_input: Some(json!({ "version": "3.13" })),
                 },
             ],

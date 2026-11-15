@@ -144,7 +144,7 @@ pub(crate) fn remove_system_package(reporter: &mut Reporter<'_>) -> Result<(), S
         }
     }
     reporter.plain(
-        "Removed the Enchi program files. Python versions under ~/.pyenv are kept; run `enchi self-uninstall` first to remove them too.",
+        "Removed the Enchi program files. Python versions in your Enchi root (~/.enchi, or an existing ~/.pyenv) are kept; run `enchi self-uninstall` first to remove them too.",
     );
     Ok(())
 }

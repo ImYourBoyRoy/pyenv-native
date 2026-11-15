@@ -5,7 +5,7 @@ use anyhow::Result;
 use rmcp::{
     Json, ServerHandler,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerConfig},
+    model::{Implementation, ServerCapabilities, ServerConfig},
     tool, tool_handler, tool_router,
 };
 
@@ -29,17 +29,17 @@ use crate::ops::{
 };
 
 #[derive(Debug, Clone)]
-pub struct PyenvNativeMcpServer {
+pub struct EnchiMcpServer {
     tool_router: ToolRouter<Self>,
 }
 
-impl Default for PyenvNativeMcpServer {
+impl Default for EnchiMcpServer {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PyenvNativeMcpServer {
+impl EnchiMcpServer {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
@@ -48,16 +48,21 @@ impl PyenvNativeMcpServer {
 }
 
 #[tool_handler(router = self.tool_router)]
-impl ServerHandler for PyenvNativeMcpServer {
+impl ServerHandler for EnchiMcpServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
-            "Use preflight before ensure_runtime on macOS/Android/Linux source builds. Use resolve_project_environment before making changes. Prefer ensure_runtime and ensure_project_venv over shelling out. When unsure, call get_toolkit_guide first. Prefer project-local .venv environments for agent work. Install progress is streamed to ~/.pyenv/logs/install-progress.jsonl and returned in progress_steps.",
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new(
+                DEFAULT_SERVER_NAME,
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .with_instructions(
+            "Use preflight before ensure_runtime on macOS/Android/Linux source builds. Use resolve_project_environment before making changes. Prefer ensure_runtime and ensure_project_venv over shelling out. When unsure, call get_toolkit_guide first. Prefer project-local .venv environments for agent work. Install progress is streamed to <root>/logs/install-progress.jsonl and returned in progress_steps.",
         )
     }
 }
 
 #[tool_router(router = tool_router)]
-impl PyenvNativeMcpServer {
+impl EnchiMcpServer {
     #[tool(
         name = "get_toolkit_guide",
         annotations(read_only_hint = true, open_world_hint = false),
@@ -488,7 +493,7 @@ impl PyenvNativeMcpServer {
     #[tool(
         name = "upgrade_runtimes",
         annotations(read_only_hint = false, destructive_hint = true),
-        description = "Move installed CPython runtimes to the newest patch of the same major.minor line (3.14.1 -> 3.14.10), migrate their managed venvs onto it, and re-point global/local pins. Plan-only unless apply=true; call it without apply first and show the user the plan. Never crosses a minor line (use venv_upgrade for 3.14 -> 3.15) and keeps the old runtime unless remove_old=true. Returns per-runtime status, per-venv results and progress_steps; progress is also written to ~/.pyenv/logs/operation-progress.jsonl."
+        description = "Move installed CPython runtimes to the newest patch of the same major.minor line (3.14.1 -> 3.14.10), migrate their managed venvs onto it, and re-point global/local pins. Plan-only unless apply=true; call it without apply first and show the user the plan. Never crosses a minor line (use venv_upgrade for 3.14 -> 3.15) and keeps the old runtime unless remove_old=true. Returns per-runtime status, per-venv results and progress_steps; progress is also written to <root>/logs/operation-progress.jsonl."
     )]
     pub async fn upgrade_runtimes(
         &self,

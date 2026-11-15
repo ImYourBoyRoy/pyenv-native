@@ -31,7 +31,7 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
                 ToolArgument { name: "mcp_command".to_string(), required: false, data_type: "string".to_string(), description: "Override the MCP executable path shown in the client config snippet.".to_string() },
                 ToolArgument { name: "enchi_root".to_string(), required: false, data_type: "path".to_string(), description: "Override ENCHI_ROOT in the generated client config.".to_string() },
             ],
-            example_input: Some(json!({ "install_root": "~/.pyenv" })),
+            example_input: Some(json!({ "install_root": "~/.enchi" })),
         },
         ToolSummary {
             tool_name: "inspect_environment".to_string(),

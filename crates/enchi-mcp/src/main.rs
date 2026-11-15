@@ -15,7 +15,7 @@ use crate::ops::{
     DEFAULT_GITHUB_REPO, DEFAULT_SERVER_NAME, build_client_config, build_context,
     build_toolkit_guide,
 };
-use crate::service::PyenvNativeMcpServer;
+use crate::service::EnchiMcpServer;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -73,7 +73,7 @@ async fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command.unwrap_or(Commands::Serve) {
         Commands::Serve => {
-            PyenvNativeMcpServer::new()
+            EnchiMcpServer::new()
                 .serve(stdio())
                 .await?
                 .waiting()

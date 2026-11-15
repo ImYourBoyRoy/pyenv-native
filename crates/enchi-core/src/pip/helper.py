@@ -80,7 +80,7 @@ def get_requirements(path_or_url):
         url = path_or_url
         if 'github.com' in url and '/blob/' in url:
             url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
-        req = urllib.request.Request(url, headers={'User-Agent': 'pyenv-native'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'enchi'})
         with urllib.request.urlopen(req) as response:
             lines = response.read().decode('utf-8').splitlines()
     else:
