@@ -21,7 +21,7 @@ use super::types::{DependencyConflict, OutdatedPackage, PipPackage};
 
 /// Build a pip subprocess with flags/env that keep stdout machine-readable.
 /// Never pass `pip -q` here: quiet mode on pip 26+ swallows `--format=json` output.
-fn pip_subcommand(py_path: &Path) -> Command {
+pub(super) fn pip_subcommand(py_path: &Path) -> Command {
     let mut command = Command::new(py_path);
     command
         .headless()
@@ -74,7 +74,7 @@ fn extract_json_array_payload(stdout: &str) -> Result<&str, serde_json::Error> {
     Ok(trimmed)
 }
 
-fn parse_pip_json_array<T>(stdout: &[u8]) -> Result<Vec<T>, serde_json::Error>
+pub(super) fn parse_pip_json_array<T>(stdout: &[u8]) -> Result<Vec<T>, serde_json::Error>
 where
     T: DeserializeOwned,
 {

@@ -120,13 +120,13 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
         ToolSummary {
             tool_name: "doctor_fix".to_string(),
             use_when: "Doctor reported automated repairs such as missing Termux packages, broken shims, or macOS CLT/OpenSSL gaps.".to_string(),
-            returns: "Applied automated fix messages plus remaining manual fixes.".to_string(),
+            returns: "The planned automated fixes (default), or the applied fix messages plus remaining manual fixes when apply=true.".to_string(),
             side_effects: "May create directories, rehash shims, install Termux packages, and attempt macOS CLT/OpenSSL setup.".to_string(),
             arguments: vec![
                 ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory for context.".to_string() },
-                ToolArgument { name: "force".to_string(), required: false, data_type: "boolean".to_string(), description: "When omitted or true, apply safe automated repairs. When false, return the planned fixes without applying them.".to_string() },
+                ToolArgument { name: "apply".to_string(), required: false, data_type: "boolean".to_string(), description: "Set true to apply the safe automated repairs. Omitted or false only returns the plan; review it first because some fixes install system packages.".to_string() },
             ],
-            example_input: Some(json!({ "force": true })),
+            example_input: Some(json!({ "apply": true })),
         },
         ToolSummary {
             tool_name: "preflight".to_string(),
@@ -266,6 +266,33 @@ pub(super) fn build_tool_summaries() -> Vec<ToolSummary> {
                 ToolArgument { name: "project_dir".to_string(), required: false, data_type: "path".to_string(), description: "Optional project directory for context.".to_string() },
             ],
             example_input: Some(json!({ "spec": "3.14.7/envs/api", "new_runtime": "3.14" })),
+        },
+        ToolSummary {
+            tool_name: "upgrade_runtimes".to_string(),
+            use_when: "The user wants their installed Python to move to the newest patch release (3.14.1 -> 3.14.10) with its venvs. Call it without apply first and show the plan.".to_string(),
+            returns: "Per-runtime status (available, up_to_date, upgraded, partial, failed, skipped), per-venv migration results, repinned version files, progress_steps, applied and has_failures flags.".to_string(),
+            side_effects: "Plan-only by default. With apply=true: installs the newer runtime, rebuilds each managed venv on it (pip check gated, source venv kept on failure), rewrites matching global/local version-file lines. The old runtime is kept unless remove_old=true.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "targets".to_string(), required: false, data_type: "string[]".to_string(), description: "Installed runtimes or major.minor lines such as 3.14. Omit for every installed CPython.".to_string() },
+                ToolArgument { name: "apply".to_string(), required: false, data_type: "boolean".to_string(), description: "false (default) returns the plan; true performs the upgrade.".to_string() },
+                ToolArgument { name: "migrate_venvs".to_string(), required: false, data_type: "boolean".to_string(), description: "Move managed venvs onto the new patch. Default true.".to_string() },
+                ToolArgument { name: "repin".to_string(), required: false, data_type: "boolean".to_string(), description: "Re-point global/local version files. Default true.".to_string() },
+                ToolArgument { name: "remove_old".to_string(), required: false, data_type: "boolean".to_string(), description: "Uninstall the old patch once nothing depends on it. Default false.".to_string() },
+            ],
+            example_input: Some(json!({ "targets": ["3.14"], "apply": false })),
+        },
+        ToolSummary {
+            tool_name: "update_all_packages".to_string(),
+            use_when: "The user wants every outdated pip package updated across all runtimes and managed venvs instead of one environment at a time.".to_string(),
+            returns: "Per-environment status (planned, updated, rolled_back, failed, up_to_date, skipped) with exact package versions, a summary, progress_steps, applied and has_failures flags.".to_string(),
+            side_effects: "Plan-only by default. With apply=true: runs pip install -U per environment, then pip check; an environment that gets worse is pinned back and reported rolled_back.".to_string(),
+            arguments: vec![
+                ToolArgument { name: "scope".to_string(), required: false, data_type: "string".to_string(), description: "all (default), runtimes, or venvs.".to_string() },
+                ToolArgument { name: "only".to_string(), required: false, data_type: "string[]".to_string(), description: "Limit to these runtimes, venv specs, or venv names.".to_string() },
+                ToolArgument { name: "apply".to_string(), required: false, data_type: "boolean".to_string(), description: "false (default) lists changes; true applies them.".to_string() },
+                ToolArgument { name: "allow_new_conflicts".to_string(), required: false, data_type: "boolean".to_string(), description: "Keep updates even if pip check gets worse. Default false.".to_string() },
+            ],
+            example_input: Some(json!({ "scope": "venvs", "apply": false })),
         },
     ]
 }

@@ -32,6 +32,7 @@ PROVISIONING:
   install            Install Python versions from native providers
   available          List installable Python versions from native providers
   versions           List all Python versions available to pyenv
+  upgrade            Move installed runtimes to the newest patch release (and their venvs)
   uninstall          Uninstall a specific Python version
 
 ENVIRONMENT:
@@ -206,6 +207,39 @@ pub(crate) enum Commands {
         skip_envs: bool,
         #[arg(long = "executables")]
         executables: bool,
+    },
+    #[command(
+        about = "Move installed runtimes to the newest patch release, venvs included",
+        long_about = "For each installed CPython (or the ones you name, e.g. `3.14` or `3.14.1`), find the newest patch of the same major.minor line, install it, migrate the managed venvs that used the old patch, and re-point global/local pins. It never crosses a minor line; use `pyenv venv upgrade` for 3.14 -> 3.15. Nothing is removed unless you pass --remove-old. Use --check to preview."
+    )]
+    Upgrade {
+        #[arg(
+            long = "check",
+            visible_alias = "dry-run",
+            help = "Show available upgrades without changing anything"
+        )]
+        check: bool,
+        #[arg(
+            long = "no-venvs",
+            help = "Do not migrate managed venvs onto the new patch"
+        )]
+        no_venvs: bool,
+        #[arg(
+            long = "no-repin",
+            help = "Leave global/local version files on the old patch"
+        )]
+        no_repin: bool,
+        #[arg(
+            long = "remove-old",
+            help = "Uninstall the old patch once nothing depends on it"
+        )]
+        remove_old: bool,
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(
+            help = "Runtimes or major.minor lines to upgrade (default: every installed CPython)"
+        )]
+        targets: Vec<String>,
     },
     #[command(about = "Uninstall a specific Python version")]
     Uninstall {
@@ -773,6 +807,35 @@ pub(crate) enum PipCommands {
         requirement: String,
         #[arg(help = "Runtime version or venv name")]
         target: String,
+    },
+    #[command(
+        name = "update-all",
+        about = "Update outdated packages in every runtime and managed venv at once",
+        long_about = "Walks every installed runtime and managed venv (or the ones you name), updates their outdated packages, and checks `pip check` afterwards. If an update leaves an environment with more broken requirements than before, the touched packages are pinned back and the environment is reported as rolled back. Use --dry-run to see what would change."
+    )]
+    UpdateAll {
+        #[arg(
+            long = "dry-run",
+            help = "List what would be updated without changing anything"
+        )]
+        dry_run: bool,
+        #[arg(
+            long = "runtimes",
+            conflicts_with = "venvs",
+            help = "Only base runtimes"
+        )]
+        runtimes: bool,
+        #[arg(long = "venvs", help = "Only managed venvs")]
+        venvs: bool,
+        #[arg(
+            long = "allow-conflicts",
+            help = "Keep updates even if `pip check` gets worse"
+        )]
+        allow_conflicts: bool,
+        #[arg(long = "json", help = "Output results as JSON")]
+        json: bool,
+        #[arg(help = "Limit to these runtimes, venv specs, or venv names")]
+        only: Vec<String>,
     },
     #[command(
         about = "Update pip packages inside a target environment",

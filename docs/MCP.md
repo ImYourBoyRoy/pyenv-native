@@ -153,7 +153,7 @@ Current high-value tools include:
 - `get_install_instructions`
 - `preflight` (OS/toolchain intelligence and install readiness)
 - `doctor`
-- `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; `force=false` returns the plan without applying)
+- `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; returns the plan by default; pass `apply=true` to run it. `force=true` is a deprecated alias of `apply`)
 - `inspect_environment` (structured status overview: versions, origins, venvs)
 - `resolve_project_environment`
 - `list_available_versions` (CPython is refreshed from python.org or NuGet and cached for 24 hours, so new revisions appear without a toolkit update)
@@ -163,7 +163,9 @@ Current high-value tools include:
 - `ensure_project_venv`
 - `get_config` / `set_config`
 - `self_update` (`yes` defaults to false; use `check=true` for a read-only comparison)
-- `venv_upgrade`
+- `venv_upgrade` (3.14 -> 3.15 style moves of one managed venv)
+- `upgrade_runtimes` (3.14.1 -> 3.14.10 style patch upgrades with venv migration and pin updates; plan-only unless `apply=true`)
+- `update_all_packages` (update outdated packages in every runtime and managed venv; plan-only unless `apply=true`; `pip check` gated with per-environment rollback)
 - `pip_list` (lists installed environment packages)
 - `pip_outdated` (JSON `{name, version, latest_version}` for a runtime or managed venv)
 - `pip_check` (runs active post-install diagnostics)

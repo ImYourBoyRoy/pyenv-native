@@ -26,6 +26,7 @@ mod self_update;
 mod shell;
 mod shim;
 mod text;
+mod upgrade;
 mod venv;
 mod venv_compat;
 mod venv_paths;
@@ -83,9 +84,11 @@ pub use meta::{
     cmd_help, cmd_prompt, cmd_shims, cmd_status,
 };
 pub use pip::{
-    DependencyConflict, OutdatedPackage, PipPackage, PrecheckResult, cmd_pip_analyze_imports,
-    cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated, cmd_pip_precheck_requirements,
-    cmd_pip_update, resolve_interpreter_path,
+    BulkScope, BulkSummary, BulkUpdateOptions, BulkUpdateReport, DependencyConflict,
+    OutdatedPackage, PipPackage, PrecheckResult, TargetKind, TargetResult, TargetStatus,
+    cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
+    cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, resolve_interpreter_path,
+    update_all_packages,
 };
 pub use plugin::{HookResult, cmd_external, cmd_hooks};
 pub use preflight::{
@@ -103,6 +106,10 @@ pub use shell::{
 pub use shim::{cmd_exec, cmd_rehash};
 pub use text::{
     append_text_block, line_ending_for, normalize_block_eol, strip_utf8_bom, trim_env_value,
+};
+pub use upgrade::{
+    RuntimeUpgrade, UpgradeOptions, UpgradeReport, UpgradeStatus, VenvMigration, cmd_upgrade,
+    plan_upgrades, run_upgrades,
 };
 pub use venv::{
     ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,

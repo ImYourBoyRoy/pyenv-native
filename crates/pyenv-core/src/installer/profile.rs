@@ -276,7 +276,20 @@ fn marked_block_range(content: &str) -> Option<(usize, usize)> {
 }
 
 /// Insert or refresh `block` inside `existing`, preserving the file's line endings.
-pub fn upsert_block(existing: &str, block: &str) -> (String, ProfileUpdate) {
+pub fn upsert_block(original: &str, block: &str) -> (String, ProfileUpdate) {
+    // A pre-0.2 GUI snippet next to the marked block would run `pyenv init` twice per shell
+    // (double rehash, double PATH work). Migrate it away instead of leaving both.
+    let (stripped, had_legacy) = remove_legacy_gui_block(original);
+    let existing = stripped.as_str();
+    let (updated, outcome) = upsert_block_clean(existing, block);
+    let outcome = match outcome {
+        ProfileUpdate::Unchanged if had_legacy => ProfileUpdate::Updated,
+        other => other,
+    };
+    (updated, outcome)
+}
+
+fn upsert_block_clean(existing: &str, block: &str) -> (String, ProfileUpdate) {
     let eol = line_ending_for(existing);
     let block = normalize_block_eol(block, eol);
 
@@ -576,6 +589,29 @@ mod tests {
         let (restored, removed) = remove_block(&with_block);
         assert!(removed);
         assert_eq!(restored.trim_end(), original.trim_end());
+    }
+
+    #[test]
+    fn upsert_migrates_the_legacy_gui_snippet_instead_of_keeping_both() {
+        // Both the marked block and the old GUI snippet in one file ran `pyenv init` twice.
+        let marked = block(ShellKind::Bash);
+        let existing = format!(
+            "export A=1\n\n{marked}\n\n# pyenv-native shell initialization\neval \"$(pyenv init - bash)\"\n"
+        );
+        let (updated, outcome) = upsert_block(&existing, &marked);
+        assert_eq!(outcome, ProfileUpdate::Updated);
+        assert_eq!(
+            updated.matches("pyenv init").count(),
+            marked.matches("pyenv init").count()
+        );
+        assert!(!updated.contains("# pyenv-native shell initialization"));
+
+        // Legacy snippet alone becomes a single marked block.
+        let only_legacy = "# pyenv-native shell initialization\neval \"$(pyenv init - bash)\"\n";
+        let (updated, outcome) = upsert_block(only_legacy, &marked);
+        assert_ne!(outcome, ProfileUpdate::AlreadyConfigured);
+        assert_eq!(updated.matches(BEGIN_MARKER).count(), 1);
+        assert!(!updated.contains("# pyenv-native shell initialization"));
     }
 
     #[test]

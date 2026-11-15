@@ -204,21 +204,30 @@ fn render_cmd_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
 
 fn render_sh_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
     if no_push_path {
-        vec![
+        return vec![
             "case \":${PATH}:\" in".to_string(),
             format!("  *\":{shims}:\"*) ;;"),
             format!("  *) export PATH=\"{shims}:${{PATH}}\" ;;"),
             "esac".to_string(),
             format!("export _PYENV_SHELL_INIT_SHIMS=\"{shims}\""),
-        ]
-    } else {
-        vec![
-            format!("if [ \"${{_PYENV_SHELL_INIT_SHIMS-}}\" != \"{shims}\" ]; then"),
-            format!("  export PATH=\"{shims}:${{PATH}}\""),
-            format!("  export _PYENV_SHELL_INIT_SHIMS=\"{shims}\""),
-            "fi".to_string(),
-        ]
+        ];
     }
+    // Move the shims to the front exactly once. Other startup files (for example the
+    // /etc/profile.d snippet from the .deb/.rpm) may already have added them without
+    // setting the guard variable, so strip any existing copies before prepending.
+    vec![
+        format!("if [ \"${{_PYENV_SHELL_INIT_SHIMS-}}\" != \"{shims}\" ]; then"),
+        "  __pyenv_path=\":${PATH}:\"".to_string(),
+        format!("  while case \"$__pyenv_path\" in *\":{shims}:\"*) true ;; *) false ;; esac; do"),
+        format!("    __pyenv_path=\"${{__pyenv_path%%:{shims}:*}}:${{__pyenv_path#*:{shims}:}}\""),
+        "  done".to_string(),
+        "  __pyenv_path=\"${__pyenv_path#:}\"".to_string(),
+        "  __pyenv_path=\"${__pyenv_path%:}\"".to_string(),
+        format!("  export PATH=\"{shims}${{__pyenv_path:+:$__pyenv_path}}\""),
+        format!("  export _PYENV_SHELL_INIT_SHIMS=\"{shims}\""),
+        "  unset __pyenv_path".to_string(),
+        "fi".to_string(),
+    ]
 }
 
 fn render_fish_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
@@ -231,8 +240,10 @@ fn render_fish_path_lines(shims: &str, no_push_path: bool) -> Vec<String> {
         ]
     } else {
         vec![
-            format!("if test \"$ _PYENV_SHELL_INIT_SHIMS\" != '{shims}'")
-                .replace("$ _PYENV_SHELL_INIT_SHIMS", "$_PYENV_SHELL_INIT_SHIMS"),
+            format!("if test \"$_PYENV_SHELL_INIT_SHIMS\" != '{shims}'"),
+            format!("  while set -l __pyenv_i (contains -i -- '{shims}' $PATH)"),
+            "    set -e PATH[$__pyenv_i]".to_string(),
+            "  end".to_string(),
             format!("  set -gx PATH '{shims}' $PATH"),
             format!("  set -gx _PYENV_SHELL_INIT_SHIMS '{shims}'"),
             "end".to_string(),

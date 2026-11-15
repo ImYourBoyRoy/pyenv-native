@@ -101,8 +101,9 @@ pub struct ProjectPathParams {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct DoctorFixParams {
     pub project_dir: Option<PathBuf>,
-    /// When `false`, return the planned fixes without applying them.
-    /// When omitted or `true`, apply safe automated repairs (MCP has no prompt).
+    /// Set `true` to apply the safe automated repairs. Omitted or `false` only returns the plan.
+    pub apply: Option<bool>,
+    /// Deprecated alias of `apply`. Only `true` has an effect; it no longer applies by default.
     pub force: Option<bool>,
 }
 
@@ -304,4 +305,30 @@ pub struct PipAnalyzeParams {
     pub target: String,
     pub dir_path: String,
     pub project_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct UpgradeRuntimesParams {
+    /// Installed runtimes or major.minor lines (for example `3.14` or `3.14.1`). Omit for every installed CPython.
+    pub targets: Option<Vec<String>>,
+    /// `false` (default) returns the plan only; `true` installs the newer patch and migrates.
+    pub apply: Option<bool>,
+    /// Migrate managed venvs onto the new patch (default true).
+    pub migrate_venvs: Option<bool>,
+    /// Re-point global/local version files from the old patch (default true).
+    pub repin: Option<bool>,
+    /// Uninstall the old patch once nothing depends on it (default false).
+    pub remove_old: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct UpdateAllPackagesParams {
+    /// `all` (default), `runtimes`, or `venvs`.
+    pub scope: Option<String>,
+    /// Limit to these runtimes, venv specs, or venv names.
+    pub only: Option<Vec<String>>,
+    /// `false` (default) lists what would change; `true` performs the updates.
+    pub apply: Option<bool>,
+    /// Keep updates even if `pip check` gets worse (default false: roll that environment back).
+    pub allow_new_conflicts: Option<bool>,
 }

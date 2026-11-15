@@ -25,7 +25,7 @@ pub(crate) fn build_toolkit_guide(
             GuideStep { step: "Call resolve_project_environment before making changes".to_string(), reason: "It tells the agent what Python version is active, where it came from, and whether it is missing.".to_string() },
             GuideStep { step: "Call ensure_runtime when the project version is missing or when you need a specific runtime".to_string(), reason: "This is the idempotent runtime installer for managed Python versions. Progress steps are returned and also written to ~/.pyenv/logs/install-progress.jsonl.".to_string() },
             GuideStep { step: "Call ensure_project_venv for project work".to_string(), reason: "It creates or reuses a predictable project-local .venv and returns concrete python/pip paths.".to_string() },
-            GuideStep { step: "Use doctor / doctor_fix when anything looks odd".to_string(), reason: "doctor returns machine-readable diagnostics; doctor_fix applies safe automated repairs including Termux packages and best-effort macOS CLT/OpenSSL setup.".to_string() },
+            GuideStep { step: "Use doctor / doctor_fix when anything looks odd".to_string(), reason: "doctor returns machine-readable diagnostics; doctor_fix returns a plan, and apply=true runs it (safe repairs including Termux packages and best-effort macOS CLT/OpenSSL setup).".to_string() },
         ],
         install: build_install_instructions(github_repo, install_root, server_name, mcp_command, pyenv_root),
         tool_summaries: build_tool_summaries(),

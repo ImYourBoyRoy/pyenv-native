@@ -9,21 +9,22 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, FromArgMatches};
 use pyenv_core::{
-    AgentSkillsOptions, AppContext, CommandReport, DoctorFix, InstallCommandOptions,
-    PowerShell7Mode, Scope as AgentScope, SelfInstallOptions, SelfUninstallOptions,
-    SelfUpdateOptions, ShellKind, VenvUseScope, VersionsCommandOptions, apply_doctor_fixes,
-    cmd_activate, cmd_agent_skills, cmd_available, cmd_commands, cmd_completions, cmd_config_get,
-    cmd_config_path, cmd_config_set, cmd_config_show, cmd_deactivate, cmd_doctor, cmd_environment,
-    cmd_exec, cmd_external, cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest,
-    cmd_local, cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list,
-    cmd_pip_outdated, cmd_pip_precheck_requirements, cmd_pip_update, cmd_prefix, cmd_preflight,
+    AgentSkillsOptions, AppContext, BulkScope, BulkUpdateOptions, CommandReport, DoctorFix,
+    InstallCommandOptions, PowerShell7Mode, Scope as AgentScope, SelfInstallOptions,
+    SelfUninstallOptions, SelfUpdateOptions, ShellKind, UpgradeOptions, VenvUseScope,
+    VersionsCommandOptions, apply_doctor_fixes, cmd_activate, cmd_agent_skills, cmd_available,
+    cmd_commands, cmd_completions, cmd_config_get, cmd_config_path, cmd_config_set,
+    cmd_config_show, cmd_deactivate, cmd_doctor, cmd_environment, cmd_exec, cmd_external,
+    cmd_global, cmd_help, cmd_hooks, cmd_init, cmd_install, cmd_latest, cmd_local,
+    cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
+    cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, cmd_prefix, cmd_preflight,
     cmd_prompt, cmd_rehash, cmd_root, cmd_self_uninstall_with, cmd_self_update, cmd_sh_activate,
     cmd_sh_cmd, cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_shims, cmd_status,
-    cmd_uninstall, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list, cmd_venv_rename,
-    cmd_venv_upgrade, cmd_venv_use, cmd_version, cmd_version_file, cmd_version_file_read,
-    cmd_version_file_write, cmd_version_name, cmd_version_origin, cmd_versions, cmd_virtualenv,
-    cmd_virtualenv_delete, cmd_virtualenv_init, cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence,
-    cmd_which, doctor_fix_plan, parse_agents,
+    cmd_uninstall, cmd_upgrade, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
+    cmd_venv_rename, cmd_venv_upgrade, cmd_venv_use, cmd_version, cmd_version_file,
+    cmd_version_file_read, cmd_version_file_write, cmd_version_name, cmd_version_origin,
+    cmd_versions, cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_init,
+    cmd_virtualenv_prefix, cmd_virtualenvs, cmd_whence, cmd_which, doctor_fix_plan, parse_agents,
 };
 
 use crate::cli::{Cli, Commands, ConfigCommands, PipCommands, VenvCommands};
@@ -452,6 +453,23 @@ fn dispatch_command(ctx: &mut AppContext, command: Commands) -> CommandReport {
             family,
             pattern,
         } => cmd_available(ctx, family, pattern, known, json),
+        Commands::Upgrade {
+            check,
+            no_venvs,
+            no_repin,
+            remove_old,
+            json,
+            targets,
+        } => {
+            let options = UpgradeOptions {
+                targets,
+                dry_run: check,
+                skip_venvs: no_venvs,
+                skip_repin: no_repin,
+                remove_old,
+            };
+            cmd_upgrade(ctx, &options, json, &mut |line| eprintln!("{line}"))
+        }
         Commands::Uninstall { force, versions } => cmd_uninstall(ctx, &versions, force),
         Commands::Venv { command } => dispatch_venv(ctx, command),
         Commands::Pip { command } => dispatch_pip(ctx, command),
@@ -601,6 +619,26 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
             requirement,
             target,
         } => cmd_pip_install(ctx, &target, &requirement),
+        PipCommands::UpdateAll {
+            dry_run,
+            runtimes,
+            venvs,
+            allow_conflicts,
+            json,
+            only,
+        } => {
+            let options = BulkUpdateOptions {
+                scope: match (runtimes, venvs) {
+                    (true, _) => BulkScope::Runtimes,
+                    (_, true) => BulkScope::Venvs,
+                    _ => BulkScope::All,
+                },
+                only,
+                dry_run,
+                allow_new_conflicts: allow_conflicts,
+            };
+            cmd_pip_update_all(ctx, &options, json, &mut |line| eprintln!("{line}"))
+        }
         PipCommands::Update {
             all,
             target,

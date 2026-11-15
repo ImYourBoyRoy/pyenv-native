@@ -406,6 +406,25 @@ fn init_no_push_path_for_bash_uses_case_guard() {
 }
 
 #[test]
+fn init_path_for_sh_strips_existing_shims_before_prepending() {
+    // /etc/profile.d may already have put the shims on PATH without setting the guard
+    // variable; `init` must not add a second copy.
+    let (_temp, ctx) = test_context();
+    let report = cmd_init(&ctx, &[String::from("--path"), String::from("bash")]);
+    assert_eq!(report.exit_code, 0);
+    let script = report.stdout.join("\n");
+    let shims = ctx.shims_dir().display().to_string();
+    assert!(script.contains(&format!("${{__pyenv_path%%:{shims}:*}}")));
+    assert!(script.contains("unset __pyenv_path"));
+    assert!(script.contains("_PYENV_SHELL_INIT_SHIMS"));
+
+    let fish = cmd_init(&ctx, &[String::from("--path"), String::from("fish")]);
+    let fish_script = fish.stdout.join("\n");
+    assert!(fish_script.contains("contains -i --"));
+    assert!(fish_script.contains("set -e PATH[$__pyenv_i]"));
+}
+
+#[test]
 fn init_path_for_pwsh_tracks_shell_init_guard() {
     let (_temp, ctx) = test_context();
     let report = cmd_init(&ctx, &[String::from("--path"), String::from("pwsh")]);

@@ -76,6 +76,7 @@ SUPPORT:
 
 - `pyenv install --list` — List all installable Python versions, including explicitly labeled alpha, beta, and release-candidate builds.
 - `pyenv install <version>` — Download and install a specific Python version.
+- `pyenv upgrade [--check] [--no-venvs] [--no-repin] [--remove-old] [--json] [versions-or-lines...]` — Move installed CPython runtimes to the newest patch of the same `major.minor` line (for example `3.14.1` to `3.14.10`). Installs the new patch, migrates the managed venvs that used the old one (same `pip check`-gated path as `venv upgrade`), and rewrites matching global/local version-file lines. It never crosses a minor line (use `venv upgrade` for 3.14 to 3.15), skips PyPy, free-threaded and pre-release installs, and keeps the old runtime unless `--remove-old` is given and nothing depends on it. `--check` (alias `--dry-run`) only reports. Project `.venv` directories and `.python-version` files in other folders are not touched.
 - `pyenv uninstall <version>` — Remove an installed version.
 
 ### Introspection
@@ -120,6 +121,8 @@ pyenv pip update --all 3.14.7/envs/api
 ```
 
 `pip_outdated` JSON is `{name, version, latest_version}`. There is no "submit this JSON blob" command: copy names or pins into `pip update`, or use `--all`.
+
+* `pyenv pip update-all [--dry-run] [--runtimes | --venvs] [--allow-conflicts] [--json] [only...]` — Update outdated packages in every installed runtime and managed venv in one pass (or only the runtimes, venv specs, or venv names you list). After each environment, `pip check` runs; if the update left more broken requirements than before, the touched packages are pinned back and that environment is reported as `rolled back` (the rest continue). Exit code is non-zero if any environment failed or was rolled back. Progress goes to stderr, results to stdout.
 
 ### Install, Update & Uninstall
 
