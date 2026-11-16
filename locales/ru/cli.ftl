@@ -1,7 +1,7 @@
 # ./locales/ru/cli.ftl
 # Human-facing CLI about/help. Subcommand and flag *names* stay English.
 
-cli-about = Нативный кроссплатформенный менеджер версий Python
+cli-about = Менеджер сред выполнения и окружений Python
 cli-global-about = Задать или показать глобальную версию Python
 cli-local-about = Задать или показать локальную версию Python каталога
 cli-shell-about = Задать или показать версию Python для текущей оболочки
@@ -12,33 +12,34 @@ cli-version-origin-about = Пояснить, как задана текущая 
 cli-prefix-about = Показать пути, где установлены указанные версии Python
 cli-install-about = Установить версии Python из нативных источников
 cli-available-about = Список устанавливаемых версий Python из нативных источников
-cli-versions-about = Список всех версий Python, доступных pyenv
+cli-versions-about = Список всех версий Python, доступных для enchi
+cli-upgrade-about = Перевести установленные среды выполнения (и их venv) на последний патч-релиз
 cli-uninstall-about = Удалить указанную версию Python
 cli-venv-about = Создавать, просматривать и назначать управляемые виртуальные окружения
 cli-pip-about = Просматривать, проверять, устанавливать и обновлять пакеты для среды выполнения или venv
-cli-init-about = Настроить окружение оболочки для pyenv
-cli-gui-about = Запустить графическую панель Pyenv Native
-cli-rehash-about = Пересоздать шимы pyenv (устанавливает исполняемые файлы для всех версий)
-cli-shims-about = Список существующих шимов pyenv
+cli-init-about = Настроить окружение оболочки для enchi
+cli-gui-about = Запустить графическую панель Enchi
+cli-rehash-about = Пересоздать шимы enchi (устанавливает исполняемые файлы для всех версий)
+cli-shims-about = Список существующих шимов enchi
 cli-prompt-about = Вывести краткую строку приглашения для текущего окружения
 cli-exec-about = Запустить исполняемый файл с выбранной версией Python
 cli-completions-about = Вывести скрипт автодополнения команд
 cli-doctor-about = Диагностика PATH, шимов и требований к установке
-cli-config-about = Получить, задать или показать конфигурацию pyenv-native
-cli-self-update-about = Обновить pyenv-native из GitHub Releases
+cli-config-about = Получить, задать или показать конфигурацию Enchi
+cli-self-update-about = Обновить Enchi из GitHub Releases
 cli-preflight-about = Сведения о платформе и preflight готовности к установке
 cli-environment-about = Псевдоним preflight (сведения об ОС/инструментах для агентов и пользователей)
 cli-status-about = Показать полный статус окружения (версии, источники, venv)
 cli-root-about = Показать корневой каталог, где хранятся версии и shim
 cli-which-about = Показать полный путь к исполняемому файлу
 cli-whence-about = Перечислить все версии Python, содержащие указанный исполняемый файл
-cli-version-file-about = Обнаружить файл, задающий текущую версию pyenv
+cli-version-file-about = Обнаружить файл, задающий текущую версию enchi
 cli-version-file-read-about = Прочитать содержимое файла .python-version
-cli-self-install-about = Установить или восстановить pyenv-native из релизного пакета
-cli-self-uninstall-about = Удалить pyenv-native из системы
-cli-agent-skills-about = Установить навык pyenv-native для ассистентов по программированию
+cli-self-install-about = Установить или восстановить Enchi из релизного пакета
+cli-self-uninstall-about = Удалить Enchi из системы
+cli-agent-skills-about = Установить навык Enchi для ассистентов по программированию
 cli-help-about = Показать справку по команде
-cli-commands-about = Перечислить все доступные команды pyenv
+cli-commands-about = Перечислить все доступные команды enchi
 cli-hooks-about = Перечислить исполняемые хуки для указанной команды
 cli-venv-list-about = Перечислить управляемые виртуальные окружения
 cli-venv-info-about = Показать сведения об управляемом виртуальном окружении
@@ -65,14 +66,14 @@ cli-help-interface = ИНТЕРФЕЙС
 cli-help-diagnostics = ДИАГНОСТИКА И КОНФИГ
 cli-help-maintenance = ОБСЛУЖИВАНИЕ
 cli-help-support = ПОДДЕРЖКА
-cli-help-usage = Использование: pyenv <command> [<args>]
-cli-help-useful = Полезные команды pyenv:
+cli-help-usage = Использование: enchi <command> [<args>]
+cli-help-useful = Полезные команды enchi:
 cli-help-concepts =
     ОСНОВНЫЕ ПОНЯТИЯ:
-      Shims: лёгкие исполняемые файлы (`python` или `pip`), перехватывающие команды и направляющие их к текущей версии. После установки pip-пакетов выполните `pyenv rehash`.
-      Versions: окружения, установленные через `pyenv install`, в `~/.pyenv/versions`.
-      Managed envs: `~/.pyenv/venvs/<runtime>/<name>`. Предпочитайте `pyenv venv create` и `pyenv venv use`.
-      Discovery: `pyenv install --list 3.13` или `pyenv available 3.13`.
-      Selection: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.
+      Шимы: лёгкие исполняемые файлы (например, `python` или `pip`), которые перехватывают ваши команды и направляют их к нужной версии Python. После установки новых pip-пакетов выполните `enchi rehash`.
+      Версии: версии Python, установленные через `enchi install`, в `$(enchi root)/versions`.
+      Управляемые окружения: именованные виртуальные окружения в `$(enchi root)/venvs/<runtime>/<name>`. Предпочитайте `enchi venv create` и `enchi venv use`.
+      Поиск: `enchi install --list 3.13` или `enchi available 3.13`.
+      Выбор версии: PYENV_VERSION, затем `.python-version`, затем глобальный файл версии.
     
-    Подробности: `pyenv help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native
+    Подробная справка: `enchi help <command>`. Документация: https://github.com/imyourboyroy/pyenv-native

@@ -9,8 +9,7 @@ use rpm::{BuildConfig, CompressionType, Dependency, FileOptions, PackageBuilder}
 
 use super::payload::Payload;
 use super::{Manifest, package_version, source_date_epoch};
-
-const URL: &str = "https://github.com/imyourboyroy/pyenv-native";
+use crate::brand;
 
 fn architecture(arch: &str) -> Result<&'static str> {
     Ok(match arch {
@@ -29,23 +28,29 @@ pub(crate) fn write(payload: &Payload, manifest: &Manifest, output_root: &Path) 
         .compression(CompressionType::Gzip)
         .source_date(source_date_epoch() as u32);
     let mut builder = PackageBuilder::new(
-        "pyenv-native",
+        brand::PACKAGE,
         &version,
         "MIT",
         arch,
-        "Native, cross-platform Python version manager",
+        "Python Runtime & Environment Manager",
     );
     builder
         .using_config(config)
         .release("1")
-        .url(URL)
-        .vendor("pyenv-native")
+        .url(brand::repo_url())
+        .vendor(brand::NAME)
         .description(
-            "pyenv-native installs and switches between Python runtimes, manages virtual \
+            "Enchi installs and switches between Python runtimes, manages virtual \
              environments, and ships an MCP server for coding agents. Python versions and \
-             shims live in ~/.pyenv; this package updates through the system package manager.",
+             shims live in ~/.enchi (existing ~/.pyenv installs are kept as they are); this \
+             package updates through the system package manager. Enchi is the new name of \
+             pyenv-native and replaces it; pyenv and pyenv-mcp remain as compatibility symlinks.",
         )
-        .conflicts(Dependency::any("pyenv"));
+        // Renamed from pyenv-native: obsolete and provide the old name so `dnf upgrade` swaps it,
+        // and keep the classic `pyenv` package out because this one owns /usr/bin/pyenv.
+        .obsoletes(Dependency::any(brand::LEGACY_PACKAGE))
+        .provides(Dependency::any(brand::LEGACY_PACKAGE))
+        .conflicts(Dependency::any(brand::LEGACY_CLI));
     // rpm's own dependency generator would add this from the ELF; without it an old distribution
     // would install the package and then fail at run time.
     if let Some(minor) = payload.glibc_floor() {
@@ -71,10 +76,15 @@ pub(crate) fn write(payload: &Payload, manifest: &Manifest, output_root: &Path) 
             .with_file_contents(file.data.clone(), options)
             .with_context(|| format!("cannot add {}", file.path))?;
     }
+    for link in &payload.links {
+        builder
+            .with_symlink(FileOptions::symlink(&link.path, &link.target))
+            .with_context(|| format!("cannot add the link {}", link.path))?;
+    }
     let package = builder.build().context("rpm build failed")?;
 
     fs::create_dir_all(output_root)?;
-    let path = output_root.join(format!("pyenv-native-{version}-1.{arch}.rpm"));
+    let path = output_root.join(format!("{}-{version}-1.{arch}.rpm", brand::PACKAGE));
     package
         .write_file(&path)
         .with_context(|| format!("cannot write {}", path.display()))?;
@@ -84,7 +94,7 @@ pub(crate) fn write(payload: &Payload, manifest: &Manifest, output_root: &Path) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::installer::payload::PayloadFile;
+    use crate::installer::payload::{PayloadFile, PayloadLink};
 
     #[test]
     fn architectures_map() {
@@ -99,24 +109,28 @@ mod tests {
         let payload = Payload {
             files: vec![
                 PayloadFile {
-                    path: "/etc/profile.d/pyenv-native.sh".into(),
+                    path: "/etc/profile.d/enchi.sh".into(),
                     mode: 0o644,
                     data: b"# x\n".to_vec(),
                     config: true,
                 },
                 PayloadFile {
-                    path: "/usr/bin/pyenv".into(),
+                    path: "/usr/bin/enchi".into(),
                     mode: 0o755,
                     data: b"bin".to_vec(),
                     config: false,
                 },
                 PayloadFile {
-                    path: "/usr/share/pyenv-native/install-source".into(),
+                    path: "/usr/share/enchi/install-source".into(),
                     mode: 0o644,
                     data: b"rpm\n".to_vec(),
                     config: false,
                 },
             ],
+            links: vec![PayloadLink {
+                path: "/usr/bin/pyenv".into(),
+                target: "enchi".into(),
+            }],
         };
         let manifest = Manifest {
             version: "1.2.3".into(),
@@ -125,10 +139,10 @@ mod tests {
             gui: false,
         };
         let path = write(&payload, &manifest, temp.path()).unwrap();
-        assert_eq!(path.file_name().unwrap(), "pyenv-native-1.2.3-1.x86_64.rpm");
+        assert_eq!(path.file_name().unwrap(), "enchi-1.2.3-1.x86_64.rpm");
 
         let package = rpm::Package::open(&path).unwrap();
-        assert_eq!(package.metadata.get_name().unwrap(), "pyenv-native");
+        assert_eq!(package.metadata.get_name().unwrap(), "enchi");
         assert_eq!(package.metadata.get_version().unwrap(), "1.2.3");
         assert_eq!(package.metadata.get_arch().unwrap(), "x86_64");
         let paths: Vec<String> = package
@@ -138,7 +152,18 @@ mod tests {
             .into_iter()
             .map(|path| path.to_string_lossy().into_owned())
             .collect();
-        assert!(paths.contains(&"/usr/bin/pyenv".to_string()), "{paths:?}");
-        assert!(paths.contains(&"/etc/profile.d/pyenv-native.sh".to_string()));
+        assert!(paths.contains(&"/usr/bin/enchi".to_string()), "{paths:?}");
+        assert!(
+            paths.contains(&"/usr/bin/pyenv".to_string()),
+            "the compatibility symlink is listed: {paths:?}"
+        );
+        assert!(paths.contains(&"/etc/profile.d/enchi.sh".to_string()));
+
+        let names = |deps: Vec<Dependency>| -> Vec<String> {
+            deps.into_iter().map(|dep| dep.name).collect()
+        };
+        assert!(names(package.metadata.get_obsoletes().unwrap()).contains(&"pyenv-native".into()));
+        assert!(names(package.metadata.get_provides().unwrap()).contains(&"pyenv-native".into()));
+        assert!(names(package.metadata.get_conflicts().unwrap()).contains(&"pyenv".into()));
     }
 }

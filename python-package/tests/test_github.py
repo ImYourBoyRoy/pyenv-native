@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from pyenv_native_bootstrap.github import (
+from enchi_bootstrap.github import (
     github_release_api_url,
     parse_release_payload,
     resolve_release_asset_urls,
@@ -31,14 +31,14 @@ class GitHubTests(unittest.TestCase):
                 "tag_name": "v0.1.0",
                 "assets": [
                     {
-                        "name": "pyenv-native-windows-x64.zip",
+                        "name": "enchi-windows-x64.zip",
                         "browser_download_url": "https://example.invalid/bundle.zip",
                     }
                 ],
             }
         )
         self.assertEqual(release.tag_name, "v0.1.0")
-        self.assertEqual(release.assets[0].name, "pyenv-native-windows-x64.zip")
+        self.assertEqual(release.assets[0].name, "enchi-windows-x64.zip")
 
     def test_resolve_release_asset_urls_picks_bundle_and_checksum(self) -> None:
         def fake_fetcher(_: str) -> dict[str, object]:
@@ -46,19 +46,19 @@ class GitHubTests(unittest.TestCase):
                 "tag_name": "v0.1.0",
                 "assets": [
                     {
-                        "name": "pyenv-native-windows-x64.zip",
-                        "browser_download_url": "https://example.invalid/pyenv-native-windows-x64.zip",
+                        "name": "enchi-windows-x64.zip",
+                        "browser_download_url": "https://example.invalid/enchi-windows-x64.zip",
                     },
                     {
-                        "name": "pyenv-native-windows-x64.zip.sha256",
-                        "browser_download_url": "https://example.invalid/pyenv-native-windows-x64.zip.sha256",
+                        "name": "enchi-windows-x64.zip.sha256",
+                        "browser_download_url": "https://example.invalid/enchi-windows-x64.zip.sha256",
                     },
                 ],
             }
 
         bundle_url, checksum_url, tag = resolve_release_asset_urls(
             "imyourboyroy/pyenv-native",
-            "pyenv-native-windows-x64.zip",
+            "enchi-windows-x64.zip",
             fetcher=fake_fetcher,
         )
         self.assertEqual(tag, "v0.1.0")
@@ -71,19 +71,19 @@ class GitHubTests(unittest.TestCase):
                 "tag_name": "v0.1.0",
                 "assets": [
                     {
-                        "name": "pyenv-native-linux-x64.tar.gz",
-                        "browser_download_url": "https://example.invalid/pyenv-native-linux-x64.tar.gz",
+                        "name": "enchi-linux-x64.tar.gz",
+                        "browser_download_url": "https://example.invalid/enchi-linux-x64.tar.gz",
                     },
                     {
-                        "name": "pyenv-native-linux-x64.tar.gz.sha256",
-                        "browser_download_url": "https://example.invalid/pyenv-native-linux-x64.tar.gz.sha256",
+                        "name": "enchi-linux-x64.tar.gz.sha256",
+                        "browser_download_url": "https://example.invalid/enchi-linux-x64.tar.gz.sha256",
                     },
                 ],
             }
 
         bundle_url, checksum_url, tag = resolve_release_asset_urls(
             "imyourboyroy/pyenv-native",
-            "pyenv-native-linux-x64.tar.gz",
+            "enchi-linux-x64.tar.gz",
             fetcher=fake_fetcher,
         )
         self.assertEqual(tag, "v0.1.0")

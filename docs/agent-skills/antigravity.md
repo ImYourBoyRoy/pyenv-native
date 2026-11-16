@@ -16,7 +16,7 @@ agy plugin install /path/to/pyenv-native
 Or:
 
 ```bash
-pyenv agent-skills --agent antigravity
+enchi agent-skills --agent antigravity
 ```
 
 ## Validate
@@ -38,4 +38,4 @@ Copy or symlink `AGENTS.md` into project roots where strict Python env disciplin
 
 ## MCP
 
-Use `pyenv-mcp` alongside the plugin for structured runtime management.
+Use `enchi-mcp` alongside the plugin for structured runtime management.

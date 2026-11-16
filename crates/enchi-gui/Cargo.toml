@@ -1,0 +1,27 @@
+[package]
+name = "enchi-gui"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true, features = [] }
+
+[dependencies]
+tauri = { workspace = true, features = [] }
+enchi-core = { path = "../enchi-core" }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+rfd.workspace = true
+opener.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

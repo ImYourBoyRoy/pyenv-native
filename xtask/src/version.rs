@@ -1,7 +1,8 @@
 // ./xtask/src/version.rs
-//! Version synchronisation across the Rust workspace, Python package, and Tauri config.
+//! Version synchronisation across the Rust workspace, the Python packages, and the Tauri config.
 //!
-//! These four files must always agree: a mismatch once left PyPI stuck while GitHub tags advanced.
+//! These files must always agree: a mismatch once left PyPI stuck while GitHub tags advanced. The
+//! legacy `pyenv-native` wrapper pins `enchi==<version>`, so its dependency pin is checked too.
 
 use std::fs;
 use std::path::PathBuf;
@@ -32,6 +33,9 @@ struct Target {
     prefix: &'static str,
     /// Whether `prefix` includes exact leading indentation (JSON) rather than a top-level key.
     indent_exact: bool,
+    /// The version follows `prefix` directly and ends at the next quote (a requirement pin such as
+    /// `"enchi==0.7.2"`), instead of being a quoted value after the prefix.
+    pinned: bool,
 }
 
 fn targets() -> Vec<Target> {
@@ -42,36 +46,55 @@ fn targets() -> Vec<Target> {
             path: root.join("Cargo.toml"),
             prefix: "version = ",
             indent_exact: false,
+            pinned: false,
         },
         Target {
             label: "python-package/pyproject.toml",
             path: root.join("python-package").join("pyproject.toml"),
             prefix: "version = ",
             indent_exact: false,
+            pinned: false,
         },
         Target {
             label: "python-package __init__.__version__",
             path: root
                 .join("python-package")
                 .join("src")
-                .join("pyenv_native_bootstrap")
+                .join("enchi_bootstrap")
                 .join("__init__.py"),
             prefix: "__version__ = ",
             indent_exact: false,
+            pinned: false,
         },
         Target {
-            label: "crates/pyenv-gui/tauri.conf.json",
+            label: "python-package-legacy/pyproject.toml",
+            path: root.join("python-package-legacy").join("pyproject.toml"),
+            prefix: "version = ",
+            indent_exact: false,
+            pinned: false,
+        },
+        Target {
+            label: "python-package-legacy enchi== pin",
+            path: root.join("python-package-legacy").join("pyproject.toml"),
+            prefix: "  \"enchi==",
+            indent_exact: true,
+            pinned: true,
+        },
+        Target {
+            label: "crates/enchi-gui/tauri.conf.json",
             path: root
                 .join("crates")
-                .join("pyenv-gui")
+                .join("enchi-gui")
                 .join("tauri.conf.json"),
             prefix: "  \"version\": ",
             indent_exact: true,
+            pinned: false,
         },
     ]
 }
 
-/// Find the first line that starts with `target.prefix` followed by a quoted value.
+/// Find the first line that starts with `target.prefix` followed by a quoted value (or, for a
+/// pinned target, by the bare value up to the next quote).
 fn locate(text: &str, target: &Target) -> Option<(usize, usize)> {
     let mut offset = 0;
     for line in text.split_inclusive('\n') {
@@ -82,7 +105,12 @@ fn locate(text: &str, target: &Target) -> Option<(usize, usize)> {
         };
         if candidate {
             let after = &line[line.find(target.prefix).unwrap() + target.prefix.len()..];
-            if let Some(open) = after.strip_prefix('"')
+            if target.pinned {
+                if let Some(close) = after.find('"') {
+                    let start = offset + line.len() - after.len();
+                    return Some((start, start + close));
+                }
+            } else if let Some(open) = after.strip_prefix('"')
                 && let Some(close) = open.find('"')
             {
                 let start = offset + line.len() - after.len() + 1;
@@ -198,6 +226,7 @@ mod tests {
             path: PathBuf::new(),
             prefix,
             indent_exact,
+            pinned: false,
         }
     }
 
@@ -227,6 +256,19 @@ mod tests {
         let json = "{\n  \"productName\": \"x\",\n  \"version\": \"0.6.0\",\n  \"nested\": {\n    \"version\": \"1\"\n  }\n}\n";
         let (start, end) = locate(json, &target("  \"version\": ", true)).unwrap();
         assert_eq!(&json[start..end], "0.6.0");
+    }
+
+    #[test]
+    fn finds_the_enchi_pin_in_a_dependency_list() {
+        let toml = "dependencies = [\n  \"enchi==0.7.2\",\n]\n";
+        let pin = Target {
+            pinned: true,
+            ..target("  \"enchi==", true)
+        };
+        let (start, end) = locate(toml, &pin).unwrap();
+        assert_eq!(&toml[start..end], "0.7.2");
+        // The pin must not match a different requirement that merely starts the same way.
+        assert!(locate("  \"enchi-extras==1.0\",\n", &pin).is_none());
     }
 
     #[test]

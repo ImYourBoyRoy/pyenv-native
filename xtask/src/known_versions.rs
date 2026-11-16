@@ -1,7 +1,7 @@
 // ./xtask/src/known_versions.rs
 //! `cargo xtask sync-known-versions`: regenerate the embedded offline version-name seed.
 //!
-//! The seed (`crates/pyenv-core/data/known_versions.txt`) is only the fallback used when
+//! The seed (`crates/enchi-core/data/known_versions.txt`) is only the fallback used when
 //! python.org cannot be reached, plus non-CPython family names. Installable CPython revisions are
 //! discovered at runtime from <https://www.python.org/ftp/python/> and cached, so this file is
 //! not the live catalog.
@@ -55,7 +55,7 @@ pub fn run(args: &SyncArgs) -> Result<()> {
     let count = names.len();
     let output = root
         .join("crates")
-        .join("pyenv-core")
+        .join("enchi-core")
         .join("data")
         .join("known_versions.txt");
     fs::write(&output, render(names)).with_context(|| format!("writing {}", output.display()))?;

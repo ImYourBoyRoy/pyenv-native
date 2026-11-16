@@ -1,5 +1,5 @@
 {
-  "name": "pyenv-native-gui-a11y",
+  "name": "enchi-gui-a11y",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.12.1",

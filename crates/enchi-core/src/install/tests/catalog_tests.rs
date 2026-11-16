@@ -1,0 +1,278 @@
+// ./crates/enchi-core/src/install/tests/catalog_tests.rs
+//! Provider-catalog and source-provider regression tests for install listing behavior.
+
+use crate::config::RuntimeArch;
+
+use super::super::InstallCommandOptions;
+use super::super::providers::{
+    cmd_provider_install_list, cpython_source_provider_entries,
+    provider_catalog_entries_for_platform,
+};
+use super::support::{
+    arm64_ctx, pypy_release, seed_package_index, seed_pypy_index, test_context,
+    write_fake_python_build,
+};
+
+#[test]
+fn install_list_defaults_to_provider_backed_catalog() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.12.9", "3.12.10"]);
+    seed_package_index(&ctx, "python-freethreaded", &["3.13.1"]);
+    seed_pypy_index(
+        &ctx,
+        &[pypy_release(
+            "7.3.20",
+            "3.11.13",
+            "win64",
+            "x64",
+            "pypy3.11-v7.3.20-win64.zip",
+        )],
+    );
+
+    let report = cmd_provider_install_list(
+        &ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: None,
+            versions: vec![],
+        },
+        "windows",
+    );
+
+    assert_eq!(report.exit_code, 0);
+    assert_eq!(report.stdout[0], "Available installable versions:");
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.contains("windows-cpython-nuget"))
+    );
+    assert!(report.stdout.iter().any(|line| line.trim() == "3.12.10"));
+    assert!(report.stdout.iter().any(|line| line.trim() == "3.13.1t"));
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.trim() == "pypy3.11-7.3.20")
+    );
+    assert!(
+        report.stdout.iter().any(|line| line.trim() == "2.7.18"),
+        "legacy CPython 2.x from the known catalog should remain installable"
+    );
+}
+
+#[test]
+fn windows_provider_catalog_includes_known_python2_when_nuget_only_has_python3() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.12.10"]);
+    seed_pypy_index(
+        &ctx,
+        &[pypy_release(
+            "7.3.20",
+            "3.11.13",
+            "win64",
+            "x64",
+            "pypy3.11-v7.3.20-win64.zip",
+        )],
+    );
+
+    let entries = provider_catalog_entries_for_platform(&ctx, Some("cpython"), None, "windows")
+        .expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.12.10"));
+    assert!(
+        entries.iter().any(|entry| entry.version == "2.7.18"),
+        "Python 2.7 must stay visible for legacy projects"
+    );
+    let python2 = entries
+        .iter()
+        .find(|entry| entry.version == "2.7.18")
+        .expect("2.7.18");
+    assert_eq!(python2.provider, "windows-python-build");
+}
+
+#[test]
+fn provider_catalog_entries_prefer_native_pypy_on_macos() {
+    let (_temp, ctx) = test_context();
+    seed_pypy_index(
+        &ctx,
+        &[pypy_release(
+            "7.3.21",
+            "3.11.13",
+            "darwin",
+            "arm64",
+            "pypy3.11-v7.3.21-macos_arm64.tar.bz2",
+        )],
+    );
+
+    let arm_ctx = arm64_ctx(ctx);
+    let entries =
+        provider_catalog_entries_for_platform(&arm_ctx, Some("pypy"), Some("3.11"), "macos")
+            .expect("entries");
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].provider, "macos-pypy-downloads");
+    assert_eq!(entries[0].family_slug, "pypy");
+    assert_eq!(entries[0].version, "pypy3.11-7.3.21");
+}
+
+#[test]
+fn provider_catalog_entries_include_native_cpython_on_macos_without_python_build() {
+    let (_temp, ctx) = test_context();
+
+    let entries =
+        provider_catalog_entries_for_platform(&ctx, Some("cpython"), Some("3.12"), "macos")
+            .expect("entries");
+
+    assert!(!entries.is_empty());
+    assert!(
+        entries
+            .iter()
+            .all(|entry| entry.provider == "macos-cpython-source")
+    );
+    assert!(entries.iter().all(|entry| entry.family_slug == "cpython"));
+}
+
+#[test]
+fn provider_catalog_entries_include_native_cpython_on_android_without_python_build() {
+    let (_temp, ctx) = test_context();
+
+    let entries =
+        provider_catalog_entries_for_platform(&ctx, Some("cpython"), Some("3.12"), "android")
+            .expect("entries");
+
+    assert!(!entries.is_empty());
+    assert!(
+        entries
+            .iter()
+            .all(|entry| entry.provider == "android-cpython-source")
+    );
+    assert!(entries.iter().all(|entry| entry.family_slug == "cpython"));
+}
+
+#[test]
+fn provider_catalog_entries_still_include_python_build_non_pypy_on_macos() {
+    let (temp, mut ctx) = test_context();
+    let script = write_fake_python_build(&temp, &["stackless-3.7.5", "pypy3.10-7.3.15"]);
+    ctx.config.install.python_build_path = Some(script);
+
+    let entries =
+        provider_catalog_entries_for_platform(&ctx, Some("stackless"), Some("stackless"), "macos")
+            .expect("entries");
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].provider, "macos-python-build");
+    assert_eq!(entries[0].family_slug, "stackless");
+    assert_eq!(entries[0].version, "stackless-3.7.5");
+}
+
+#[test]
+fn cpython_source_entries_include_free_threaded_variants() {
+    let (_temp, ctx) = test_context();
+    let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
+    assert!(entries.iter().any(|entry| entry.version.ends_with('t')));
+    assert!(entries.iter().any(|entry| entry.version == "2.7.18"));
+    assert!(
+        entries
+            .iter()
+            .all(|entry| entry.provider == "linux-cpython-source")
+    );
+}
+
+#[test]
+fn cpython_source_catalog_reads_publisher_cache_instead_of_the_seed_file() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(
+        &cache_path,
+        &["9.9.1".to_string(), "2.7.18".to_string()],
+    )
+    .expect("seed cpython index");
+
+    let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "9.9.1"));
+    assert!(entries.iter().any(|entry| entry.version == "9.9.1t"));
+    assert!(entries.iter().any(|entry| entry.version == "2.7.18"));
+    assert!(
+        !entries.iter().any(|entry| entry.version == "3.12.0"),
+        "a fresh publisher cache replaces the embedded seed"
+    );
+    assert!(
+        !crate::catalog::known_version_names()
+            .iter()
+            .any(|version| version == "9.9.1")
+    );
+}
+
+#[test]
+fn prerelease_cpython_versions_are_listed_and_labeled_as_alpha() {
+    let (_temp, ctx) = test_context();
+    let cache_path = crate::catalog::cpython_index_cache_path(&ctx);
+    crate::catalog::write_cpython_index_cache(
+        &cache_path,
+        &["3.16.0a1".to_string(), "3.15.0".to_string()],
+    )
+    .expect("seed cpython prerelease cache");
+
+    let entries = cpython_source_provider_entries(&ctx, "linux").expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.16.0a1"));
+    assert!(!entries.iter().any(|entry| entry.version == "3.16.0"));
+
+    let report = cmd_provider_install_list(
+        &ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: Some("cpython".to_string()),
+            versions: vec!["3.16".to_string()],
+        },
+        "linux",
+    );
+    assert_eq!(report.exit_code, 0);
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.trim() == "3.16.0a1 (alpha)")
+    );
+}
+
+#[test]
+fn windows_nuget_prereleases_remain_installable_and_visible() {
+    let (_temp, mut ctx) = test_context();
+    ctx.config.install.arch = RuntimeArch::X64;
+    seed_package_index(&ctx, "python", &["3.16.0-a1", "3.15.0"]);
+
+    let entries = provider_catalog_entries_for_platform(&ctx, Some("cpython"), None, "windows")
+        .expect("entries");
+    assert!(entries.iter().any(|entry| entry.version == "3.16.0-a1"));
+
+    let report = cmd_provider_install_list(
+        &ctx,
+        &InstallCommandOptions {
+            list: true,
+            force: false,
+            dry_run: false,
+            json: false,
+            known: false,
+            family: Some("cpython".to_string()),
+            versions: vec!["3.16".to_string()],
+        },
+        "windows",
+    );
+    assert_eq!(report.exit_code, 0);
+    assert!(
+        report
+            .stdout
+            .iter()
+            .any(|line| line.trim() == "3.16.0-a1 (alpha)")
+    );
+}

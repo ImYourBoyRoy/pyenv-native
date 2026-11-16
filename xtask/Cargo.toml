@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
-description = "Repository automation for pyenv-native: release bundles, version sync, and quality checks."
+description = "Repository automation for Enchi: release bundles, version sync, and quality checks."
 
 [dependencies]
 anyhow.workspace = true

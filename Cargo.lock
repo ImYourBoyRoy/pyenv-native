@@ -999,6 +999,72 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
+name = "enchi-cli"
+version = "0.7.2"
+dependencies = [
+ "clap",
+ "enchi-core",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "enchi-core"
+version = "0.7.2"
+dependencies = [
+ "base64 0.23.1",
+ "bzip2",
+ "flate2",
+ "fluent-langneg",
+ "fluent-templates",
+ "hex",
+ "mockito",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "sys-locale",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.2.1+spec-1.1.0",
+ "unic-langid",
+ "winreg",
+ "zip",
+]
+
+[[package]]
+name = "enchi-gui"
+version = "0.7.2"
+dependencies = [
+ "enchi-core",
+ "opener",
+ "rfd",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tempfile",
+ "tokio",
+ "webkit2gtk",
+]
+
+[[package]]
+name = "enchi-mcp"
+version = "0.7.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "enchi-core",
+ "rmcp",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "enum-display-derive"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3237,70 +3303,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "pyenv-cli"
-version = "0.7.2"
-dependencies = [
- "clap",
- "pyenv-core",
- "tempfile",
-]
-
-[[package]]
-name = "pyenv-core"
-version = "0.7.2"
-dependencies = [
- "base64 0.23.1",
- "bzip2",
- "flate2",
- "fluent-langneg",
- "fluent-templates",
- "hex",
- "mockito",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "sys-locale",
- "tar",
- "tempfile",
- "thiserror 2.0.21",
- "toml 1.2.1+spec-1.1.0",
- "unic-langid",
- "winreg",
- "zip",
-]
-
-[[package]]
-name = "pyenv-gui"
-version = "0.7.2"
-dependencies = [
- "opener",
- "pyenv-core",
- "rfd",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tokio",
- "webkit2gtk",
-]
-
-[[package]]
-name = "pyenv-mcp"
-version = "0.7.2"
-dependencies = [
- "anyhow",
- "clap",
- "pyenv-core",
- "rmcp",
- "schemars 1.2.3",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

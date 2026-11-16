@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ./scripts/gui-a11y/check-a11y.mjs
 /**
- * Static accessibility audit for the pyenv-native GUI markup.
+ * Static accessibility audit for the Enchi GUI markup.
  * Parses index.html in jsdom (without executing app.js) and runs axe-core.
  *
  * Usage: npm run check (from scripts/gui-a11y)
@@ -14,7 +14,7 @@ import { JSDOM } from 'jsdom';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
-const uiDir = path.join(repoRoot, 'crates/pyenv-gui/ui');
+const uiDir = path.join(repoRoot, 'crates/enchi-gui/ui');
 const htmlPath = path.join(uiDir, 'index.html');
 
 const html = fs.readFileSync(htmlPath, 'utf8');

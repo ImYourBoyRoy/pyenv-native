@@ -8,6 +8,12 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Bridge release: `cargo xtask bundle` also writes the legacy `pyenv-native-<platform>-<arch>`
+  # archives (same contents plus a `pyenv` copy of the CLI) that already-installed pyenv-native
+  # binaries download to update into Enchi. Set to "false" to stop publishing them.
+  XTASK_LEGACY_COMPAT: "true"
+  # The GitHub repository that publishes releases is `github.repository`; nothing below hard-codes
+  # it, so renaming the repository needs no edit here (xtask/src/brand.rs holds the one constant).
 
 concurrency:
   group: release-${{ github.ref }}
@@ -17,7 +23,7 @@ jobs:
   windows-x64-bundle:
     runs-on: windows-latest
     env:
-      PYENV_WINDOWS_TARGET: x86_64-pc-windows-msvc
+      ENCHI_WINDOWS_TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout
@@ -51,7 +57,7 @@ jobs:
         shell: pwsh
         run: .\scripts\dev-cargo.ps1 test
 
-      - name: Test Python install package
+      - name: Test Python install packages
         shell: pwsh
         run: cargo xtask python test --python python
 
@@ -59,39 +65,49 @@ jobs:
         shell: pwsh
         run: cargo xtask bundle --target x86_64-pc-windows-msvc
 
-      - name: Build Python install package
+      - name: Build Python install packages (enchi, and the legacy pyenv-native wrapper)
         shell: pwsh
-        run: cargo xtask python build --python python
+        run: |
+          cargo xtask python build --python python
+          cargo xtask python build --python python --legacy
 
       - name: Prepare standalone GUI asset (Windows x64)
         shell: pwsh
         run: |
-          $src = "dist/pyenv-native-windows-x64/pyenv-gui.exe"
+          $src = "dist/enchi-windows-x64/enchi-gui.exe"
           if (-not (Test-Path $src)) { throw "missing $src" }
-          Copy-Item $src "dist/pyenv-gui-windows-x64.exe"
-          $hash = (Get-FileHash "dist/pyenv-gui-windows-x64.exe" -Algorithm SHA256).Hash.ToLower()
-          Set-Content -NoNewline -Path "dist/pyenv-gui-windows-x64.exe.sha256" -Value $hash
+          Copy-Item $src "dist/enchi-gui-windows-x64.exe"
+          $hash = (Get-FileHash "dist/enchi-gui-windows-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          Set-Content -NoNewline -Path "dist/enchi-gui-windows-x64.exe.sha256" -Value $hash
 
       - name: Upload Windows x64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-windows-x64-bundle
+          name: enchi-windows-x64-bundle
           path: |
+            dist/enchi-windows-x64.zip
+            dist/enchi-windows-x64.zip.sha256
             dist/pyenv-native-windows-x64.zip
             dist/pyenv-native-windows-x64.zip.sha256
-            dist/pyenv-gui-windows-x64.exe
-            dist/pyenv-gui-windows-x64.exe.sha256
+            dist/enchi-gui-windows-x64.exe
+            dist/enchi-gui-windows-x64.exe.sha256
 
-      - name: Upload Python install package artifact
+      - name: Upload Python install package artifact (enchi)
+        uses: actions/upload-artifact@v7
+        with:
+          name: enchi-python-package
+          path: python-package/dist/*
+
+      - name: Upload legacy Python wrapper artifact (pyenv-native)
         uses: actions/upload-artifact@v7
         with:
           name: pyenv-native-python-package
-          path: python-package/dist/*
+          path: python-package-legacy/dist/*
 
   windows-arm64-bundle:
     runs-on: windows-latest
     env:
-      PYENV_WINDOWS_TARGET: aarch64-pc-windows-msvc
+      ENCHI_WINDOWS_TARGET: aarch64-pc-windows-msvc
 
     steps:
       - name: Checkout
@@ -106,7 +122,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      # pyenv-gui is omitted here: Tauri/WebView2 cannot be cross-compiled
+      # enchi-gui is omitted here: Tauri/WebView2 cannot be cross-compiled
       # from the x64 runner, so this bundle ships CLI + MCP only.
       - name: Build Windows ARM64 release bundle
         shell: pwsh
@@ -115,8 +131,10 @@ jobs:
       - name: Upload Windows ARM64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-windows-arm64-bundle
+          name: enchi-windows-arm64-bundle
           path: |
+            dist/enchi-windows-arm64.zip
+            dist/enchi-windows-arm64.zip.sha256
             dist/pyenv-native-windows-arm64.zip
             dist/pyenv-native-windows-arm64.zip.sha256
 
@@ -151,7 +169,9 @@ jobs:
 
       - name: Test Python install package
         shell: bash
-        run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+        run: |
+          PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+          PYTHONPATH=./python-package/src:./python-package-legacy/src python -m unittest discover -s ./python-package-legacy/tests -p "test_*.py"
 
       - name: Build Linux release bundle
         shell: bash
@@ -159,23 +179,25 @@ jobs:
 
       - name: Prepare standalone GUI asset (Linux x64)
         run: |
-          src="dist/pyenv-native-linux-x64/pyenv-gui"
+          src="dist/enchi-linux-x64/enchi-gui"
           if [ ! -f "$src" ]; then
             echo "error: missing $src" >&2
             exit 1
           fi
-          cp "$src" "dist/pyenv-gui-linux-x64"
-          sha256sum "dist/pyenv-gui-linux-x64" | awk '{print $1}' > "dist/pyenv-gui-linux-x64.sha256"
+          cp "$src" "dist/enchi-gui-linux-x64"
+          sha256sum "dist/enchi-gui-linux-x64" | awk '{print $1}' > "dist/enchi-gui-linux-x64.sha256"
 
       - name: Upload Linux bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-linux-bundle
+          name: enchi-linux-bundle
           path: |
+            dist/enchi-linux-*.tar.gz
+            dist/enchi-linux-*.tar.gz.sha256
             dist/pyenv-native-linux-*.tar.gz
             dist/pyenv-native-linux-*.tar.gz.sha256
-            dist/pyenv-gui-linux-x64
-            dist/pyenv-gui-linux-x64.sha256
+            dist/enchi-gui-linux-x64
+            dist/enchi-gui-linux-x64.sha256
 
   linux-arm64-bundle:
     runs-on: ubuntu-latest
@@ -208,8 +230,10 @@ jobs:
       - name: Upload Linux ARM64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-linux-arm64-bundle
+          name: enchi-linux-arm64-bundle
           path: |
+            dist/enchi-linux-arm64.tar.gz
+            dist/enchi-linux-arm64.tar.gz.sha256
             dist/pyenv-native-linux-arm64.tar.gz
             dist/pyenv-native-linux-arm64.tar.gz.sha256
 
@@ -246,8 +270,10 @@ jobs:
       - name: Upload Android ARM64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-android-arm64-bundle
+          name: enchi-android-arm64-bundle
           path: |
+            dist/enchi-android-arm64.tar.gz
+            dist/enchi-android-arm64.tar.gz.sha256
             dist/pyenv-native-android-arm64.tar.gz
             dist/pyenv-native-android-arm64.tar.gz.sha256
 
@@ -275,7 +301,9 @@ jobs:
 
       - name: Test Python install package
         shell: bash
-        run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+        run: |
+          PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+          PYTHONPATH=./python-package/src:./python-package-legacy/src python -m unittest discover -s ./python-package-legacy/tests -p "test_*.py"
 
       - name: Build macOS arm64 release bundle
         shell: bash
@@ -288,27 +316,29 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS arm64)
         run: |
-          src="dist/pyenv-native-macos-arm64/pyenv-gui"
+          src="dist/enchi-macos-arm64/enchi-gui"
           if [ ! -f "$src" ]; then
             echo "error: missing $src" >&2
             exit 1
           fi
-          cp "$src" "dist/pyenv-gui-macos-arm64"
-          shasum -a 256 "dist/pyenv-gui-macos-arm64" | awk '{print $1}' > "dist/pyenv-gui-macos-arm64.sha256"
+          cp "$src" "dist/enchi-gui-macos-arm64"
+          shasum -a 256 "dist/enchi-gui-macos-arm64" | awk '{print $1}' > "dist/enchi-gui-macos-arm64.sha256"
 
       - name: Upload macOS arm64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-macos-arm64-bundle
+          name: enchi-macos-arm64-bundle
           path: |
+            dist/enchi-macos-arm64.tar.gz
+            dist/enchi-macos-arm64.tar.gz.sha256
             dist/pyenv-native-macos-arm64.tar.gz
             dist/pyenv-native-macos-arm64.tar.gz.sha256
-            dist/pyenv-native-macos-arm64.pkg
-            dist/pyenv-native-macos-arm64.pkg.sha256
-            dist/pyenv-native-macos-arm64.dmg
-            dist/pyenv-native-macos-arm64.dmg.sha256
-            dist/pyenv-gui-macos-arm64
-            dist/pyenv-gui-macos-arm64.sha256
+            dist/enchi-macos-arm64.pkg
+            dist/enchi-macos-arm64.pkg.sha256
+            dist/enchi-macos-arm64.dmg
+            dist/enchi-macos-arm64.dmg.sha256
+            dist/enchi-gui-macos-arm64
+            dist/enchi-gui-macos-arm64.sha256
 
   macos-x64-bundle:
     runs-on: macos-15-intel
@@ -334,7 +364,9 @@ jobs:
 
       - name: Test Python install package
         shell: bash
-        run: PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+        run: |
+          PYTHONPATH=./python-package/src python -m unittest discover -s ./python-package/tests -p "test_*.py"
+          PYTHONPATH=./python-package/src:./python-package-legacy/src python -m unittest discover -s ./python-package-legacy/tests -p "test_*.py"
 
       - name: Build macOS x64 release bundle
         shell: bash
@@ -347,27 +379,29 @@ jobs:
 
       - name: Prepare standalone GUI asset (macOS x64)
         run: |
-          src="dist/pyenv-native-macos-x64/pyenv-gui"
+          src="dist/enchi-macos-x64/enchi-gui"
           if [ ! -f "$src" ]; then
             echo "error: missing $src" >&2
             exit 1
           fi
-          cp "$src" "dist/pyenv-gui-macos-x64"
-          shasum -a 256 "dist/pyenv-gui-macos-x64" | awk '{print $1}' > "dist/pyenv-gui-macos-x64.sha256"
+          cp "$src" "dist/enchi-gui-macos-x64"
+          shasum -a 256 "dist/enchi-gui-macos-x64" | awk '{print $1}' > "dist/enchi-gui-macos-x64.sha256"
 
       - name: Upload macOS x64 bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pyenv-native-macos-x64-bundle
+          name: enchi-macos-x64-bundle
           path: |
+            dist/enchi-macos-x64.tar.gz
+            dist/enchi-macos-x64.tar.gz.sha256
             dist/pyenv-native-macos-x64.tar.gz
             dist/pyenv-native-macos-x64.tar.gz.sha256
-            dist/pyenv-native-macos-x64.pkg
-            dist/pyenv-native-macos-x64.pkg.sha256
-            dist/pyenv-native-macos-x64.dmg
-            dist/pyenv-native-macos-x64.dmg.sha256
-            dist/pyenv-gui-macos-x64
-            dist/pyenv-gui-macos-x64.sha256
+            dist/enchi-macos-x64.pkg
+            dist/enchi-macos-x64.pkg.sha256
+            dist/enchi-macos-x64.dmg
+            dist/enchi-macos-x64.dmg.sha256
+            dist/enchi-gui-macos-x64
+            dist/enchi-gui-macos-x64.sha256
 
   # Runs for tags and for manual dry runs (workflow_dispatch): a dry run builds every installer,
   # the SBOM, and SHA256SUMS exactly as a release would, but publishes and attests nothing.
@@ -399,46 +433,52 @@ jobs:
       - name: Download Windows x64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-windows-x64-bundle
+          name: enchi-windows-x64-bundle
           path: dist/windows/x64
 
       - name: Download Windows ARM64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-windows-arm64-bundle
+          name: enchi-windows-arm64-bundle
           path: dist/windows/arm64
 
       - name: Download Linux bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-linux-bundle
+          name: enchi-linux-bundle
           path: dist/linux
 
       - name: Download Linux ARM64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-linux-arm64-bundle
+          name: enchi-linux-arm64-bundle
           path: dist/linux
 
       - name: Download Android ARM64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-android-arm64-bundle
+          name: enchi-android-arm64-bundle
           path: dist/android
 
       - name: Download macOS arm64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-macos-arm64-bundle
+          name: enchi-macos-arm64-bundle
           path: dist/macos
 
       - name: Download macOS x64 bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: pyenv-native-macos-x64-bundle
+          name: enchi-macos-x64-bundle
           path: dist/macos
 
-      - name: Download Python install package artifact
+      - name: Download Python install package artifact (enchi)
+        uses: actions/download-artifact@v8
+        with:
+          name: enchi-python-package
+          path: dist/python
+
+      - name: Download legacy Python wrapper artifact (pyenv-native)
         uses: actions/download-artifact@v8
         with:
           name: pyenv-native-python-package
@@ -454,7 +494,7 @@ jobs:
             --tag $tag `
             --asset-root ./dist/linux `
             --asset-root ./dist/macos `
-            --output ./dist/homebrew/pyenv-native.rb
+            --output ./dist/homebrew/enchi.rb
 
       - name: Hash installer scripts
         shell: bash
@@ -473,11 +513,11 @@ jobs:
           set -euo pipefail
           out=dist/installers
           for arch in x64 arm64; do
-            cargo xtask installer deb --bundle "dist/linux/pyenv-native-linux-$arch.tar.gz" --output-root "$out" --max-glibc 35
-            cargo xtask installer rpm --bundle "dist/linux/pyenv-native-linux-$arch.tar.gz" --output-root "$out" --max-glibc 35
-            cargo xtask installer nsis --bundle "dist/windows/$arch/pyenv-native-windows-$arch.zip" --output-root "$out"
+            cargo xtask installer deb --bundle "dist/linux/enchi-linux-$arch.tar.gz" --output-root "$out" --max-glibc 35
+            cargo xtask installer rpm --bundle "dist/linux/enchi-linux-$arch.tar.gz" --output-root "$out" --max-glibc 35
+            cargo xtask installer nsis --bundle "dist/windows/$arch/enchi-windows-$arch.zip" --output-root "$out"
           done
-          cargo xtask installer termux --bundle dist/android/pyenv-native-android-arm64.tar.gz --output-root "$out"
+          cargo xtask installer termux --bundle dist/android/enchi-android-arm64.tar.gz --output-root "$out"
 
       - name: Generate SBOM
         shell: bash
@@ -488,9 +528,33 @@ jobs:
         with:
           file: Cargo.lock
           format: cyclonedx-json
-          output-file: dist/sbom/pyenv-native.cdx.json
+          output-file: dist/sbom/enchi.cdx.json
           upload-artifact: false
           upload-release-assets: false
+
+      - name: Check the legacy bridge archives (pyenv-native-*)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${XTASK_LEGACY_COMPAT}" != "true" ]; then
+            echo "legacy-compat archives are switched off; nothing to check"
+            exit 0
+          fi
+          # Already-installed pyenv-native binaries download exactly these names and run
+          # `<bundle>/pyenv self-install` (`pyenv.exe` on Windows) from them.
+          for asset in dist/linux/pyenv-native-linux-x64.tar.gz dist/linux/pyenv-native-linux-arm64.tar.gz \
+                       dist/android/pyenv-native-android-arm64.tar.gz \
+                       dist/macos/pyenv-native-macos-arm64.tar.gz dist/macos/pyenv-native-macos-x64.tar.gz; do
+            test -f "$asset" && test -f "$asset.sha256"
+            listing="$(tar -tzf "$asset")"
+            echo "$listing" | grep -qx './pyenv'
+            echo "$listing" | grep -qx './enchi'
+          done
+          for asset in dist/windows/x64/pyenv-native-windows-x64.zip dist/windows/arm64/pyenv-native-windows-arm64.zip; do
+            test -f "$asset" && test -f "$asset.sha256"
+            unzip -Z1 "$asset" | grep -qx 'pyenv.exe'
+            unzip -Z1 "$asset" | grep -qx 'enchi.exe'
+          done
 
       - name: Write SHA256SUMS
         shell: bash
@@ -547,6 +611,34 @@ jobs:
     needs:
       - publish-release
       - windows-x64-bundle
+    # The PyPI trusted publisher for the `enchi` project is configured for this environment name.
+    environment:
+      name: enchi
+      url: https://pypi.org/p/enchi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download Python install package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: enchi-python-package
+          path: dist
+
+      - name: Publish to PyPI with trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          # Fail loudly if a stale package version is re-uploaded; never silently keep PyPI behind the Git tag.
+          skip-existing: false
+
+  # The final `pyenv-native` distribution: depends on `enchi==<this version>`, so it must follow
+  # the `enchi` upload.
+  publish-python-legacy:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs:
+      - publish-python
     environment:
       name: pyenv-native
       url: https://pypi.org/p/pyenv-native
@@ -554,7 +646,7 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download Python install package artifact
+      - name: Download legacy Python wrapper artifact
         uses: actions/download-artifact@v8
         with:
           name: pyenv-native-python-package
@@ -564,5 +656,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
-          # Fail loudly if a stale package version is re-uploaded; never silently keep PyPI behind the Git tag.
           skip-existing: false

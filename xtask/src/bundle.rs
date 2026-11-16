@@ -1,10 +1,15 @@
 // ./xtask/src/bundle.rs
 //! `cargo xtask bundle`: build release binaries and assemble the distributable archive.
 //!
-//! A bundle is a flat directory (`pyenv`, `pyenv-mcp`, optional `pyenv-gui`, docs, and
+//! A bundle is a flat directory (`enchi`, `enchi-mcp`, optional `enchi-gui`, docs, and
 //! `bundle-manifest.json`) packed as `.tar.gz` (Linux, macOS, Android) or `.zip` (Windows) next to a
-//! `<archive>.sha256` sidecar. The installers do not ship inside it: the bundled `pyenv` binary
-//! performs the install through `pyenv self-install`.
+//! `<archive>.sha256` sidecar. The installers do not ship inside it: the bundled `enchi` binary
+//! performs the install through `enchi self-install`.
+//!
+//! Each run also writes a second, legacy archive (`pyenv-native-<platform>-<arch>`) with the same
+//! contents plus a copy of the CLI named `pyenv`. Installed pyenv-native binaries download exactly
+//! that asset name and run `<bundle>/pyenv self-install` from it, so it keeps existing installs able
+//! to update into Enchi. Switch it off with `--no-legacy-compat` once that bridge is no longer needed.
 
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Read};
@@ -12,11 +17,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
-use clap::Args;
+use clap::{ArgAction, Args};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
 
+use crate::brand;
 use crate::repo_root;
 
 #[derive(Args)]
@@ -27,7 +33,7 @@ pub struct BundleArgs {
     /// Where to write the bundle directory, archive, and checksum.
     #[arg(long, default_value = "dist")]
     output_root: PathBuf,
-    /// Override the bundle name (default: pyenv-native-<platform>-<arch>).
+    /// Override the bundle name (default: enchi-<platform>-<arch>).
     #[arg(long)]
     bundle_name: Option<String>,
     /// Override the platform token: linux, macos, windows, or android.
@@ -45,9 +51,31 @@ pub struct BundleArgs {
     /// Package existing release binaries instead of building them.
     #[arg(long)]
     skip_build: bool,
-    /// Leave pyenv-gui out even where it would normally be bundled.
+    /// Leave enchi-gui out even where it would normally be bundled.
     #[arg(long)]
     no_gui: bool,
+    /// Also write the legacy `pyenv-native-<platform>-<arch>` archive (the same contents plus a
+    /// `pyenv` copy of the CLI) that already-installed pyenv-native binaries download to update.
+    /// On by default; `--legacy-compat=false` or `--no-legacy-compat` turns it off.
+    #[arg(
+        long,
+        env = "XTASK_LEGACY_COMPAT",
+        default_value_t = true,
+        num_args = 0..=1,
+        default_missing_value = "true",
+        action = ArgAction::Set,
+        value_name = "BOOL"
+    )]
+    legacy_compat: bool,
+    /// Skip the legacy archive (same as `--legacy-compat=false`).
+    #[arg(long, conflicts_with = "legacy_compat")]
+    no_legacy_compat: bool,
+}
+
+impl BundleArgs {
+    fn legacy(&self) -> bool {
+        self.legacy_compat && !self.no_legacy_compat
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -134,9 +162,9 @@ fn android_abi(architecture: &str) -> Result<&'static str> {
 }
 
 fn build(args: &BundleArgs, plan: &Plan, root: &Path) -> Result<()> {
-    let mut packages = vec!["-p", "pyenv-cli", "-p", "pyenv-mcp"];
+    let mut packages = vec!["-p", "enchi-cli", "-p", "enchi-mcp"];
     if plan.include_gui {
-        packages.extend(["-p", "pyenv-gui"]);
+        packages.extend(["-p", "enchi-gui"]);
     }
 
     let mut command = if plan.platform == "android" && args.target.is_some() {
@@ -210,7 +238,7 @@ fn mark_executable(_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Icon sizes staged for the Linux desktop launcher (`pyenv self-install` copies them into
+/// Icon sizes staged for the Linux desktop launcher (`enchi self-install` copies them into
 /// `$XDG_DATA_HOME/icons/hicolor`).
 const LINUX_ICONS: [(&str, &str); 4] = [
     ("32x32.png", "32x32"),
@@ -219,13 +247,20 @@ const LINUX_ICONS: [(&str, &str); 4] = [
     ("icon.png", "512x512"),
 ];
 
-fn assemble(args: &BundleArgs, plan: &Plan, root: &Path, bundle_dir: &Path) -> Result<()> {
-    let release = release_dir(args, root);
+/// Copy the release binaries (and docs, icons) into `bundle_dir`. A legacy bundle additionally gets
+/// a copy of the CLI named `pyenv`, which is the file old installers look for.
+fn assemble(
+    plan: &Plan,
+    root: &Path,
+    release: &Path,
+    bundle_dir: &Path,
+    legacy: bool,
+) -> Result<()> {
     let platform = plan.platform.as_str();
     let required = [
-        ("pyenv", true),
-        ("pyenv-mcp", true),
-        ("pyenv-gui", plan.include_gui),
+        (brand::CLI, true),
+        (brand::MCP, true),
+        (brand::GUI, plan.include_gui),
     ];
     for (base, needed) in required {
         if !needed {
@@ -237,6 +272,12 @@ fn assemble(args: &BundleArgs, plan: &Plan, root: &Path, bundle_dir: &Path) -> R
             bail!("release binary not found at {}", source.display());
         }
         let destination = bundle_dir.join(&name);
+        copy_file(&source, &destination)?;
+        mark_executable(&destination)?;
+    }
+    if legacy {
+        let source = bundle_dir.join(exe_name(brand::CLI, platform));
+        let destination = bundle_dir.join(exe_name(brand::LEGACY_CLI, platform));
         copy_file(&source, &destination)?;
         mark_executable(&destination)?;
     }
@@ -254,7 +295,7 @@ fn assemble(args: &BundleArgs, plan: &Plan, root: &Path, bundle_dir: &Path) -> R
     }
 
     if plan.include_gui && platform == "linux" {
-        let icons = root.join("crates").join("pyenv-gui").join("icons");
+        let icons = root.join("crates").join("enchi-gui").join("icons");
         for (file, size) in LINUX_ICONS {
             let dest_dir = bundle_dir
                 .join("share")
@@ -265,7 +306,7 @@ fn assemble(args: &BundleArgs, plan: &Plan, root: &Path, bundle_dir: &Path) -> R
             fs::create_dir_all(&dest_dir)?;
             copy_file(
                 &icons.join(file),
-                &dest_dir.join("com.pyenv-native.gui.png"),
+                &dest_dir.join(format!("{}.png", brand::APP_ID)),
             )?;
         }
     }
@@ -278,19 +319,23 @@ fn write_manifest(
     name: &str,
     version: &str,
     dir: &Path,
+    legacy: bool,
 ) -> Result<()> {
     let platform = plan.platform.as_str();
-    let manifest = serde_json::json!({
+    let mut manifest = serde_json::json!({
         "bundle_name": name,
         "bundle_version": version,
         "platform": platform,
         "architecture": plan.architecture,
         "target_triple": args.target.clone().unwrap_or_default(),
-        "executable": exe_name("pyenv", platform),
-        "mcp_executable": exe_name("pyenv-mcp", platform),
-        "gui_executable": plan.include_gui.then(|| exe_name("pyenv-gui", platform)),
+        "executable": exe_name(brand::CLI, platform),
+        "mcp_executable": exe_name(brand::MCP, platform),
+        "gui_executable": plan.include_gui.then(|| exe_name(brand::GUI, platform)),
         "installer": "self-install",
     });
+    if legacy {
+        manifest["legacy_executable"] = exe_name(brand::LEGACY_CLI, platform).into();
+    }
     let mut text = serde_json::to_string_pretty(&manifest)?;
     text.push('\n');
     fs::write(dir.join("bundle-manifest.json"), text)?;
@@ -356,33 +401,26 @@ pub(crate) fn sha256_hex(path: &Path) -> Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-pub fn run(args: &BundleArgs) -> Result<()> {
-    let root = repo_root();
-    let plan = plan(args)?;
-    let version = workspace_version(&root)?;
-    let name = args
-        .bundle_name
-        .clone()
-        .unwrap_or_else(|| format!("pyenv-native-{}-{}", plan.platform, plan.architecture));
-
-    if !args.skip_build {
-        build(args, &plan, &root)?;
-    }
-
-    let output_root = if args.output_root.is_absolute() {
-        args.output_root.clone()
-    } else {
-        std::env::current_dir()?.join(&args.output_root)
-    };
-    fs::create_dir_all(&output_root)?;
-    let bundle_dir = output_root.join(&name);
+/// Assemble one bundle directory, pack it, and write its checksum. Returns the archive path.
+#[allow(clippy::too_many_arguments)]
+fn package_bundle(
+    args: &BundleArgs,
+    plan: &Plan,
+    root: &Path,
+    release: &Path,
+    output_root: &Path,
+    name: &str,
+    version: &str,
+    legacy: bool,
+) -> Result<PathBuf> {
+    let bundle_dir = output_root.join(name);
     if bundle_dir.exists() {
         fs::remove_dir_all(&bundle_dir)?;
     }
     fs::create_dir_all(&bundle_dir)?;
 
-    assemble(args, &plan, &root, &bundle_dir)?;
-    write_manifest(args, &plan, &name, &version, &bundle_dir)?;
+    assemble(plan, root, release, &bundle_dir, legacy)?;
+    write_manifest(args, plan, name, version, &bundle_dir, legacy)?;
 
     let extension = if plan.platform == "windows" {
         "zip"
@@ -403,12 +441,61 @@ pub fn run(args: &BundleArgs) -> Result<()> {
     let archive_name = archive.file_name().unwrap().to_string_lossy();
     fs::write(&checksum, format!("{digest}  {archive_name}\n"))?;
 
-    println!("bundle_dir: {}", bundle_dir.display());
-    println!("archive_path: {}", archive.display());
-    println!("checksum_path: {}", checksum.display());
+    let label = if legacy { "legacy_" } else { "" };
+    println!("{label}bundle_dir: {}", bundle_dir.display());
+    println!("{label}archive_path: {}", archive.display());
+    println!("{label}checksum_path: {}", checksum.display());
+    Ok(archive)
+}
+
+pub fn run(args: &BundleArgs) -> Result<()> {
+    let root = repo_root();
+    let plan = plan(args)?;
+    let version = workspace_version(&root)?;
+    let name = args
+        .bundle_name
+        .clone()
+        .unwrap_or_else(|| brand::bundle_stem(&plan.platform, &plan.architecture));
+
+    if !args.skip_build {
+        build(args, &plan, &root)?;
+    }
+
+    let output_root = if args.output_root.is_absolute() {
+        args.output_root.clone()
+    } else {
+        std::env::current_dir()?.join(&args.output_root)
+    };
+    fs::create_dir_all(&output_root)?;
+    let release = release_dir(args, &root);
+
+    package_bundle(
+        args,
+        &plan,
+        &root,
+        &release,
+        &output_root,
+        &name,
+        &version,
+        false,
+    )?;
+    if args.legacy() {
+        package_bundle(
+            args,
+            &plan,
+            &root,
+            &release,
+            &output_root,
+            &brand::legacy_bundle_name(&name),
+            &version,
+            true,
+        )?;
+    }
+
     println!("platform: {}", plan.platform);
     println!("architecture: {}", plan.architecture);
     println!("gui_included: {}", plan.include_gui);
+    println!("legacy_compat: {}", args.legacy());
     Ok(())
 }
 
@@ -488,7 +575,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let dir = temp.path().join("bundle");
         fs::create_dir_all(dir.join("share")).unwrap();
-        fs::write(dir.join("pyenv"), "binary").unwrap();
+        fs::write(dir.join("enchi"), "binary").unwrap();
         fs::write(dir.join("share").join("a.png"), "png").unwrap();
 
         let tarball = temp.path().join("b.tar.gz");
@@ -510,7 +597,7 @@ mod tests {
         assert!(
             names
                 .iter()
-                .any(|name| name.trim_start_matches("./") == "pyenv"),
+                .any(|name| name.trim_start_matches("./") == "enchi"),
             "{names:?}"
         );
 
@@ -523,33 +610,139 @@ mod tests {
         zip_names.sort();
         assert_eq!(
             zip_names,
-            vec!["pyenv".to_string(), "share/a.png".to_string()]
+            vec!["enchi".to_string(), "share/a.png".to_string()]
         );
 
-        assert_eq!(sha256_hex(&dir.join("pyenv")).unwrap().len(), 64);
+        assert_eq!(sha256_hex(&dir.join("enchi")).unwrap().len(), 64);
+    }
+
+    fn manifest_json(
+        args: &BundleArgs,
+        plan: &Plan,
+        name: &str,
+        legacy: bool,
+    ) -> serde_json::Value {
+        let temp = TempDir::new().unwrap();
+        write_manifest(args, plan, name, "9.9.9", temp.path(), legacy).unwrap();
+        serde_json::from_str(&fs::read_to_string(temp.path().join("bundle-manifest.json")).unwrap())
+            .unwrap()
     }
 
     #[test]
     fn manifest_names_the_self_install_flow() {
-        let temp = TempDir::new().unwrap();
         let args = parse(&["--target", "x86_64-pc-windows-msvc"]);
         let plan = plan(&args).unwrap();
-        write_manifest(
-            &args,
-            &plan,
-            "pyenv-native-windows-x64",
-            "9.9.9",
-            temp.path(),
-        )
-        .unwrap();
-        let manifest: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(temp.path().join("bundle-manifest.json")).unwrap(),
-        )
-        .unwrap();
+        let manifest = manifest_json(&args, &plan, "enchi-windows-x64", false);
+        assert_eq!(manifest["bundle_name"], "enchi-windows-x64");
         assert_eq!(manifest["platform"], "windows");
-        assert_eq!(manifest["executable"], "pyenv.exe");
-        assert_eq!(manifest["gui_executable"], "pyenv-gui.exe");
+        assert_eq!(manifest["executable"], "enchi.exe");
+        assert_eq!(manifest["mcp_executable"], "enchi-mcp.exe");
+        assert_eq!(manifest["gui_executable"], "enchi-gui.exe");
         assert_eq!(manifest["installer"], "self-install");
         assert!(manifest.get("install_script").is_none());
+        assert!(manifest.get("legacy_executable").is_none());
+    }
+
+    #[test]
+    fn legacy_manifest_adds_the_legacy_executable() {
+        let args = parse(&["--target", "x86_64-pc-windows-msvc"]);
+        let plan = plan(&args).unwrap();
+        let manifest = manifest_json(&args, &plan, "pyenv-native-windows-x64", true);
+        assert_eq!(manifest["executable"], "enchi.exe");
+        assert_eq!(manifest["legacy_executable"], "pyenv.exe");
+    }
+
+    #[test]
+    fn legacy_compat_defaults_on_and_can_be_switched_off() {
+        assert!(parse(&[]).legacy());
+        assert!(parse(&["--legacy-compat"]).legacy());
+        assert!(parse(&["--legacy-compat=true"]).legacy());
+        assert!(!parse(&["--legacy-compat=false"]).legacy());
+        assert!(!parse(&["--legacy-compat", "false"]).legacy());
+        assert!(!parse(&["--no-legacy-compat"]).legacy());
+        let both = Wrapper::try_parse_from(["bundle", "--legacy-compat", "--no-legacy-compat"]);
+        assert!(both.is_err());
+    }
+
+    /// A release directory holding stand-in binaries, for packaging without a cargo build.
+    fn fake_release(dir: &Path) {
+        fs::create_dir_all(dir).unwrap();
+        for name in ["enchi", "enchi-mcp"] {
+            fs::write(dir.join(name), format!("{name} binary")).unwrap();
+        }
+    }
+
+    fn tar_names(archive: &Path) -> Vec<String> {
+        let mut archive =
+            tar::Archive::new(flate2::read::GzDecoder::new(File::open(archive).unwrap()));
+        archive
+            .entries()
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                entry
+                    .path()
+                    .unwrap()
+                    .to_string_lossy()
+                    .trim_start_matches("./")
+                    .to_string()
+            })
+            .filter(|name| !name.is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn current_and_legacy_archives_share_contents_and_the_legacy_one_adds_pyenv() {
+        let temp = TempDir::new().unwrap();
+        let release = temp.path().join("release");
+        fake_release(&release);
+        let out = temp.path().join("dist");
+        fs::create_dir_all(&out).unwrap();
+        let args = parse(&["--platform", "linux", "--arch", "x64", "--no-gui"]);
+        let plan = plan(&args).unwrap();
+        let root = repo_root();
+
+        let current = package_bundle(
+            &args,
+            &plan,
+            &root,
+            &release,
+            &out,
+            "enchi-linux-x64",
+            "9.9.9",
+            false,
+        )
+        .unwrap();
+        let legacy = package_bundle(
+            &args,
+            &plan,
+            &root,
+            &release,
+            &out,
+            &brand::legacy_bundle_name("enchi-linux-x64"),
+            "9.9.9",
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(current.file_name().unwrap(), "enchi-linux-x64.tar.gz");
+        assert_eq!(legacy.file_name().unwrap(), "pyenv-native-linux-x64.tar.gz");
+        for archive in [&current, &legacy] {
+            let sidecar = PathBuf::from(format!("{}.sha256", archive.display()));
+            let text = fs::read_to_string(sidecar).unwrap();
+            assert!(text.ends_with(&format!(
+                "  {}\n",
+                archive.file_name().unwrap().to_string_lossy()
+            )));
+        }
+
+        let current_names = tar_names(&current);
+        let legacy_names = tar_names(&legacy);
+        for name in ["enchi", "enchi-mcp", "bundle-manifest.json", "LICENSE"] {
+            assert!(current_names.iter().any(|n| n == name), "{current_names:?}");
+            assert!(legacy_names.iter().any(|n| n == name), "{legacy_names:?}");
+        }
+        assert!(!current_names.iter().any(|n| n == "pyenv"));
+        assert!(legacy_names.iter().any(|n| n == "pyenv"));
     }
 }

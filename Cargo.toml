@@ -1,9 +1,9 @@
 [workspace]
 members = [
-    "crates/pyenv-cli",
-    "crates/pyenv-core",
-    "crates/pyenv-mcp",
-    "crates/pyenv-gui",
+    "crates/enchi-cli",
+    "crates/enchi-core",
+    "crates/enchi-mcp",
+    "crates/enchi-gui",
     "xtask",
 ]
 resolver = "3"

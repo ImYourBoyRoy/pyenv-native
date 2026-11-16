@@ -1,0 +1,411 @@
+// ./crates/enchi-core/src/manage/commands.rs
+//! Public management commands for prefix lookup, version listing, and uninstall flows.
+
+use std::collections::HashSet;
+use std::fs;
+
+use crate::command::CommandReport;
+use crate::context::AppContext;
+use crate::error::PyenvError;
+use crate::path_safety::{is_safe_relative_path, path_stays_under};
+use crate::plugin::run_hook_scripts;
+use crate::runtime::{collect_shim_names_from_prefix, inventory_roots_for_version};
+use crate::shim::rehash_shims;
+use crate::venv_paths::managed_venv_entries_for_base;
+use crate::version::{installed_version_dir, resolve_selected_versions};
+
+use super::helpers::{
+    confirm_uninstall, current_version_origin, join_prefixes, list_version_entries,
+    render_version_line, resolve_prefix_path, system_prefix,
+};
+use super::types::VersionsCommandOptions;
+
+pub fn cmd_prefix(ctx: &AppContext, versions: &[String]) -> CommandReport {
+    let requested = if versions.is_empty() {
+        let selected = resolve_selected_versions(ctx, false);
+        if !selected.missing.is_empty() {
+            let origin = selected.origin.to_string();
+            let stderr = selected
+                .missing
+                .into_iter()
+                .map(|version| PyenvError::VersionNotInstalled(version, origin.clone()).to_string())
+                .collect();
+            return CommandReport::failure(stderr, 1);
+        }
+        selected.versions
+    } else {
+        versions.to_vec()
+    };
+
+    let mut prefixes = Vec::new();
+    for requested_version in requested {
+        match resolve_prefix_path(ctx, &requested_version) {
+            Ok(path) => prefixes.push(path),
+            Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+        }
+    }
+
+    CommandReport::success_one(join_prefixes(&prefixes))
+}
+
+pub fn cmd_versions(ctx: &AppContext, options: &VersionsCommandOptions) -> CommandReport {
+    if options.executables {
+        return cmd_versions_executables(ctx);
+    }
+
+    let entries = match list_version_entries(ctx, options.skip_aliases, options.skip_envs) {
+        Ok(entries) => entries,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
+
+    if options.bare {
+        return CommandReport::success(entries.into_iter().map(|entry| entry.name).collect());
+    }
+
+    let origin = current_version_origin(ctx);
+    let current = resolve_selected_versions(ctx, false)
+        .versions
+        .into_iter()
+        .map(|value| value.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+
+    if options.json {
+        return versions_json(ctx, entries);
+    }
+
+    let mut stdout = Vec::new();
+    let mut num_versions = 0usize;
+
+    if system_prefix(ctx).is_some() {
+        stdout.push(render_version_line(
+            "system",
+            None,
+            current.contains("system"),
+            &origin,
+        ));
+        num_versions += 1;
+    }
+
+    for entry in entries {
+        stdout.push(render_version_line(
+            &entry.name,
+            entry.link_target.as_ref(),
+            current.contains(&entry.name.to_ascii_lowercase()),
+            &origin,
+        ));
+        num_versions += 1;
+    }
+
+    if num_versions == 0 {
+        return CommandReport::failure(
+            vec!["Warning: no Python detected on the system".to_string()],
+            1,
+        );
+    }
+
+    CommandReport::success(stdout)
+}
+
+/// `enchi versions --json`: every selectable version with whether it is currently active.
+fn versions_json(ctx: &AppContext, entries: Vec<super::types::VersionEntry>) -> CommandReport {
+    let current = resolve_selected_versions(ctx, false)
+        .versions
+        .into_iter()
+        .map(|value| value.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+
+    let mut items = Vec::new();
+    if system_prefix(ctx).is_some() {
+        items.push(serde_json::json!({
+            "name": "system",
+            "kind": "system",
+            "active": current.contains("system"),
+            "link_target": serde_json::Value::Null,
+        }));
+    }
+    for entry in entries {
+        let kind = if entry.name.contains("/envs/") {
+            "venv"
+        } else if entry.link_target.is_some() {
+            "alias"
+        } else {
+            "runtime"
+        };
+        items.push(serde_json::json!({
+            "name": entry.name,
+            "kind": kind,
+            "active": current.contains(&entry.name.to_ascii_lowercase()),
+            "link_target": entry.link_target.as_ref().map(|path| path.display().to_string()),
+        }));
+    }
+
+    match serde_json::to_string_pretty(&items) {
+        Ok(text) => CommandReport::success(text.lines().map(ToOwned::to_owned).collect()),
+        Err(error) => CommandReport::failure(vec![format!("enchi: {error}")], 1),
+    }
+}
+
+/// What `enchi uninstall <versions>` would remove, without touching anything (`--dry-run`).
+///
+/// Applies the same safety checks as [`cmd_uninstall`], so a plan that succeeds is one the real
+/// command would accept; dependent managed venvs are listed because uninstalling removes them.
+pub fn plan_uninstall(ctx: &AppContext, versions: &[String]) -> CommandReport {
+    if versions.is_empty() {
+        return CommandReport::failure(
+            vec!["enchi: uninstall operation requires at least one version argument".to_string()],
+            1,
+        );
+    }
+
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    for version in versions {
+        if version.trim().is_empty() || version.starts_with('-') {
+            stderr.push(format!("enchi: invalid version argument `{version}`"));
+            continue;
+        }
+        if !is_safe_relative_path(version) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it is not a safe version path"
+            ));
+            continue;
+        }
+        let version_dir = installed_version_dir(ctx, version);
+        if !path_stays_under(&ctx.versions_dir(), &version_dir) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it resolves outside the versions directory"
+            ));
+            continue;
+        }
+        if !version_dir.exists() {
+            stderr.push(format!("enchi: version `{version}` not installed"));
+            continue;
+        }
+
+        stdout.push(format!(
+            "Would uninstall {version} ({})",
+            version_dir.display()
+        ));
+        let dependent_envs = managed_venv_entries_for_base(ctx, version).unwrap_or_default();
+        for (spec, _) in &dependent_envs {
+            stdout.push(format!(
+                "Would also remove dependent managed venv {spec} (requires --force)"
+            ));
+        }
+    }
+    if stderr.is_empty() {
+        stdout.push("Dry run: nothing was changed.".to_string());
+    }
+    let exit_code = if stderr.is_empty() { 0 } else { 1 };
+    CommandReport {
+        stdout,
+        stderr,
+        exit_code,
+    }
+}
+
+pub fn cmd_uninstall(ctx: &AppContext, versions: &[String], force: bool) -> CommandReport {
+    if versions.is_empty() {
+        use std::io::IsTerminal;
+        if !cfg!(test) && std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+            return prompt_interactive_uninstall(ctx, force);
+        }
+        return CommandReport::failure(
+            vec!["enchi: uninstall operation requires at least one version argument".to_string()],
+            1,
+        );
+    }
+
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let mut removed_any = false;
+
+    for version in versions {
+        if version.trim().is_empty() || version.starts_with('-') {
+            stderr.push(format!("enchi: invalid version argument `{version}`"));
+            continue;
+        }
+
+        if !is_safe_relative_path(version) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it is not a safe version path"
+            ));
+            continue;
+        }
+
+        let version_dir = installed_version_dir(ctx, version);
+        if !path_stays_under(&ctx.versions_dir(), &version_dir) {
+            stderr.push(format!(
+                "enchi: refusing to uninstall `{version}` because it resolves outside the versions directory"
+            ));
+            continue;
+        }
+        if !version_dir.exists() {
+            if !force {
+                stderr.push(format!("enchi: version `{version}` not installed"));
+            }
+            continue;
+        }
+
+        let dependent_envs = managed_venv_entries_for_base(ctx, version).unwrap_or_default();
+        if !dependent_envs.is_empty() && !force {
+            stderr.push(format!(
+                "enchi: version `{version}` has managed venvs that depend on it: {}",
+                dependent_envs
+                    .iter()
+                    .map(|(spec, _)| format!("`{spec}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+            stderr.push(
+                "hint: remove or repoint those managed venvs first, or rerun with `--force` to remove the runtime and its dependent venvs"
+                    .to_string(),
+            );
+            continue;
+        }
+
+        if !force && !confirm_uninstall(&version_dir) {
+            stderr.push(format!("enchi: uninstall cancelled for `{version}`"));
+            continue;
+        }
+
+        if let Err(error) = run_hook_scripts(
+            ctx,
+            "uninstall",
+            &[
+                ("PYENV_VERSION_NAME", version.to_string()),
+                ("PYENV_VERSION", version.to_string()),
+                ("PYENV_PREFIX", version_dir.display().to_string()),
+                ("PYENV_HOOK_STAGE", "before".to_string()),
+            ],
+        ) {
+            stderr.push(error.to_string());
+            continue;
+        }
+
+        let mut dependency_failure = false;
+        for (spec, path) in &dependent_envs {
+            if let Err(error) = fs::remove_dir_all(path) {
+                stderr.push(format!(
+                    "enchi: failed to remove dependent managed venv {} at {}: {error}",
+                    spec,
+                    path.display()
+                ));
+                dependency_failure = true;
+            } else {
+                stdout.push(format!("enchi: removed dependent managed venv {spec}"));
+            }
+        }
+        if dependency_failure {
+            continue;
+        }
+
+        match fs::remove_dir_all(&version_dir) {
+            Ok(_) => {
+                removed_any = true;
+                stdout.push(format!("enchi: {version} uninstalled"));
+                if let Err(error) = crate::windows_registry::remove_pep514_registration(version) {
+                    stderr.push(error.to_string());
+                }
+                if let Err(error) = run_hook_scripts(
+                    ctx,
+                    "uninstall",
+                    &[
+                        ("PYENV_VERSION_NAME", version.to_string()),
+                        ("PYENV_VERSION", version.to_string()),
+                        ("PYENV_PREFIX", version_dir.display().to_string()),
+                        ("PYENV_HOOK_STAGE", "after".to_string()),
+                    ],
+                ) {
+                    stderr.push(error.to_string());
+                }
+            }
+            Err(error) => stderr.push(format!(
+                "enchi: failed to remove {}: {error}",
+                version_dir.display()
+            )),
+        }
+    }
+
+    if removed_any && let Err(error) = rehash_shims(ctx) {
+        stderr.push(error.to_string());
+    }
+
+    let exit_code = if stderr.is_empty() { 0 } else { 1 };
+
+    CommandReport {
+        stdout,
+        stderr,
+        exit_code,
+    }
+}
+
+fn cmd_versions_executables(ctx: &AppContext) -> CommandReport {
+    let versions = match crate::catalog::installed_version_names(ctx) {
+        Ok(versions) => versions,
+        Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+    };
+
+    let mut names = HashSet::new();
+    for version in versions {
+        for prefix in inventory_roots_for_version(ctx, &version) {
+            match collect_shim_names_from_prefix(&prefix, ctx.path_ext.as_deref()) {
+                Ok(found) => names.extend(found),
+                Err(error) => return CommandReport::failure(vec![error.to_string()], 1),
+            }
+        }
+    }
+
+    let mut stdout = names.into_iter().collect::<Vec<_>>();
+    stdout.sort_by_key(|value| value.to_ascii_lowercase());
+    CommandReport::success(stdout)
+}
+
+fn prompt_interactive_uninstall(ctx: &AppContext, force: bool) -> CommandReport {
+    let installed = match crate::catalog::installed_version_names(ctx) {
+        Ok(versions) => versions,
+        Err(e) => return CommandReport::failure(vec![e.to_string()], 1),
+    };
+
+    if installed.is_empty() {
+        return CommandReport::failure(
+            vec!["enchi: no versions currently installed to uninstall".to_string()],
+            1,
+        );
+    }
+
+    use std::io::Write;
+    let mut stdout = std::io::stdout();
+    let _ = writeln!(stdout, "Currently installed Python versions:");
+    for (i, v) in installed.iter().enumerate() {
+        let _ = writeln!(stdout, "  {}) {}", i + 1, v);
+    }
+    let _ = write!(
+        stdout,
+        "Select a version to uninstall [1-{} or 'q' to quit]: ",
+        installed.len()
+    );
+    let _ = stdout.flush();
+
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return CommandReport::failure(
+            vec!["enchi: failed to read interactive input".to_string()],
+            1,
+        );
+    }
+
+    let input = input.trim();
+    if input == "q" || input == "quit" || input.is_empty() {
+        return CommandReport::failure(vec!["enchi: uninstall cancelled".to_string()], 1);
+    }
+
+    match input.parse::<usize>() {
+        Ok(idx) if idx > 0 && idx <= installed.len() => {
+            let selected = installed[idx - 1].clone();
+            let _ = writeln!(stdout, "\nUninstalling {}...\n", selected);
+            cmd_uninstall(ctx, &[selected], force)
+        }
+        _ => CommandReport::failure(vec!["enchi: invalid selection".to_string()], 1),
+    }
+}

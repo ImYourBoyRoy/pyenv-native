@@ -1,0 +1,154 @@
+// ./crates/enchi-core/src/config/tests.rs
+//! Regression tests for config persistence, path resolution, and key-based mutation helpers.
+
+#[cfg(test)]
+mod cases {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::super::storage::save_config;
+    use super::super::values::{get_config_value, set_config_value};
+    use super::super::{
+        AppConfig, RuntimeArch, config_path, load_config, resolve_cache_dir, resolve_versions_dir,
+    };
+
+    #[test]
+    fn config_show_leaves_out_sections_with_nothing_set() {
+        use super::super::commands::without_empty_sections;
+
+        let shown = without_empty_sections(
+            "[storage]\n\n[windows]\nregistry_mode = \"disabled\"\n\n[install]\n\n[ui]\nlanguage = \"en-US\"\n",
+        );
+        assert_eq!(
+            shown,
+            vec![
+                "[windows]".to_string(),
+                "registry_mode = \"disabled\"".to_string(),
+                String::new(),
+                "[ui]".to_string(),
+                "language = \"en-US\"".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn default_config_uses_root_versions_and_cache_dirs() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        let config = AppConfig::default();
+
+        assert_eq!(resolve_versions_dir(&root, &config), root.join("versions"));
+        assert_eq!(resolve_cache_dir(&root, &config), root.join("cache"));
+    }
+
+    #[test]
+    fn config_round_trips_install_and_storage_settings() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        fs::create_dir_all(&root).expect("root");
+
+        let mut config = AppConfig::default();
+        set_config_value(&mut config, "storage.versions_dir", "python-builds").expect("set");
+        set_config_value(&mut config, "storage.cache_dir", "cache-downloads").expect("set");
+        set_config_value(&mut config, "install.arch", "arm64").expect("set");
+        set_config_value(
+            &mut config,
+            "install.python_build_path",
+            "../pyenv/plugins/python-build/bin/python-build",
+        )
+        .expect("set");
+        set_config_value(&mut config, "install.bootstrap_pip", "false").expect("set");
+        save_config(&root, &config).expect("save");
+        let loaded = load_config(&root).expect("load");
+
+        assert_eq!(
+            get_config_value(&loaded, "storage.versions_dir").expect("get"),
+            "python-builds"
+        );
+        assert_eq!(
+            get_config_value(&loaded, "storage.cache_dir").expect("get"),
+            "cache-downloads"
+        );
+        assert_eq!(
+            get_config_value(&loaded, "install.arch").expect("get"),
+            "arm64"
+        );
+        assert_eq!(
+            get_config_value(&loaded, "install.python_build_path").expect("get"),
+            "../pyenv/plugins/python-build/bin/python-build"
+        );
+        assert_eq!(
+            get_config_value(&loaded, "install.bootstrap_pip").expect("get"),
+            "false"
+        );
+        assert_eq!(loaded.install.arch, RuntimeArch::Arm64);
+        assert_eq!(
+            loaded.install.python_build_path,
+            Some(std::path::PathBuf::from(
+                "../pyenv/plugins/python-build/bin/python-build"
+            ))
+        );
+        assert_eq!(config_path(&root), root.join("config.toml"));
+    }
+
+    #[test]
+    fn default_registry_mode_is_disabled_and_plugins_search_path() {
+        let config = AppConfig::default();
+        assert_eq!(
+            get_config_value(&config, "windows.registry_mode").expect("get"),
+            "disabled"
+        );
+        assert_eq!(
+            get_config_value(&config, "plugins.search_path").expect("get"),
+            "true"
+        );
+        assert_eq!(
+            get_config_value(&config, "venv.auto_create_base_venv").expect("get"),
+            "false"
+        );
+        assert_eq!(
+            get_config_value(&config, "venv.auto_use_base_venv").expect("get"),
+            "false"
+        );
+        let mut config = config;
+        set_config_value(&mut config, "plugins.search_path", "false").expect("set");
+        set_config_value(&mut config, "ui.language", "zh-TW").expect("set lang");
+        assert_eq!(
+            get_config_value(&config, "ui.language").expect("get lang"),
+            "zh-CN"
+        );
+        set_config_value(&mut config, "ui.language", "auto").expect("set auto");
+        assert_eq!(
+            get_config_value(&config, "ui.language").expect("get auto"),
+            "auto"
+        );
+    }
+
+    #[test]
+    fn load_config_tolerates_utf8_bom() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        fs::create_dir_all(&root).expect("root");
+        fs::write(
+            config_path(&root),
+            "\u{feff}[install]\nbootstrap_pip = false\n",
+        )
+        .expect("write bom config");
+
+        let loaded = load_config(&root).expect("load bom config");
+        assert!(!loaded.install.bootstrap_pip);
+    }
+
+    #[test]
+    fn omitted_venv_keys_default_off() {
+        let temp = TempDir::new().expect("tempdir");
+        let root = temp.path().join(".pyenv");
+        fs::create_dir_all(&root).expect("root");
+        fs::write(config_path(&root), "[install]\nbootstrap_pip = true\n").expect("write config");
+
+        let loaded = load_config(&root).expect("load");
+        assert!(!loaded.venv.auto_create_base_venv);
+        assert!(!loaded.venv.auto_use_base_venv);
+    }
+}

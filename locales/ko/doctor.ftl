@@ -1,54 +1,54 @@
 # ./locales/ko/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = 루트가 { $path } 에 있습니다
 doctor-root-missing = 루트가 아직 { $path } 에 없습니다
 doctor-bin-on-path = PATH에 { $path } 가 있어야 합니다
-doctor-bin-on-path-desktop = 데스크톱 앱은 셸 PATH를 상속하지 않습니다. { $path } 는 pyenv init 이후 새 터미널에 구성됩니다
+doctor-bin-on-path-desktop = 데스크톱 앱은 셸 PATH를 상속하지 않습니다. { $path } 는 enchi init 이후 새 터미널에 구성됩니다
 doctor-shims-on-path = PATH에 { $path } 가 있어야 합니다
-doctor-shims-on-path-desktop = 데스크톱 앱은 셸 PATH를 상속하지 않습니다. { $path } 는 pyenv init 이후 새 터미널에 구성됩니다
+doctor-shims-on-path-desktop = 데스크톱 앱은 셸 PATH를 상속하지 않습니다. { $path } 는 enchi init 이후 새 터미널에 구성됩니다
 doctor-versions-dir = 관리형 런타임은 { $path } 아래에 있습니다
 doctor-no-selected-versions = 선택된 버전이 없습니다
 doctor-selected-versions = { $versions } (출처: { $origin })
 doctor-desktop-path-ok = PATH는 이 데스크톱 프로세스가 아니라 셸 초기화에서 제공됩니다
-doctor-plugin-path-search-on = 플러그인 검색에 PATH가 포함됩니다. PYENV_ROOT/plugins와 PYENV_PLUGIN_PATH로 제한하려면 plugins.search_path=false를 설정하세요
-doctor-plugin-path-search-off = 플러그인 검색은 PYENV_ROOT/plugins와 PYENV_PLUGIN_PATH로 제한됩니다
-doctor-shim-gui-copy = python shim이 pyenv-gui.exe의 복사본이라 Python 대신 GUI가 열립니다. 복구하려면 `pyenv rehash`를 실행하세요
-doctor-shim-gui-ref = python shim이 pyenv-gui를 가리켜 Python 대신 GUI가 열립니다. 복구하려면 `pyenv rehash`를 실행하세요
+doctor-plugin-path-search-on = 플러그인 검색에 PATH가 포함됩니다. <root>/plugins와 PYENV_PLUGIN_PATH로 제한하려면 plugins.search_path=false를 설정하세요
+doctor-plugin-path-search-off = 플러그인 검색은 <root>/plugins와 PYENV_PLUGIN_PATH로 제한됩니다
+doctor-shim-gui-copy = python shim이 enchi-gui.exe의 복사본이라 Python 대신 GUI가 열립니다. 복구하려면 `enchi rehash`를 실행하세요
+doctor-shim-gui-ref = python shim이 enchi-gui를 가리켜 Python 대신 GUI가 열립니다. 복구하려면 `enchi rehash`를 실행하세요
 doctor-shim-launchers-ok = shim 실행기가 { $path } 를 참조합니다
 doctor-func-skip-no-version = 기능 테스트를 건너뛰었습니다. python 버전이 선택되지 않았습니다
 doctor-func-skip-missing = 기능 테스트를 건너뛰었습니다. 선택한 버전이 없습니다
-doctor-func-shim-missing = python shim을 찾을 수 없습니다. 생성하려면 `pyenv rehash`를 실행하세요
+doctor-func-shim-missing = python shim을 찾을 수 없습니다. 생성하려면 `enchi rehash`를 실행하세요
 doctor-func-ok = shim이 정상입니다. { $version } 호출에 성공했습니다
 doctor-func-failed = shim 호출 실패(종료 상태 { $status }): { $error }
 doctor-func-launch-failed = { $path } 의 python shim을 시작하지 못했습니다: { $error }
 doctor-pwsh-ok = PATH에 PowerShell 7 (pwsh)가 있습니다
-doctor-pwsh-missing = PowerShell 7 (pwsh)를 찾지 못했습니다. pyenv-native는 .ps1 플러그인, 셸 초기화, doctor --fix에서 pwsh를 우선합니다. 설치: winget install --id Microsoft.PowerShell
+doctor-pwsh-missing = PowerShell 7 (pwsh)를 찾지 못했습니다. Enchi는 .ps1 플러그인, 셸 초기화, doctor --fix에서 pwsh를 우선합니다. 설치: winget install --id Microsoft.PowerShell
 doctor-python-build-ok = python-build가 { $path } 에 있습니다
 doctor-python-build-optional = { $error } (네이티브 CPython 소스 빌드에는 필요하지 않음)
 doctor-termux-lib-ok = Termux 라이브러리 { $lib } 가 설치되어 있습니다
 doctor-termux-lib-missing = Termux 라이브러리 패키지 { $lib } 가 없습니다. 설치해 주세요
-doctor-venv-missing = 선택한 관리형 가상 환경 `{ $value }` 가 없습니다. `pyenv venv list`로 확인하거나 `pyenv venv create <runtime> <name>`으로 다시 만드세요
-doctor-pyenv-win-root = PYENV_ROOT가 `{ $path }` 로 설정되어 있으며 pyenv-win 경로처럼 보입니다. pyenv-native는 런타임에 이를 덮어쓰지만, 사용자 환경 변수에서 PYENV_ROOT를 제거하는 것이 좋습니다
+doctor-venv-missing = 선택한 관리형 가상 환경 `{ $value }` 가 없습니다. `enchi venv list`로 확인하거나 `enchi venv create <runtime> <name>`으로 다시 만드세요
+doctor-pyenv-win-root = PYENV_ROOT가 `{ $path }` 로 설정되어 있으며 pyenv-win 경로처럼 보입니다. Enchi는 런타임에 이를 덮어쓰지만, 사용자 환경 변수에서 PYENV_ROOT를 제거하는 것이 좋습니다
 doctor-command-ok = { $command } 를 { $path } 에서 사용할 수 있습니다
 doctor-command-missing = { $reason }. 검색 대상: { $commands }
-doctor-cli-missing = { $path } 에서 pyenv CLI 실행기를 찾지 못했습니다. pyenv-native를 다시 설치하거나 설치 프로그램을 실행하세요
-doctor-shim-mismatch = { $shim } 의 python shim이 { $cli } 의 pyenv CLI 실행기와 일치하지 않습니다. shim을 새로 고치려면 `pyenv rehash`를 실행하세요
+doctor-cli-missing = { $path } 에서 enchi CLI 실행기를 찾지 못했습니다. Enchi를 다시 설치하거나 설치 프로그램을 실행하세요
+doctor-shim-mismatch = { $shim } 의 python shim이 { $cli } 의 enchi CLI 실행기와 일치하지 않습니다. shim을 새로 고치려면 `enchi rehash`를 실행하세요
 doctor-source-may-fail = 필요한 셸, make, 컴파일러 도구가 준비될 때까지 { $platform } 소스 빌드가 실패할 수 있습니다
 doctor-source-ok = { $platform } 소스 빌드 선행 도구가 PATH에 있는 것으로 보입니다
 doctor-reason-shell = configure 스크립트 실행에 필요합니다
 doctor-reason-make = 네이티브 CPython 소스 빌드에 필요합니다
 doctor-reason-compiler = 네이티브 CPython 소스 빌드에 필요합니다
 doctor-reason-pkg-config = 네이티브 라이브러리 종속성을 찾는 데 권장됩니다
-doctor-store-alias = 시스템 python이 { $path } 의 WindowsApps 별칭으로 해석됩니다. pyenv shim보다 앞에 있으면 python을 가로챕니다. 자가 복구가 App Installer python.exe / python3.exe 스텁을 제거합니다. 설정에서 끄는 것은 선택 사항이며 Windows가 다시 만들지 못하게 할 뿐입니다
-doctor-store-alias-shadowed = Microsoft Store python 스텁이 { $path } 에 있습니다. pyenv shim이 우선하므로 제거는 선택 사항입니다. Windows 11: 설정 > 앱 > 고급 앱 설정 > 앱 실행 별칭
+doctor-store-alias = 시스템 python이 { $path } 의 WindowsApps 별칭으로 해석됩니다. enchi shim보다 앞에 있으면 python을 가로챕니다. 자가 복구가 App Installer python.exe / python3.exe 스텁을 제거합니다. 설정에서 끄는 것은 선택 사항이며 Windows가 다시 만들지 못하게 할 뿐입니다
+doctor-store-alias-shadowed = Microsoft Store python 스텁이 { $path } 에 있습니다. enchi shim이 우선하므로 제거는 선택 사항입니다. Windows 11: 설정 > 앱 > 고급 앱 설정 > 앱 실행 별칭
 doctor-system-python = 시스템 python이 { $path } 로 해석됩니다
 doctor-no-system-python = PATH에서 시스템 python을 찾지 못했습니다
-doctor-pyenv-win-path = PATH에서 pyenv-win 항목이 pyenv-native보다 앞에 있어 pyenv-win이 명령을 가로챌 수 있습니다. 사용자 PATH에서 pyenv-win 항목을 제거하세요: { $path }
+doctor-pyenv-win-path = PATH에서 pyenv-win 항목이 Enchi보다 앞에 있어 pyenv-win이 명령을 가로챌 수 있습니다. 사용자 PATH에서 pyenv-win 항목을 제거하세요: { $path }
 doctor-fix-ensure-layout = { $path } 아래에 누락된 관리 디렉터리를 만듭니다
 doctor-fix-rehash = { $path }의 shim 실행기를 새로 고칩니다
-doctor-fix-path-shims = { $path }를 셸 PATH에 추가하여 python/pip가 pyenv shim을 통해 해석되게 합니다
-doctor-fix-path-bin = pyenv bin 디렉터리를 셸 PATH에 추가
+doctor-fix-path-shims = { $path }를 셸 PATH에 추가하여 python/pip가 enchi shim을 통해 해석되게 합니다
+doctor-fix-path-bin = enchi bin 디렉터리를 셸 PATH에 추가
 doctor-fix-pyenv-win-root = 오래된 pyenv-win PYENV_ROOT 환경 변수를 제거합니다
 doctor-fix-store-alias = PATH 가로채기를 피하려면 WindowsApps에서 App Installer python.exe 및 python3.exe 스텁을 제거합니다
 doctor-fix-store-alias-settings = 선택 사항: Windows가 스텁을 다시 만들지 않도록 설정에서 App Installer python.exe 및 python3.exe를 끕니다

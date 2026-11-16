@@ -1,0 +1,133 @@
+// ./crates/enchi-core/src/lib.rs
+//! Native core behavior for pyenv-compatible version resolution and configuration.
+
+mod agent_skills;
+pub mod brand;
+mod catalog;
+mod command;
+mod config;
+mod context;
+mod doctor;
+mod error;
+mod executable;
+mod fs_util;
+mod http;
+mod i18n;
+mod install;
+mod installer;
+mod manage;
+mod meta;
+mod path_safety;
+mod pip;
+mod plugin;
+mod preflight;
+mod process;
+mod runtime;
+mod self_update;
+mod shell;
+mod shim;
+mod text;
+mod upgrade;
+mod venv;
+mod venv_compat;
+mod venv_paths;
+mod version;
+mod windows_registry;
+
+pub use process::{PyenvCommandExt, windows_powershell_host};
+
+pub use agent_skills::{
+    AGENT_NAMES, Agent, AgentSkillsOptions, REPO_URL as AGENT_SKILLS_REPO_URL, Scope,
+    cmd_agent_skills, parse_agents,
+};
+pub use catalog::{
+    CatalogEntry, CatalogGroup, CatalogSourceKind, InstallListOptions, cmd_install_list,
+    cmd_latest, compare_version_names, installed_version_names, known_version_names,
+    latest_installed_version, latest_known_version,
+};
+pub use command::CommandReport;
+pub use config::{
+    AppConfig, InstallConfig, PluginsConfig, RegistryMode, RuntimeArch, StorageConfig, UiConfig,
+    VenvConfig, WindowsConfig, cmd_config_get, cmd_config_path, cmd_config_set, cmd_config_show,
+    config_path, resolve_cache_dir,
+};
+pub use context::{
+    AppContext, ensure_managed_path, is_pyenv_win_root, launch_path, path_with_managed_entries,
+    resolve_dir, resolve_root,
+};
+pub use doctor::{
+    DoctorCheck, DoctorFix, DoctorFixOutcome, DoctorOptions, DoctorStatus, apply_doctor_fixes,
+    apply_doctor_fixes_with_options, cmd_doctor, collect_checks, collect_checks_with_options,
+    doctor_fix_plan, doctor_fix_plan_with_options, install_powershell_7,
+};
+pub use error::PyenvError;
+pub use executable::{cmd_whence, cmd_which};
+pub use i18n::{
+    LocaleBundle, LocaleInfo, SUPPORTED_LOCALES, apply as apply_i18n, current_lang_tag,
+    format_message, init as init_i18n, locale_bundle, locale_info, lookup as lookup_i18n,
+    lookup_with_args as lookup_i18n_args, negotiate as negotiate_lang, set_lang_tag,
+};
+pub use install::{
+    InstallCommandOptions, InstallOutcome, InstallPlan, cmd_available, cmd_install,
+    install_runtime_plan, install_runtime_plan_with_progress, resolve_install_plan,
+};
+pub use installer::{
+    BEGIN_MARKER as PROFILE_BEGIN_MARKER, CLI_BINARY, END_MARKER as PROFILE_END_MARKER, GUI_BINARY,
+    InstallLayout, LEGACY_CLI_BINARY, LEGACY_GUI_BINARY, LEGACY_MCP_BINARY, LegacyAliases,
+    LineSink, MCP_BINARY, PowerShell7Mode, ProfileUpdate, SelfInstallOptions, SelfInstallOutcome,
+    SelfUninstallOptions, ShellKind, apply_profile_block, cmd_self_install, cmd_self_uninstall,
+    cmd_self_uninstall_with, executable_file_name, has_pyenv_init, home_dir, known_profile_paths,
+    powershell_profile_path, profile_path, remove_profile_block, run_self_install,
+    run_self_uninstall,
+};
+pub use manage::{VersionsCommandOptions, cmd_prefix, cmd_uninstall, cmd_versions, plan_uninstall};
+pub use meta::{
+    EnvironmentStatus, ManagedVenvSummary, build_environment_status, cmd_commands, cmd_completions,
+    cmd_help, cmd_prompt, cmd_shims, cmd_status,
+};
+pub use pip::{
+    BulkScope, BulkSummary, BulkUpdateOptions, BulkUpdateReport, DependencyConflict,
+    OutdatedPackage, PipPackage, PrecheckResult, TargetKind, TargetResult, TargetStatus,
+    cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
+    cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, plan_pip_install,
+    plan_pip_update, resolve_interpreter_path, update_all_packages,
+};
+pub use plugin::{HookResult, cmd_external, cmd_hooks};
+pub use preflight::{
+    PlatformFact, PlatformIntelligence, PreflightVerdict, build_platform_intelligence,
+    cmd_environment, cmd_preflight,
+};
+pub use runtime::BASE_VENV_DIR_NAME;
+pub use self_update::{
+    SelfUpdateCheck, SelfUpdateCheckStatus, SelfUpdateOptions, cmd_self_update, inspect_self_update,
+};
+pub use shell::{
+    InitCommandOptions, cmd_activate, cmd_deactivate, cmd_init, cmd_sh_activate, cmd_sh_cmd,
+    cmd_sh_deactivate, cmd_sh_rehash, cmd_sh_shell, cmd_shell, cmd_virtualenv_init,
+};
+pub use shim::{cmd_exec, cmd_rehash};
+pub use text::{
+    append_text_block, line_ending_for, normalize_block_eol, strip_utf8_bom, trim_env_value,
+};
+pub use upgrade::{
+    RuntimeUpgrade, UpgradeOptions, UpgradeReport, UpgradeStatus, VenvMigration, cmd_upgrade,
+    plan_upgrades, run_upgrades,
+};
+pub use venv::{
+    ManagedVenvInfo, VenvUseScope, cmd_venv_create, cmd_venv_delete, cmd_venv_info, cmd_venv_list,
+    cmd_venv_rename, cmd_venv_upgrade, cmd_venv_upgrade_noninteractive, cmd_venv_use,
+    list_managed_venvs, plan_venv_create, plan_venv_delete, plan_venv_rename, plan_venv_upgrade,
+    resolve_installed_runtime_version, resolve_managed_venv,
+};
+pub use venv_compat::{
+    cmd_virtualenv, cmd_virtualenv_delete, cmd_virtualenv_prefix, cmd_virtualenvs,
+};
+pub use version::{
+    SelectedVersions, VersionOrigin, cmd_global, cmd_local, cmd_root, cmd_version,
+    cmd_version_file, cmd_version_file_read, cmd_version_file_write, cmd_version_name,
+    cmd_version_origin, find_local_version_file, installed_version_dir, read_version_file,
+    resolve_selected_versions, version_file_path, version_origin,
+};
+pub use windows_registry::{
+    PEP514_COMPANY, Pep514Spec, apply_pep514_registration, remove_pep514_registration,
+};

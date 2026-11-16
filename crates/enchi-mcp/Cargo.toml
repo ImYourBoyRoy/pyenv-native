@@ -1,0 +1,18 @@
+[package]
+name = "enchi-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+enchi-core = { path = "../enchi-core" }
+rmcp.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "io-std"] }
+
+[dev-dependencies]
+tempfile.workspace = true

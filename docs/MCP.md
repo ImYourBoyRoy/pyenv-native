@@ -2,15 +2,15 @@
 
 ## Purpose
 
-`pyenv-native` ships with **`pyenv-mcp`**, a stdio MCP server that gives AI agents and MCP-capable IDEs a structured way to:
+Enchi ships with **`enchi-mcp`**, a stdio MCP server that gives AI agents and MCP-capable IDEs a structured way to:
 
 - install and inspect Python runtimes,
 - understand a project's effective Python selection,
 - create or reuse project-local virtual environments,
-- emit install instructions for `pyenv-native` itself,
+- emit install instructions for Enchi itself,
 - avoid brittle shell parsing whenever a structured tool is better.
 
-If the normal `pyenv` CLI is the human-facing surface, `pyenv-mcp` is the agent-facing surface.
+If the normal `enchi` CLI is the human-facing surface, `enchi-mcp` is the agent-facing surface.
 
 ---
 
@@ -19,9 +19,9 @@ If the normal `pyenv` CLI is the human-facing surface, `pyenv-mcp` is the agent-
 Humans are comfortable with commands like:
 
 ```text
-pyenv install 3.12
-pyenv local 3.12.10
-pyenv which python
+enchi install 3.12
+enchi local 3.12.10
+enchi which python
 ```
 
 Agents do better when they can ask for:
@@ -32,22 +32,22 @@ Agents do better when they can ask for:
 - predictable tool order,
 - concrete interpreter and venv paths.
 
-That is what `pyenv-mcp` provides.
+That is what `enchi-mcp` provides.
 
 ---
 
 ## Installed automatically
 
-All first-class install paths for `pyenv-native` now install **both**:
+All first-class install paths for Enchi now install **both**:
 
-- `pyenv`
-- `pyenv-mcp`
+- `enchi`
+- `enchi-mcp`
 
 That includes:
 
 - GitHub web installers (`install.ps1`, `install.sh`)
 - release bundles
-- the `pyenv-native` PyPI package
+- the Enchi PyPI package
 
 You do **not** need a separate install step for the MCP server.
 
@@ -55,18 +55,18 @@ You do **not** need a separate install step for the MCP server.
 
 ## Fastest way to get started
 
-Install `pyenv-native`, then print the MCP client config:
+Install Enchi, then print the MCP client config:
 
 ### Windows PowerShell
 
 ```powershell
-pyenv-mcp print-config
+enchi-mcp print-config
 ```
 
 ### Linux / macOS
 
 ```sh
-pyenv-mcp print-config
+enchi-mcp print-config
 ```
 
 That emits a ready-to-paste JSON block like:
@@ -74,11 +74,11 @@ That emits a ready-to-paste JSON block like:
 ```json
 {
   "mcpServers": {
-    "pyenv-native": {
-      "command": "/path/to/pyenv-mcp",
+    "enchi": {
+      "command": "/path/to/enchi-mcp",
       "args": [],
       "env": {
-        "PYENV_ROOT": "/path/to/.pyenv"
+        "ENCHI_ROOT": "/path/to/.enchi"
       }
     }
   }
@@ -92,13 +92,13 @@ That emits a ready-to-paste JSON block like:
 If you want a model to understand the toolkit quickly, give it the JSON from:
 
 ```text
-pyenv-mcp guide
+enchi-mcp guide
 ```
 
 That guide is designed to be the **orientation blob** for agentic use.
 It includes:
 
-- install and uninstall commands for `pyenv-native` itself,
+- install and uninstall commands for Enchi itself,
 - MCP client configuration,
 - recommended tool order,
 - tool summaries,
@@ -116,7 +116,7 @@ This is the easiest way to make even a smaller model productive without asking i
 Normally your MCP client starts this automatically:
 
 ```text
-pyenv-mcp
+enchi-mcp
 ```
 
 That starts the stdio MCP server.
@@ -124,7 +124,7 @@ That starts the stdio MCP server.
 ### Print client config
 
 ```text
-pyenv-mcp print-config
+enchi-mcp print-config
 ```
 
 Useful when wiring up:
@@ -138,7 +138,7 @@ Useful when wiring up:
 ### Print the toolkit guide
 
 ```text
-pyenv-mcp guide
+enchi-mcp guide
 ```
 
 Useful when you want a structured JSON document that explains how to use the toolkit well.
@@ -153,17 +153,23 @@ Current high-value tools include:
 - `get_install_instructions`
 - `preflight` (OS/toolchain intelligence and install readiness)
 - `doctor`
-- `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; `force=false` returns the plan without applying)
+- `doctor_fix` (safe automated repairs, including removal of Windows App Installer `python.exe` / `python3.exe` stubs; returns the plan by default; pass `apply=true` to run it. `force=true` is a deprecated alias of `apply`)
 - `inspect_environment` (structured status overview: versions, origins, venvs)
 - `resolve_project_environment`
 - `list_available_versions` (CPython is refreshed from python.org or NuGet and cached for 24 hours, so new revisions appear without a toolkit update)
-- `ensure_runtime` (streams progress to `~/.pyenv/logs/install-progress.jsonl` and returns `progress_steps`)
+- `ensure_runtime` (streams progress to `~/.enchi/logs/install-progress.jsonl` and returns `progress_steps`)
 - `set_local_version`
 - `set_global_version`
 - `ensure_project_venv`
 - `get_config` / `set_config`
 - `self_update` (`yes` defaults to false; use `check=true` for a read-only comparison)
-- `venv_upgrade`
+- `venv_upgrade` (3.14 -> 3.15 style moves of one managed venv)
+- `upgrade_runtimes` (3.14.1 -> 3.14.10 style patch upgrades with venv migration and pin updates; plan-only unless `apply=true`)
+- `update_all_packages` (update outdated packages in every runtime and managed venv; plan-only unless `apply=true`; `pip check` gated with per-environment rollback)
+- `list_venvs` (read-only inventory of managed venvs: spec, base runtime, paths)
+- `which` (resolve an executable such as `python` for the current selection)
+- `uninstall_runtime` (remove runtimes by exact version; plan-only unless `apply=true`; refuses while managed venvs depend on it unless `remove_dependent_venvs=true`)
+- `venv_delete` / `venv_rename` (plan-only unless `apply=true`)
 - `pip_list` (lists installed environment packages)
 - `pip_outdated` (JSON `{name, version, latest_version}` for a runtime or managed venv)
 - `pip_check` (runs active post-install diagnostics)
@@ -200,7 +206,7 @@ This keeps the workflow structured and predictable.
 
 ## Common recipes
 
-### 1. Teach a user how to install `pyenv-native`
+### 1. Teach a user how to install Enchi
 
 Use:
 
@@ -268,7 +274,7 @@ Use:
 
 ## What makes this better than shelling out blindly
 
-`pyenv-mcp` gives agents:
+`enchi-mcp` gives agents:
 
 - machine-readable version inventories,
 - installable version catalogs,
@@ -283,18 +289,18 @@ That means less guesswork, less parsing, and fewer broken multi-step environment
 
 ## Example install + MCP flow
 
-1. Install `pyenv-native`
+1. Install Enchi
 1. Run:
 
 ```text
-pyenv-mcp print-config
+enchi-mcp print-config
 ```
 
 1. Register the JSON with your MCP client
 1. Feed the model the output of:
 
 ```text
-pyenv-mcp guide
+enchi-mcp guide
 ```
 
 1. Let the model use structured tools instead of raw shell commands whenever possible
@@ -303,7 +309,7 @@ pyenv-mcp guide
 
 ## Design note
 
-`pyenv-mcp` is built directly on `pyenv-core`.
+`enchi-mcp` is built directly on `enchi-core`.
 It is **not** a fragile wrapper that scrapes the human CLI output.
 
 That matters because it keeps the agent surface:

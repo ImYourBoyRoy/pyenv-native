@@ -21,7 +21,7 @@ pub struct CheckArgs {
     /// Skip the slower GUI accessibility (pnpm) and `cargo audit` steps.
     #[arg(long)]
     quick: bool,
-    /// Also build `pyenv` and run the platform's shell smoke test (`scripts/smoke-shells.*`).
+    /// Also build `enchi` and run the platform's shell smoke test (`scripts/smoke-shells.*`).
     #[arg(long)]
     smoke: bool,
 }
@@ -100,7 +100,7 @@ pub fn run_checks(args: &CheckArgs) -> Result<()> {
 
     if args.smoke {
         heading("Shell smoke tests");
-        step(&root, "cargo", &["build", "-p", "pyenv-cli"])?;
+        step(&root, "cargo", &["build", "-p", "enchi-cli"])?;
         if cfg!(windows) {
             step(
                 &root,
@@ -116,7 +116,7 @@ pub fn run_checks(args: &CheckArgs) -> Result<()> {
             step(
                 &root,
                 "bash",
-                &["./scripts/smoke-shells.sh", "./target/debug/pyenv"],
+                &["./scripts/smoke-shells.sh", "./target/debug/enchi"],
             )?;
         }
     }
@@ -138,6 +138,36 @@ pub fn run_checks(args: &CheckArgs) -> Result<()> {
             &[("PYTHONPATH", "./python-package/src")],
         )?,
         None => skip_or_fail(args.strict, "python", "needed for python-package tests")?,
+    }
+
+    heading("Python legacy wrapper tests");
+    match python() {
+        Some(py) => run_in(
+            &root,
+            py,
+            &[
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "./python-package-legacy/tests",
+                "-p",
+                "test_*.py",
+            ],
+            &[(
+                "PYTHONPATH",
+                if cfg!(windows) {
+                    "./python-package/src;./python-package-legacy/src"
+                } else {
+                    "./python-package/src:./python-package-legacy/src"
+                },
+            )],
+        )?,
+        None => skip_or_fail(
+            args.strict,
+            "python",
+            "needed for python-package-legacy tests",
+        )?,
     }
 
     if args.quick {

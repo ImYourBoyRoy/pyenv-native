@@ -1,8 +1,10 @@
 // ./xtask/src/python.rs
-//! `cargo xtask python test|build|publish`: the pip/pipx install package under `python-package/`.
+//! `cargo xtask python test|build|publish`: the pip/pipx install package under `python-package/`
+//! (the `enchi` distribution) and, with `--legacy`, the final `pyenv-native` wrapper under
+//! `python-package-legacy/` that only depends on `enchi`.
 //!
-//! The package itself stays Python (that is what `pipx` installs); only the automation around it
-//! lives here, so it behaves the same on Windows, macOS and Linux.
+//! The packages themselves stay Python (that is what `pipx` installs); only the automation around
+//! them lives here, so it behaves the same on Windows, macOS and Linux.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,9 +17,10 @@ use crate::repo_root;
 
 #[derive(Subcommand)]
 pub enum PythonCommand {
-    /// Run the install package's unit tests.
+    /// Run the install package's unit tests (and import-check the legacy wrapper).
     Test(InterpreterArgs),
-    /// Build the wheel and sdist into `python-package/dist`.
+    /// Build the wheel and sdist into `python-package/dist` (`python-package-legacy/dist` with
+    /// `--legacy`).
     Build(BuildArgs),
     /// Validate (and optionally upload) the wheel/sdist with Twine.
     Publish(PublishArgs),
@@ -34,9 +37,12 @@ pub struct InterpreterArgs {
 pub struct BuildArgs {
     #[command(flatten)]
     interpreter: InterpreterArgs,
-    /// Output directory (default: python-package/dist).
+    /// Output directory (default: `dist` inside the package directory).
     #[arg(long)]
     output_root: Option<PathBuf>,
+    /// Build the legacy `pyenv-native` wrapper (python-package-legacy) instead of `enchi`.
+    #[arg(long)]
+    legacy: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -58,6 +64,9 @@ pub struct PublishArgs {
     skip_tests: bool,
     #[arg(long)]
     skip_build: bool,
+    /// Publish the legacy `pyenv-native` wrapper (python-package-legacy) instead of `enchi`.
+    #[arg(long)]
+    legacy: bool,
     /// Run `twine check` only; do not upload.
     #[arg(long)]
     check_only: bool,
@@ -180,14 +189,23 @@ pub fn run(command: &PythonCommand) -> Result<()> {
         PythonCommand::Test(args) => test(&resolve(args.python.as_deref())?),
         PythonCommand::Build(args) => {
             let python = resolve(args.interpreter.python.as_deref())?;
-            build(&python, args.output_root.as_deref())
+            build(
+                &python,
+                &package_root(args.legacy),
+                args.output_root.as_deref(),
+            )
         }
         PythonCommand::Publish(args) => publish(args),
     }
 }
 
-fn package_root() -> PathBuf {
-    repo_root().join("python-package")
+/// `python-package` (the `enchi` distribution) or `python-package-legacy` (`pyenv-native`).
+fn package_root(legacy: bool) -> PathBuf {
+    repo_root().join(if legacy {
+        "python-package-legacy"
+    } else {
+        "python-package"
+    })
 }
 
 fn clean_caches(dir: &Path) {
@@ -213,9 +231,10 @@ fn clean_caches(dir: &Path) {
     }
 }
 
-/// Run the package's stdlib unittest suite with `PYTHONPATH=python-package/src`.
+/// Run the package's stdlib unittest suite with `PYTHONPATH=python-package/src`, then check that
+/// the legacy wrapper imports against it.
 pub fn test(python: &Interpreter) -> Result<()> {
-    let root = package_root();
+    let root = package_root(false);
     clean_caches(&root);
     let status = python
         .command()
@@ -227,11 +246,25 @@ pub fn test(python: &Interpreter) -> Result<()> {
     if !status.success() {
         bail!("Python install-package tests failed ({status})");
     }
+
+    let legacy = package_root(true);
+    clean_caches(&legacy);
+    let pythonpath = std::env::join_paths([root.join("src"), legacy.join("src")])
+        .context("cannot build PYTHONPATH")?;
+    let status = python
+        .command()
+        .args(["-m", "unittest", "discover", "-s", "tests", "-v"])
+        .current_dir(&legacy)
+        .env("PYTHONPATH", pythonpath)
+        .status()
+        .context("failed to start Python")?;
+    if !status.success() {
+        bail!("Python legacy-wrapper tests failed ({status})");
+    }
     Ok(())
 }
 
-pub fn build(python: &Interpreter, output_root: Option<&Path>) -> Result<()> {
-    let root = package_root();
+pub fn build(python: &Interpreter, root: &Path, output_root: Option<&Path>) -> Result<()> {
     let out = output_root
         .map(Path::to_path_buf)
         .unwrap_or_else(|| root.join("dist"));
@@ -248,7 +281,7 @@ pub fn build(python: &Interpreter, output_root: Option<&Path>) -> Result<()> {
         .command()
         .args(["-m", "build", "--outdir"])
         .arg(&out)
-        .arg(&root)
+        .arg(root)
         .status()?;
     if !status.success() {
         bail!("Python package build failed ({status})");
@@ -315,13 +348,16 @@ fn publish(args: &PublishArgs) -> Result<()> {
     if !args.skip_build {
         println!("[python publish] building install-package artifacts");
         if args.dry_run {
-            println!("DRY-RUN: cargo xtask python build");
+            println!(
+                "DRY-RUN: cargo xtask python build{}",
+                if args.legacy { " --legacy" } else { "" }
+            );
         } else {
-            build(&python, None)?;
+            build(&python, &package_root(args.legacy), None)?;
         }
     }
 
-    let dist = package_root().join("dist");
+    let dist = package_root(args.legacy).join("dist");
     let files = artifacts(&dist);
     if files.is_empty() && !args.dry_run {
         bail!(

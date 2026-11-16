@@ -15,18 +15,18 @@ Each Roy toolkit repo ships a **`skills/`** folder with structured workflows age
 | **Windsurf** | `.windsurfrules` or Global Rules (paste skill content) |
 | **OpenCode** | Workspace `AGENTS.md` + `skills/` |
 
-One cross-platform installer: `pyenv agent-skills`. The skill is built into `pyenv`, so it needs no clone and no Rust toolchain.
+One cross-platform installer: `enchi agent-skills`. The skill is built into `enchi`, so it needs no clone and no Rust toolchain.
 
 ## Tell your agent (works in any tool)
 
 ```text
-Install the agent skills from https://github.com/imyourboyroy/pyenv-native. If `pyenv` is not installed, install pyenv-native first. Then run `pyenv agent-skills --agent all`.
+Install the agent skills from https://github.com/imyourboyroy/pyenv-native. If `enchi` is not installed, install Enchi first. Then run `enchi agent-skills --agent all`.
 ```
 
 ## Install
 
 ```bash
-pyenv agent-skills --agent all
+enchi agent-skills --agent all
 ```
 
 Use `--agent cursor` (or any name in the table above) for one agent, and `--scope project` to install into the current directory instead of your home directory.
@@ -38,7 +38,7 @@ Gemini CLI, Antigravity, and Claude Code install from `https://github.com/imyour
 Run from a **client project root** to install into that repo only:
 
 ```bash
-pyenv agent-skills --agent copilot --scope project
+enchi agent-skills --agent copilot --scope project
 ```
 
 ## After install
@@ -50,6 +50,6 @@ pyenv agent-skills --agent copilot --scope project
 ## Update
 
 ```bash
-pyenv self-update
-pyenv agent-skills --agent all
+enchi self-update
+enchi agent-skills --agent all
 ```

@@ -16,10 +16,10 @@ use md5::{Digest, Md5};
 
 use super::payload::Payload;
 use super::{Manifest, package_version, source_date_epoch};
+use crate::brand;
 
-const MAINTAINER: &str = "pyenv-native maintainers <noreply@users.noreply.github.com>";
-const HOMEPAGE: &str = "https://github.com/imyourboyroy/pyenv-native";
-const DESCRIPTION: &str = "Native, cross-platform Python version manager\n pyenv-native installs and switches between Python runtimes, manages virtual\n environments, and ships an MCP server for coding agents. It is a single Rust\n binary that keeps compatibility with the classic pyenv workflow.\n .\n Python versions and shims live in ~/.pyenv; this package updates through the\n system package manager.";
+const MAINTAINER: &str = "Enchi maintainers <noreply@users.noreply.github.com>";
+const DESCRIPTION: &str = "Python Runtime & Environment Manager\n Enchi installs and switches between Python runtimes, manages virtual\n environments, and ships an MCP server for coding agents. It is a single Rust\n binary that keeps compatibility with the classic pyenv workflow.\n .\n Python versions and shims live in ~/.enchi (existing ~/.pyenv installs are kept\n as they are); this package updates through the system package manager.\n .\n Enchi is the new name of pyenv-native: this package replaces it, and installs\n pyenv and pyenv-mcp as compatibility symlinks.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flavor {
@@ -50,8 +50,11 @@ pub(crate) struct Control<'a> {
 impl Control<'_> {
     pub(crate) fn render(&self) -> String {
         let mut text = format!(
-            "Package: pyenv-native\nVersion: {}\nArchitecture: {}\nMaintainer: {MAINTAINER}\nInstalled-Size: {}\n",
-            self.version, self.architecture, self.installed_size_kib
+            "Package: {}\nVersion: {}\nArchitecture: {}\nMaintainer: {MAINTAINER}\nInstalled-Size: {}\n",
+            brand::PACKAGE,
+            self.version,
+            self.architecture,
+            self.installed_size_kib
         );
         if !self.depends.is_empty() {
             text.push_str(&format!("Depends: {}\n", self.depends.join(", ")));
@@ -59,8 +62,13 @@ impl Control<'_> {
         if !self.recommends.is_empty() {
             text.push_str(&format!("Recommends: {}\n", self.recommends.join(", ")));
         }
+        // Enchi is the renamed pyenv-native: it replaces and provides that package, and it owns
+        // `/usr/bin/pyenv`, so the classic `pyenv` package cannot be installed beside it.
         text.push_str(&format!(
-            "Conflicts: pyenv\nSection: devel\nPriority: optional\nHomepage: {HOMEPAGE}\nDescription: {DESCRIPTION}\n"
+            "Conflicts: {legacy}, {cli}\nProvides: {legacy}\nReplaces: {legacy}\nSection: devel\nPriority: optional\nHomepage: {}\nDescription: {DESCRIPTION}\n",
+            brand::repo_url(),
+            legacy = brand::LEGACY_PACKAGE,
+            cli = brand::LEGACY_CLI,
         ));
         text
     }
@@ -134,6 +142,11 @@ fn data_tar(payload: &Payload, mtime: u64) -> Result<Vec<u8>> {
             let header = tar_header(tar::EntryType::Regular, file.mode, file.data.len(), mtime);
             append_named(builder, header, &format!(".{}", file.path), &file.data)?;
         }
+        for link in &payload.links {
+            let mut header = tar_header(tar::EntryType::Symlink, 0o777, 0, mtime);
+            header.set_link_name(&link.target)?;
+            append_named(builder, header, &format!(".{}", link.path), &[])?;
+        }
         Ok(())
     })
 }
@@ -191,7 +204,7 @@ pub(crate) fn build(
     let has_gui = payload
         .files
         .iter()
-        .any(|file| file.path.ends_with("/bin/pyenv-gui"));
+        .any(|file| file.path.ends_with(&format!("/bin/{}", brand::GUI)));
     let recommends = if has_gui {
         vec![
             "libgtk-3-0 | libgtk-3-0t64".to_string(),
@@ -224,7 +237,7 @@ pub(crate) fn build(
         mtime,
     );
     ar_member(&mut deb, "data.tar.gz", &data_tar(payload, mtime)?, mtime);
-    Ok((format!("pyenv-native_{version}_{arch}.deb"), deb))
+    Ok((format!("{}_{version}_{arch}.deb", brand::PACKAGE), deb))
 }
 
 pub(crate) fn write(
@@ -245,7 +258,7 @@ pub(crate) fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::installer::payload::PayloadFile;
+    use crate::installer::payload::{PayloadFile, PayloadLink};
     use std::process::Command;
 
     fn manifest() -> Manifest {
@@ -263,24 +276,28 @@ mod tests {
         Payload {
             files: vec![
                 PayloadFile {
-                    path: "/etc/profile.d/pyenv-native.sh".into(),
+                    path: "/etc/profile.d/enchi.sh".into(),
                     mode: 0o644,
                     data: b"# x\n".to_vec(),
                     config: true,
                 },
                 PayloadFile {
-                    path: "/usr/bin/pyenv".into(),
+                    path: "/usr/bin/enchi".into(),
                     mode: 0o755,
                     data: binary,
                     config: false,
                 },
                 PayloadFile {
-                    path: "/usr/share/pyenv-native/install-source".into(),
+                    path: "/usr/share/enchi/install-source".into(),
                     mode: 0o644,
                     data: b"deb\n".to_vec(),
                     config: false,
                 },
             ],
+            links: vec![PayloadLink {
+                path: "/usr/bin/pyenv".into(),
+                target: "enchi".into(),
+            }],
         }
     }
 
@@ -294,7 +311,7 @@ mod tests {
     #[test]
     fn archive_layout_is_ar_with_the_three_members_in_order() {
         let (name, bytes) = build(&payload(), &manifest(), Flavor::Debian, 1_700_000_000).unwrap();
-        assert_eq!(name, "pyenv-native_1.2.3~rc.1_amd64.deb");
+        assert_eq!(name, "enchi_1.2.3~rc.1_amd64.deb");
         assert!(bytes.starts_with(b"!<arch>\ndebian-binary   "));
         let text = String::from_utf8_lossy(&bytes);
         let positions: Vec<usize> = ["debian-binary", "control.tar.gz", "data.tar.gz"]
@@ -312,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn control_declares_conflicts_and_the_glibc_floor() {
+    fn control_replaces_pyenv_native_and_declares_the_glibc_floor() {
         let control = Control {
             version: "1.0.0",
             architecture: "amd64",
@@ -321,11 +338,12 @@ mod tests {
             recommends: vec![],
         }
         .render();
+        assert!(control.starts_with("Package: enchi\n"));
         assert!(control.contains("Depends: libc6 (>= 2.34)\n"));
-        assert!(control.contains("Conflicts: pyenv\n"));
-        assert!(
-            control.contains("\nDescription: Native, cross-platform Python version manager\n ")
-        );
+        assert!(control.contains("Conflicts: pyenv-native, pyenv\n"));
+        assert!(control.contains("\nProvides: pyenv-native\n"));
+        assert!(control.contains("\nReplaces: pyenv-native\n"));
+        assert!(control.contains("\nDescription: Python Runtime & Environment Manager\n "));
     }
 
     #[test]
@@ -349,7 +367,9 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&info.stderr)
         );
-        assert!(info_text.contains("Package: pyenv-native"), "{info_text}");
+        assert!(info_text.contains("Package: enchi"), "{info_text}");
+        assert!(info_text.contains("Provides: pyenv-native"), "{info_text}");
+        assert!(info_text.contains("Replaces: pyenv-native"), "{info_text}");
         assert!(
             info_text.contains("Depends: libc6 (>= 2.34)"),
             "{info_text}"
@@ -361,11 +381,12 @@ mod tests {
             .output()
             .unwrap();
         let listing = String::from_utf8_lossy(&contents.stdout);
-        assert!(listing.contains("./usr/bin/pyenv"), "{listing}");
+        assert!(listing.contains("./usr/bin/enchi"), "{listing}");
         assert!(
-            listing.contains("./etc/profile.d/pyenv-native.sh"),
-            "{listing}"
+            listing.contains("./usr/bin/pyenv -> enchi"),
+            "the compatibility symlink is in the archive: {listing}"
         );
+        assert!(listing.contains("./etc/profile.d/enchi.sh"), "{listing}");
 
         let extract = temp.path().join("root");
         let status = Command::new("dpkg-deb")
@@ -376,8 +397,12 @@ mod tests {
             .unwrap();
         assert!(status.success());
         assert_eq!(
-            fs::read_to_string(extract.join("usr/share/pyenv-native/install-source")).unwrap(),
+            fs::read_to_string(extract.join("usr/share/enchi/install-source")).unwrap(),
             "deb\n"
+        );
+        assert_eq!(
+            fs::read_link(extract.join("usr/bin/pyenv")).unwrap(),
+            Path::new("enchi")
         );
 
         let control = temp.path().join("control");
@@ -393,12 +418,12 @@ mod tests {
         assert!(
             fs::read_to_string(control.join("conffiles"))
                 .unwrap()
-                .contains("/etc/profile.d/pyenv-native.sh")
+                .contains("/etc/profile.d/enchi.sh")
         );
         assert!(
             fs::read_to_string(control.join("md5sums"))
                 .unwrap()
-                .contains("usr/bin/pyenv")
+                .contains("usr/bin/enchi")
         );
     }
 }

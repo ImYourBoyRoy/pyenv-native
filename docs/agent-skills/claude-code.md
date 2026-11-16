@@ -6,7 +6,7 @@ In Claude Code:
 
 ```text
 /plugin marketplace add https://github.com/imyourboyroy/pyenv-native.git
-/plugin install pyenv-native@pyenv-native-skills
+/plugin install enchi@enchi-skills
 ```
 
 If SSH clone fails, use the HTTPS marketplace URL above.
@@ -27,10 +27,10 @@ Install the agent skills from https://github.com/imyourboyroy/pyenv-native using
 ## Skills location
 
 Plugin metadata: `.claude-plugin/plugin.json`  
-Skills: `skills/pyenv-native/SKILL.md`
+Skills: `skills/enchi/SKILL.md`
 
 Also read repo `AGENTS.md` when editing the Rust codebase.
 
 ## MCP
 
-Add `pyenv-mcp` from `pyenv-mcp print-config` to Claude MCP config for structured Python environment tools.
+Add `enchi-mcp` from `enchi-mcp print-config` to Claude MCP config for structured Python environment tools.

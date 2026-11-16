@@ -1,54 +1,54 @@
 # ./locales/es/doctor.ftl
-# Doctor check details. Check names (pyenv-bin-on-path) stay as stable IDs.
+# Doctor check details. Check names (bin-on-path) stay as stable IDs.
 
 doctor-root-ok = la raíz existe en { $path }
 doctor-root-missing = la raíz aún no existe en { $path }
 doctor-bin-on-path = se esperaba { $path } en PATH
-doctor-bin-on-path-desktop = las aplicaciones de escritorio no heredan el PATH del shell. { $path } está configurado para terminales nuevas después de pyenv init
+doctor-bin-on-path-desktop = las aplicaciones de escritorio no heredan el PATH del shell. { $path } está configurado para los terminales nuevos tras ejecutar enchi init
 doctor-shims-on-path = se esperaba { $path } en PATH
-doctor-shims-on-path-desktop = las aplicaciones de escritorio no heredan el PATH del shell. { $path } está configurado para terminales nuevas después de pyenv init
+doctor-shims-on-path-desktop = las aplicaciones de escritorio no heredan el PATH del shell. { $path } está configurado para los terminales nuevos tras ejecutar enchi init
 doctor-versions-dir = los intérpretes gestionados están en { $path }
 doctor-no-selected-versions = no hay versiones seleccionadas
 doctor-selected-versions = { $versions } (desde { $origin })
 doctor-desktop-path-ok = PATH lo proporciona la inicialización del shell, no este proceso de escritorio
-doctor-plugin-path-search-on = el descubrimiento de plugins incluye PATH; establezca plugins.search_path=false para limitarlo a PYENV_ROOT/plugins y PYENV_PLUGIN_PATH
-doctor-plugin-path-search-off = el descubrimiento de plugins se limita a PYENV_ROOT/plugins y PYENV_PLUGIN_PATH
-doctor-shim-gui-copy = el shim de python es una copia de pyenv-gui.exe y abrirá la interfaz gráfica en lugar de ejecutar Python; ejecute `pyenv rehash` para repararlo
-doctor-shim-gui-ref = el shim de python apunta a pyenv-gui y abrirá la interfaz gráfica en lugar de ejecutar Python; ejecute `pyenv rehash` para repararlo
+doctor-plugin-path-search-on = el descubrimiento de plugins incluye PATH; establece plugins.search_path=false para limitarlo a <root>/plugins y PYENV_PLUGIN_PATH
+doctor-plugin-path-search-off = el descubrimiento de plugins se limita a <root>/plugins y PYENV_PLUGIN_PATH
+doctor-shim-gui-copy = el shim de python es una copia de enchi-gui.exe y abrirá la interfaz gráfica en lugar de ejecutar Python; ejecuta `enchi rehash` para repararlo
+doctor-shim-gui-ref = el shim de python apunta a enchi-gui y abrirá la interfaz gráfica en lugar de ejecutar Python; ejecuta `enchi rehash` para repararlo
 doctor-shim-launchers-ok = los lanzadores de shims apuntan a { $path }
 doctor-func-skip-no-version = prueba funcional omitida; no hay versión de python seleccionada
 doctor-func-skip-missing = prueba funcional omitida; faltan las versiones seleccionadas
-doctor-func-shim-missing = no se encontró el shim de python; ejecute `pyenv rehash` para generarlo
+doctor-func-shim-missing = no se encontró el shim de python; ejecuta `enchi rehash` para generarlo
 doctor-func-ok = shim funcional; se invocó correctamente { $version }
 doctor-func-failed = falló la invocación del shim (código de salida { $status }): { $error }
 doctor-func-launch-failed = no se pudo iniciar el shim de python en { $path }: { $error }
 doctor-pwsh-ok = PowerShell 7 (pwsh) está en PATH
-doctor-pwsh-missing = No se encontró PowerShell 7 (pwsh). pyenv-native prefiere pwsh para plugins .ps1, la inicialización del shell y doctor --fix. Instálelo con: winget install --id Microsoft.PowerShell
+doctor-pwsh-missing = No se encontró PowerShell 7 (pwsh). Enchi prefiere pwsh para plugins .ps1, la inicialización del shell y doctor --fix. Instálalo con: winget install --id Microsoft.PowerShell
 doctor-python-build-ok = python-build disponible en { $path }
 doctor-python-build-optional = { $error } (las compilaciones nativas de CPython desde el código fuente no lo requieren)
 doctor-termux-lib-ok = la biblioteca de Termux { $lib } está instalada
 doctor-termux-lib-missing = falta el paquete de biblioteca de Termux { $lib }; instálelo
-doctor-venv-missing = falta el venv gestionado seleccionado `{ $value }`; ejecute `pyenv venv list` para ver los entornos disponibles o `pyenv venv create <runtime> <name>` para recrearlo
-doctor-pyenv-win-root = PYENV_ROOT está establecido en `{ $path }`, que parece una ruta de pyenv-win; pyenv-native la sustituye en tiempo de ejecución, pero se recomienda quitar la variable: elimine PYENV_ROOT de las variables de entorno de usuario
+doctor-venv-missing = falta el entorno virtual gestionado seleccionado `{ $value }`; ejecuta `enchi venv list` para ver los entornos disponibles o `enchi venv create <runtime> <name>` para recrearlo
+doctor-pyenv-win-root = PYENV_ROOT está establecido en `{ $path }`, que parece una ruta de pyenv-win; Enchi la sustituye en tiempo de ejecución, pero se recomienda quitar la variable: elimine PYENV_ROOT de las variables de entorno de usuario
 doctor-command-ok = { $command } disponible en { $path }
 doctor-command-missing = { $reason }; se buscó { $commands }
-doctor-cli-missing = no se encontró el lanzador CLI de pyenv en { $path }; reinstale pyenv-native o ejecute el instalador
-doctor-shim-mismatch = el shim de python en { $shim } no coincide con el lanzador CLI de pyenv en { $cli }; ejecute `pyenv rehash` para actualizar los shims
+doctor-cli-missing = no se encontró el lanzador CLI de enchi en { $path }; reinstala Enchi o ejecuta el instalador
+doctor-shim-mismatch = el shim de python en { $shim } no coincide con el lanzador CLI de enchi en { $cli }; ejecuta `enchi rehash` para actualizar los shims
 doctor-source-may-fail = las compilaciones desde el código fuente en { $platform } pueden fallar hasta que estén disponibles el shell, make y el compilador requeridos
 doctor-source-ok = los requisitos de compilación desde el código fuente en { $platform } parecen estar en PATH
 doctor-reason-shell = necesario para ejecutar el script configure
 doctor-reason-make = necesario para compilaciones nativas de CPython desde el código fuente
 doctor-reason-compiler = necesario para compilaciones nativas de CPython desde el código fuente
 doctor-reason-pkg-config = recomendado para localizar dependencias de bibliotecas nativas
-doctor-store-alias = el python del sistema resuelve al alias de WindowsApps en { $path }; este stub puede interceptar python si va delante de los shims de pyenv. La autorreparación elimina los stubs de App Installer python.exe / python3.exe. Desactivarlos en Configuración es opcional y solo evita que Windows los vuelva a crear
-doctor-store-alias-shadowed = el stub de python de Microsoft Store está en { $path }; los shims de pyenv tienen prioridad, así que eliminarlo es opcional. Windows 11: Configuración > Aplicaciones > Configuración avanzada de aplicaciones > Alias de ejecución de aplicaciones
+doctor-store-alias = el python del sistema resuelve al alias de WindowsApps en { $path }; este stub puede interceptar python si va delante de los shims de enchi. La autorreparación elimina los stubs de App Installer python.exe / python3.exe. Desactivarlos en Configuración es opcional y solo evita que Windows los vuelva a crear
+doctor-store-alias-shadowed = el stub de python de Microsoft Store está en { $path }; los shims de enchi tienen prioridad, así que eliminarlo es opcional. Windows 11: Configuración > Aplicaciones > Configuración avanzada de aplicaciones > Alias de ejecución de aplicaciones
 doctor-system-python = el python del sistema resuelve a { $path }
 doctor-no-system-python = no se encontró python del sistema en PATH
-doctor-pyenv-win-path = entradas de pyenv-win aparecen antes que pyenv-native en PATH; pyenv-win puede interceptar comandos. Elimine las entradas de pyenv-win del PATH de usuario: { $path }
+doctor-pyenv-win-path = entradas de pyenv-win aparecen antes que Enchi en PATH; pyenv-win puede interceptar comandos. Elimine las entradas de pyenv-win del PATH de usuario: { $path }
 doctor-fix-ensure-layout = Crear los directorios gestionados que faltan bajo { $path }
 doctor-fix-rehash = Actualizar los lanzadores shim en { $path }
-doctor-fix-path-shims = Añadir { $path } al PATH del shell para que python/pip se resuelvan mediante shims de pyenv
-doctor-fix-path-bin = Añadir el directorio bin de pyenv al PATH del shell
+doctor-fix-path-shims = Añadir { $path } al PATH del shell para que python/pip se resuelvan mediante shims de enchi
+doctor-fix-path-bin = Añadir el directorio bin de enchi al PATH del shell
 doctor-fix-pyenv-win-root = Eliminar la variable de entorno PYENV_ROOT obsoleta de pyenv-win
 doctor-fix-store-alias = Quitar los stubs python.exe y python3.exe de App Installer en WindowsApps para que no intercepten el PATH
 doctor-fix-store-alias-settings = Opcional: desactive App Installer python.exe y python3.exe en Configuración para que Windows no vuelva a crear los stubs

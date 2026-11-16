@@ -2,13 +2,13 @@
 <#
 Purpose: Runs Cargo for a configurable Windows Rust target, defaulting to the native MSVC toolchain while allowing GNU builds when explicitly requested.
 How to run: pwsh -NoLogo -NoProfile -File ./scripts/dev-cargo.ps1 test [-TargetTriple x86_64-pc-windows-msvc]
-Inputs: Optional Windows target triple plus cargo arguments after the script name.
+Inputs: Optional Windows target triple (or the ENCHI_WINDOWS_TARGET environment variable; the older PYENV_WINDOWS_TARGET is still read) plus cargo arguments after the script name.
 Outputs/side effects: Executes cargo with the requested target toolchain and any required compiler PATH updates for this process.
 Notes: Prefers the native MSVC ABI for local and CI builds; GNU builds rely on WinLibs/MinGW only when that ABI is explicitly requested.
 #>
 
 param(
-    [string]$TargetTriple = $env:PYENV_WINDOWS_TARGET,
+    [string]$TargetTriple = $(if ($env:ENCHI_WINDOWS_TARGET) { $env:ENCHI_WINDOWS_TARGET } else { $env:PYENV_WINDOWS_TARGET }),
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$CargoArgs
 )
@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 
 if ($TargetTriple -and $TargetTriple -notmatch '^(x86_64-pc-windows-(gnu|msvc)|aarch64-pc-windows-msvc)$' -and (-not $CargoArgs -or $CargoArgs.Count -eq 0)) {
     $CargoArgs = @($TargetTriple)
-    $TargetTriple = $env:PYENV_WINDOWS_TARGET
+    $TargetTriple = if ($env:ENCHI_WINDOWS_TARGET) { $env:ENCHI_WINDOWS_TARGET } else { $env:PYENV_WINDOWS_TARGET }
 }
 
 if (-not $TargetTriple -or [string]::IsNullOrWhiteSpace($TargetTriple)) {

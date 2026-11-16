@@ -1,11 +1,12 @@
 // ./xtask/src/installer/macos.rs
 //! macOS: a flat `.pkg` installer and a `.dmg` that carries it.
 //!
-//! The `.pkg` is a system install, like the Linux packages: `pyenv` and `pyenv-mcp` go to
-//! `/usr/local/bin` (already on every user's `PATH`) and the GUI is `/Applications/Pyenv Native.app`.
-//! `share/pyenv-native/install-source` says `pkg`, so `pyenv self-update` points at the new
-//! installer instead of rewriting files it does not own, and `sudo pyenv self-uninstall --system`
-//! removes everything the receipt lists. Per-user data under `~/.pyenv` is never part of the package.
+//! The `.pkg` is a system install, like the Linux packages: `enchi` and `enchi-mcp` go to
+//! `/usr/local/bin` (already on every user's `PATH`, with `pyenv` and `pyenv-mcp` as compatibility
+//! symlinks) and the GUI is `/Applications/Enchi.app`. `share/enchi/install-source` says `pkg`, so
+//! `enchi self-update` points at the new installer instead of rewriting files it does not own, and
+//! `sudo enchi self-uninstall --system` removes everything the receipt lists. Per-user data
+//! (`~/.enchi`, or an existing `~/.pyenv`) is never part of the package.
 //!
 //! `pkgbuild`, `productbuild`, `codesign`, and `hdiutil` only exist on macOS, so these two commands
 //! run on the macOS release runners. Everything that decides *what* is built (Info.plist, icon,
@@ -19,11 +20,9 @@ use anyhow::{Context, Result, bail};
 
 use super::payload::{self, Layout, Payload, PayloadFile};
 use super::{Bundle, Manifest};
+use crate::brand::{self, APP_ID, PKG_IDENTIFIER};
 
-/// Receipt identifier; `pyenv self-uninstall --system` reads the same value.
-pub(crate) const PKG_IDENTIFIER: &str = "com.pyenv-native.pkg";
-const APP_BUNDLE: &str = "Pyenv Native.app";
-const APP_ID: &str = "com.pyenv-native.gui";
+const APP_BUNDLE: &str = "Enchi.app";
 /// Oldest macOS the release executables run on. `release.yml` builds with the same
 /// `MACOSX_DEPLOYMENT_TARGET`, so the installer never admits a system the binaries cannot run on.
 const MIN_MACOS: &str = "11.0";
@@ -76,9 +75,9 @@ pub(crate) fn info_plist(version: &str) -> String {
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Pyenv Native</string>
+	<string>Enchi</string>
 	<key>CFBundleExecutable</key>
-	<string>pyenv-gui</string>
+	<string>enchi-gui</string>
 	<key>CFBundleIconFile</key>
 	<string>icon</string>
 	<key>CFBundleIdentifier</key>
@@ -86,7 +85,7 @@ pub(crate) fn info_plist(version: &str) -> String {
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Pyenv Native</string>
+	<string>Enchi</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -100,7 +99,7 @@ pub(crate) fn info_plist(version: &str) -> String {
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright pyenv-native contributors. MIT License.</string>
+	<string>Copyright Enchi contributors. MIT License.</string>
 </dict>
 </plist>
 "#
@@ -126,7 +125,7 @@ pub(crate) fn icns(entries: &[(&str, &[u8])]) -> Vec<u8> {
 fn app_icon() -> Result<Vec<u8>> {
     let dir = crate::repo_root()
         .join("crates")
-        .join("pyenv-gui")
+        .join("enchi-gui")
         .join("icons");
     let read = |name: &str| -> Result<Vec<u8>> {
         fs::read(dir.join(name))
@@ -161,7 +160,7 @@ pub(crate) fn component_plist() -> String {
 		<key>BundleOverwriteAction</key>
 		<string>upgrade</string>
 		<key>RootRelativeBundlePath</key>
-		<string>Applications/Pyenv Native.app</string>
+		<string>Applications/Enchi.app</string>
 	</dict>
 </array>
 </plist>
@@ -174,8 +173,8 @@ pub(crate) fn distribution_xml(version: &str, host: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-	<title>Pyenv Native</title>
-	<organization>com.pyenv-native</organization>
+	<title>Enchi</title>
+	<organization>{organization}</organization>
 	<options customize="never" require-scripts="false" hostArchitectures="{host}"/>
 	<domains enable_localSystem="true" enable_currentUserHome="false" enable_anywhere="false"/>
 	<allowed-os-versions>
@@ -194,7 +193,8 @@ pub(crate) fn distribution_xml(version: &str, host: &str) -> String {
 	</choice>
 	<pkg-ref id="{PKG_IDENTIFIER}" version="{version}" onConclusion="none">component.pkg</pkg-ref>
 </installer-gui-script>
-"#
+"#,
+        organization = brand::ORGANIZATION
     )
 }
 
@@ -202,11 +202,11 @@ pub(crate) fn conclusion_html() -> String {
     r#"<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>body{font:13px -apple-system,sans-serif}code{font:12px ui-monospace,Menlo,monospace}</style></head>
 <body>
-<h2>Pyenv Native is installed</h2>
-<p><code>pyenv</code> and <code>pyenv-mcp</code> are in <code>/usr/local/bin</code>, and the desktop app is in Applications.</p>
+<h2>Enchi is installed</h2>
+<p><code>enchi</code> and <code>enchi-mcp</code> are in <code>/usr/local/bin</code> (<code>pyenv</code> and <code>pyenv-mcp</code> remain as aliases), and the desktop app is in Applications.</p>
 <p>Open a new Terminal window and add this line to your shell profile (<code>~/.zshrc</code>) to put your Python versions on <code>PATH</code>:</p>
-<p><code>eval "$(pyenv init - zsh)"</code></p>
-<p>Python versions and virtual environments live in <code>~/.pyenv</code>. To upgrade, install a newer package over this one. To remove the program files later, run <code>sudo pyenv self-uninstall --system</code>.</p>
+<p><code>eval "$(enchi init - zsh)"</code></p>
+<p>Python versions and virtual environments live in <code>~/.enchi</code>; an existing <code>~/.pyenv</code> from pyenv-native stays where it is and keeps working. To upgrade, install a newer package over this one. To remove the program files later, run <code>sudo enchi self-uninstall --system</code>.</p>
 </body></html>
 "#
     .to_string()
@@ -214,7 +214,8 @@ pub(crate) fn conclusion_html() -> String {
 
 fn read_me(version: &str) -> String {
     format!(
-        "Pyenv Native {version}\n\nInstall:   open \"Install Pyenv Native.pkg\"\nUpgrade:   install a newer package over this one\nUninstall: sudo pyenv self-uninstall --system   (your Python versions in ~/.pyenv are kept)\n\nThis package is not signed with an Apple Developer ID. If macOS says it cannot be opened, Control-click the\npackage, choose Open, and confirm. Downloading with curl does not trigger that prompt.\nVerify the download against SHA256SUMS on the release page before installing.\n\nhttps://github.com/imyourboyroy/pyenv-native\n"
+        "Enchi {version}\n\nInstall:   open \"Install Enchi.pkg\"\nUpgrade:   install a newer package over this one\nUninstall: sudo enchi self-uninstall --system   (your Python versions in ~/.enchi or ~/.pyenv are kept)\n\nThis package is not signed with an Apple Developer ID. If macOS says it cannot be opened, Control-click the\npackage, choose Open, and confirm. Downloading with curl does not trigger that prompt.\nVerify the download against SHA256SUMS on the release page before installing.\n\n{}\n",
+        brand::repo_url()
     )
 }
 
@@ -222,9 +223,9 @@ fn read_me(version: &str) -> String {
 pub(crate) fn pkg_payload(bundle: &Bundle) -> Result<Payload> {
     let mut payload = payload::system_payload(bundle, &Layout::macos())?;
     if bundle.manifest.gui {
-        let gui = bundle
-            .read("pyenv-gui")
-            .context("the manifest lists pyenv-gui but the bundle lacks it")?;
+        let gui = bundle.read(brand::GUI).with_context(|| {
+            format!("the manifest lists {} but the bundle lacks it", brand::GUI)
+        })?;
         let app = format!("/Applications/{APP_BUNDLE}/Contents");
         let mut push = |path: String, mode: u32, data: Vec<u8>| {
             payload.files.push(PayloadFile {
@@ -234,7 +235,7 @@ pub(crate) fn pkg_payload(bundle: &Bundle) -> Result<Payload> {
                 config: false,
             });
         };
-        push(format!("{app}/MacOS/pyenv-gui"), 0o755, gui);
+        push(format!("{app}/MacOS/{}", brand::GUI), 0o755, gui);
         push(
             format!("{app}/Info.plist"),
             0o644,
@@ -264,6 +265,17 @@ fn set_mode(_path: &Path, _mode: u32) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+fn symlink(target: &str, link: &Path) -> Result<()> {
+    std::os::unix::fs::symlink(target, link)?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn symlink(_target: &str, _link: &Path) -> Result<()> {
+    bail!("symbolic links can only be staged on macOS")
+}
+
 /// Lay the payload out under `root` exactly as it will be installed under `/`.
 fn stage(payload: &Payload, root: &Path) -> Result<()> {
     for file in &payload.files {
@@ -271,6 +283,11 @@ fn stage(payload: &Payload, root: &Path) -> Result<()> {
         fs::create_dir_all(target.parent().context("payload path has no parent")?)?;
         fs::write(&target, &file.data)?;
         set_mode(&target, file.mode)?;
+    }
+    for link in &payload.links {
+        let path = root.join(link.path.trim_start_matches('/'));
+        fs::create_dir_all(path.parent().context("payload path has no parent")?)?;
+        symlink(&link.target, &path)?;
     }
     Ok(())
 }
@@ -304,7 +321,7 @@ fn codesign(path: &Path, signing: &Signing) -> Result<()> {
     run(&mut command)
 }
 
-/// Build `pyenv-native-macos-<arch>.pkg` from a macOS release bundle.
+/// Build `enchi-macos-<arch>.pkg` from a macOS release bundle.
 pub(crate) fn write_pkg(bundle: &Bundle, output_root: &Path, signing: &Signing) -> Result<PathBuf> {
     require_macos()?;
     let manifest = &bundle.manifest;
@@ -315,8 +332,8 @@ pub(crate) fn write_pkg(bundle: &Bundle, output_root: &Path, signing: &Signing) 
     let root = work.path().join("root");
     stage(&payload, &root)?;
 
-    for binary in ["usr/local/bin/pyenv", "usr/local/bin/pyenv-mcp"] {
-        codesign(&root.join(binary), signing)?;
+    for binary in [brand::CLI, brand::MCP] {
+        codesign(&root.join("usr/local/bin").join(binary), signing)?;
     }
     let app = root.join("Applications").join(APP_BUNDLE);
     if app.is_dir() {
@@ -353,7 +370,10 @@ pub(crate) fn write_pkg(bundle: &Bundle, output_root: &Path, signing: &Signing) 
     fs::write(&distribution, distribution_xml(&manifest.version, host))?;
 
     fs::create_dir_all(output_root)?;
-    let output = output_root.join(format!("pyenv-native-macos-{}.pkg", manifest.architecture));
+    let output = output_root.join(format!(
+        "{}.pkg",
+        brand::bundle_stem("macos", &manifest.architecture)
+    ));
     let _ = fs::remove_file(&output);
     let mut product = Command::new("productbuild");
     product
@@ -371,7 +391,7 @@ pub(crate) fn write_pkg(bundle: &Bundle, output_root: &Path, signing: &Signing) 
     Ok(output)
 }
 
-/// Wrap a `.pkg` in `pyenv-native-macos-<arch>.dmg` with a short read-me.
+/// Wrap a `.pkg` in `enchi-macos-<arch>.dmg` with a short read-me.
 pub(crate) fn write_dmg(pkg: &Path, output_root: &Path) -> Result<PathBuf> {
     require_macos()?;
     let name = pkg
@@ -384,9 +404,9 @@ pub(crate) fn write_dmg(pkg: &Path, output_root: &Path) -> Result<PathBuf> {
     let version = pkg_version(pkg)?;
 
     let work = tempfile::tempdir().context("cannot create a staging directory")?;
-    let folder = work.path().join("Pyenv Native");
+    let folder = work.path().join(brand::NAME);
     fs::create_dir_all(&folder)?;
-    fs::copy(pkg, folder.join("Install Pyenv Native.pkg"))?;
+    fs::copy(pkg, folder.join(format!("Install {}.pkg", brand::NAME)))?;
     fs::write(folder.join("Read Me.txt"), read_me(&version))?;
 
     fs::create_dir_all(output_root)?;
@@ -394,7 +414,7 @@ pub(crate) fn write_dmg(pkg: &Path, output_root: &Path) -> Result<PathBuf> {
     let _ = fs::remove_file(&output);
     run(Command::new("hdiutil")
         .args(["create", "-quiet", "-ov", "-fs", "HFS+", "-format", "UDZO"])
-        .args(["-volname", "Pyenv Native"])
+        .args(["-volname", brand::NAME])
         .arg("-srcfolder")
         .arg(&folder)
         .arg(&output))?;
@@ -425,8 +445,10 @@ mod tests {
     #[test]
     fn plist_names_the_gui_executable_and_the_floor() {
         let plist = info_plist("0.8.0-rc1");
-        assert!(plist.contains("<string>pyenv-gui</string>"));
-        assert!(plist.contains("<string>com.pyenv-native.gui</string>"));
+        assert!(plist.contains("<string>enchi-gui</string>"));
+        assert!(plist.contains("<string>com.imyourboyroy.enchi</string>"));
+        assert!(plist.contains("<key>CFBundleName</key>\n\t<string>Enchi</string>"));
+        assert!(!plist.contains("Pyenv"));
         assert!(plist.contains(&format!("<string>{MIN_MACOS}</string>")));
         // The marketing version keeps the suffix; the build version must be plain digits.
         assert!(plist.contains("<string>0.8.0-rc1</string>"));
@@ -490,7 +512,42 @@ mod tests {
     fn the_app_is_pinned_in_place_not_relocatable() {
         let plist = component_plist();
         assert!(plist.contains("<key>BundleIsRelocatable</key>\n\t\t<false/>"));
-        assert!(plist.contains("Applications/Pyenv Native.app"));
+        assert!(plist.contains("Applications/Enchi.app"));
+    }
+
+    #[test]
+    fn receipt_and_app_identifiers_follow_the_enchi_scheme() {
+        assert_eq!(PKG_IDENTIFIER, "com.imyourboyroy.enchi.pkg");
+        assert_eq!(APP_BUNDLE, "Enchi.app");
+        let xml = distribution_xml("1.0.0", "arm64");
+        assert!(xml.contains("<organization>com.imyourboyroy</organization>"));
+        assert!(xml.contains("<title>Enchi</title>"));
+        assert!(!conclusion_html().contains("Pyenv Native"));
+        assert!(!read_me("1.0.0").contains("Pyenv Native"));
+    }
+
+    // Symlinks can only be staged where the package is built (macOS); `stage` refuses elsewhere.
+    #[cfg(unix)]
+    #[test]
+    fn staging_creates_the_compatibility_symlinks() {
+        let temp = tempfile::tempdir().unwrap();
+        let payload = Payload {
+            files: vec![PayloadFile {
+                path: "/usr/local/bin/enchi".into(),
+                mode: 0o755,
+                data: b"bin".to_vec(),
+                config: false,
+            }],
+            links: vec![payload::PayloadLink {
+                path: "/usr/local/bin/pyenv".into(),
+                target: "enchi".into(),
+            }],
+        };
+        stage(&payload, temp.path()).unwrap();
+        assert_eq!(
+            fs::read_link(temp.path().join("usr/local/bin/pyenv")).unwrap(),
+            Path::new("enchi")
+        );
     }
 
     #[test]
