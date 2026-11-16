@@ -128,11 +128,10 @@ fn simple_commands_carry_typed_data() {
     assert_eq!(value["data"]["versions"][0], "3.13.1");
 
     let (_, value) = json(root.path(), &["which", "python", "--json"]);
+    // Compare components, not text: Windows paths use backslashes.
+    let expected = Path::new("3.13.1").join("bin").join("python");
     assert!(
-        value["data"]["path"]
-            .as_str()
-            .unwrap()
-            .ends_with("3.13.1/bin/python"),
+        Path::new(value["data"]["path"].as_str().unwrap()).ends_with(&expected),
         "{value}"
     );
 }
