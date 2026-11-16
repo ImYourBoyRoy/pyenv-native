@@ -526,6 +526,8 @@ mod tests {
         assert!(!read_me("1.0.0").contains("Pyenv Native"));
     }
 
+    // Symlinks can only be staged where the package is built (macOS); `stage` refuses elsewhere.
+    #[cfg(unix)]
     #[test]
     fn staging_creates_the_compatibility_symlinks() {
         let temp = tempfile::tempdir().unwrap();
@@ -542,7 +544,6 @@ mod tests {
             }],
         };
         stage(&payload, temp.path()).unwrap();
-        #[cfg(unix)]
         assert_eq!(
             fs::read_link(temp.path().join("usr/local/bin/pyenv")).unwrap(),
             Path::new("enchi")
