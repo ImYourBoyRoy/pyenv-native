@@ -1000,7 +1000,7 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
 name = "enchi-cli"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "enchi-core",
@@ -1010,7 +1010,7 @@ dependencies = [
 
 [[package]]
 name = "enchi-core"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "base64 0.23.1",
  "bzip2",
@@ -1035,7 +1035,7 @@ dependencies = [
 
 [[package]]
 name = "enchi-gui"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "enchi-core",
  "opener",
@@ -1051,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "enchi-mcp"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -6035,7 +6035,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "clap",
