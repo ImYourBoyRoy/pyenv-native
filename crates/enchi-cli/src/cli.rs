@@ -928,7 +928,7 @@ pub(crate) enum PipCommands {
     #[command(
         name = "update-all",
         about = "Update outdated packages in every runtime and managed venv at once",
-        long_about = "Walks every installed runtime and managed venv (or the ones you name), updates their outdated packages, and checks `pip check` afterwards. If an update leaves an environment with more broken requirements than before, the touched packages are pinned back and the environment is reported as rolled back. Use --dry-run to see what would change."
+        long_about = "Walks every installed runtime and managed venv (or the ones you name), updates their outdated packages, and checks `pip check` afterwards. If an update leaves an environment with more broken requirements than before, the touched packages are pinned back and the environment is reported as rolled back. Packages installed from another index on purpose are held back: a version with a local label such as torch 2.14.1+cu126 (a CUDA build chosen for the GPU), and anything such a package pins to an exact version. They are listed as held back; --include-held updates them too. Use --dry-run to see what would change."
     )]
     UpdateAll {
         #[arg(
@@ -949,6 +949,11 @@ pub(crate) enum PipCommands {
             help = "Keep updates even if `pip check` gets worse"
         )]
         allow_conflicts: bool,
+        #[arg(
+            long = "include-held",
+            help = "Also update packages that are held back by default: local builds such as torch+cu126 and the dependencies they pin exactly"
+        )]
+        include_held: bool,
         #[arg(long = "json", help = "Output results as JSON")]
         json: bool,
         #[arg(help = "Limit to these runtimes, venv specs, or venv names")]

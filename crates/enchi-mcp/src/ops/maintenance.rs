@@ -105,6 +105,9 @@ pub fn update_all_packages_response(
             only,
             dry_run: !apply,
             allow_new_conflicts,
+            // Local builds like torch+cu126 stay put; an agent that wants them updated says so with
+            // `enchi pip update <target> <package>`.
+            include_held: false,
         },
         &mut |step| log.push(step),
     )

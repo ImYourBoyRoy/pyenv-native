@@ -17,6 +17,7 @@ use crate::context::AppContext;
 use crate::error::PyenvError;
 use crate::venv::list_managed_venvs;
 
+use super::held::{self, HeldPackage};
 use super::operations::{parse_pip_json_array, pip_subcommand, resolve_interpreter_path};
 use super::types::OutdatedPackage;
 
@@ -36,6 +37,9 @@ pub struct BulkUpdateOptions {
     pub dry_run: bool,
     /// Keep going when `pip check` gets worse instead of rolling the target back.
     pub allow_new_conflicts: bool,
+    /// Also update packages that are normally held back: local builds such as `torch+cu126`, and
+    /// the dependencies such a build pins exactly (see `held`).
+    pub include_held: bool,
 }
 
 impl Default for BulkUpdateOptions {
@@ -45,6 +49,7 @@ impl Default for BulkUpdateOptions {
             only: Vec::new(),
             dry_run: false,
             allow_new_conflicts: false,
+            include_held: false,
         }
     }
 }
@@ -76,6 +81,8 @@ pub struct TargetResult {
     pub kind: TargetKind,
     pub status: TargetStatus,
     pub outdated: Vec<OutdatedPackage>,
+    /// Outdated packages left alone on purpose, with the reason (local builds and their pins).
+    pub held: Vec<HeldPackage>,
     pub updated: Vec<String>,
     pub conflicts_before: usize,
     pub conflicts_after: usize,
@@ -212,6 +219,7 @@ fn update_target(
         kind: target.kind,
         status: TargetStatus::Skipped,
         outdated: Vec::new(),
+        held: Vec::new(),
         updated: Vec::new(),
         conflicts_before: 0,
         conflicts_after: 0,
@@ -246,14 +254,32 @@ fn update_target(
         }
     };
 
+    if !options.include_held {
+        let (updatable, held) = held::partition(&py, std::mem::take(&mut result.outdated));
+        result.outdated = updatable;
+        result.held = held;
+    }
+    let held_note = if result.held.is_empty() {
+        String::new()
+    } else {
+        format!("; {} held back", result.held.len())
+    };
+
     if result.outdated.is_empty() {
         result.status = TargetStatus::UpToDate;
-        result.message = "all packages are current".to_string();
+        result.message = if result.held.is_empty() {
+            "all packages are current".to_string()
+        } else {
+            format!("all updatable packages are current{held_note}")
+        };
         return result;
     }
     if options.dry_run {
         result.status = TargetStatus::Planned;
-        result.message = format!("{} package(s) would be updated", result.outdated.len());
+        result.message = format!(
+            "{} package(s) would be updated{held_note}",
+            result.outdated.len()
+        );
         return result;
     }
 
@@ -319,7 +345,7 @@ fn update_target(
     }
 
     result.status = TargetStatus::Updated;
-    result.message = format!("{} package(s) updated", result.updated.len());
+    result.message = format!("{} package(s) updated{held_note}", result.updated.len());
     result
 }
 
@@ -424,6 +450,17 @@ pub(super) fn render_text(report: &BulkUpdateReport) -> Vec<String> {
                 ));
             }
         }
+        for line in held::describe(&target.held) {
+            out.push(format!("      {line}"));
+        }
+    }
+    if report.targets.iter().any(|target| !target.held.is_empty()) {
+        out.push(String::new());
+        out.push(
+            "Held-back packages were left as they are. `--include-held` updates them too; or name one \
+             explicitly with `enchi pip update <target> <package>`."
+                .to_string(),
+        );
     }
     let s = &report.summary;
     out.push(String::new());
@@ -456,6 +493,7 @@ mod tests {
                 version: "2.31.0".into(),
                 latest_version: "2.32.3".into(),
             }],
+            held: vec![],
             updated: vec![],
             conflicts_before: 0,
             conflicts_after: 0,

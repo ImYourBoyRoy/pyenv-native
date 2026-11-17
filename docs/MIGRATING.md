@@ -25,6 +25,11 @@ Update the way you always did. You end up with `enchi` and keep working.
 - **Agent skills:** run `enchi agent-skills --agent all`. The skill is now named `enchi`; the Claude Code plugin is `enchi@enchi-skills` (`/plugin install enchi@enchi-skills`).
 - **Scripts and CI** that call `pyenv ...` keep working through the alias. Prefer `enchi ...` in new code.
 
+## If you came from classic (bash) pyenv
+
+- Classic plugins (`pyenv-virtualenv`, `pyenv-update`, `pyenv-doctor`, `python-build`) are not needed: Enchi has `venv`, `self-update`, `doctor` and a native installer. They are harmless to leave in `$PYENV_ROOT/plugins`. A classic `.bash` hook may call `before_install`, `after_install`, `before_uninstall` or `after_uninstall`; Enchi accepts those calls and ignores them (it installs, uninstalls and removes dependent venvs itself), so such a hook no longer aborts the command. Any other failure in a hook still does.
+- Classic `pyenv-virtualenv` environments under `versions/<runtime>/envs/<name>` are not managed by Enchi. To adopt one, copy it to `venvs/<runtime>/<name>` and run `enchi venv upgrade <runtime>/envs/<name> <runtime>` (it rebuilds the environment from a package snapshot and only replaces it if `pip check` passes).
+
 ## What changed for each distribution
 
 | Channel | Before | Now | Notes |

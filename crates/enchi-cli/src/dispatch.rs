@@ -900,6 +900,7 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
             runtimes,
             venvs,
             allow_conflicts,
+            include_held,
             json,
             only,
         } => {
@@ -912,6 +913,7 @@ fn dispatch_pip(ctx: &AppContext, command: PipCommands) -> CommandReport {
                 only,
                 dry_run,
                 allow_new_conflicts: allow_conflicts,
+                include_held,
             };
             cmd_pip_update_all(ctx, &options, json, &mut |line| eprintln!("{line}"))
         }

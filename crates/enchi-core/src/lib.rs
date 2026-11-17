@@ -86,7 +86,7 @@ pub use meta::{
     cmd_help, cmd_prompt, cmd_shims, cmd_status,
 };
 pub use pip::{
-    BulkScope, BulkSummary, BulkUpdateOptions, BulkUpdateReport, DependencyConflict,
+    BulkScope, BulkSummary, BulkUpdateOptions, BulkUpdateReport, DependencyConflict, HeldPackage,
     OutdatedPackage, PipPackage, PrecheckResult, TargetKind, TargetResult, TargetStatus,
     cmd_pip_analyze_imports, cmd_pip_check, cmd_pip_install, cmd_pip_list, cmd_pip_outdated,
     cmd_pip_precheck_requirements, cmd_pip_update, cmd_pip_update_all, plan_pip_install,

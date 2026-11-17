@@ -665,6 +665,17 @@ pub fn plan_pip_update(
         .map(|name| name.split("==").next().unwrap_or(name).to_lowercase())
         .collect();
     let mut stdout = Vec::new();
+    let outdated = if all {
+        let py = match resolve_interpreter_path(ctx, target) {
+            Ok(py) => py,
+            Err(error) => return CommandReport::failure(vec![error], 1),
+        };
+        let (updatable, held) = super::held::partition(&py, outdated);
+        stdout.extend(super::held::describe(&held));
+        updatable
+    } else {
+        outdated
+    };
     for item in &outdated {
         let selected = all || wanted.iter().any(|name| name == &item.name.to_lowercase());
         if selected {
@@ -674,7 +685,7 @@ pub fn plan_pip_update(
             ));
         }
     }
-    if stdout.is_empty() {
+    if !stdout.iter().any(|line| line.starts_with("Would update")) {
         stdout.push("Nothing to update.".to_string());
     }
     stdout.push("Dry run: nothing was changed.".to_string());
@@ -695,6 +706,7 @@ pub fn cmd_pip_update(
 
     let mut pkgs_to_update = Vec::new();
     let mut update_pip_first = false;
+    let mut held_notes: Vec<String> = Vec::new();
 
     let outdated_report = cmd_pip_outdated(ctx, target, true);
     if outdated_report.exit_code != 0 {
@@ -716,7 +728,11 @@ pub fn cmd_pip_update(
                 }
 
                 if all {
-                    for pkg in outdated_pkgs {
+                    // Local builds (`torch+cu126`) and what they pin are left alone; name a package
+                    // explicitly to update it anyway.
+                    let (updatable, held) = super::held::partition(&py_path, outdated_pkgs);
+                    held_notes = super::held::describe(&held);
+                    for pkg in updatable {
                         if pkg.name.to_lowercase() != "pip" {
                             pkgs_to_update.push(pkg.name);
                         }
@@ -746,7 +762,7 @@ pub fn cmd_pip_update(
         }
     }
 
-    let mut stdout = Vec::new();
+    let mut stdout = held_notes;
 
     // 1. Cozy self-update for pip if and only if pip has an update
     if update_pip_first {
@@ -782,9 +798,8 @@ pub fn cmd_pip_update(
         if update_pip_first {
             return CommandReport::success(stdout);
         } else {
-            return CommandReport::success(vec![
-                "No packages requested or available for update.".to_string(),
-            ]);
+            stdout.push("No packages requested or available for update.".to_string());
+            return CommandReport::success(stdout);
         }
     }
 
