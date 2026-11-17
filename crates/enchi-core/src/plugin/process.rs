@@ -17,6 +17,15 @@ pub(crate) fn powershell_7_available(ctx: &AppContext) -> bool {
     find_system_command(ctx, "pwsh").is_some()
 }
 
+/// Registration functions of classic pyenv's hook API. In classic pyenv, `pyenv install` and
+/// `pyenv uninstall` define them and then *source* each `.bash` hook, which calls them to register a
+/// callback (for example pyenv-virtualenv's `before_uninstall "uninstall_related_virtual_env"`).
+/// Enchi runs hooks as their own processes and performs install and uninstall natively (including
+/// removing dependent managed venvs), so these are accepted and ignored. Without them every such
+/// hook dies with `command not found`, and a failing hook aborts the command.
+const CLASSIC_HOOK_API: &str = "before_install() { :; }; after_install() { :; }; \
+    before_uninstall() { :; }; after_uninstall() { :; }; . \"$0\" \"$@\"";
+
 pub(super) fn run_process(
     path: &Path,
     args: &[String],
@@ -45,12 +54,14 @@ pub(super) fn run_process(
             command.arg(path);
             command
         }
-        Some("sh" | "bash") => {
-            let mut command = Command::new(if extension.as_deref() == Some("bash") {
-                "bash"
-            } else {
-                "sh"
-            });
+        Some("bash") => {
+            // Sourced, as classic pyenv does, with its hook API defined (see CLASSIC_HOOK_API).
+            let mut command = Command::new("bash");
+            command.headless().arg("-c").arg(CLASSIC_HOOK_API).arg(path);
+            command
+        }
+        Some("sh") => {
+            let mut command = Command::new("sh");
             command.headless().arg(path);
             command
         }

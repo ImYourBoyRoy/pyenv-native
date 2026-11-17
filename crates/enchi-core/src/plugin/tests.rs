@@ -242,6 +242,73 @@ mod cases {
         );
     }
 
+    /// The classic pyenv-virtualenv uninstall hook, reduced to what matters: it registers a callback
+    /// with `before_uninstall`, a function classic `pyenv uninstall` defines.
+    #[cfg(unix)]
+    #[test]
+    fn classic_bash_hooks_may_register_callbacks_without_failing() {
+        let (_temp, ctx) = test_context();
+        let hook_dir = ctx.root.join("pyenv.d").join("uninstall");
+        fs::create_dir_all(&hook_dir).expect("hook dir");
+        fs::write(
+            hook_dir.join("envs.bash"),
+            "uninstall_related_virtual_env() { echo should-not-run; }\n\
+             before_uninstall \"uninstall_related_virtual_env\"\n\
+             after_uninstall \"uninstall_related_virtual_env\"\n\
+             before_install \"x\"\nafter_install \"x\"\n\
+             echo registered\n",
+        )
+        .expect("hook");
+
+        let results =
+            run_hook_scripts(&ctx, "uninstall", &[]).expect("a classic hook must not abort");
+        assert_eq!(results.len(), 1);
+        // The callback is registered and ignored, never run; only the hook's own output remains.
+        assert_eq!(results[0].stdout, vec!["registered".to_string()]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bash_hooks_still_see_arguments_environment_and_their_own_path() {
+        let (_temp, ctx) = test_context();
+        let hook_dir = ctx.root.join("pyenv.d").join("install");
+        fs::create_dir_all(&hook_dir).expect("hook dir");
+        fs::write(
+            hook_dir.join("probe.bash"),
+            "echo \"hook=$PYENV_HOOK\"\necho \"name=$(basename \"$0\") src=$(basename \"${BASH_SOURCE[0]}\")\"\n",
+        )
+        .expect("hook");
+
+        let results = run_hook_scripts(&ctx, "install", &[]).expect("results");
+        assert_eq!(
+            results[0].stdout,
+            vec![
+                "hook=install".to_string(),
+                "name=probe.bash src=probe.bash".to_string()
+            ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_bash_hook_that_really_fails_still_aborts() {
+        let (_temp, ctx) = test_context();
+        let hook_dir = ctx.root.join("pyenv.d").join("uninstall");
+        fs::create_dir_all(&hook_dir).expect("hook dir");
+        fs::write(hook_dir.join("block.bash"), "echo refusing >&2\nexit 3\n").expect("hook");
+        let error = run_hook_scripts(&ctx, "uninstall", &[])
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("block.bash") && error.contains("refusing"),
+            "{error}"
+        );
+
+        // An unrelated missing function is a real error too, not swallowed by the shim.
+        fs::write(hook_dir.join("block.bash"), "no_such_function_anywhere\n").expect("hook");
+        assert!(run_hook_scripts(&ctx, "uninstall", &[]).is_err());
+    }
+
     #[test]
     fn plugin_completion_runs_complete_mode() {
         let (_temp, ctx) = test_context();
