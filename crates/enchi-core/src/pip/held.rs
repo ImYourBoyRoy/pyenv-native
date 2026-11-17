@@ -274,9 +274,13 @@ mod tests {
             "torchlike",
             "2.14.1+cu126",
             &[
-                "cuda-toolkit[cublas]==12.6.3; platform_system == \"Linux\"",
-                "nvidia-cudnn-cu12==9.10.2.21; platform_system == \"Linux\"",
-                "triton~=3.8.0; platform_system == \"Linux\"",
+                // No platform markers here: the real ones say `platform_system == "Linux"`, which is
+                // false on macOS and Windows runners, and the check rightly honours markers (see
+                // `a_requirement_that_does_not_apply_here_holds_nothing`).
+                "cuda-toolkit[cublas]==12.6.3",
+                "nvidia-cudnn-cu12==9.10.2.21",
+                "triton~=3.8.0",
+                "plan9-only==1.0; platform_system == \"Plan9\"",
                 "cuda-bindings<13,>=12.9.4",
                 "sympy>=1.13",
                 "extra-only==1.0; extra == \"opt\"",
@@ -297,6 +301,7 @@ mod tests {
             ("triton", "3.8.0"),
             ("cuda-bindings", "12.9.10"),
             ("sympy", "1.13.0"),
+            ("plan9-only", "1.0"),
             ("requests", "2.30.0"),
         ] {
             dist_info(name, version, &[]);
@@ -367,6 +372,24 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["nvidia-cufft-cu12", "sympy", "requests"]
         );
+    }
+
+    #[test]
+    fn a_requirement_that_does_not_apply_here_holds_nothing() {
+        let Some(python) = python3() else {
+            return;
+        };
+        let site = tempfile::tempdir().unwrap();
+        fake_site_packages(site.path());
+        // torchlike requires `plan9-only==1.0` only on Plan 9, so on any machine this test runs on
+        // its marker is false and the package is free to update.
+        let outdated = vec![
+            outdated("torchlike", "2.14.1+cu126", "2.15.0"),
+            outdated("plan9-only", "1.0", "2.0"),
+        ];
+        let (updatable, held) = partition_with_path(&python, outdated, Some(site.path()));
+        assert_eq!(held_names(&held), ["torchlike"]);
+        assert_eq!(updatable[0].name, "plan9-only");
     }
 
     #[test]
