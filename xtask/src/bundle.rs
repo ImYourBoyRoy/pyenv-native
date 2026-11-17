@@ -56,7 +56,8 @@ pub struct BundleArgs {
     no_gui: bool,
     /// Also write the legacy `pyenv-native-<platform>-<arch>` archive (the same contents plus a
     /// `pyenv` copy of the CLI) that already-installed pyenv-native binaries download to update.
-    /// On by default; `--legacy-compat=false` or `--no-legacy-compat` turns it off.
+    /// On by default; `--legacy-compat=false` or `--no-legacy-compat` turns it off. The release
+    /// workflow sets `XTASK_LEGACY_COMPAT=true` for every job, and `--no-legacy-compat` still wins.
     #[arg(
         long,
         env = "XTASK_LEGACY_COMPAT",
@@ -67,8 +68,10 @@ pub struct BundleArgs {
         value_name = "BOOL"
     )]
     legacy_compat: bool,
-    /// Skip the legacy archive (same as `--legacy-compat=false`).
-    #[arg(long, conflicts_with = "legacy_compat")]
+    /// Skip the legacy archive (same as `--legacy-compat=false`). It wins over `--legacy-compat`
+    /// and over `XTASK_LEGACY_COMPAT`: clap counts an environment value as a given argument, so
+    /// declaring a conflict would reject this flag in the release workflow.
+    #[arg(long)]
     no_legacy_compat: bool,
 }
 
@@ -502,7 +505,7 @@ pub fn run(args: &BundleArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::Parser;
+    use clap::{CommandFactory, FromArgMatches, Parser};
     use tempfile::TempDir;
 
     #[derive(Parser)]
@@ -511,10 +514,17 @@ mod tests {
         args: BundleArgs,
     }
 
+    /// Parse `bundle` arguments without reading `XTASK_LEGACY_COMPAT`, which the release workflow
+    /// sets for every job and which would otherwise leak into these tests.
     fn parse(extra: &[&str]) -> BundleArgs {
         let mut argv = vec!["bundle"];
         argv.extend_from_slice(extra);
-        Wrapper::parse_from(argv).args
+        let matches = Wrapper::command()
+            .mut_arg("legacy_compat", |arg| {
+                arg.env("XTASK_LEGACY_COMPAT_NOT_SET_IN_TESTS")
+            })
+            .get_matches_from(argv);
+        Wrapper::from_arg_matches(&matches).unwrap().args
     }
 
     #[test]
@@ -660,8 +670,8 @@ mod tests {
         assert!(!parse(&["--legacy-compat=false"]).legacy());
         assert!(!parse(&["--legacy-compat", "false"]).legacy());
         assert!(!parse(&["--no-legacy-compat"]).legacy());
-        let both = Wrapper::try_parse_from(["bundle", "--legacy-compat", "--no-legacy-compat"]);
-        assert!(both.is_err());
+        // The explicit "off" flag wins when both are given.
+        assert!(!parse(&["--legacy-compat", "--no-legacy-compat"]).legacy());
     }
 
     /// A release directory holding stand-in binaries, for packaging without a cargo build.
