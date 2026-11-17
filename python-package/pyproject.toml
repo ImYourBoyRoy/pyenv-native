@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "enchi"
-version = "0.8.1"
+version = "0.8.2"
 description = "Python install package for the native Enchi release bundles (formerly pyenv-native)."
 readme = "README.md"
 requires-python = ">=3.8"
