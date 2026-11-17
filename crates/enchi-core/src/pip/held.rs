@@ -6,12 +6,18 @@
 //! PyTorch: `torch 2.14.1+cu126` comes from `download.pytorch.org/whl/cu126` because that build has
 //! kernels for older GPUs (a Tesla P40 needs it), but PyPI's newest `torch 2.15.0` is the CUDA 13
 //! build without them. "Updating" it breaks the GPU, and `pip check` cannot notice. Such builds
-//! carry a PEP 440 *local version label* (`+cu126`, `+cpu`, `+rocm6.2`), so they are held back,
-//! together with the dependencies they pin to an exact version (`nvidia-cublas-cu12==12.6.4.1`),
-//! because moving those apart from the package that pins them breaks it.
+//! carry a PEP 440 *local version label* (`+cu126`, `+cpu`, `+rocm6.2`), so they are held back.
+//!
+//! Their dependencies are held too whenever the newest release would break what the held package
+//! requires: `torch 2.14.1+cu126` pins `cuda-toolkit[cublas,...]==12.6.3` (which pins the CUDA
+//! libraries through its extras), `triton~=3.8.0` and `cuda-bindings<13`, so none of those may move
+//! to a release outside those ranges. The check follows requirements and extras transitively and
+//! evaluates them with pip's own `packaging`, so it understands every specifier and marker.
 
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::Path;
+use std::process::Stdio;
 
 use serde::Serialize;
 
@@ -50,47 +56,11 @@ pub fn normalize(name: &str) -> String {
     out
 }
 
-/// Names that `requirements` (the `Requires-Dist` lines of one distribution) pin to an exact
-/// version, for example `triton==3.5.1; platform_system == "Linux"` gives `triton`. Requirements
-/// that only apply to an optional extra are ignored.
-pub fn exact_pins(requirements: &[String]) -> Vec<String> {
-    let mut pinned = Vec::new();
-    for requirement in requirements {
-        let (spec, marker) = match requirement.split_once(';') {
-            Some((spec, marker)) => (spec.trim(), marker),
-            None => (requirement.trim(), ""),
-        };
-        if marker.contains("extra ==") || marker.contains("extra==") {
-            continue;
-        }
-        let name_end = spec
-            .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
-            .unwrap_or(spec.len());
-        let name = &spec[..name_end];
-        if name.is_empty() {
-            continue;
-        }
-        let mut rest = spec[name_end..].trim_start();
-        if rest.starts_with('[') {
-            match rest.find(']') {
-                Some(close) => rest = rest[close + 1..].trim_start(),
-                None => continue,
-            }
-        }
-        let rest = rest.trim_start_matches('(').trim_start();
-        // `==` pins a version; `===` is an arbitrary-equality escape hatch, treated the same.
-        if rest.starts_with("==") && !rest.contains(',') {
-            pinned.push(normalize(name));
-        }
-    }
-    pinned
-}
-
 /// Split `outdated` into the packages to update and the ones to hold back.
 ///
-/// Held: packages whose installed version has a local build label, and outdated packages that a
-/// held package pins exactly. `py` is only used to read the held packages' requirements; if that
-/// fails, only the first group is held.
+/// Held: packages whose installed version has a local build label, and outdated packages whose
+/// newest release would break a requirement of a held package. `py` is used to read the installed
+/// packages' requirements; if that fails, only the labelled packages are held.
 pub fn partition(
     py: &Path,
     outdated: Vec<OutdatedPackage>,
@@ -105,26 +75,16 @@ pub(crate) fn partition_with_path(
     outdated: Vec<OutdatedPackage>,
     python_path: Option<&Path>,
 ) -> (Vec<OutdatedPackage>, Vec<HeldPackage>) {
-    let local_builds: Vec<&OutdatedPackage> = outdated
+    if !outdated
         .iter()
-        .filter(|package| local_label(&package.version).is_some())
-        .collect();
-    if local_builds.is_empty() {
+        .any(|package| local_label(&package.version).is_some())
+    {
+        // Fast path. A local build that is already current is not reported as outdated, and then
+        // nothing it pins can be outdated in a way that matters before it is updated itself.
         return (outdated, Vec::new());
     }
 
-    // Everything installed with a local label is a reason to hold its pins, not only the ones that
-    // happen to be outdated: `torch` may be current while its CUDA libraries are not.
-    let labelled: Vec<String> = installed_with_local_label(py, python_path)
-        .unwrap_or_else(|| local_builds.iter().map(|p| p.name.clone()).collect());
-    let requirements = requirements_of(py, &labelled, python_path).unwrap_or_default();
-
-    let mut pinned_by: BTreeMap<String, String> = BTreeMap::new();
-    for (holder, lines) in &requirements {
-        for pin in exact_pins(lines) {
-            pinned_by.entry(pin).or_insert_with(|| holder.clone());
-        }
-    }
+    let blocked = blocked_updates(py, &outdated, python_path).unwrap_or_default();
 
     let mut updatable = Vec::new();
     let mut held = Vec::new();
@@ -135,9 +95,18 @@ pub(crate) fn partition_with_path(
                 name: package.name,
                 version: package.version,
             });
-        } else if let Some(holder) = pinned_by.get(&normalize(&package.name)) {
+        } else if let Some((requirer, requirement, holder)) = blocked.get(&normalize(&package.name))
+        {
+            let who = if normalize(requirer) == normalize(holder) {
+                requirer.clone()
+            } else {
+                format!("{requirer} (needed by {holder})")
+            };
             held.push(HeldPackage {
-                reason: format!("pinned to an exact version by {holder}"),
+                reason: format!(
+                    "{who} requires {}{requirement}, which {} would break",
+                    package.name, package.latest_version
+                ),
                 name: package.name,
                 version: package.version,
             });
@@ -148,54 +117,77 @@ pub(crate) fn partition_with_path(
     (updatable, held)
 }
 
-// Raw strings on purpose: a `\` line continuation would strip the indentation Python needs.
-const LIST_LOCAL_SCRIPT: &str = r#"
-import importlib.metadata as m, json
-print(json.dumps(sorted({d.metadata['Name'] for d in m.distributions() if '+' in (d.version or '')})))
-"#;
-
-const REQUIRES_SCRIPT: &str = r#"
+// Raw string on purpose: a `\` line continuation would strip the indentation Python needs.
+//
+// Input (stdin): {"latest": {name: newest version}}. Output: {name: [requirer, specifier, holder]} for every
+// candidate whose newest version violates a requirement of an installed package carrying a local
+// version label, following requirements (and the extras they ask for) transitively. Output:
+// {name: [package stating the requirement, specifier, local build it is needed by]}.
+const BLOCKED_SCRIPT: &str = r#"
 import importlib.metadata as m, json, sys
-out = {}
-for name in sys.argv[1:]:
+try:
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+except ImportError:
+    from pip._vendor.packaging.requirements import Requirement
+    from pip._vendor.packaging.utils import canonicalize_name
+
+latest = {canonicalize_name(k): v for k, v in json.load(sys.stdin)["latest"].items()}
+holders = sorted({canonicalize_name(d.metadata["Name"]) for d in m.distributions() if "+" in (d.version or "")})
+blocked, seen, queue = {}, set(), [(h, frozenset(), h) for h in holders]
+while queue:
+    name, extras, holder = queue.pop()
+    if (name, extras) in seen:
+        continue
+    seen.add((name, extras))
     try:
-        out[name] = list(m.distribution(name).requires or [])
+        requires = m.distribution(name).requires or []
     except m.PackageNotFoundError:
-        out[name] = []
-print(json.dumps(out))
+        continue
+    for raw in requires:
+        try:
+            req = Requirement(raw)
+        except Exception:
+            continue
+        if req.marker is not None and not any(req.marker.evaluate({"extra": e}) for e in (extras or {""})):
+            continue
+        dep = canonicalize_name(req.name)
+        version = latest.get(dep)
+        if version is not None and len(req.specifier) and not req.specifier.contains(version, prereleases=True):
+            blocked.setdefault(dep, [name, str(req.specifier), holder])
+        queue.append((dep, frozenset(canonicalize_name(e) for e in req.extras), holder))
+print(json.dumps(blocked))
 "#;
 
-fn installed_with_local_label(py: &Path, python_path: Option<&Path>) -> Option<Vec<String>> {
-    let mut command = pip_subcommand(py);
-    command.args(["-c", LIST_LOCAL_SCRIPT]);
-    if let Some(path) = python_path {
-        command.env("PYTHONPATH", path);
-    }
-    let output = command.output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    serde_json::from_slice(&output.stdout).ok()
-}
-
-fn requirements_of(
+fn blocked_updates(
     py: &Path,
-    names: &[String],
+    outdated: &[OutdatedPackage],
     python_path: Option<&Path>,
-) -> Option<BTreeMap<String, Vec<String>>> {
-    if names.is_empty() {
-        return Some(BTreeMap::new());
-    }
+) -> Option<BTreeMap<String, (String, String, String)>> {
+    let latest: BTreeMap<&str, &str> = outdated
+        .iter()
+        .map(|package| (package.name.as_str(), package.latest_version.as_str()))
+        .collect();
+    let input = serde_json::json!({ "latest": latest }).to_string();
+
     let mut command = pip_subcommand(py);
-    command.args(["-c", REQUIRES_SCRIPT]).args(names);
+    command
+        .args(["-c", BLOCKED_SCRIPT])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
     if let Some(path) = python_path {
         command.env("PYTHONPATH", path);
     }
-    let output = command.output().ok()?;
+    let mut child = command.spawn().ok()?;
+    child.stdin.take()?.write_all(input.as_bytes()).ok()?;
+    let output = child.wait_with_output().ok()?;
     if !output.status.success() {
         return None;
     }
-    serde_json::from_slice(&output.stdout).ok()
+    let parsed: BTreeMap<String, (String, String, String)> =
+        serde_json::from_slice(&output.stdout).ok()?;
+    Some(parsed)
 }
 
 /// One line per held package, for human output.
@@ -214,10 +206,6 @@ pub fn describe(held: &[HeldPackage]) -> Vec<String> {
 mod tests {
     use super::*;
 
-    fn lines(items: &[&str]) -> Vec<String> {
-        items.iter().map(|item| item.to_string()).collect()
-    }
-
     #[test]
     fn local_labels_are_detected() {
         assert_eq!(local_label("2.14.1+cu126"), Some("cu126"));
@@ -232,42 +220,6 @@ mod tests {
         assert_eq!(normalize("NVIDIA_cuBLAS.cu12"), "nvidia-cublas-cu12");
         assert_eq!(normalize("Jinja2"), "jinja2");
         assert_eq!(normalize("zope.interface"), "zope-interface");
-    }
-
-    #[test]
-    fn exact_pins_are_found_in_requires_dist_lines() {
-        let torch = lines(&[
-            "filelock",
-            "typing-extensions>=4.10.0",
-            "sympy>=1.13.3",
-            "nvidia-cublas-cu12==12.6.4.1; platform_system == \"Linux\" and platform_machine == \"x86_64\"",
-            "nvidia-cudnn-cu12==9.10.2.21; platform_system == \"Linux\"",
-            "triton==3.5.1; platform_system == \"Linux\"",
-            "cuda-toolkit[cublas,cudart]==12.6.3; platform_system == \"Linux\"",
-            "setuptools; python_version >= \"3.12\"",
-            "opt-einsum>=3.3; extra == \"opt-einsum\"",
-            "numpy==2.0.0; extra == \"optional\"",
-            "ranged>=1,<2",
-            "spaced == 1.2",
-            "paren (==3.3)",
-            "tilde~=1.4",
-        ]);
-        assert_eq!(
-            exact_pins(&torch),
-            [
-                "nvidia-cublas-cu12",
-                "nvidia-cudnn-cu12",
-                "triton",
-                "cuda-toolkit",
-                "spaced",
-                "paren"
-            ]
-        );
-    }
-
-    #[test]
-    fn a_pin_with_more_than_one_clause_is_not_exact() {
-        assert!(exact_pins(&lines(&["pkg==1.0,!=1.0.1"])).is_empty());
     }
 
     fn outdated(name: &str, version: &str, latest: &str) -> OutdatedPackage {
@@ -304,11 +256,13 @@ mod tests {
         assert!(held[0].reason.contains("+cu126"), "{}", held[0].reason);
     }
 
-    /// A site-packages directory holding only metadata: a CUDA build of `torchlike` that pins two
-    /// libraries exactly, a pinned library, and a package that nothing pins.
+    /// A site-packages directory holding only metadata, shaped like a real CUDA PyTorch install: a
+    /// build with a local label that pins libraries through another package's extras, a
+    /// compatible-release pin, an upper bound and plain ranges.
     fn fake_site_packages(dir: &Path) {
         let dist_info = |name: &str, version: &str, requires: &[&str]| {
-            let folder = dir.join(format!("{name}-{version}.dist-info"));
+            // Wheels name the metadata folder with underscores, which is what lookup by name expects.
+            let folder = dir.join(format!("{}-{version}.dist-info", name.replace('-', "_")));
             std::fs::create_dir_all(&folder).unwrap();
             let mut metadata = format!("Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n");
             for requirement in requires {
@@ -320,60 +274,117 @@ mod tests {
             "torchlike",
             "2.14.1+cu126",
             &[
-                "nvidia-cublas-cu12==12.6.4.1; platform_system == \"Linux\"",
-                "triton==3.5.1",
+                "cuda-toolkit[cublas]==12.6.3; platform_system == \"Linux\"",
+                "nvidia-cudnn-cu12==9.10.2.21; platform_system == \"Linux\"",
+                "triton~=3.8.0; platform_system == \"Linux\"",
+                "cuda-bindings<13,>=12.9.4",
                 "sympy>=1.13",
                 "extra-only==1.0; extra == \"opt\"",
             ],
         );
-        dist_info("nvidia-cublas-cu12", "12.6.4.1", &[]);
-        dist_info("triton", "3.5.1", &[]);
-        dist_info("sympy", "1.13.0", &[]);
-        dist_info("requests", "2.30.0", &[]);
+        dist_info(
+            "cuda-toolkit",
+            "12.6.3",
+            &[
+                "nvidia-cublas-cu12==12.6.4.1.*; extra == 'cublas'",
+                "nvidia-cufft-cu12==11.3.0.4.*; extra == 'cufft'",
+            ],
+        );
+        for (name, version) in [
+            ("nvidia-cublas-cu12", "12.6.4.1"),
+            ("nvidia-cufft-cu12", "11.3.0.4"),
+            ("nvidia-cudnn-cu12", "9.10.2.21"),
+            ("triton", "3.8.0"),
+            ("cuda-bindings", "12.9.10"),
+            ("sympy", "1.13.0"),
+            ("requests", "2.30.0"),
+        ] {
+            dist_info(name, version, &[]);
+        }
     }
 
+    /// An interpreter that can run the helper (it needs `packaging`, from pip's vendored copy at
+    /// worst). `None` skips the end-to-end tests on a machine without one.
     fn python3() -> Option<std::path::PathBuf> {
         ["python3", "python"].into_iter().find_map(|name| {
-            let output = std::process::Command::new(name)
-                .arg("--version")
+            let ok = std::process::Command::new(name)
+                .args(["-c", "import pip._vendor.packaging.requirements"])
                 .output()
-                .ok()?;
-            output
+                .ok()?
                 .status
-                .success()
-                .then(|| std::path::PathBuf::from(name))
+                .success();
+            ok.then(|| std::path::PathBuf::from(name))
         })
     }
 
+    fn held_names(held: &[HeldPackage]) -> Vec<String> {
+        held.iter().map(|package| package.name.clone()).collect()
+    }
+
     #[test]
-    fn a_cuda_build_and_the_libraries_it_pins_are_held_with_a_real_interpreter() {
+    fn a_cuda_build_and_everything_that_would_break_it_is_held_with_a_real_interpreter() {
         let Some(python) = python3() else {
-            return; // no interpreter on this machine; the pure tests above still run
+            return;
         };
         let site = tempfile::tempdir().unwrap();
         fake_site_packages(site.path());
         let outdated = vec![
             outdated("torchlike", "2.14.1+cu126", "2.15.0"),
+            // Pinned through cuda-toolkit's `cublas` extra, which torchlike asks for.
             outdated("nvidia-cublas-cu12", "12.6.4.1", "12.9.3.13"),
-            outdated("triton", "3.5.1", "3.9.0"),
+            // Not requested by any extra, so cuda-toolkit does not constrain it.
+            outdated("nvidia-cufft-cu12", "11.3.0.4", "11.4.1.4"),
+            outdated("nvidia-cudnn-cu12", "9.10.2.21", "9.28.1.4"),
+            outdated("triton", "3.8.0", "3.9.0"),
+            outdated("cuda-bindings", "12.9.10", "13.5.0"),
             outdated("sympy", "1.13.0", "1.14.0"),
             outdated("requests", "2.30.0", "2.34.2"),
         ];
         let (updatable, held) = partition_with_path(&python, outdated, Some(site.path()));
 
-        let names =
-            |items: &[HeldPackage]| items.iter().map(|p| p.name.clone()).collect::<Vec<_>>();
-        assert_eq!(names(&held), ["torchlike", "nvidia-cublas-cu12", "triton"]);
+        assert_eq!(
+            held_names(&held),
+            [
+                "torchlike",
+                "nvidia-cublas-cu12",
+                "nvidia-cudnn-cu12",
+                "triton",
+                "cuda-bindings"
+            ]
+        );
         assert!(held[0].reason.contains("+cu126"), "{}", held[0].reason);
-        assert_eq!(held[1].reason, "pinned to an exact version by torchlike");
-        // `sympy>=` is a range, not a pin, and an unrelated package is updated as usual.
+        assert_eq!(
+            held[1].reason,
+            "cuda-toolkit (needed by torchlike) requires nvidia-cublas-cu12==12.6.4.1.*, which 12.9.3.13 would break"
+        );
+        assert!(held[3].reason.contains("~=3.8.0"), "{}", held[3].reason);
+        assert!(held[4].reason.contains("<13"), "{}", held[4].reason);
+        // A range the new version satisfies, an unconstrained library and an unrelated package.
         assert_eq!(
             updatable
                 .iter()
                 .map(|p| p.name.as_str())
                 .collect::<Vec<_>>(),
-            ["sympy", "requests"]
+            ["nvidia-cufft-cu12", "sympy", "requests"]
         );
+    }
+
+    #[test]
+    fn a_newer_release_that_still_fits_the_held_package_is_not_held() {
+        let Some(python) = python3() else {
+            return;
+        };
+        let site = tempfile::tempdir().unwrap();
+        fake_site_packages(site.path());
+        let outdated = vec![
+            outdated("torchlike", "2.14.1+cu126", "2.15.0"),
+            // `triton~=3.8.0` allows any 3.8.x, so a patch release is safe to take.
+            outdated("triton", "3.8.0", "3.8.5"),
+        ];
+        let (updatable, held) = partition_with_path(&python, outdated, Some(site.path()));
+        assert_eq!(held_names(&held), ["torchlike"]);
+        assert_eq!(updatable.len(), 1);
+        assert_eq!(updatable[0].name, "triton");
     }
 
     #[test]
