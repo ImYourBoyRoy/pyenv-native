@@ -547,8 +547,9 @@ jobs:
                        dist/macos/pyenv-native-macos-arm64.tar.gz dist/macos/pyenv-native-macos-x64.tar.gz; do
             test -f "$asset" && test -f "$asset.sha256"
             listing="$(tar -tzf "$asset")"
-            echo "$listing" | grep -qx './pyenv'
-            echo "$listing" | grep -qx './enchi'
+            # tar writes these entries as `pyenv` or `./pyenv` depending on the packer.
+            echo "$listing" | grep -Eqx '(\./)?pyenv'
+            echo "$listing" | grep -Eqx '(\./)?enchi'
           done
           for asset in dist/windows/x64/pyenv-native-windows-x64.zip dist/windows/arm64/pyenv-native-windows-arm64.zip; do
             test -f "$asset" && test -f "$asset.sha256"
