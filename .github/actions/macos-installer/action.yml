@@ -18,6 +18,60 @@ runs:
         cargo xtask installer pkg --bundle "dist/enchi-macos-${{ inputs.arch }}.tar.gz" --output-root dist
         cargo xtask installer dmg --pkg "dist/enchi-macos-${{ inputs.arch }}.pkg" --output-root dist
 
+    - name: The legacy-named .pkg that pyenv-native 0.7.x installs tell users to download
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 0.7.x binaries cannot update a .pkg install themselves; they print "download the newer
+        # pyenv-native-macos-<arch>.pkg from the latest release and open it". That name has to exist
+        # and be the Enchi package.
+        if [ "${XTASK_LEGACY_COMPAT:-true}" = "false" ]; then
+          echo "legacy-compat is switched off; nothing to check"
+          exit 0
+        fi
+        legacy="dist/pyenv-native-macos-${{ inputs.arch }}.pkg"
+        test -f "$legacy" && test -f "$legacy.sha256"
+        cmp "$legacy" "dist/enchi-macos-${{ inputs.arch }}.pkg"
+
+    - name: Upgrade a real pyenv-native 0.7.2 .pkg install with the legacy-named .pkg
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${XTASK_LEGACY_COMPAT:-true}" = "false" ]; then
+          echo "legacy-compat is switched off; nothing to check"
+          exit 0
+        fi
+        arch="${{ inputs.arch }}"
+        old="$(mktemp -d)"
+        base="https://github.com/imyourboyroy/pyenv-native/releases/download/v0.7.2"
+        curl -fsSL -o "$old/SHA256SUMS" "$base/SHA256SUMS"
+        curl -fsSL -o "$old/pyenv-native-macos-$arch.pkg" "$base/pyenv-native-macos-$arch.pkg"
+        (cd "$old" && grep " pyenv-native-macos-$arch.pkg\$" SHA256SUMS | shasum -a 256 -c -)
+
+        echo "--- install the published 0.7.2 package"
+        sudo installer -pkg "$old/pyenv-native-macos-$arch.pkg" -target /
+        test "$(/usr/local/bin/pyenv --version)" = "pyenv 0.7.2"
+        pkgutil --pkg-info com.pyenv-native.pkg
+
+        echo "--- open the legacy-named package this build publishes, as 0.7.2 tells users to"
+        sudo installer -pkg "dist/pyenv-native-macos-$arch.pkg" -target /
+        /usr/local/bin/enchi --version
+        /usr/local/bin/pyenv --version
+        test -L /usr/local/bin/pyenv
+        test -x /Applications/Enchi.app/Contents/MacOS/enchi-gui
+        pkgutil --pkg-info com.imyourboyroy.enchi.pkg
+
+        echo "--- one uninstall removes the old package's leftovers too"
+        sudo env ENCHI_ROOT="$(mktemp -d)" /usr/local/bin/enchi self-uninstall --system
+        test ! -e /usr/local/bin/enchi
+        test ! -e /usr/local/bin/pyenv
+        test ! -e "/Applications/Pyenv Native.app"
+        test ! -e /Applications/Enchi.app
+        if pkgutil --pkg-info com.pyenv-native.pkg >/dev/null 2>&1; then
+          echo "error: the old package's receipt is still registered" >&2
+          exit 1
+        fi
+
     - name: Exercise the .pkg and .dmg
       shell: bash
       run: |

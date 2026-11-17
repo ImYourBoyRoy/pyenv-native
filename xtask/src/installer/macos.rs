@@ -391,6 +391,23 @@ pub(crate) fn write_pkg(bundle: &Bundle, output_root: &Path, signing: &Signing) 
     Ok(output)
 }
 
+/// Copy `enchi-macos-<arch>.pkg` to the legacy name `pyenv-native-macos-<arch>.pkg`, next to it.
+///
+/// A pyenv-native 0.7.x `.pkg` install cannot be updated by the binary (it defers to the installer)
+/// and tells the user to download `pyenv-native-macos-<arch>.pkg` from the latest release and open
+/// it. Those binaries are already shipped, so the only fix is to publish that exact name. The copy
+/// is byte for byte the Enchi package, so installing it upgrades the old package in place.
+pub(crate) fn write_legacy_pkg(pkg: &Path) -> Result<PathBuf> {
+    let stem = pkg
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .with_context(|| format!("{} has no usable file name", pkg.display()))?;
+    let legacy = pkg.with_file_name(format!("{}.pkg", brand::legacy_bundle_name(stem)));
+    fs::copy(pkg, &legacy)
+        .with_context(|| format!("cannot copy {} to {}", pkg.display(), legacy.display()))?;
+    Ok(legacy)
+}
+
 /// Wrap a `.pkg` in `enchi-macos-<arch>.dmg` with a short read-me.
 pub(crate) fn write_dmg(pkg: &Path, output_root: &Path) -> Result<PathBuf> {
     require_macos()?;
@@ -441,6 +458,35 @@ fn pkg_version(pkg: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_legacy_pkg_is_a_byte_identical_copy_under_the_old_name() {
+        let dir = tempfile::tempdir().unwrap();
+        for (arch, legacy) in [
+            ("x64", "pyenv-native-macos-x64.pkg"),
+            ("arm64", "pyenv-native-macos-arm64.pkg"),
+        ] {
+            let pkg = dir.path().join(format!("enchi-macos-{arch}.pkg"));
+            fs::write(&pkg, format!("package bytes for {arch}")).unwrap();
+            let copy = write_legacy_pkg(&pkg).unwrap();
+            assert_eq!(copy, dir.path().join(legacy));
+            assert_eq!(fs::read(&copy).unwrap(), fs::read(&pkg).unwrap());
+            assert!(pkg.exists(), "the Enchi package must stay in place");
+        }
+    }
+
+    #[test]
+    fn the_legacy_pkg_name_is_what_0_7_binaries_tell_users_to_download() {
+        // 0.7.x prints `pyenv-native-macos-<arch>.pkg`; this is the contract that message relies on.
+        let dir = tempfile::tempdir().unwrap();
+        let pkg = dir.path().join("enchi-macos-arm64.pkg");
+        fs::write(&pkg, "x").unwrap();
+        let name = write_legacy_pkg(&pkg).unwrap();
+        assert_eq!(
+            name.file_name().unwrap().to_str().unwrap(),
+            "pyenv-native-macos-arm64.pkg"
+        );
+    }
 
     #[test]
     fn plist_names_the_gui_executable_and_the_floor() {

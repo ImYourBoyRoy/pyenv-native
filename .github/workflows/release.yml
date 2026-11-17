@@ -335,6 +335,8 @@ jobs:
             dist/pyenv-native-macos-arm64.tar.gz.sha256
             dist/enchi-macos-arm64.pkg
             dist/enchi-macos-arm64.pkg.sha256
+            dist/pyenv-native-macos-arm64.pkg
+            dist/pyenv-native-macos-arm64.pkg.sha256
             dist/enchi-macos-arm64.dmg
             dist/enchi-macos-arm64.dmg.sha256
             dist/enchi-gui-macos-arm64
@@ -398,6 +400,8 @@ jobs:
             dist/pyenv-native-macos-x64.tar.gz.sha256
             dist/enchi-macos-x64.pkg
             dist/enchi-macos-x64.pkg.sha256
+            dist/pyenv-native-macos-x64.pkg
+            dist/pyenv-native-macos-x64.pkg.sha256
             dist/enchi-macos-x64.dmg
             dist/enchi-macos-x64.dmg.sha256
             dist/enchi-gui-macos-x64
@@ -550,6 +554,13 @@ jobs:
             # tar writes these entries as `pyenv` or `./pyenv` depending on the packer.
             echo "$listing" | grep -Eqx '(\./)?pyenv'
             echo "$listing" | grep -Eqx '(\./)?enchi'
+          done
+          # A pyenv-native 0.7.x `.pkg` install tells the user to download this exact name and open
+          # it; it must be the Enchi package, byte for byte.
+          for arch in arm64 x64; do
+            legacy="dist/macos/pyenv-native-macos-$arch.pkg"
+            test -f "$legacy" && test -f "$legacy.sha256"
+            cmp "$legacy" "dist/macos/enchi-macos-$arch.pkg"
           done
           for asset in dist/windows/x64/pyenv-native-windows-x64.zip dist/windows/arm64/pyenv-native-windows-arm64.zip; do
             test -f "$asset" && test -f "$asset.sha256"

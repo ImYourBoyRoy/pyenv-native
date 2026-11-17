@@ -7,12 +7,13 @@
 //!
 //! * `deb`, `rpm`: system packages (`/usr`) that the distro package manager owns and updates.
 //! * `termux`: a `.deb` rooted at the Termux prefix for Android.
-//! * `pkg`, `dmg`: the macOS installer (`/usr/local` plus `/Applications/Pyenv Native.app`) and a
-//!   disk image that carries it; these need the macOS packaging tools, so they run on macOS.
-//! * `nsis`: a per-user Windows setup that runs `pyenv self-install`, so it shares one install
-//!   layout (and the in-place updater) with the scripts and `pyenv self-update`.
+//! * `pkg`, `dmg`: the macOS installer (`/usr/local` plus `/Applications/Enchi.app`) and a
+//!   disk image that carries it; these need the macOS packaging tools, so they run on macOS. `pkg`
+//!   also writes a byte-identical `pyenv-native-macos-<arch>.pkg` for 0.7.x installs to find.
+//! * `nsis`: a per-user Windows setup that runs `enchi self-install`, so it shares one install
+//!   layout (and the in-place updater) with the scripts and `enchi self-update`.
 //!
-//! System packages carry `share/pyenv-native/install-source`; `pyenv self-update` reads it and
+//! System packages carry `share/enchi/install-source`; `enchi self-update` reads it and
 //! defers to the package manager instead of replacing files it does not own.
 
 mod deb;
@@ -38,9 +39,10 @@ pub enum InstallerCommand {
     Rpm(PackageArgs),
     /// Termux package (`.deb` rooted at the Termux prefix) from an Android bundle.
     Termux(PackageArgs),
-    /// macOS installer (`pyenv-native-macos-<arch>.pkg`) from a macOS bundle (run on macOS).
+    /// macOS installer (`enchi-macos-<arch>.pkg`, plus the legacy-named copy) from a macOS bundle
+    /// (run on macOS).
     Pkg(PkgArgs),
-    /// macOS disk image (`pyenv-native-macos-<arch>.dmg`) that carries a `.pkg` (run on macOS).
+    /// macOS disk image (`enchi-macos-<arch>.dmg`) that carries a `.pkg` (run on macOS).
     Dmg(DmgArgs),
     /// Windows setup executable built with NSIS from a Windows bundle (needs `makensis`).
     Nsis(NsisArgs),
@@ -74,6 +76,8 @@ pub struct PkgArgs {
     /// Developer ID Installer identity; without it the package is unsigned.
     #[arg(long, env = "APPLE_INSTALLER_IDENTITY")]
     installer_identity: Option<String>,
+    #[command(flatten)]
+    legacy: crate::bundle::LegacyCompatArgs,
 }
 
 #[derive(Args)]
@@ -140,7 +144,11 @@ pub fn run(command: &InstallerCommand) -> Result<()> {
                     .filter(|identity| !identity.trim().is_empty()),
             };
             let output = macos::write_pkg(&bundle, &args.output_root, &signing)?;
-            finish(&output)
+            finish(&output)?;
+            if args.legacy.enabled() {
+                finish(&macos::write_legacy_pkg(&output)?)?;
+            }
+            Ok(())
         }
         InstallerCommand::Dmg(args) => {
             let output = macos::write_dmg(&args.pkg, &args.output_root)?;

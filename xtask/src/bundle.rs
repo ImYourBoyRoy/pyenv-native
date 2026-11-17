@@ -54,12 +54,22 @@ pub struct BundleArgs {
     /// Leave enchi-gui out even where it would normally be bundled.
     #[arg(long)]
     no_gui: bool,
-    /// Also write the legacy `pyenv-native-<platform>-<arch>` archive (the same contents plus a
-    /// `pyenv` copy of the CLI) that already-installed pyenv-native binaries download to update.
-    /// On by default; `--legacy-compat=false` or `--no-legacy-compat` turns it off. The release
-    /// workflow sets `XTASK_LEGACY_COMPAT=true` for every job, and `--no-legacy-compat` still wins.
+    #[command(flatten)]
+    legacy_compat: LegacyCompatArgs,
+}
+
+/// The switch for publishing legacy-named release files (`pyenv-native-<platform>-<arch>.*`), which
+/// installed pyenv-native binaries fetch to update into Enchi. Shared by `bundle` and
+/// `installer pkg`, so both honour the same flags and `XTASK_LEGACY_COMPAT`.
+#[derive(Args)]
+pub struct LegacyCompatArgs {
+    /// Also write the legacy `pyenv-native-<platform>-<arch>` files that already-installed
+    /// pyenv-native binaries download to update: the archive (the same contents plus a `pyenv`
+    /// copy of the CLI) and, on macOS, a copy of the `.pkg`. On by default;
+    /// `--legacy-compat=false` or `--no-legacy-compat` turns it off. The release workflow sets
+    /// `XTASK_LEGACY_COMPAT=true` for every job, and `--no-legacy-compat` still wins.
     #[arg(
-        long,
+        long = "legacy-compat",
         env = "XTASK_LEGACY_COMPAT",
         default_value_t = true,
         num_args = 0..=1,
@@ -68,16 +78,22 @@ pub struct BundleArgs {
         value_name = "BOOL"
     )]
     legacy_compat: bool,
-    /// Skip the legacy archive (same as `--legacy-compat=false`). It wins over `--legacy-compat`
+    /// Skip the legacy files (same as `--legacy-compat=false`). It wins over `--legacy-compat`
     /// and over `XTASK_LEGACY_COMPAT`: clap counts an environment value as a given argument, so
     /// declaring a conflict would reject this flag in the release workflow.
     #[arg(long)]
     no_legacy_compat: bool,
 }
 
+impl LegacyCompatArgs {
+    pub fn enabled(&self) -> bool {
+        self.legacy_compat && !self.no_legacy_compat
+    }
+}
+
 impl BundleArgs {
     fn legacy(&self) -> bool {
-        self.legacy_compat && !self.no_legacy_compat
+        self.legacy_compat.enabled()
     }
 }
 
